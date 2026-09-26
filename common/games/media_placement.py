@@ -54,19 +54,29 @@ def target_name(kind: str, stem: str, extension: str) -> str:
     return f"{spec.token} {stem}{extension}"
 
 
+def _names_in(folder: Path) -> dict[str, str]:
+    try:
+        return {entry.name.lower(): entry.name for entry in folder.iterdir()
+                if entry.is_file()}
+    except OSError:
+        return {}
+
+
 def _family_at_tier(game_dir: Path, kind: str, stem: str) -> Iterator[Path]:
-    """Every file already serving this kind at this stem's tier, whatever its extension.
+    """Every file already serving this kind at this stem's tier, whatever its token or
+    extension, in the order the resolver reads them: the first one is the one that shows.
 
     Both folders, because a library that predates `medias/` keeps its art beside the
     .vpx and the resolver still reads it.
     """
     spec = _SPEC_BY_KIND[kind]
-    prefix = f"{spec.token} {stem}"
-    for extension in spec.family:
-        for folder in (game_dir / "medias", game_dir):
-            sibling = folder / f"{prefix}{extension}"
-            if sibling.exists():
-                yield sibling
+    folders = [(folder, _names_in(folder)) for folder in (game_dir / "medias", game_dir)]
+    for token in (spec.token, *spec.alt_tokens):
+        for extension in spec.family:
+            wanted = f"{token} {stem}{extension}".lower()
+            for folder, names in folders:
+                if wanted in names:
+                    yield folder / names[wanted]
 
 
 def displaced(game_dir: str | Path, kind: str, stem: str, extension: str) -> list[Path]:
@@ -76,12 +86,8 @@ def displaced(game_dir: str | Path, kind: str, stem: str, extension: str) -> lis
     still say what is about to go. It is not only the file with the same name: the
     whole family at this tier goes, so dropping a .jpg over a .png removes the .png.
     """
-    game_dir = Path(game_dir)
-    target = game_dir / "medias" / target_name(kind, stem, extension)
-    going = set(_family_at_tier(game_dir, kind, stem))
-    if target.exists():
-        going.add(target)
-    return sorted(going)
+    target_name(kind, stem, extension)  # refuses what `place` would refuse
+    return sorted(_family_at_tier(Path(game_dir), kind, stem))
 
 
 def place(game_dir: str | Path, kind: str, stem: str, source: str | Path) -> Path:
@@ -117,7 +123,7 @@ def retier(game_dir: str | Path, kind: str, from_stem: str, to_stem: str) -> Pat
     what is there by exactly the rule a drop would.
     """
     game_dir = Path(game_dir)
-    sources = sorted(_family_at_tier(game_dir, kind, from_stem))
+    sources = list(_family_at_tier(game_dir, kind, from_stem))
     if not sources:
         spec = _SPEC_BY_KIND.get(kind)
         raise UnplaceableError(t("error.games.nothing_in_slot_to_move",

@@ -67,6 +67,30 @@ class PlacementTests(unittest.TestCase):
         self.assertEqual(set(self._medias()) & predicted, set())
         self.assertEqual(self._medias(), ["(Backglass) MyGame.jpg"])
 
+    def test_a_file_under_another_token_is_displaced_and_replaced(self) -> None:
+        for kind, token, alias in (("flyer", "(Flyer)", "(GameInfo)"),
+                                   ("instruction_card", "(InstructionCard)", "(RuleCard)"),
+                                   ("instruction_card", "(InstructionCard)", "(GameHelp)")):
+            with self.subTest(alias=alias):
+                old = self.root / "medias" / f"{alias} {BUILD}.png"
+                old.write_bytes(b"old")
+
+                going = media_placement.displaced(self.root, kind, BUILD, ".jpg")
+                media_placement.place(self.root, kind, BUILD, self._source("new.jpg"))
+
+                self.assertEqual([p.name for p in going], [old.name])
+                self.assertEqual(self._medias(), [f"{token} {BUILD}.jpg"])
+                (self.root / "medias" / f"{token} {BUILD}.jpg").unlink()
+
+    def test_a_file_spelled_in_another_case_is_named_as_it_is_and_replaced(self) -> None:
+        (self.root / "medias" / "(backglass) mygame.png").write_bytes(b"old")
+
+        going = media_placement.displaced(self.root, KIND, GAME, ".png")
+        media_placement.place(self.root, KIND, GAME, self._source())
+
+        self.assertEqual([p.name for p in going], ["(backglass) mygame.png"])
+        self.assertEqual(self._medias(), ["(Backglass) MyGame.png"])
+
 
 class RetierTests(PlacementTests):
     def test_a_builds_file_takes_the_folder_name(self) -> None:
@@ -92,6 +116,31 @@ class RetierTests(PlacementTests):
         media_placement.retier(self.root, KIND, BUILD, GAME)
 
         self.assertEqual(self._medias(), ["(Backglass) MyGame.jpg"])
+
+    def test_a_file_under_another_token_moves(self) -> None:
+        (self.root / "medias" / f"(GameInfo) {BUILD}.png").write_bytes(b"flyer")
+
+        media_placement.retier(self.root, "flyer", BUILD, GAME)
+
+        self.assertEqual(self._medias(), ["(Flyer) MyGame.png"])
+
+    def test_the_file_that_shows_is_the_one_that_moves(self) -> None:
+        cases = (("instruction_card", self.root / "medias" / f"(GameHelp) {BUILD}.png",
+                  self.root / "medias" / f"(InstructionCard) {BUILD}.png",
+                  "(InstructionCard) MyGame.png"),
+                 (KIND, self.root / f"(Backglass) {BUILD}.png",
+                  self.root / "medias" / f"(Backglass) {BUILD}.png",
+                  "(Backglass) MyGame.png"))
+        for kind, behind, shows, moved in cases:
+            with self.subTest(shows=shows.name, behind=behind.name):
+                behind.write_bytes(b"behind")
+                shows.write_bytes(b"shows")
+
+                media_placement.retier(self.root, kind, BUILD, GAME)
+
+                self.assertEqual(b"shows", (self.root / "medias" / moved).read_bytes())
+                behind.unlink()
+                (self.root / "medias" / moved).unlink()
 
     def test_moving_a_file_that_is_not_there_is_refused(self) -> None:
         with self.assertRaises(UnplaceableError) as caught:
