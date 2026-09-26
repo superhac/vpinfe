@@ -787,7 +787,7 @@ body::before {
 .console-field-part { display: flex; align-items: center; gap: 4px; }
 .console-dialog-title {
   font-size: var(--fs-body); font-weight: 600; color: var(--ink); line-height: 1.35;
-  padding: 0 12px 6px;
+  padding: 0 12px 6px; word-break: break-word;
 }
 .console-dialog-footer { justify-content: flex-end; gap: 8px; width: 100%; padding: 14px 12px 0; }
 .console-dialog-footer > .console-dialog-aside { margin-right: auto; }
