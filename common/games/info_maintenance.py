@@ -21,6 +21,7 @@ from common.games.info_migration import (
     replace_atomic,
     restorable_backup,
 )
+from common.i18n import t
 from common.jobs import JobReporter, LogCallback, ProgressCallback
 
 logger = logging.getLogger("vpinfe.common.games.info_maintenance")
@@ -99,7 +100,7 @@ def upgrade_library(
                              "failures": [], "matches_bound": 0, "matches_dropped": 0}
 
     log("Upgrading .info files. Each one is backed up first, so this can be undone.")
-    reporter.progress(0, total, "Starting")
+    reporter.progress(0, total, t("said.starting"))
 
     for index, game_dir in enumerate(folders, start=1):
         reporter.progress(index, total, game_dir.name)
@@ -155,7 +156,7 @@ def restore_library(
 
     log("Restoring backups. Your current .info files are backed up first, so this can be "
         "undone too.")
-    reporter.progress(0, total, "Starting")
+    reporter.progress(0, total, t("said.starting"))
 
     for index, game_dir in enumerate(folders, start=1):
         reporter.progress(index, total, game_dir.name)

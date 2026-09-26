@@ -32,6 +32,7 @@ from pathlib import Path
 from urllib.parse import quote, urlparse
 
 from common.games.export_bundle import bundle_paths, prune_info
+from common.i18n import t
 
 logger = logging.getLogger("vpinfe.common.games.mobile_transfer")
 
@@ -87,11 +88,11 @@ def send(game_dir: Path, host: str, port: int, *,
     total = len(contents)
     for index, (path, arcname) in enumerate(_ordered(contents), start=1):
         if on_progress:
-            on_progress(index - 1, total, f"{name}: {arcname}")
+            on_progress(index - 1, total, t("said.sending_file", game=name, file=arcname))
         _put(host, port, name, str(arcname).replace(os.sep, "/"), path,
              _content_of(path, arcname, contents, name), chunk_bytes)
     if on_progress:
-        on_progress(total, total, f"{name}: sent")
+        on_progress(total, total, t("said.game_sent", game=name))
     _refresh(host, port)
     return total
 

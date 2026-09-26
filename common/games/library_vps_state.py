@@ -34,6 +34,7 @@ from common.games import (
 from common.games.game import Game
 from common.games.game_service import load_vpsdb
 from common.games.media_service import CACHE_DIR
+from common.i18n import t
 from common.jobs import JobReporter
 from common.online import obtainability, vps_kinds
 
@@ -194,7 +195,7 @@ def compute(games: dict, per_game: Callable[[Game, str], dict],
     total = len(games)
     for index, (game_id, game) in enumerate(games.items()):
         if reporter is not None:
-            reporter.progress(index, total, "Counting what the catalog lists")
+            reporter.progress(index, total, t("said.counting_what_vps_lists"))
         try:
             state = per_game(game, game_id)
         except Exception:

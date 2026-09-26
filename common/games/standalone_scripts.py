@@ -12,6 +12,7 @@ import requests
 from common.games.game import Game
 from common.games.info_file import MetaConfig
 from common.http_client import download_file, get_json
+from common.i18n import t
 
 logger = logging.getLogger("vpinfe.common.games.standalone_scripts")
 
@@ -93,7 +94,8 @@ class StandaloneScripts:
              current += 1
              if self.progress_cb and total:
                  try:
-                     self.progress_cb(current - 1, total, f"Checking {game.game_dir_name}")
+                     self.progress_cb(current - 1, total,
+                                      t("said.checking_game", game=game.game_dir_name))
                  except Exception:
                      pass
              basepath = game.full_path_game or ""

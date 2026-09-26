@@ -52,12 +52,12 @@ def send(device_id: str, game_ids: Iterable[str],
             return sent
 
         for index, folder in enumerate(folders):
-            reporter.progress(index, len(folders), f"Sending {folder.name}")
+            reporter.progress(index, len(folders), t("said.sending_game", game=folder.name))
             mobile_transfer.send(folder, device.address, device.port,
                                  everything=everything, on_progress=reporting(index))
         reporter.progress(len(folders), len(folders),
-                          f"Sent {len(folders)} to "
-                          f"{device.display_name or device_id}")
+                          t("said.sent_games_to", count=len(folders),
+                            device=device.display_name or device_id))
 
     try:
         return job_registry.submit(job_registry.KIND_DEVICE_SEND, work)

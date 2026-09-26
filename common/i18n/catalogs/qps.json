@@ -2485,6 +2485,7 @@
   "order.direction.oldest_first": "Öŀđèšţ ƒîřšţ",
   "order.direction.z_to_a": "Ž ţö À",
   "said.and_more": "...àñđ {value} ɱöřè",
+  "said.checking_game": "Çĥèçķîñĝ {game}",
   "said.copied_to_devices": {
     "one": "Çöþîèđ ţö 1 đèṽîçè.",
     "other": "Çöþîèđ ţö {count} đèṽîçèš."
@@ -2496,17 +2497,29 @@
   "said.could_not_read_the_settings": "Çöûŀđ ñöţ řèàđ ţĥè šèţţîñĝš: {exc}",
   "said.could_not_remove_it": "Çöûŀđ ñöţ řèɱöṽè îţ: {exc}",
   "said.could_not_save_it": "Çöûŀđ ñöţ šàṽè îţ: {exc}",
+  "said.counting_what_vps_lists": "Çöûñţîñĝ ŵĥàţ ṼÞŠ ŀîšţš",
   "said.device_failed": "{name} - {error}",
+  "said.finding_tables": "Ƒîñđîñĝ ţàƀŀèš",
+  "said.game_sent": "Šèñţ {game}",
   "said.getting_art_for": "Ĝèţţîñĝ àřţ ƒöř {game}",
   "said.give_it_a_name": "Ĝîṽè îţ à ñàɱè",
   "said.guides": {
     "one": "{count} ĝûîđè",
     "other": "{count} ĝûîđèš"
   },
+  "said.matching_new_games": "Ḿàţçĥîñĝ ñèŵ ĝàɱèš",
   "said.no_program_set": "{launcher_name} ĥàš ñö þřöĝřàɱ šèţ.",
   "said.nothing_was_copied": "Ñöţĥîñĝ ŵàš çöþîèđ. {trouble}",
   "said.processing_game": "Þřöçèššîñĝ {game}",
   "said.program_not_there": "{launcher_name} þöîñţš àţ šöɱèţĥîñĝ ţĥàţ îš ñöţ ţĥèřè: {path}",
+  "said.reading_new_tables": "Řèàđîñĝ ñèŵ ţàƀŀèš",
+  "said.reading_the_library": "Řèàđîñĝ ţĥè ŀîƀřàřý",
+  "said.sending_file": "{game} - {file}",
+  "said.sending_game": "Šèñđîñĝ {game}",
+  "said.sent_games_to": {
+    "one": "Šèñţ 1 ĝàɱè ţö {device}",
+    "other": "Šèñţ {count} ĝàɱèš ţö {device}"
+  },
   "said.skipping_game": "Šķîþþîñĝ {game}",
   "said.starting": "Šţàřţîñĝ",
   "said.updating_art_for": "Ûþđàţîñĝ àřţ ƒöř {game}",

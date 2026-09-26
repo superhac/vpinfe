@@ -16,6 +16,7 @@ from common import jobs, shutdown
 from common.games.library_discovery import discover
 from common.games.library_enrichment import enrich
 from common.games.table_identity import ensure_unique_table_ids
+from common.i18n import t
 from common.jobs import JobReporter
 
 logger = logging.getLogger("vpinfe.common.games.library_refresh")
@@ -30,24 +31,24 @@ def refresh(reporter: JobReporter | None = None) -> dict:
     from common.games.game_repository import all_games
 
     if reporter:
-        reporter.progress(0, 4, "Reading the library")
+        reporter.progress(0, 4, t("said.reading_the_library"))
     games = all_games(reload=True)
     # Taken straight after the read: any request that reaches the catalog gives these
     # an id, and then nothing can tell they are new.
     unseen = [game for game in games if not game_identity.game_id(game)]
 
     if reporter:
-        reporter.progress(1, 4, "Reconciling tables")
+        reporter.progress(1, 4, t("said.finding_tables"))
     found = discover(games)
     # Between the halves, not after: this is what makes a discovered entry addressable.
     ensure_unique_table_ids(games)
 
     if reporter:
-        reporter.progress(2, 4, "Matching new games")
+        reporter.progress(2, 4, t("said.matching_new_games"))
     matched = auto_match.match_new(unseen)
 
     if reporter:
-        reporter.progress(3, 4, "Reading new tables")
+        reporter.progress(3, 4, t("said.reading_new_tables"))
     read = enrich(games, reporter)
 
     # Stamped here because this is the pass that knows a game is new. A game added
@@ -61,7 +62,7 @@ def refresh(reporter: JobReporter | None = None) -> dict:
               **{f"new_{k}": v for k, v in matched.items()},
               "new_unmatched_ids": _waiting(unseen)}
     if reporter:
-        reporter.progress(4, 4, "Done")
+        reporter.progress(4, 4, t("word.done"))
     logger.info("Library refresh: %s games, %s tables found, %s read, %s of %s new "
                 "games matched", len(games), found["found"], read["read"],
                 matched["matched"], matched["games"])
