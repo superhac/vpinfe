@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from common import events
+from common import events, i18n
 from frontend import play_events
 from frontend.api import API
 
@@ -69,6 +69,18 @@ class TestApiInputMapping(unittest.TestCase):
         self.assertEqual(ini.config.get("input", "tutorial"), "key:t,pad:0/button:15")
         self.assertTrue(ini.saved)
         self.assertTrue(ini.saved)
+
+    @patch("frontend.api.all_games", return_value=[])
+    def test_its_answer_is_in_the_catalogs_words(self, _mock_games) -> None:
+        self.addCleanup(i18n.set_language, i18n.language())
+        i18n.set_language("qps")
+        api = API(self._build_ini())
+
+        self.assertEqual(api.set_button_mapping("joytutorial", 15)["message"],
+                         i18n.t("frontend.input_api.mapped",
+                                action=i18n.t("input.tutorial.label"), button=15))
+        self.assertEqual(api.set_button_mapping("joynothing", 15)["message"],
+                         i18n.t("frontend.input_api.no_such_action", action="joynothing"))
 
     @patch("frontend.api.all_games", return_value=[])
     def test_get_keymapping_includes_keytutorial(self, _mock_games) -> None:

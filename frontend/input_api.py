@@ -16,6 +16,7 @@ from typing import Any
 
 from common import config_schema, input_registry
 from common.config_access import ConfigSource, cfg_get
+from common.i18n import t
 
 logger = logging.getLogger("vpinfe.frontend.input_api")
 
@@ -132,7 +133,8 @@ def set_button_mapping(iniconfig: ConfigSource, action_name: str,
     """
     name = input_registry.action_for_legacy_key(action_name)
     if not name:
-        return {"success": False, "message": f"Invalid action: {action_name}"}
+        return {"success": False,
+                "message": t("frontend.input_api.no_such_action", action=action_name)}
     try:
         parser = _parser(iniconfig)
         if not parser.has_section(input_registry.SECTION):
@@ -143,6 +145,9 @@ def set_button_mapping(iniconfig: ConfigSource, action_name: str,
         kept.append(f"{input_registry.PAD_PREFIX}0/button:{button_index}")
         parser.set(input_registry.SECTION, name, ",".join(kept))
         iniconfig.save()
-        return {"success": True, "message": f"Mapped {name} to button {button_index}"}
-    except Exception as exc:
-        return {"success": False, "message": f"Error saving mapping: {exc}"}
+    except Exception:
+        logger.exception("Could not save the button mapping for %s", name)
+        return {"success": False, "message": t("frontend.input_api.not_saved")}
+    label = next(action.label for action in input_registry.actions() if action.name == name)
+    return {"success": True,
+            "message": t("frontend.input_api.mapped", action=label, button=button_index)}
