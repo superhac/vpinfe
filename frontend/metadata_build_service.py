@@ -56,9 +56,10 @@ def start_build(api: API, *, build_metadata_func: Callable[..., Any],
         except jobs.JobBusyError:
             event_queue.put({"type": "buildmeta_error",
                              "error": t("frontend.buildmeta.library_busy")})
-        except Exception as exc:
-            event_queue.put({"type": "buildmeta_error", "error": str(exc)})
+        except Exception:
             logger.exception("build_metadata failed")
+            event_queue.put({"type": "buildmeta_error",
+                             "error": t("frontend.buildmeta.stopped")})
         finally:
             event_queue.put({"type": "buildmeta_done"})
 

@@ -2368,6 +2368,7 @@
   "filter.year_range.summary": "Released from one year to another",
   "frontend.buildmeta.build_metadata_started": "Build metadata started",
   "frontend.buildmeta.library_busy": "The library is busy - try again when it finishes",
+  "frontend.buildmeta.stopped": "Stopped partway - the log says why",
   "frontend.collectionmenu.all_games": "All Games",
   "frontend.collectionmenu.ascending": "Ascending",
   "frontend.collectionmenu.collections": "Collections:",

@@ -543,6 +543,15 @@ class BuildMetadataJobTests(unittest.TestCase):
         self.assertEqual(event, {"type": "buildmeta_error",
                                  "error": t("frontend.buildmeta.library_busy")})
 
+    def test_a_scan_that_breaks_says_so_in_words(self) -> None:
+        scan = mock.Mock(side_effect=PermissionError(13, "Permission denied", "/tables/x"))
+
+        with self.assertLogs("vpinfe.frontend.metadata_build_service", "ERROR"):
+            event = self.build(scan)
+
+        self.assertEqual(event, {"type": "buildmeta_error",
+                                 "error": t("frontend.buildmeta.stopped")})
+
 
 if __name__ == "__main__":
     unittest.main()
