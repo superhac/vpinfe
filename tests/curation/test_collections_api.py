@@ -559,10 +559,6 @@ class CollectionsApiTests(TempTree):
                          "/api/v1/collections")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class CollectionEntriesTests(CollectionsApiTests):
     """The play lens. Same resolution the theme payload uses, serialized for REST."""
 
@@ -983,3 +979,7 @@ class MemberTableTests(TempTree):
 
         self.assertEqual(response.status_code, 404)
         self.assertEqual(self._refs(), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

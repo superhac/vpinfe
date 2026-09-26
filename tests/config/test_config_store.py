@@ -188,10 +188,6 @@ class IniConversionTests(ConfigStoreTests):
         self.assertEqual(self._payload()[SCHEMA_KEY], CONFIG_SCHEMA + 5)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class RetiredValueTests(ConfigStoreTests):
     """A key rename carried the key and left the value in the old vocabulary.
 
@@ -385,3 +381,6 @@ class MovedSectionTests(ConfigStoreTests):
         self.assertEqual(after["behavior"]["paging_size"], 10)
         self.assertIs(after["behavior"]["confirm"], False)
 
+
+if __name__ == "__main__":
+    unittest.main()

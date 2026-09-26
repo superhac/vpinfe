@@ -151,10 +151,6 @@ class RecordingTests(TempTree):
         self.assertEqual(self._source().get("vps_file_id"), "f1")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class DropDeclarationTests(TempTree):
     """The Manager UI half: where the user let go is the declaration.
 
@@ -243,3 +239,7 @@ class ImportRecordingTests(TempTree):
             host="vpsdb", host_item_id="h1", vps_file_id="f1",
             confirmed_by=claims.DECLARED))
         self.assertTrue(meta.data.get("assets"))
+
+
+if __name__ == "__main__":
+    unittest.main()

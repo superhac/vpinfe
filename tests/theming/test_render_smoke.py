@@ -480,10 +480,6 @@ class RenderSmokeTests(TempTree):
         self.assertIn("theme exploded", log)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 async def _settles(browser, quiet: float = 1.0, patience: float = 15.0):
     """Wait for the wheel to stop moving, then say whether it stayed stopped.
 
@@ -502,3 +498,7 @@ async def _settles(browser, quiet: float = 1.0, patience: float = 15.0):
             return now, await browser.evaluate("window.__moves")
         seen = now
     raise AssertionError(f"the wheel never stopped moving ({seen} steps and counting)")
+
+
+if __name__ == "__main__":
+    unittest.main()

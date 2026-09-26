@@ -259,10 +259,6 @@ class BackupTests(TempTree):
         self.assertEqual(self._backups(), [])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class CollisionOrderingTests(TempTree):
     """Two backups in the same second still sort in the order they were made.
 
@@ -291,3 +287,7 @@ class CollisionOrderingTests(TempTree):
 
         self.assertGreater(second, first)
         self.assertIn("20260802T000000Z", second)
+
+
+if __name__ == "__main__":
+    unittest.main()

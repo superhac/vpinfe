@@ -161,10 +161,6 @@ class CollectionViewTests(_Library):
                          ["Alpha", "Bravo"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class CabinetCollectionRowsTests(_Library):
     """What the cabinet's collection menu and core's picker are handed per collection."""
 
@@ -270,3 +266,7 @@ class CollectionGoneTests(_Library):
         self._refresh(api)
 
         self.assertEqual(self._rows(api), self.WHOLE_LIBRARY)
+
+
+if __name__ == "__main__":
+    unittest.main()

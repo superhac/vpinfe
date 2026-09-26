@@ -223,10 +223,6 @@ class TestMetaConfig(unittest.TestCase):
             self.assertIn("invalid JSON at line 1 column 2", str(ctx.exception))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class VPinFESchemaTests(TempTree):
     """The VPinFE section carries a schema version; the rest of the file does not."""
 
@@ -472,3 +468,7 @@ class DefaultTableRefusalTests(unittest.TestCase):
         with self.assertRaises(ValueError) as said:
             self.meta.set_default_table("kept")
         self.assertEqual(str(said.exception), t("error.games.hidden_table_not_default"))
+
+
+if __name__ == "__main__":
+    unittest.main()

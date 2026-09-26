@@ -173,10 +173,6 @@ class CheckTests(WizardCase):
         self.assertEqual(filesystem.within_roots(str(FIXTURE / "Config")).name, "Config")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class StepOrderTests(WizardCase):
     """Which question comes next, and why it does not depend on how somebody got here."""
 
@@ -227,3 +223,7 @@ class SummaryShapeTests(WizardCase):
         after = [one[0] for one in found["summary"][at + 1:]]
         self.assertEqual(after, ["Games", "Game files", "Artwork files",
                                  "Backglasses and settings"])
+
+
+if __name__ == "__main__":
+    unittest.main()

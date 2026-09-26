@@ -379,10 +379,6 @@ class RegistrationTests(unittest.TestCase):
         self.assertNotIn("error", outside.json())
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class DeclaredIdentityEndpointTests(unittest.TestCase):
     """The import endpoint refuses a claim it cannot trust, before anything is written.
 
@@ -441,3 +437,7 @@ class GpuFieldTests(unittest.TestCase):
             with self.subTest(key=one["key"]):
                 self.assertEqual(one["label"], t(one["label_key"]))
                 self.assertNotEqual(one["label"], one["label_key"])
+
+
+if __name__ == "__main__":
+    unittest.main()

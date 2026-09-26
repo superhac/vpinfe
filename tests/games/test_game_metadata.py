@@ -49,9 +49,6 @@ class LegacyMetadataFieldTests(unittest.TestCase):
         self.assertEqual(game_themes(game), ["Music", "Movies"])
         self.assertEqual(game_type(game), "SS")
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class FavoriteTests(unittest.TestCase):
     """A real boolean, and a producer at last."""
@@ -159,3 +156,7 @@ class RetagTests(unittest.TestCase):
         changed, out = self._run([["Wide Body"]], ["Wide Body"], "Wide Body")
 
         self.assertEqual((changed, out), (0, [["Wide Body"]]))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -64,10 +64,6 @@ class FailureTests(unittest.TestCase):
             _apply(b"AB", bytes([ESC, EQL, 200]))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TableVisibilityTests(unittest.TestCase):
     """A patched table leaves its base in the folder, so a folder can hold tables
     the user does not want offered. Hiding never deletes: the patched table cannot be
@@ -99,3 +95,7 @@ class TableVisibilityTests(unittest.TestCase):
         from common.games.tables import hidden_tables
         for bad in (None, [], "nope", {"a.vpx": "yes"}, {"a.vpx": {"hidden": "true"}}):
             self.assertEqual(hidden_tables(bad), set(), repr(bad))
+
+
+if __name__ == "__main__":
+    unittest.main()

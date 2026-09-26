@@ -28,10 +28,6 @@ class ThirdPartyLoaderTests(unittest.TestCase):
             self.assertEqual(module.DemoController.value, 42)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class DisplayEnumerationTests(unittest.TestCase):
     """A machine that cannot list its displays still starts.
 
@@ -62,3 +58,7 @@ class DisplayEnumerationTests(unittest.TestCase):
         self.service._query_monitors = self._explode
         with self.assertLogs("vpinfe.common.host.display_service", "WARNING"):
             self.assertEqual(self.service.monitors_as_dicts(), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

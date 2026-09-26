@@ -139,9 +139,6 @@ class ThemeStoreDetectionTests(unittest.TestCase):
             self.assertTrue(store.is_version_newer("1.3.0-beta", "1.2"))
             self.assertFalse(store.is_version_newer("1.2.0", "1.2"))
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class MinimumVersionGateTests(unittest.TestCase):
     """A theme states the oldest build it runs on. Nothing was checking it at install.
@@ -242,3 +239,7 @@ class ThemesPutThereByHand(unittest.TestCase):
 
             self.assertTrue(self._registry(root).is_installed("Mine"))
             self.assertFalse(self._registry(root).is_installed("Elsewhere"))
+
+
+if __name__ == "__main__":
+    unittest.main()

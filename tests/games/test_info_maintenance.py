@@ -202,10 +202,6 @@ class WalkTests(LibraryTestCase):
         self.assertEqual(game_dirs(self.root / "nope"), [])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class WhatThePageSaysTests(LibraryTestCase):
     """Which of the three things the Tables page tells the user.
 
@@ -253,3 +249,7 @@ class WhatThePageSaysTests(LibraryTestCase):
         counts = self._counts()
 
         self.assertEqual(counts, {"pending_upgrade": 0, "restorable": 0, "newer_than_us": 0})
+
+
+if __name__ == "__main__":
+    unittest.main()

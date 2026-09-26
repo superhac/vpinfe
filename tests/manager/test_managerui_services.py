@@ -441,10 +441,6 @@ class PageStylesheetTests(unittest.TestCase):
         self.assertEqual(missing, [], "\n".join(missing))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class PagingOptionLabelTests(unittest.TestCase):
     """The `Page by` control warns in the option, not only in a caption beside it.
 
@@ -509,3 +505,7 @@ class SaveBarTracksBindingsTests(unittest.TestCase):
 
     def test_nothing_rendered_is_nothing_watched(self) -> None:
         self.assertEqual(tracked_values({}, {}), {})
+
+
+if __name__ == "__main__":
+    unittest.main()

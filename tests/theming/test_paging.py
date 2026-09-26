@@ -171,10 +171,6 @@ class TestApiGetPageIndex(unittest.TestCase):
         self.assertEqual(api.get_page_index("not-a-number", "next"), 1)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestGroupPagingFollowsTheOrder(unittest.TestCase):
     """A group press moves to the next boundary in whatever the list is ordered by.
 
@@ -202,3 +198,6 @@ class TestGroupPagingFollowsTheOrder(unittest.TestCase):
 
         self.assertEqual(page_jump_index(games, 0, "next", order_by="title"), 2)
 
+
+if __name__ == "__main__":
+    unittest.main()

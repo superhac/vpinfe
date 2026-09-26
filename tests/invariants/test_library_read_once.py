@@ -95,10 +95,6 @@ class LibraryIsReadOnceTests(unittest.TestCase):
                                         + ", ".join(offenders))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class GamesUnderTests(TempTree):
     """Five callers used to build a parser of their own and rescan everything.
 
@@ -186,3 +182,6 @@ class LoaderPatchSitesTests(unittest.TestCase):
                          "tests/support/library_loader.py names the modules a test has to "
                          "patch; this is the list of modules that actually import it")
 
+
+if __name__ == "__main__":
+    unittest.main()

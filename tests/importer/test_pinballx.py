@@ -294,10 +294,6 @@ class ReadTests(unittest.TestCase):
         self.assertEqual(found["Taxi"], "")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TableFileTests(unittest.TestCase):
     """Which file in the tables folder is the table.
 
@@ -337,3 +333,7 @@ class TableFileTests(unittest.TestCase):
         found = self._pick(plays=lambda s: s.lower() == ".fpt")
 
         self.assertTrue(found.endswith(".fpt"))
+
+
+if __name__ == "__main__":
+    unittest.main()

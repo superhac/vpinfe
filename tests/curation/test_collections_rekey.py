@@ -230,10 +230,6 @@ class DisplayPathTests(TempTree):
             self.assertEqual(game_repository.collections_by_game_id(), {})
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class BackupTests(TempTree):
     """Collections are the other file this branch rewrites.
 
@@ -632,8 +628,8 @@ class UnresolvedMemberReportingTests(TempTree):
         from common.games.collection_store import CollectionStore
         path = self.root / "collections.json"
         store = CollectionStore(str(path))
-        store.add_collection("Favourites")
-        store._require("Favourites")["members"] = list(members)
+        store.add_collection("Favorites")
+        store._require("Favorites")["members"] = list(members)
         store._schema = 0
         return store
 
@@ -642,7 +638,7 @@ class UnresolvedMemberReportingTests(TempTree):
         with self.assertLogs("vpinfe.common.games.collection_store", "WARNING") as logged:
             store.migrate_membership_to_game_ids([])
         joined = "\n".join(logged.output)
-        self.assertIn("Favourites", joined)
+        self.assertIn("Favorites", joined)
         self.assertIn("vps-gone-1", joined)
         self.assertIn("vps-gone-2", joined)
 
@@ -651,3 +647,6 @@ class UnresolvedMemberReportingTests(TempTree):
         with self.assertNoLogs("vpinfe.common.games.collection_store", "WARNING"):
             store.migrate_membership_to_game_ids([])
 
+
+if __name__ == "__main__":
+    unittest.main()

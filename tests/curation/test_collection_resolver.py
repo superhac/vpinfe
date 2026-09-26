@@ -585,10 +585,6 @@ class VisibleEntryTests(unittest.TestCase):
         self.assertEqual([e["filename"] for e in visible_entries(game)], ["a.vpx"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class OrderDefaultTests(TempTree):
     """A collection curated before curated order existed was shown alphabetically.
     Honouring its insertion order would reshuffle a list the user is used to, so
@@ -633,3 +629,7 @@ class OrderDefaultTests(TempTree):
 
         self.assertEqual(self.collections.get_order("Recent"),
                          {"by": "last_played", "direction": "desc", "paging_group": None})
+
+
+if __name__ == "__main__":
+    unittest.main()

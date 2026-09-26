@@ -35,10 +35,6 @@ class MediaSpecTests(unittest.TestCase):
                          os.path.join(root, "medias", "fss.png"))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class MediaFamilyTests(unittest.TestCase):
     """What a kind's files are, which is what decides the element that presents one.
 
@@ -73,3 +69,7 @@ class MediaFamilyTests(unittest.TestCase):
         for spec in MEDIA_SPECS:
             with self.subTest(kind=spec.kind):
                 self.assertNotEqual(media_family(spec.kind), "")
+
+
+if __name__ == "__main__":
+    unittest.main()

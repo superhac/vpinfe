@@ -188,10 +188,6 @@ class BoundsTests(AdoptCase):
             self._ctx.games.put_media(game_id, "hologram", art)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class FolderNameTests(unittest.TestCase):
     """The folder a name becomes is core's rule, and the importer asks rather than
     reproduces it.
@@ -303,3 +299,7 @@ class RowShapeTests(unittest.TestCase):
             for key in counted:
                 with self.subTest(function=name, key=key):
                     self.assertIn(f'"{key}"', body)
+
+
+if __name__ == "__main__":
+    unittest.main()
