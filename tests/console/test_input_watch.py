@@ -15,8 +15,7 @@ import json
 import re
 import unittest
 
-from common import input_registry
-from common.i18n import t
+from common import i18n, input_registry
 from console import input_watch, settings
 
 
@@ -50,6 +49,52 @@ class TheNamesComeFromPython(unittest.TestCase):
                 self.assertEqual(_as_the_script_would(code), expected)
 
 
+# The standard `KeyboardEvent.code` values, from the UI Events code tables: the writing
+# system, functional, control pad, arrow pad, numpad, function and media sections.
+STANDARD_CODES = (
+    "Backquote Backslash BracketLeft BracketRight Comma Equal IntlBackslash IntlRo IntlYen "
+    "Minus Period Quote Semicolon Slash "
+    "AltLeft AltRight Backspace CapsLock ContextMenu ControlLeft ControlRight Enter "
+    "MetaLeft MetaRight ShiftLeft ShiftRight Space Tab "
+    "Convert KanaMode Lang1 Lang2 Lang3 Lang4 Lang5 NonConvert "
+    "Delete End Help Home Insert PageDown PageUp "
+    "ArrowDown ArrowLeft ArrowRight ArrowUp "
+    "NumLock NumpadAdd NumpadBackspace NumpadClear NumpadClearEntry NumpadComma "
+    "NumpadDecimal NumpadDivide NumpadEnter NumpadEqual NumpadHash NumpadMemoryAdd "
+    "NumpadMemoryClear NumpadMemoryRecall NumpadMemoryStore NumpadMemorySubtract "
+    "NumpadMultiply NumpadParenLeft NumpadParenRight NumpadStar NumpadSubtract "
+    "Escape Fn FnLock PrintScreen ScrollLock Pause "
+    "BrowserBack BrowserFavorites BrowserForward BrowserHome BrowserRefresh BrowserSearch "
+    "BrowserStop Eject LaunchApp1 LaunchApp2 LaunchMail MediaPlayPause MediaSelect "
+    "MediaStop MediaTrackNext MediaTrackPrevious Power Sleep AudioVolumeDown "
+    "AudioVolumeMute AudioVolumeUp WakeUp"
+).split() + [f"Key{letter}" for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"] \
+    + [f"Digit{n}" for n in range(10)] + [f"Numpad{n}" for n in range(10)]
+
+
+class EveryKeyHasAName(unittest.TestCase):
+    def test_no_standard_code_is_shown_as_it_was_stored(self) -> None:
+        """In the pseudo-locale, where an English name that happens to match its code
+        (Enter, Tab) still reads differently when it came from the catalog."""
+        self.addCleanup(i18n.set_language, i18n.language())
+        i18n.set_language("qps")
+        raw = [code for code in STANDARD_CODES
+               if input_registry.describe(f"key:{code}") == code]
+        self.assertEqual([], raw)
+
+    def test_the_script_names_each_one_as_python_does(self) -> None:
+        for code in STANDARD_CODES:
+            with self.subTest(code=code):
+                self.assertEqual(input_registry.describe(f"key:{code}"),
+                                 _as_the_script_would(code))
+
+    def test_a_numpad_key_is_said_by_what_is_printed_on_it(self) -> None:
+        for code, expected in (("NumpadAdd", "Numpad +"), ("NumpadDecimal", "Numpad ."),
+                               ("NumpadEnter", "Numpad Enter")):
+            with self.subTest(code=code):
+                self.assertEqual(expected, input_registry.describe(f"key:{code}"))
+
+
 def _as_the_script_would(code: str) -> str:
     """The script's `keyName`, in Python, so the two can be compared.
 
@@ -63,8 +108,6 @@ def _as_the_script_would(code: str) -> str:
         return code[3:]
     if re.fullmatch(r"Digit.", code):
         return code[5:]
-    if code.startswith("Numpad"):
-        return t("input.key.numpad", key="{key}").replace("{key}", code[len("Numpad"):])
     return code
 
 

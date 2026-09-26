@@ -282,13 +282,44 @@ _KEY_WORDS = {
     "Escape": "input.key.escape", "Enter": "input.key.enter", "Space": "input.key.space",
     "Tab": "input.key.tab", "Backspace": "input.key.backspace",
     "Delete": "input.key.delete", "Home": "input.key.home", "End": "input.key.end",
+    "Insert": "input.key.insert", "Help": "input.key.help",
+    "CapsLock": "input.key.caps_lock", "NumLock": "input.key.num_lock",
+    "ScrollLock": "input.key.scroll_lock", "PrintScreen": "input.key.print_screen",
+    "Pause": "input.key.pause", "ContextMenu": "input.key.context_menu",
+    "Fn": "input.key.fn", "FnLock": "input.key.fn_lock",
+    "IntlBackslash": "input.key.intl_backslash", "IntlRo": "input.key.intl_ro",
+    "Convert": "input.key.convert", "NonConvert": "input.key.non_convert",
+    "KanaMode": "input.key.kana_mode",
+    "AudioVolumeUp": "input.key.volume_up", "AudioVolumeDown": "input.key.volume_down",
+    "AudioVolumeMute": "input.key.volume_mute", "MediaPlayPause": "input.key.play_pause",
+    "MediaTrackNext": "input.key.track_next",
+    "MediaTrackPrevious": "input.key.track_previous", "MediaStop": "input.key.media_stop",
+    "MediaSelect": "input.key.media_select", "Eject": "input.key.eject",
+    "Power": "input.key.power", "Sleep": "input.key.sleep", "WakeUp": "input.key.wake_up",
+    "BrowserBack": "input.key.browser_back", "BrowserForward": "input.key.browser_forward",
+    "BrowserHome": "input.key.browser_home", "BrowserRefresh": "input.key.browser_refresh",
+    "BrowserSearch": "input.key.browser_search", "BrowserStop": "input.key.browser_stop",
+    "BrowserFavorites": "input.key.browser_favorites", "LaunchMail": "input.key.mail",
 }
 # A code names the key; a chip shows what is printed on it, in every language.
 _KEY_SYMBOLS = {
     "Minus": "-", "Equal": "=", "BracketLeft": "[", "BracketRight": "]",
     "Backslash": "\\", "Semicolon": ";", "Quote": "'", "Comma": ",",
-    "Period": ".", "Slash": "/", "Backquote": "`",
+    "Period": ".", "Slash": "/", "Backquote": "`", "IntlYen": "¥",
 }
+_NUMPAD_SYMBOLS = {
+    **{str(n): str(n) for n in range(10)},
+    "Add": "+", "Subtract": "-", "Multiply": "*", "Divide": "/", "Decimal": ".",
+    "Comma": ",", "Equal": "=", "ParenLeft": "(", "ParenRight": ")", "Hash": "#",
+    "Star": "*", "MemoryAdd": "M+", "MemorySubtract": "M-", "MemoryClear": "MC",
+    "MemoryRecall": "MR", "MemoryStore": "MS",
+}
+_NUMPAD_WORDS = {
+    "Enter": "input.key.enter", "Backspace": "input.key.backspace",
+    "Clear": "input.key.clear", "ClearEntry": "input.key.clear_entry",
+}
+_NUMBERED = {"Lang": ("input.key.lang", range(1, 6)),
+             "LaunchApp": ("input.key.launch_app", range(1, 3))}
 
 
 def key_names() -> dict[str, str]:
@@ -297,7 +328,10 @@ def key_names() -> dict[str, str]:
     Handed over rather than reimplemented: a browser reading a gamepad cannot call
     `describe`, and a second copy of this table is a second thing to keep in step.
     """
-    return {**{code: t(key) for code, key in _KEY_WORDS.items()}, **_KEY_SYMBOLS}
+    codes = [*_KEY_WORDS, *_KEY_SYMBOLS,
+             *(f"Numpad{rest}" for rest in (*_NUMPAD_SYMBOLS, *_NUMPAD_WORDS)),
+             *(f"{stem}{n}" for stem, (_, numbers) in _NUMBERED.items() for n in numbers)]
+    return {code: _key_name(code) for code in codes}
 
 
 def _key_name(code: str) -> str:
@@ -309,10 +343,17 @@ def _key_name(code: str) -> str:
         return code[3]
     if code.startswith("Digit") and len(code) == 6:
         return code[5]
-    if code.startswith("Numpad"):
-        return t("input.key.numpad", key=code[len("Numpad"):])
-    # A single character is already its own name, and an unknown code is more use shown
-    # than replaced with a guess.
+    rest = code[len("Numpad"):] if code.startswith("Numpad") else ""
+    if rest in _NUMPAD_SYMBOLS:
+        return t("input.key.numpad", key=_NUMPAD_SYMBOLS[rest])
+    if rest in _NUMPAD_WORDS:
+        return t("input.key.numpad", key=t(_NUMPAD_WORDS[rest]))
+    for stem, (key, numbers) in _NUMBERED.items():
+        number = code[len(stem):]
+        if code.startswith(stem) and number.isdigit() and int(number) in numbers:
+            return t(key, number=number)
+    # A function key's code is what is printed on it, and an unknown code is more use
+    # shown than replaced with a guess.
     return code
 
 

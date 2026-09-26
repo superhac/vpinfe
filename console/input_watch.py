@@ -52,7 +52,6 @@ _WATCH_JS = """
     if (NAMES[code]) return NAMES[code];
     if (/^Key.$/.test(code)) return code.slice(3);
     if (/^Digit.$/.test(code)) return code.slice(5);
-    if (code.startsWith('Numpad')) return WORDS.numpad.replace('{key}', code.slice(6));
     return code;
   };
 
@@ -136,7 +135,6 @@ def strip() -> None:
         # The slots are left in for the script to fill.
         "words": json.dumps({
             "nothing": t("console.input_watch.nothing_yet"),
-            "numpad": t("input.key.numpad", key="{key}"),
             "pad": t("input.pad_button", pad="{pad}", button="{button}"),
         }),
         "keep": KEEP,
