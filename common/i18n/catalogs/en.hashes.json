@@ -2416,6 +2416,7 @@
   "media.kind.topper.label": "c56c7578729e",
   "media.kind.topper_video.label": "749921655c67",
   "media.kind.wheel.label": "7118a0e9f50f",
+  "metrics.gpu.card": "30eb349b9634",
   "metrics.gpu.fan_speed.label": "0ef19959ee93",
   "metrics.gpu.gpu_clock.label": "efc9e82a472c",
   "metrics.gpu.gpu_util.label": "bd4bdb27ffea",

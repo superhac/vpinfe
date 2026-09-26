@@ -2701,6 +2701,7 @@
   "media.kind.topper.label": "Ţöþþèř",
   "media.kind.topper_video.label": "Ţöþþèř Ṽîđèö",
   "media.kind.wheel.label": "Ŵĥèèŀ",
+  "metrics.gpu.card": "Çàřđ {number}",
   "metrics.gpu.fan_speed.label": "Ƒàñ",
   "metrics.gpu.gpu_clock.label": "ĜÞÛ çŀöçķ",
   "metrics.gpu.gpu_util.label": "Ûţîŀîžàţîöñ",

@@ -168,8 +168,11 @@ def gpu() -> dict[str, Any]:
 
     # Per card, not aggregated. Two cards averaged is a number describing neither, and a
     # machine with a second card is exactly the machine somebody is looking at this for.
+    several = sum(isinstance(card, dict) for card in cards) > 1
     found_cards = [
-        {"id": index, "name": card.get("device_name") or t("word.unknown"),
+        {"id": index,
+         "name": card.get("device_name") or (t("metrics.gpu.card", number=index)
+                                             if several else t("word.unknown")),
          **{key: card.get(key) for key, _label in GPU_FIELDS}}
         for index, card in enumerate(cards, start=1) if isinstance(card, dict)]
     if not found_cards:

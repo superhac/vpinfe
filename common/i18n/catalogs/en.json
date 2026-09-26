@@ -2701,6 +2701,7 @@
   "media.kind.topper.label": "Topper",
   "media.kind.topper_video.label": "Topper Video",
   "media.kind.wheel.label": "Wheel",
+  "metrics.gpu.card": "Card {number}",
   "metrics.gpu.fan_speed.label": "Fan",
   "metrics.gpu.gpu_clock.label": "GPU clock",
   "metrics.gpu.gpu_util.label": "Utilization",
