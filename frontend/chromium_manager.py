@@ -335,17 +335,6 @@ class ChromiumManager:
             iniconfig: IniConfig instance with display and network settings
             base_url: Base URL for the HTTP server
         """
-        if sys.platform == "darwin":
-            monitors = get_mac_screens()
-            logger.info(
-                "Detected %s macOS screens (via NSScreen): %s", len(monitors), monitors
-            )
-        else:
-            from screeninfo import get_monitors
-
-            monitors = get_monitors()
-            logger.info("Detected %s monitors: %s", len(monitors), monitors)
-
         network = NetworkConfig.from_config(iniconfig)
         displays = DisplayConfig.from_config(iniconfig)
         settings = SettingsConfig.from_config(iniconfig)
@@ -359,6 +348,43 @@ class ChromiumManager:
             ("dmd", "dmdscreenid"),
             ("table", "tablescreenid"),
         ]
+
+        # How many monitors this config actually needs -- e.g. bgscreenid=1
+        # means at least 2 monitors (index 0 and 1) must be visible.
+        configured_screen_ids = [
+            int(displays.window_screen_id(config_key).strip())
+            for _, config_key in window_configs
+            if displays.window_screen_id(config_key).strip()
+        ]
+        expected_monitor_count = (max(configured_screen_ids) + 1) if configured_screen_ids else 1
+
+        if sys.platform == "darwin":
+            monitors = get_mac_screens()
+            logger.info(
+                "Detected %s macOS screens (via NSScreen): %s", len(monitors), monitors
+            )
+        else:
+            from screeninfo import get_monitors
+
+            # screeninfo queries connected outputs via X11/XRandR (over
+            # Xwayland under Hyprland). Confirmed directly: on the very
+            # first launch of this process per boot, Xwayland can still be
+            # mirroring Hyprland's real outputs into its XRandR view at
+            # this exact moment, so this can return fewer monitors than
+            # actually exist -- any screen_id beyond that silently skips
+            # its window entirely (see the check below), or a
+            # partially-populated list maps a configured index to the
+            # wrong physical output. Every launch after the first, same
+            # boot, doesn't hit this (Xwayland/XRandR is already warm).
+            # Retry for a few seconds instead of accepting the first
+            # answer outright, so a slow-to-enumerate Xwayland doesn't
+            # silently misplace windows.
+            monitors = get_monitors()
+            deadline = time.time() + 5.0
+            while len(monitors) < expected_monitor_count and time.time() < deadline:
+                time.sleep(0.2)
+                monitors = get_monitors()
+            logger.info("Detected %s monitors: %s", len(monitors), monitors)
 
         for window_name, config_key in window_configs:
             screen_id_str = displays.window_screen_id(config_key).strip()
