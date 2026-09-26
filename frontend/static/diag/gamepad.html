@@ -333,7 +333,10 @@
 
         const valueDiv = document.createElement("div");
         valueDiv.classList.add("mapping-value");
-        valueDiv.textContent = `Button ${currentMappings[key] || 'Not Set'}`;
+        valueDiv.textContent = currentMappings[key]
+          ? vpin.t("frontend.gamepad.button_number", "Button {button}",
+                   { button: currentMappings[key] })
+          : vpin.t("word.none", "None");
 
         div.appendChild(labelDiv);
         div.appendChild(valueDiv);

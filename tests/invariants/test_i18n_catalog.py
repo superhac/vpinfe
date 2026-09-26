@@ -825,10 +825,23 @@ class TestWordsHandedToQuasar(unittest.TestCase):
 STATIC = ROOT / "frontend" / "static"
 ELEMENT = re.compile(r"<([a-zA-Z][\w-]*)\b([^<>]*?)>([^<>]*[A-Za-z][^<>]*?)</\1>")
 SCRIPT_OR_STYLE = re.compile(r"<(script|style)\b.*?</\1>", re.S | re.I)
-WRITES_TEXT = re.compile(r"""(textContent|innerHTML|innerText)\s*=\s*(['"])(.*?)\2""")
+WRITES_TEXT = re.compile(
+    r"""(textContent|innerHTML|innerText)\s*=\s*(?:(['"])(.*?)\2|`([^`]*)`)""")
+HOLE = re.compile(r"\$\{((?:[^{}]|\{[^{}]*\})*)\}")
+CALLS_T = re.compile(r"""\bt\(\s*(['"])[^'"]*\1(?:\s*,\s*(['"])(?:(?!\2).)*\2)?""")
+QUOTED = re.compile(r"""(['"])((?:(?!\1).)*)\1""")
+TAG = re.compile(r"<[^>]*>")
 # `title` never shows under kiosk, `option` carries values a script rewrites, and both
 # would be noise rather than findings.
 UNCHECKED_TAGS = {"title", "script", "style", "option"}
+
+
+def _template_words(literal: str) -> list[str]:
+    """The text around a template literal's placeholders, and each quoted string inside
+    one that is not an argument to `t()`."""
+    around = TAG.sub(" ", HOLE.sub(" ", literal))
+    return [around] + [said for hole in HOLE.findall(literal)
+                       for _quote, said in QUOTED.findall(CALLS_T.sub("", hole))]
 
 
 def _reads_as_prose(text: str) -> bool:
@@ -1097,10 +1110,20 @@ class TestFrontendChrome(unittest.TestCase):
         for path in sorted(STATIC.rglob("*")):
             if path.suffix not in (".html", ".js") or not path.is_file():
                 continue
-            for prop, _quote, said in WRITES_TEXT.findall(path.read_text(encoding="utf-8")):
-                if _reads_as_prose(said):
-                    offenders.append(f"{path.relative_to(ROOT)}: {prop} = {said[:40]!r}")
+            text = path.read_text(encoding="utf-8")
+            for prop, quote, said, template in WRITES_TEXT.findall(text):
+                for one in [said] if quote else _template_words(template):
+                    if _reads_as_prose(one):
+                        offenders.append(f"{path.relative_to(ROOT)}: {prop} = "
+                                         f"{one.strip()[:40]!r}")
         self.assertEqual(offenders, [], "call t(key, english) instead")
+
+    def test_a_template_literal_is_read_through_its_placeholders(self) -> None:
+        self.assertEqual(
+            [one.strip() for one in _template_words(
+                "Button ${pick[key] || 'Not Set'} ${t('a.b', 'Rating')}"
+                " <span style=\"color:#fff;\">${stars}</span>")],
+            ["Button", "Not Set"])
 
     def test_every_key_the_markup_names_is_served(self) -> None:
         """A key with no entry renders as whatever English is between the tags, which

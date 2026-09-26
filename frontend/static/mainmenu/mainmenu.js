@@ -454,7 +454,10 @@ function renderRatingStars() {
   const filled = '★'.repeat(ratingDraft);
   const empty = '☆'.repeat(5 - ratingDraft);
   document.getElementById('rating-current-text').innerHTML =
-    `Current: <span style="color:#ffd84d;">${filled}</span><span style="color:#777;">${empty}</span> (${ratingDraft}/5)`;
+    t('frontend.mainmenu.current_rating', 'Current: {stars} ({rating}/5)', {
+      stars: `<span style="color:#ffd84d;">${filled}</span><span style="color:#777;">${empty}</span>`,
+      rating: ratingDraft,
+    });
 }
 
 async function showRatingDialog() {
