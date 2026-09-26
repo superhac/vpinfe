@@ -61,7 +61,7 @@ def staged_for(path: str | Path) -> Iterator[Path]:
             staged.unlink(missing_ok=True)
 
 
-def write_atomic(path: str | Path, write: Callable[[IO[str]], None]) -> None:
+def write_atomic(path: str | Path, write: Callable[[IO[str]], object]) -> None:
     """Write a file so a reader sees the old one or the new one, never half of one.
 
     open(path, "w") truncates before writing, and the id backfill rewrites every .info in

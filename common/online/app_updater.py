@@ -18,6 +18,7 @@ from pathlib import Path
 import requests
 
 from common import service_errors, timestamps
+from common.atomic_write import staged_for, write_atomic
 from common.http_client import download_file, get_json, unreachable
 from common.i18n import t
 from common.online.update_scripts import (
@@ -363,9 +364,7 @@ def _saved() -> dict | None:
 def _keep(record: dict) -> None:
     try:
         UPDATE_CHECK_PATH.parent.mkdir(parents=True, exist_ok=True)
-        part = UPDATE_CHECK_PATH.with_name(UPDATE_CHECK_PATH.name + ".part")
-        part.write_text(json.dumps(record, indent=2), encoding="utf-8")
-        os.replace(part, UPDATE_CHECK_PATH)
+        write_atomic(UPDATE_CHECK_PATH, lambda out: json.dump(record, out, indent=2))
     except OSError:
         logger.warning("Could not keep the update check", exc_info=True)
 
@@ -472,17 +471,14 @@ def prepare_update() -> dict:
         zip_path.unlink()
 
     if not zip_path.exists():
-        temp_path = stage_dir / f"{asset_name}.part"
-        if temp_path.exists():
-            temp_path.unlink()
-        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Downloading {asset_name} to {temp_path}")
-        _download_file(asset_url, temp_path)
-        actual_sha = _sha256_file(temp_path)
-        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Downloaded asset sha256={actual_sha}")
-        if actual_sha != expected_sha:
-            temp_path.unlink(missing_ok=True)
-            raise UpdateError(t("error.instance.download_damaged"))
-        temp_path.replace(zip_path)
+        with staged_for(zip_path) as temp_path:
+            _append_log_line(LAST_UPDATE_LOG,
+                             f"[Updater] Downloading {asset_name} to {temp_path}")
+            _download_file(asset_url, temp_path)
+            actual_sha = _sha256_file(temp_path)
+            _append_log_line(LAST_UPDATE_LOG, f"[Updater] Downloaded asset sha256={actual_sha}")
+            if actual_sha != expected_sha:
+                raise UpdateError(t("error.instance.download_damaged"))
         _append_log_line(LAST_UPDATE_LOG, f"[Updater] Cached verified asset at {zip_path}")
     else:
         _append_log_line(LAST_UPDATE_LOG, f"[Updater] Reusing cached asset {zip_path}")

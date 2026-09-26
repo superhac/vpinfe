@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
-import threading
 from pathlib import Path
 from typing import NamedTuple
 
 from common import service_errors
+from common.atomic_write import staged_for
 from common.i18n import t
 from common.paths import CONFIG_DIR
 
@@ -74,7 +73,6 @@ def _copy(source: Path, size: int, current: str) -> Path | None:
         return target
     if (source, current) in _UNREADABLE:
         return None
-    partial = folder / f".{target.name}.{os.getpid()}-{threading.get_ident()}"
     try:
         from PIL import Image, ImageOps
 
@@ -88,12 +86,11 @@ def _copy(source: Path, size: int, current: str) -> Path | None:
             picture = picture.convert("RGBA" if alpha else "RGB")
             picture.thumbnail((size, size), Image.Resampling.LANCZOS)
             folder.mkdir(parents=True, exist_ok=True)
-            picture.save(partial, format="WEBP", quality=_QUALITY, method=4)
-        os.replace(partial, target)
+            with staged_for(target) as partial:
+                picture.save(partial, format="WEBP", quality=_QUALITY, method=4)
     except Exception as exc:
         logger.warning("Could not make a %spx copy of %s: %s", size, source, exc)
         _UNREADABLE.add((source, current))
-        partial.unlink(missing_ok=True)
         return None
     for older in folder.glob(f"{size}-*.webp"):
         if older != target:

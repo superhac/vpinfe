@@ -14,6 +14,7 @@ import shutil
 import urllib.request
 from pathlib import Path
 
+from common.atomic_write import STAGED_PREFIX, STAGED_SUFFIX
 from common.games.collection_store import COLLECTIONS_NAME, COLLECTIONS_NAME_INI
 from common.games.info_file import ASSETS_KEY, VPINFE_SECTION
 from common.games.info_maintenance import game_dirs, restore_library
@@ -46,10 +47,6 @@ BACKED_UP_NAMES = ("vpinfe.ini", "vpinfe.json", COLLECTIONS_NAME_INI, COLLECTION
 # itself. A phone is entered by hand, nothing re-announces it, and the [mobile] import
 # that could have rebuilt one is marker-guarded and has already run.
 KEPT_BEFORE_REMOVAL = ("devices.json",)
-
-# What an atomic write leaves behind if it was killed between mkstemp and os.replace.
-WRITE_TEMP_PREFIX = ".vpinfe_write_"
-WRITE_TEMP_SUFFIX = ".tmp"
 
 # Which of the two baselines the reset produced, reported rather than left to infer.
 RESTORED_FROM_2X = "restored_from_2x"
@@ -231,7 +228,7 @@ def _config_targets(config_dir: Path) -> list[Path]:
 
 
 def _is_write_temp(name: str) -> bool:
-    return name.startswith(WRITE_TEMP_PREFIX) and name.endswith(WRITE_TEMP_SUFFIX)
+    return name.startswith(STAGED_PREFIX) and name.endswith(STAGED_SUFFIX)
 
 
 def _sweep(folder: Path, owned: str, result: dict) -> int:

@@ -12,11 +12,11 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import threading
 from typing import Any
 
 from common import service_errors
+from common.atomic_write import write_atomic
 from common.failures import why
 from common.i18n import t
 from common.online import theme_service, theme_sources, theme_sync
@@ -84,11 +84,9 @@ def _cached() -> ThemeRegistry | None:
 
 def _keep(registry: ThemeRegistry) -> None:
     try:
+        kept = {**registry.snapshot(), "sources": _sources_now()}
         THEME_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        part = THEME_CACHE_PATH.with_name(THEME_CACHE_PATH.name + ".part")
-        part.write_text(json.dumps({**registry.snapshot(), "sources": _sources_now()}),
-                        encoding="utf-8")
-        os.replace(part, THEME_CACHE_PATH)
+        write_atomic(THEME_CACHE_PATH, lambda out: json.dump(kept, out))
     except Exception:  # noqa: BLE001 - an unwritten copy costs the next start a read
         logger.warning("Could not keep the theme list", exc_info=True)
 

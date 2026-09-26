@@ -14,14 +14,13 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-import tempfile
 from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from common import timestamps
+from common.atomic_write import write_atomic
 from common.games import (
     asset_origin,
     asset_registry,
@@ -167,15 +166,11 @@ def store(rollup: dict[str, Any]) -> None:
     """Written whole and atomically - a half-written rollup reads as a plausible one,
     and the numbers would be believed."""
     ROLLUP_PATH.parent.mkdir(parents=True, exist_ok=True)
-    handle, temp_path = tempfile.mkstemp(dir=ROLLUP_PATH.parent,
-                                         prefix=".vpinfe_write_", suffix=".tmp")
     try:
-        with os.fdopen(handle, "w", encoding="utf-8") as out:
-            json.dump({"schema": SCHEMA, **rollup}, out, indent=2)
-        os.replace(temp_path, ROLLUP_PATH)
+        write_atomic(ROLLUP_PATH,
+                     lambda out: json.dump({"schema": SCHEMA, **rollup}, out, indent=2))
     except Exception:
         logger.exception("Could not write %s", ROLLUP_PATH)
-        Path(temp_path).unlink(missing_ok=True)
 
 
 _TALLIES = ("holding", "identified", "listed", "obtainable", "updated", "new_upstream")

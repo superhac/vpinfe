@@ -12,13 +12,11 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-import tempfile
 from collections.abc import Iterable
-from pathlib import Path
 from typing import Any
 
 from common import timestamps
+from common.atomic_write import write_atomic
 from common.paths import CONFIG_DIR
 
 logger = logging.getLogger("vpinfe.common.games.watching")
@@ -46,15 +44,11 @@ def _load() -> dict[str, Any]:
 
 def _save(data: dict[str, Any]) -> None:
     WATCHING_PATH.parent.mkdir(parents=True, exist_ok=True)
-    handle, temp_path = tempfile.mkstemp(dir=WATCHING_PATH.parent,
-                                         prefix=".vpinfe_write_", suffix=".tmp")
     try:
-        with os.fdopen(handle, "w", encoding="utf-8") as out:
-            json.dump({**data, "schema": SCHEMA}, out, indent=2)
-        os.replace(temp_path, WATCHING_PATH)
+        write_atomic(WATCHING_PATH,
+                     lambda out: json.dump({**data, "schema": SCHEMA}, out, indent=2))
     except Exception:
         logger.exception("Could not write %s", WATCHING_PATH)
-        Path(temp_path).unlink(missing_ok=True)
 
 
 def since() -> str:

@@ -14,6 +14,9 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from common import ui_preferences
+from common.failures import why
+from common.i18n import t
+from tests.support.skips import needs_posix_permissions
 
 try:
     from starlette.testclient import TestClient
@@ -70,6 +73,18 @@ class StorageTests(unittest.TestCase):
         leftovers = list(self.path.parent.glob(".vpinfe_write_*"))
         self.assertEqual(leftovers, [], "a temp file survived a failed write")
         self.assertEqual(ui_preferences.get("games"), LAYOUT, "the old value stands")
+
+    @needs_posix_permissions
+    def test_a_folder_it_cannot_write_is_named(self) -> None:
+        folder = self.path.parent
+        folder.chmod(0o555)
+        self.addCleanup(folder.chmod, 0o755)
+
+        with self.assertRaises(OSError) as caught:
+            ui_preferences.put("games", LAYOUT)
+
+        self.assertEqual(why(caught.exception),
+                         t("said.why.no_permission_at", path=str(folder)))
 
 
 class ResetTests(unittest.TestCase):

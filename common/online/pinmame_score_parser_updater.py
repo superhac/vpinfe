@@ -6,9 +6,9 @@ import hashlib
 import logging
 import time
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 from common import http_client, timestamps
+from common.atomic_write import staged_for
 from common.config_store import ConfigStore
 from common.paths import CONFIG_DIR, USER_ROMS_PATH
 
@@ -140,10 +140,8 @@ def ensure_latest_roms_json(iniconfig: ConfigStore) -> dict:
             "tracked_sha": tracked_sha,
         }
 
-    with NamedTemporaryFile(delete=False, suffix=".roms.json", dir=str(CONFIG_DIR)) as tmp:
-        temp_path = Path(tmp.name)
-
-    try:
+    ROMS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with staged_for(ROMS_JSON_PATH) as temp_path:
         logger.info("Downloading latest roms.json from %s", download_url)
         _download_file(download_url, temp_path)
         downloaded_sha = _sha256_file(temp_path)
@@ -154,22 +152,13 @@ def ensure_latest_roms_json(iniconfig: ConfigStore) -> dict:
                 f"expected {expected_sha}, got {downloaded_sha.lower()}"
             )
 
-        ROMS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
-        temp_path.replace(ROMS_JSON_PATH)
-        iniconfig.config.set(
-            RELEASE_SECTION, RELEASE_SHA_KEY, fingerprint or downloaded_sha.lower())
-        _stamp(iniconfig)
-        logger.info("Updated roms.json at %s", ROMS_JSON_PATH)
-        return {
-            "status": "downloaded",
-            "path": ROMS_JSON_PATH,
-            "tracked_sha": fingerprint or downloaded_sha.lower(),
-            "file_sha": downloaded_sha.lower(),
-        }
-    finally:
-        try:
-            if temp_path.exists():
-                temp_path.unlink()
-        except Exception:
-            logger.debug(
-                "Could not remove temporary roms.json download: %s", temp_path, exc_info=True)
+    iniconfig.config.set(
+        RELEASE_SECTION, RELEASE_SHA_KEY, fingerprint or downloaded_sha.lower())
+    _stamp(iniconfig)
+    logger.info("Updated roms.json at %s", ROMS_JSON_PATH)
+    return {
+        "status": "downloaded",
+        "path": ROMS_JSON_PATH,
+        "tracked_sha": fingerprint or downloaded_sha.lower(),
+        "file_sha": downloaded_sha.lower(),
+    }

@@ -12,10 +12,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-import tempfile
 from typing import Any
 
+from common.atomic_write import write_atomic
 from common.paths import CONFIG_DIR
 
 logger = logging.getLogger("vpinfe.common.ui_preferences")
@@ -47,13 +46,5 @@ def put(scope: str, value: dict[str, Any]) -> dict[str, Any]:
     # Atomic: a half-written layout would be read as an empty one on next start, and
     # silently reset every table the user had arranged.
     PREFERENCES_PATH.parent.mkdir(parents=True, exist_ok=True)
-    handle, temp_path = tempfile.mkstemp(dir=PREFERENCES_PATH.parent,
-                                         prefix=".vpinfe_write_", suffix=".tmp")
-    try:
-        with os.fdopen(handle, "w", encoding="utf-8") as stream:
-            stream.write(payload)
-        os.replace(temp_path, PREFERENCES_PATH)
-    except Exception:
-        os.unlink(temp_path)
-        raise
+    write_atomic(PREFERENCES_PATH, lambda stream: stream.write(payload))
     return value
