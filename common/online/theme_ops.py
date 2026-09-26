@@ -253,7 +253,7 @@ def activate(key: str) -> dict[str, Any]:
     registry = _readable()
     if not key or not registry.is_installed(key):
         raise service_errors.RefusedError(
-            t("error.themes.not_installed_2", value=(key or 'That theme')))
+            t("error.themes.not_installed_2", theme=(key or 'That theme')))
     theme_service.set_active_theme(key)
     return {"active": theme_service.get_active_theme()}
 

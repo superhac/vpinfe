@@ -145,7 +145,7 @@ def put(location_id: str, path: str, kind: str = "") -> dict[str, Any]:
     if kind not in locations.KINDS:
         raise service_errors.RefusedError(
             t("error.locations.no_location_kind_called", kind=(kind),
-                    join=(', '.join(locations.KINDS))))
+                    kinds=', '.join(locations.KINDS)))
 
     store = locations.get_location_store()
     written = store.put(locations.Location(location_id=wanted, path=path, kind=kind))

@@ -177,7 +177,7 @@ class RetierTests(PlacementTests):
 
         self.assertEqual(str(caught.exception),
                          t("error.games.slot_does_not_take", slot=spec.label,
-                           extension=".mp3", join=", ".join(spec.family)))
+                           extension=".mp3", extensions=", ".join(spec.family)))
         self.assertEqual(self._medias(), [])
 
 

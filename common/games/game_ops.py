@@ -160,7 +160,7 @@ def curate_guides(held: list[Any], wanted: list[dict[str, Any]]) -> list[dict[st
             kind = str(one.get("kind") or GUIDE_TUTORIAL)
             if kind not in GUIDE_KINDS:
                 raise service_errors.RefusedError(t("error.games.guide_kind_unknown",
-                                                    kind=kind, join=", ".join(GUIDE_KINDS)))
+                                                    kind=kind, kinds=", ".join(GUIDE_KINDS)))
             if urlparse(address).scheme not in ("http", "https"):
                 raise service_errors.RefusedError(t("error.games.guide_not_an_address",
                                                     url=address))
@@ -223,7 +223,7 @@ def set_overrides(game_id: str, changes: dict) -> dict:
     unknown = set(changes) - set(GAME_OVERRIDES)
     if unknown:
         raise service_errors.RefusedError(
-            t("error.games.not_game_s_set", join=(", ".join(sorted(unknown)))))
+            t("error.games.not_game_s_set", keys=", ".join(sorted(unknown))))
 
     game_dir = Path(game.full_path_game)
     for name, value in changes.items():

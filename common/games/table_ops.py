@@ -220,7 +220,7 @@ def set_overrides(game_id: str, table_id: str, changes: dict) -> dict:
     unknown = set(changes) - set(TABLE_OVERRIDES)
     if unknown:
         raise service_errors.RefusedError(
-            t("error.games.not_table_s_set", join=(", ".join(sorted(unknown)))))
+            t("error.games.not_table_s_set", keys=", ".join(sorted(unknown))))
 
     game_dir = Path(game.full_path_game)
     if table_id not in table_entries(load_game_meta(game)):
@@ -284,7 +284,7 @@ def add_keyed(game_id: str, app_id: str, key: str) -> dict:
     if app is None:
         raise service_errors.RefusedError(
             t("error.games.no_app_called_build", app_id=(app_id),
-              join=(", ".join(one.id for one in apps.all_apps()))))
+              apps=", ".join(one.id for one in apps.all_apps())))
     if not app.claim.accepts_keys:
         raise service_errors.RefusedError(
             t("error.games.plays_files_not_names", app_name=(apps.app_name(app_id))))

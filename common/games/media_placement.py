@@ -50,7 +50,7 @@ def target_name(kind: str, stem: str, extension: str) -> str:
     extension = extension.lower()
     if extension not in spec.family:
         raise UnplaceableError(t("error.games.slot_does_not_take", slot=spec.label,
-                                 extension=extension, join=", ".join(spec.family)))
+                                 extension=extension, extensions=", ".join(spec.family)))
     return f"{spec.token} {stem}{extension}"
 
 

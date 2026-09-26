@@ -127,7 +127,7 @@ def put(launcher_id: str, body: dict[str, Any]) -> dict[str, Any]:
     if apps.get(app_id) is None:
         raise service_errors.RefusedError(
             t("error.launchers.no_app_called_build", app_id=(app_id),
-                    join=(', '.join(app.id for app in apps.all_apps()))))
+                    apps=', '.join(app.id for app in apps.all_apps())))
 
     store = launchers.get_launcher_store()
     name = str(body.get("display_name") or "").strip() or apps.app_name(app_id)
@@ -252,7 +252,7 @@ def app_config(launcher_id: str, table: str = "",
     if scope not in config.scopes():
         raise service_errors.RefusedError(
             t("error.launchers.no_scope_called_app", scope=(scope),
-                    join=(', '.join(config.scopes()))))
+                    scopes=', '.join(config.scopes())))
     target = _game_file(table)
     values = config.read(scope, target, settings)
     scopes_for = _scopes_for(config)

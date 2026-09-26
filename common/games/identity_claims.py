@@ -66,7 +66,7 @@ class DeclaredIdentity:
         basis = str(self.confirmed_by or "").strip().lower()
         if basis and basis not in ACCEPTED_FROM_CALLERS:
             found.append(t("error.identity.basis_not_accepted", basis="confirmed_by",
-                           join=", ".join(ACCEPTED_FROM_CALLERS)))
+                           accepted=", ".join(ACCEPTED_FROM_CALLERS)))
         if self.names_a_record and not basis:
             found.append(t("error.identity.record_needs_basis", basis="confirmed_by"))
         if basis and not (self.names_a_record or self.game_id or self.table_id):
