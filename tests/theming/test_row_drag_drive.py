@@ -27,6 +27,9 @@ SMART = "Smart Bally"
 GAMES = {"Alpha": ("Bally", "1992"), "Bravo": ("Bally", "1995"),
          "Charlie": ("Williams", "1993"), "Delta": ("Williams", "1980"),
          "Echo": ("Williams", "2005"), "Foxtrot": ("Stern", "1999")}
+# Rows in the drop that passes a megabyte on the socket; the last one is the only
+# one not already in the collection.
+MANY = 100_000
 
 API = ("(() => { const el = document.querySelector('.ag-root-wrapper')"
        ".closest('.nicegui-aggrid'); return getElement(Number(el.id.slice(1))).api; })()")
@@ -283,6 +286,18 @@ class RowDragDrive(unittest.TestCase):
                                             "&game=bravo"}], "dragOperationsMask": 1}
             await drop(elsewhere, x, y)
             seen["refused"] = await said("another VPinFE")
+            await settled()
+
+            many = {"items": [{"mimeType": "text/uri-list", "data": "\r\n".join(
+                [instance.console_url("/console?view=games&game=delta")] * MANY
+                + [instance.console_url("/console?view=games&game=foxtrot")])}],
+                "dragOperationsMask": 1}
+            await drop(many, x, y)
+            for _ in range(60):
+                seen["many"] = refs(HAND)
+                if any(game == "foxtrot" for game, _t, _o in seen["many"]):
+                    break
+                await asyncio.sleep(0.25)
         return seen
 
     def test_a_drag_carries_each_row_s_console_address(self) -> None:
@@ -343,6 +358,10 @@ class RowDragDrive(unittest.TestCase):
         text, classes = self.seen["refused"]
         self.assertIn("nothing was added", text)
         self.assertIn("bg-warning", classes)
+
+    def test_a_drop_past_a_megabyte_arrives_whole(self) -> None:
+        self.assertGreater(len(json.dumps([["delta", ""]] * MANY)), 1_000_000)
+        self.assertIn("foxtrot", [game for game, _t, _o in self.seen["many"]])
 
 
 if __name__ == "__main__":

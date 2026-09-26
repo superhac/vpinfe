@@ -9,7 +9,7 @@ from typing import Any
 from nicegui import ui
 
 from common.i18n import t
-from console import collection_adds, offload, verbs
+from console import collection_adds, grid, offload, verbs
 
 logger = logging.getLogger("vpinfe.console.row_drag")
 
@@ -194,8 +194,22 @@ if (!window.__hubRowDrop) {
     if (!zone) return;
     const {rows, foreign} = readRows(event.dataTransfer);
     if (!rows.length && !foreign) return;
-    emitEvent('__DROPPED__', {collection: zone.getAttribute('data-drop-collection'),
-                              at: where ? where.at : null, rows: rows, foreign: foreign});
+    const turn = window.__hubDropTurn = (window.__hubDropTurn || 0) + 1;
+    const parts = [[]];
+    let size = 0;
+    for (const row of rows) {
+      const cost = row.game.length + row.table.length + 8;
+      if (size + cost > __CHARS__ && parts[parts.length - 1].length) {
+        parts.push([]);
+        size = 0;
+      }
+      parts[parts.length - 1].push([row.game, row.table]);
+      size += cost;
+    }
+    const collection = zone.getAttribute('data-drop-collection');
+    const place = where ? where.at : null;
+    parts.forEach((part, at) => emitEvent('__DROPPED__', {
+      collection, place, foreign, turn, at, of: parts.length, rows: part}));
   }, true);
 
   document.addEventListener('dragend', () => {
@@ -208,7 +222,8 @@ if (!window.__hubRowDrop) {
 
 def install() -> None:
     """Put the drag and the drop on the page. Once per page, before any grid."""
-    ui.run_javascript(_SCRIPT.replace("__DRAGGED__", DRAGGED).replace("__DROPPED__", DROPPED))
+    ui.run_javascript(_SCRIPT.replace("__DRAGGED__", DRAGGED).replace("__DROPPED__", DROPPED)
+                      .replace("__CHARS__", str(grid.SELECTION_PART_CHARS)))
 
 
 def rail(state: dict[str, Any]) -> None:
@@ -247,17 +262,21 @@ async def dragging(library: Any, state: dict[str, Any]) -> None:
 
 async def dropped(library: Any, state: dict[str, Any], args: Any) -> None:
     """Rows let go on a collection: added through the one add, or refused where they
-    came from another install."""
+    came from another install. `args` is one part of the drop; nothing happens until the
+    last is in."""
     said = args if isinstance(args, dict) else {}
+    pairs = state.setdefault("drop_parts", grid.Parts("rows")).take(said)
+    if pairs is None:
+        return
     name = str(said.get("collection") or "")
     if int(said.get("foreign") or 0):
         ui.notify(t("console.adds.from_elsewhere"), type="warning")
         return
-    rows = [collection_adds.Row(str(one.get("game") or ""), str(one.get("table") or ""))
-            for one in said.get("rows") or [] if isinstance(one, dict) and one.get("game")]
+    rows = [collection_adds.Row(str(pair[0]), str(pair[1] or ""))
+            for pair in pairs if isinstance(pair, list) and len(pair) == 2 and pair[0]]
     if not name or not rows:
         return
-    at = said.get("at")
+    at = said.get("place")
 
     async def redrawn() -> None:
         if state.get("view") == "collections":

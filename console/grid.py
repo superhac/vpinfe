@@ -661,6 +661,33 @@ _SEND_HIDDEN = """() => {
 }"""
 
 
+class Parts:
+    """A list the browser sends in parts, `{turn, at, of, <key>: [...]}`, gathered."""
+
+    def __init__(self, key: str = "ids") -> None:
+        self.key = key
+        self._turn = 0
+        self._parts: dict[int, list[Any]] = {}
+
+    def take(self, part: Any) -> list[Any] | None:
+        """Keep one part. The whole list once every part of its turn is here, else None;
+        a part of a turn older than the newest seen is dropped."""
+        if not isinstance(part, dict):
+            return None
+        turn, at, of, items = (part.get(key) for key in ("turn", "at", "of", self.key))
+        if not (isinstance(turn, int) and isinstance(at, int) and isinstance(of, int)
+                and isinstance(items, list)) or turn < self._turn:
+            return None
+        if turn > self._turn:
+            self._turn, self._parts = turn, {}
+        self._parts[at] = items
+        if len(self._parts) < of:
+            return None
+        whole = [item for index in range(of) for item in self._parts.get(index, ())]
+        self._parts = {}
+        return whole
+
+
 class Selection:
     """The ids a grid has selected, gathered from the parts they arrive in, and read
     against `held`, the rows the grid was built from."""
@@ -669,25 +696,14 @@ class Selection:
         self.held = held
         self.ids: list[str] = []
         self.hidden = 0
-        self._turn = 0
-        self._parts: dict[int, list[str]] = {}
+        self._parts = Parts()
 
     def take(self, part: Any) -> bool:
-        """Keep one part. True once every part of its turn is here; a part of a turn
-        older than the newest seen is dropped."""
-        if not isinstance(part, dict):
+        """Keep one part. True once every part of its turn is here."""
+        ids = self._parts.take(part)
+        if ids is None:
             return False
-        turn, at, of, ids = (part.get(key) for key in ("turn", "at", "of", "ids"))
-        if not (isinstance(turn, int) and isinstance(at, int) and isinstance(of, int)
-                and isinstance(ids, list)) or turn < self._turn:
-            return False
-        if turn > self._turn:
-            self._turn, self._parts = turn, {}
-        self._parts[at] = [str(row_id) for row_id in ids]
-        if len(self._parts) < of:
-            return False
-        self.ids = [row_id for index in range(of) for row_id in self._parts.get(index, ())]
-        self._parts = {}
+        self.ids = [str(row_id) for row_id in ids]
         self.hide(part)
         return True
 
