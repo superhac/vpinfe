@@ -23,6 +23,8 @@ from typing import Any
 
 from common.extensions.contract import words
 
+from .source import Note, failed
+
 logger = logging.getLogger(__name__)
 t = words("library_importer")
 
@@ -90,7 +92,7 @@ def decode(raw: str) -> Any:
     return None
 
 
-def read_text(path: Path | str) -> tuple[str, str]:
+def read_text(path: Path | str) -> tuple[str, Note]:
     """The file's text, and anything worth saying about reading it.
 
     UTF-16 first because that is what the editor writes, then the UTF-8 forms, because a
@@ -104,7 +106,7 @@ def read_text(path: Path | str) -> tuple[str, str]:
             continue
         except OSError as exc:
             logger.warning("Could not read %s: %s", path, exc)
-            return "", t("note.unreadable", file=path.name)
+            return "", failed(t("note.unreadable", file=path.name), exc)
     return "", t("note.no_encoding", file=path.name)
 
 
@@ -145,7 +147,7 @@ def parse(text: str) -> list[Key]:
     return found
 
 
-def read(path: Path | str) -> tuple[list[Key], str]:
+def read(path: Path | str) -> tuple[list[Key], Note]:
     text, said = read_text(path)
     if not text:
         return [], said

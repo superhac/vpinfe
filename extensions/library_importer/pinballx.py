@@ -27,7 +27,7 @@ from pathlib import Path, PureWindowsPath
 from common.extensions.contract import words
 
 from . import drivemap
-from .source import SourceGame, SourceLibrary, SourceMedia, SourceSystem
+from .source import Note, SourceGame, SourceLibrary, SourceMedia, SourceSystem, failed
 
 logger = logging.getLogger(__name__)
 t = words("library_importer")
@@ -94,7 +94,7 @@ def _config_path(root: Path) -> Path:
     return root.joinpath(*CONFIG_RELATIVE)
 
 
-def read_config(root: Path | str) -> tuple[list[dict], list[str]]:
+def read_config(root: Path | str) -> tuple[list[dict], list[Note]]:
     """The emulators the source declares, and anything worth saying about the read.
 
     UTF-16, which is not a guess: the file is written that way and a plain UTF-8 read of
@@ -113,17 +113,24 @@ def read_config(root: Path | str) -> tuple[list[dict], list[str]]:
         return [], [t("note.no_config", config=os.path.join(*CONFIG_RELATIVE),
                       settings=PINBALLY_SETTINGS)]
 
-    text, failed = "", ""
+    text = ""
+    stopped: Exception | None = None
     for encoding in ("utf-16", "utf-8-sig", "utf-8"):
         try:
             text = path.read_text(encoding=encoding)
             break
-        except (UnicodeError, OSError) as exc:
-            failed = str(exc)
+        except UnicodeError as exc:
+            stopped = exc
+        except OSError as exc:
+            stopped = exc
+            break
     if not text:
-        if failed:
-            logger.warning("Could not read %s: %s", path, failed)
-        return [], [t("note.unreadable", file=path.name)] if failed else []
+        if stopped is None:
+            return [], []
+        logger.warning("Could not read %s: %s", path, stopped)
+        if isinstance(stopped, UnicodeError):
+            return [], [t("note.no_encoding", file=path.name)]
+        return [], [failed(t("note.unreadable", file=path.name), stopped)]
 
     parser = configparser.ConfigParser(strict=False, interpolation=None)
     # Assignment is configparser's own way to keep key case; typeshed says method.
@@ -132,7 +139,7 @@ def read_config(root: Path | str) -> tuple[list[dict], list[str]]:
         parser.read_string(text)
     except configparser.Error as exc:
         logger.warning("Could not parse %s: %s", path, exc)
-        return [], [t("note.unparsed", file=path.name)]
+        return [], [failed(t("note.unparsed", file=path.name), exc)]
 
     found = []
     for section in parser.sections():
@@ -204,7 +211,7 @@ PINBALLY_SETTINGS = "Settings.txt"
 _PINBALLY_LINE = re.compile(r"^\s*System(\d+)(?:\.([A-Za-z]+))?\s*=\s*(.*?)\s*$")
 
 
-def read_pinbally_config(path: Path) -> tuple[list[dict], list[str]]:
+def read_pinbally_config(path: Path) -> tuple[list[dict], list[Note]]:
     """The emulators a PinballY install declares.
 
     Flat `key = value` rather than ini sections, so configparser is no help: the name of
@@ -219,7 +226,7 @@ def read_pinbally_config(path: Path) -> tuple[list[dict], list[str]]:
         text = path.read_text(encoding="utf-8-sig", errors="replace")
     except OSError as exc:
         logger.warning("Could not read %s: %s", path, exc)
-        return [], [t("note.unreadable", file=path.name)]
+        return [], [failed(t("note.unreadable", file=path.name), exc)]
 
     systems: dict[str, dict[str, str]] = {}
     for line in text.splitlines():
@@ -352,7 +359,7 @@ def _table_file(index: tuple[dict[str, str], dict[str, str]], key: str) -> str:
 BACKUP_SUFFIX = re.compile(r"\.old\[\d+\]$", re.IGNORECASE)
 
 
-def _database_text(path: Path) -> tuple[str | None, list[str]]:
+def _database_text(path: Path) -> tuple[str | None, list[Note]]:
     """The database as text, whatever it was written in.
 
     These files carry no encoding declaration and are not reliably one encoding. One
@@ -368,7 +375,7 @@ def _database_text(path: Path) -> tuple[str | None, list[str]]:
         raw = path.read_bytes()
     except OSError as exc:
         logger.warning("Could not read %s: %s", path, exc)
-        return None, [t("note.unreadable", file=path.name)]
+        return None, [failed(t("note.unreadable", file=path.name), exc)]
 
     for encoding in ("utf-8-sig", "utf-8"):
         try:
@@ -383,7 +390,7 @@ def _database_text(path: Path) -> tuple[str | None, list[str]]:
 
 def read_database(path: Path | str, tables_dir: str = "",
                   plays: Callable[[str], bool] = _plays_vpx,
-                  ) -> tuple[list[SourceGame], list[str]]:
+                  ) -> tuple[list[SourceGame], list[Note]]:
     """Every game in one database file."""
     path = Path(path)
     text, notes = _database_text(path)
@@ -393,7 +400,7 @@ def read_database(path: Path | str, tables_dir: str = "",
         root = ElementTree.fromstring(text)
     except ElementTree.ParseError as exc:
         logger.warning("Could not read %s: %s", path, exc)
-        return [], [*notes, t("note.unreadable", file=path.name)]
+        return [], [*notes, failed(t("note.unreadable", file=path.name), exc)]
 
     tables = _table_index(Path(tables_dir), plays) if tables_dir else ({}, {})
     found, skipped = [], 0

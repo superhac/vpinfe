@@ -76,6 +76,7 @@
   "note.no_file": "No {file} in {folder}",
   "note.unreadable": "{file} could not be read",
   "note.unparsed": "{file} could not be parsed",
+  "note.at_line": "Line {line} is not written as it should be",
   "note.unopened": "{file} could not be opened",
   "note.read_stopped": "{file} could not be read to the end",
   "note.no_config": "No {config} and no {settings}, so the emulators were not read",

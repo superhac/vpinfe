@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, NotRequired, TypedDict
 
 from . import mapping
-from .source import SourceGame, SourceLibrary
+from .source import Note, SourceGame, SourceLibrary
 
 # Where a ROM set and the folders keyed on it are placed, by the kind the registry knows
 # them as. A color set comes in two formats and the file decides which, so both are
@@ -37,7 +37,7 @@ class AdoptedRow(TypedDict):
     altdata: int
     history: int
     skipped_media: list[str]
-    error: str
+    error: Note
     joined: NotRequired[bool]
 
 
@@ -139,7 +139,7 @@ def _one(ctx: Any, source_id: str, game: SourceGame, kinds: tuple[str, ...],
         game_id = ctx.games.create(name, location)
     except Exception as exc:
         ctx.logger.warning("No folder for %s: %s", name, exc)
-        row["error"] = ctx.t("error.no_folder")
+        row["error"] = {"text": ctx.t("error.no_folder"), "detail": ctx.why(exc)}
         return row
 
     row["game_id"] = game_id
@@ -160,7 +160,7 @@ def _one(ctx: Any, source_id: str, game: SourceGame, kinds: tuple[str, ...],
             rom = landed.get("rom", "")
         except Exception as exc:
             ctx.logger.warning("%s: the game file did not come across: %s", name, exc)
-            row["error"] = ctx.t("error.game_file")
+            row["error"] = {"text": ctx.t("error.game_file"), "detail": ctx.why(exc)}
 
     for kind, path in mapping.media_for(source_id, game, kinds):
         try:
@@ -204,7 +204,7 @@ def _another_build(ctx: Any, game: SourceGame, name: str, game_id: str) -> Adopt
         row["companions"] = len(landed["companions"])
     except Exception as exc:
         ctx.logger.warning("%s: the game file did not come across: %s", name, exc)
-        row["error"] = ctx.t("error.game_file")
+        row["error"] = {"text": ctx.t("error.game_file"), "detail": ctx.why(exc)}
     return row
 
 

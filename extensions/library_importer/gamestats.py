@@ -21,6 +21,8 @@ from typing import Any
 
 from common.extensions.contract import words
 
+from .source import Note, failed
+
 logger = logging.getLogger(__name__)
 t = words("library_importer")
 
@@ -64,7 +66,7 @@ def path_for(root: Path | str) -> Path:
     return Path(root) / STATS_FILE
 
 
-def read(path: Path | str) -> tuple[list[Played], list[str]]:
+def read(path: Path | str) -> tuple[list[Played], list[Note]]:
     """Every row that remembers something, and anything worth saying about the read."""
     path = Path(path)
     if not path.is_file():
@@ -73,7 +75,7 @@ def read(path: Path | str) -> tuple[list[Played], list[str]]:
         raw = path.read_bytes()
     except OSError as exc:
         logger.warning("Could not read %s: %s", path, exc)
-        return [], [t("note.unreadable", file=path.name)]
+        return [], [failed(t("note.unreadable", file=path.name), exc)]
 
     text, note = _text(raw, path.name)
     found = []

@@ -23,7 +23,7 @@ from typing import Any
 from common.extensions.contract import words
 
 from . import drivemap
-from .source import SourceGame, SourceLibrary, SourceMedia, SourceSystem
+from .source import Note, SourceGame, SourceLibrary, SourceMedia, SourceSystem, failed
 
 logger = logging.getLogger(__name__)
 t = words("library_importer")
@@ -181,7 +181,7 @@ def read(root: Path | str,
         return SourceLibrary(source_id=SOURCE_ID, root=str(root),
                              notes=(t("note.no_file", file=DATABASE, folder=root.name),))
 
-    notes: list[str] = []
+    notes: list[Note] = []
     mapped: set[str] = set()
     systems: list[SourceSystem] = []
     try:
@@ -189,7 +189,7 @@ def read(root: Path | str,
     except sqlite3.Error as exc:
         logger.warning("Could not open %s: %s", path, exc)
         return SourceLibrary(source_id=SOURCE_ID, root=str(root),
-                             notes=(t("note.unopened", file=DATABASE),))
+                             notes=(failed(t("note.unopened", file=DATABASE), exc),))
 
     try:
         emulators = list(db.execute(
@@ -238,7 +238,7 @@ def read(root: Path | str,
             notes.append(t("note.not_played", systems=", ".join(sorted(skipped_systems))))
     except sqlite3.Error as exc:
         logger.warning("Could not read %s to the end: %s", path, exc)
-        notes.append(t("note.read_stopped", file=DATABASE))
+        notes.append(failed(t("note.read_stopped", file=DATABASE), exc))
     finally:
         db.close()
 

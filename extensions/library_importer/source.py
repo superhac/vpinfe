@@ -10,7 +10,30 @@ Nothing in this module reads a file. The readers fill it in.
 
 from __future__ import annotations
 
+import configparser
+import xml.etree.ElementTree as ElementTree
 from dataclasses import dataclass, field
+
+from common.extensions.contract import why, words
+
+t = words("library_importer")
+
+Note = str | dict[str, str]
+
+
+def failed(text: str, exc: BaseException) -> Note:
+    line = _line(exc)
+    return {"text": text,
+            "detail": t("note.at_line", line=line) if line else why(exc)}
+
+
+def _line(exc: BaseException) -> int:
+    if isinstance(exc, ElementTree.ParseError):
+        return int(exc.position[0])
+    if not isinstance(exc, configparser.Error):
+        return 0
+    errors = getattr(exc, "errors", None)
+    return int(errors[0][0] if errors else getattr(exc, "lineno", 0) or 0)
 
 
 @dataclass(frozen=True)
@@ -91,7 +114,7 @@ class SourceLibrary:
     # parse, a media folder that was not there. Not failures - a source is somebody
     # else's data and is very often part-broken, and refusing the whole read over one
     # bad row would leave them with nothing.
-    notes: tuple[str, ...] = ()
+    notes: tuple[Note, ...] = ()
 
     @property
     def games(self) -> tuple[SourceGame, ...]:

@@ -24,7 +24,7 @@ from pathlib import Path
 
 from common.extensions.contract import words
 
-from .source import SourceGame, SourceLibrary, SourceMedia, SourceSystem
+from .source import SourceGame, SourceLibrary, SourceMedia, SourceSystem, failed
 
 logger = logging.getLogger(__name__)
 t = words("library_importer")
@@ -141,7 +141,7 @@ def read(root: Path | str,
     except (OSError, ElementTree.ParseError) as exc:
         logger.warning("Could not read %s: %s", path, exc)
         return SourceLibrary(source_id=SOURCE_ID, root=str(root),
-                             notes=(t("note.unreadable", file=GAMELIST),))
+                             notes=(failed(t("note.unreadable", file=GAMELIST), exc),))
 
     games, skipped = [], 0
     for element in tree.iter("game"):

@@ -76,6 +76,7 @@
   "note.no_file": "Ñö {file} îñ {folder}",
   "note.unreadable": "{file} çöûŀđ ñöţ ƀè řèàđ",
   "note.unparsed": "{file} çöûŀđ ñöţ ƀè þàřšèđ",
+  "note.at_line": "Ŀîñè {line} îš ñöţ ŵřîţţèñ àš îţ šĥöûŀđ ƀè",
   "note.unopened": "{file} çöûŀđ ñöţ ƀè öþèñèđ",
   "note.read_stopped": "{file} çöûŀđ ñöţ ƀè řèàđ ţö ţĥè èñđ",
   "note.no_config": "Ñö {config} àñđ ñö {settings}, šö ţĥè èɱûŀàţöřš ŵèřè ñöţ řèàđ",
