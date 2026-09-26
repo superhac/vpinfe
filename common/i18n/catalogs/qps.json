@@ -2491,7 +2491,6 @@
   "frontend.mainmenu.done_with_misses": "Đöñè. {count} çöûŀđ ñöţ ƀè ɱàţçĥèđ öř řèàđ.",
   "frontend.mainmenu.download_media": "Đöŵñŀöàđ Ḿèđîà",
   "frontend.mainmenu.download_media.help": "Ĝèţ àřţ ƒřöɱ ṼÞîñḾèđîàĐƁ. Àřţ ýöû àđđèđ šţàýš.",
-  "frontend.mainmenu.error": "Èřřöř: {reason}",
   "frontend.mainmenu.frontend_audio": "Ƒřöñţèñđ Àûđîö: {state}",
   "frontend.mainmenu.frontend_audio_2": "Ƒřöñţèñđ Àûđîö: Öñ",
   "frontend.mainmenu.match_every_game_again": "Ḿàţçĥ Èṽèřý Ĝàɱè Àĝàîñ",

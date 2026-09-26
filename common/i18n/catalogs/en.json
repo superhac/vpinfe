@@ -2491,7 +2491,6 @@
   "frontend.mainmenu.done_with_misses": "Done. {count} could not be matched or read.",
   "frontend.mainmenu.download_media": "Download Media",
   "frontend.mainmenu.download_media.help": "Get art from VPinMediaDB. Art you added stays.",
-  "frontend.mainmenu.error": "Error: {reason}",
   "frontend.mainmenu.frontend_audio": "Frontend Audio: {state}",
   "frontend.mainmenu.frontend_audio_2": "Frontend Audio: On",
   "frontend.mainmenu.match_every_game_again": "Match Every Game Again",

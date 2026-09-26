@@ -541,8 +541,7 @@ window.receiveEvent = function(event) {
       : t('word.done', 'Done');
     document.getElementById('buildmeta-close').style.display = 'block';
   } else if (event.type === 'buildmeta_error') {
-    document.getElementById('progress-text').textContent =
-      t('frontend.mainmenu.error', 'Error: {reason}', { reason: event.error });
+    document.getElementById('progress-text').textContent = event.error;
     document.getElementById('progress-text').style.color = '#f44336';
     document.getElementById('buildmeta-close').style.display = 'block';
   }
