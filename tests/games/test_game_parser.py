@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -11,6 +12,7 @@ from unittest import mock
 from common.games.game_parser import GameParser
 from common.games.game_repository import game_to_row
 from common.games.standalone_scripts import StandaloneScripts
+from common.i18n import t
 from tests.support.library import TempTree, write_game
 
 
@@ -169,6 +171,54 @@ class ParallelScanTests(TempTree):
         for row in parser.missing_games:
             self.assertTrue(row["path"].endswith(row["folder"]),
                             f"{row['folder']} reported against {row['path']}")
+
+
+class UnreadableInfoTests(TempTree):
+    """A `.info` the scan cannot read leaves out its own folder and no other."""
+
+    FINE = "Fine (Original 2024)"
+
+    def _scan_beside(self, name: str, content: bytes,
+                     mode: int = 0o644) -> tuple[list[str], dict[str, str]]:
+        write_game(self.root, self.FINE, info={"Info": {"Title": "Fine"}})
+        info = write_game(self.root, name) / f"{name}.info"
+        info.write_bytes(content)
+        info.chmod(mode)
+        self.addCleanup(info.chmod, 0o644)
+        if os.access(info, os.R_OK) != bool(mode & 0o400):
+            self.skipTest("this user reads files whatever their mode")
+        parser = GameParser(str(self.root))
+        return ([game.game_dir_name for game in parser.get_all_games()],
+                {row["folder"]: row["error"] for row in parser.get_unreadable_games()})
+
+    def test_an_empty_one(self) -> None:
+        loaded, said = self._scan_beside("Empty (Original 2024)", b"")
+
+        self.assertEqual([self.FINE], loaded)
+        self.assertEqual({"Empty (Original 2024)": t("error.games.info_empty")}, said)
+
+    def test_one_that_is_not_json(self) -> None:
+        loaded, said = self._scan_beside("Malformed (Original 2024)",
+                                         b'{"Info": {"Title": "broken",,,}\n')
+
+        self.assertEqual([self.FINE], loaded)
+        self.assertEqual({"Malformed (Original 2024)":
+                          t("error.games.info_wrong_at_line", line=1)}, said)
+
+    def test_one_not_saved_as_utf8(self) -> None:
+        loaded, said = self._scan_beside("Latin (Original 2024)",
+                                         '{"Info": {"Title": "Café"}}'.encode("cp1252"))
+
+        self.assertEqual([self.FINE], loaded)
+        self.assertEqual({"Latin (Original 2024)": t("error.games.info_not_utf8")}, said)
+
+    def test_one_it_may_not_open(self) -> None:
+        name = "Locked (Original 2024)"
+        loaded, said = self._scan_beside(name, b"{}", mode=0)
+
+        self.assertEqual([self.FINE], loaded)
+        info = self.root / name / f"{name}.info"
+        self.assertEqual({name: t("said.why.no_permission_at", path=str(info))}, said)
 
 
 if __name__ == "__main__":

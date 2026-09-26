@@ -213,7 +213,7 @@ class GameParser:
 
         try:
             self.load_metadata(game)
-        except InvalidMetaConfigError as exc:
+        except (InvalidMetaConfigError, OSError) as exc:
             # This used to stop the whole library loading. Excluded rather than loaded
             # empty, so nothing can write over a file we could not read.
             (self.unreadable_games if unreadable is None else unreadable).append({
@@ -221,7 +221,8 @@ class GameParser:
                 'path': str(game_dir),
                 'error': why(exc),
             })
-            logger.error("Skipping game with unreadable metadata: %s", exc)
+            logger.error("Skipping %s, its metadata could not be read: %s",
+                         game_dir / f"{game_dir.name}.info", exc.__cause__ or exc)
             return None
 
         # After the metadata, so a folder with several .vpx launches the one its

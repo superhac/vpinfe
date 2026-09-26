@@ -13,7 +13,6 @@ import os
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from common.failures import why
 from common.games import identity_claims
 from common.games.ids import new_id
 from common.games.info_migration import (
@@ -119,8 +118,7 @@ class InvalidMetaConfigError(ValueError):
 
     def __init__(self, path: str, reason: str) -> None:
         self.path = path
-        self.reason = reason
-        super().__init__(f"Invalid game metadata file: {path} ({reason})")
+        super().__init__(reason)
 
 
 PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
@@ -210,12 +208,16 @@ class MetaConfig:
         if os.path.exists(configfilepath):
             try:
                 if os.path.getsize(configfilepath) == 0:
-                    raise InvalidMetaConfigError(configfilepath, "file is empty")
+                    raise InvalidMetaConfigError(configfilepath, t("error.games.info_empty"))
                 with open(configfilepath, encoding="utf-8") as f:
                     original = f.read()
                 self.data = json.loads(original)
             except json.JSONDecodeError as exc:
-                raise InvalidMetaConfigError(configfilepath, why(exc)) from exc
+                raise InvalidMetaConfigError(
+                    configfilepath, t("error.games.info_wrong_at_line", line=exc.lineno)) from exc
+            except UnicodeDecodeError as exc:
+                raise InvalidMetaConfigError(
+                    configfilepath, t("error.games.info_not_utf8")) from exc
             if needs_migration(self.data):
                 self._pre_migration = original
                 self.data = migrate(self.data)

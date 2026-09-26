@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from common.failures import why
 from common.games.info_file import (
     INFO_SCHEMA,
     InvalidMetaConfigError,
@@ -198,29 +199,29 @@ class TestMetaConfig(unittest.TestCase):
             self.assertEqual(saved["ThirdParty"], {"source": "vpforums", "fileId": "12210"})
             self.assertEqual(saved["Info"]["Title"], "Example Table")
 
-    def test_empty_info_file_reports_path(self) -> None:
-        with TemporaryDirectory() as tmp:
-            info_path = Path(tmp) / "Empty Table.info"
-            info_path.write_text("", encoding="utf-8")
-
-            with self.assertRaises(InvalidMetaConfigError) as ctx:
-                MetaConfig(str(info_path))
-
-            self.assertEqual(ctx.exception.path, str(info_path))
-            self.assertIn(str(info_path), str(ctx.exception))
-            self.assertIn("file is empty", str(ctx.exception))
-
-    def test_invalid_json_info_file_reports_path_and_location(self) -> None:
+    def _refused(self, content: bytes) -> InvalidMetaConfigError:
         with TemporaryDirectory() as tmp:
             info_path = Path(tmp) / "Broken Table.info"
-            info_path.write_text("{not json", encoding="utf-8")
+            info_path.write_bytes(content)
 
             with self.assertRaises(InvalidMetaConfigError) as ctx:
                 MetaConfig(str(info_path))
 
             self.assertEqual(ctx.exception.path, str(info_path))
-            self.assertIn(str(info_path), str(ctx.exception))
-            self.assertIn("line 1 column 2", str(ctx.exception))
+            return ctx.exception
+
+    def test_an_empty_file_says_so_in_words(self) -> None:
+        self.assertEqual(why(self._refused(b"")), t("error.games.info_empty"))
+
+    def test_a_file_that_is_not_json_names_the_line_it_goes_wrong_at(self) -> None:
+        refused = self._refused(b'{"Info": {"Title": "Broken",\n  "Year": }}')
+
+        self.assertEqual(why(refused), t("error.games.info_wrong_at_line", line=2))
+
+    def test_a_file_not_saved_as_utf8_says_so(self) -> None:
+        refused = self._refused('{"Info": {"Title": "Café"}}'.encode("cp1252"))
+
+        self.assertEqual(why(refused), t("error.games.info_not_utf8"))
 
 
 class VPinFESchemaTests(TempTree):
