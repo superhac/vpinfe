@@ -261,8 +261,9 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
             t("console.devices.update_2", name=(name), latest=(latest)),
             detail=t("console.devices.package_downloaded_first_vpinfe"),
             lines=lines,
-            confirm=t("console.devices.stop_table_update"), icon=verbs.STOP if running
+            confirm=t("console.devices.stop_table_update") if running
             else t("console.devices.update"),
+            icon=verbs.STOP if running else verbs.UPDATE,
             danger=bool(running)):
         return
     await _start_update(client, name, bool(running))
