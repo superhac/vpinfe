@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from common import apps
+from common import apps, service_errors
 from common.games import (
     asset_registry,
     asset_resolver,
@@ -20,6 +20,7 @@ from common.games import (
     game_repository,
     launchers,
     library_discovery,
+    media_service,
     mods,
     tables,
 )
@@ -44,6 +45,7 @@ from common.games.tables import (
     table_names,
 )
 from common.host import pinmame_catalog
+from common.i18n import t
 from common.values import newer_version, parse_version
 
 logger = logging.getLogger("vpinfe.common.games.table_lens")
@@ -177,7 +179,23 @@ def update_available(version: str, source: dict | None) -> bool | None:
     return newer_version(listed, held) if listed and held else None
 
 
-def table_rows(game: Game, row: dict, *, launcher_settings: bool = False) -> list[dict]:
+LIST_ART_KINDS = ("wheel", "backglass", "playfield", "logo")
+
+
+def art_or_refuse(art: str) -> str:
+    """One of the kinds a list shows, "" for none, or a refusal naming them."""
+    art = (art or "").strip()
+    if art and art not in LIST_ART_KINDS:
+        raise service_errors.RefusedError(
+            t("error.games.not_list_art"),
+            details={"unknown": art, "known": list(LIST_ART_KINDS)})
+    return art
+
+
+def table_rows(game: Game, row: dict, *, launcher_settings: bool = False,
+               art: str = "",
+               art_settings: tuple[str, dict[str, str] | None] | None = None
+               ) -> list[dict]:
     """The game's launchable artifacts.
 
     Enumerates what is actually in the folder rather than trusting the single
@@ -189,13 +207,17 @@ def table_rows(game: Game, row: dict, *, launcher_settings: bool = False) -> lis
     default falls to one that exists, since the default is what a caller would launch.
 
     `launcher_settings` adds what each table's settings file sets, reading one file per
-    table.
+    table. `art` adds `shown_art`, the file each table shows for that kind, from
+    `art_settings` where the caller has read `media_settings` once for many games.
     """
     game_dir = Path(row.get("game_dir", ""))
     described = table_settings(game_dir)
 
     files, subdirs = asset_resolver.folder_listing(game_dir)
     on_disk = table_names(files)
+    if art:
+        media = media_service.media_contents(game_dir, (files, subdirs))
+        art_settings = art_settings or media_service.media_settings()
 
     # (native key, filename, record). The native key is the filename for something in
     # the folder and `app:key` for something with no file, so one list covers all of
@@ -335,6 +357,11 @@ def table_rows(game: Game, row: dict, *, launcher_settings: bool = False) -> lis
         if launcher_settings:
             entry.update(launcher_settings_held(
                 app_id, "" if keyed else points_at or str(game_dir / name)))
+        if art:
+            art_file = tables.entry_filename(described_entry)
+            entry["shown_art"] = media_service.shown_art(
+                game_dir, art, Path(art_file).stem if art_file else None,
+                contents=media, settings=art_settings)
         if keyed:
             # Both come out of reading a file, and there is none. Saying "unknown" here
             # would put a dependency on an entry that cannot carry one.
@@ -422,13 +449,16 @@ def launch_apps() -> dict[str, Any]:
                      for app in apps.all_apps()]}
 
 
-def library_rows(limit: int = 0, offset: int = 0, game: str = "") -> dict[str, Any]:
+def library_rows(limit: int = 0, offset: int = 0, game: str = "",
+                 art: str = "") -> dict[str, Any]:
     """One row per launchable file, each carrying the game it belongs to.
 
     The game's name and maker ride along rather than being a lookup the caller has to
     make: this list is read to be shown, and a table named only by its filename is the
     thing the games lens already fails at.
     """
+    art = art_or_refuse(art)
+    art_settings = media_service.media_settings() if art else None
     found: list[dict] = []
     for game_id, entry in game_repository.catalog().items():
         if game or "":
@@ -438,9 +468,11 @@ def library_rows(limit: int = 0, offset: int = 0, game: str = "") -> dict[str, A
         meta = getattr(entry, "meta_config", {}) or {}
         declared = meta.get("Info")
         info = declared if isinstance(declared, dict) else {}
-        for table in table_rows(entry, row, launcher_settings=True):
+        for table in table_rows(entry, row, launcher_settings=True, art=art,
+                                art_settings=art_settings):
             if not table.get("id"):
                 continue
+            shown = table.get("shown_art")
             found.append({
                 "id": table["id"],
                 "game_id": game_id,
@@ -462,6 +494,8 @@ def library_rows(limit: int = 0, offset: int = 0, game: str = "") -> dict[str, A
                 "rating": int(table.get("rating") or 0),
                 "features": table.get("features") or {},
                 "assets": table.get("assets") or {},
+                "art_kind": shown.kind if shown else None,
+                "art_version": shown.version if shown else None,
                 # The rom this file actually resolves to, alias followed. One of the
                 # few things that genuinely differs between two tables of one game.
                 "rom": str((table.get("dependencies") or {})

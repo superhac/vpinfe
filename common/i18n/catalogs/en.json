@@ -2276,6 +2276,7 @@
   "error.games.no_table_id_game": "{game} has no table with id {table_id}",
   "error.games.not_file": "That is not a file",
   "error.games.not_game_s_set": "Not the game's to set: {keys}. These belong to a table - PUT the table's overrides instead.",
+  "error.games.not_list_art": "Not art a list shows",
   "error.games.not_table_s_set": "Not a table's to set: {keys}. These belong to the game - PUT the game's overrides instead.",
   "error.games.nothing_at": "There is nothing at {path}",
   "error.games.nothing_build_knows_plays": "Nothing this build knows plays {name}",

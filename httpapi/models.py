@@ -1109,6 +1109,10 @@ class TableRow(ApiModel):
     # answers for a single game. The list projection named its fields by hand and
     # left this one out, so a client showing assets had to ask per game.
     assets: dict[str, ResolvedAsset] = {}
+    # Asked for with `?art=`: the kind the table's media route serves the shown file
+    # under, and that file's version. Null without `art` or where nothing resolves.
+    art_kind: str | None = None
+    art_version: str | None = None
     rom: str = ""
     # Whether that rom is actually installed. **Null when the table declares none** -
     # a table with no rom is not required to have one, and reporting that as missing

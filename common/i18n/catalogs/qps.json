@@ -2276,6 +2276,7 @@
   "error.games.no_table_id_game": "{game} ĥàš ñö ţàƀŀè ŵîţĥ îđ {table_id}",
   "error.games.not_file": "Ţĥàţ îš ñöţ à ƒîŀè",
   "error.games.not_game_s_set": "Ñöţ ţĥè ĝàɱè'š ţö šèţ: {keys}. Ţĥèšè ƀèŀöñĝ ţö à ţàƀŀè - ÞÛŢ ţĥè ţàƀŀè'š öṽèřřîđèš îñšţèàđ.",
+  "error.games.not_list_art": "Ñöţ àřţ à ŀîšţ šĥöŵš",
   "error.games.not_table_s_set": "Ñöţ à ţàƀŀè'š ţö šèţ: {keys}. Ţĥèšè ƀèŀöñĝ ţö ţĥè ĝàɱè - ÞÛŢ ţĥè ĝàɱè'š öṽèřřîđèš îñšţèàđ.",
   "error.games.nothing_at": "Ţĥèřè îš ñöţĥîñĝ àţ {path}",
   "error.games.nothing_build_knows_plays": "Ñöţĥîñĝ ţĥîš ƀûîŀđ ķñöŵš þŀàýš {name}",

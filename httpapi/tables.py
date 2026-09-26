@@ -32,7 +32,7 @@ def list_apps() -> models.LaunchAppList:
 @router.get("", summary="Every table in the library",
             dependencies=[requires(scopes.GAMES_READ)])
 def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
-                game: str = Query("")) -> models.TableRowList:
+                game: str = Query(""), art: str = Query("")) -> models.TableRowList:
     """One row per launchable file, each carrying the game it belongs to.
 
     The game's name and maker ride along rather than being a lookup the caller has to
@@ -40,4 +40,4 @@ def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
     thing the games lens already fails at.
     """
     return models.TableRowList.model_validate(
-        table_lens.library_rows(limit, offset, game))
+        table_lens.library_rows(limit, offset, game, art))

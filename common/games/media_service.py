@@ -6,6 +6,7 @@ import logging
 import os
 import shutil
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import quote
 
 from common.config_access import MediaConfig
@@ -67,16 +68,19 @@ def is_image_media_kind(kind: str) -> bool:
     return Path(filename).suffix.lower() in IMAGE_EXTENSIONS
 
 
-def media_contents(game_dir: Path) -> tuple[set[str], set[str]]:
+def media_contents(game_dir: Path, listing: tuple[list[str], list[str]] | None = None
+                   ) -> tuple[set[str], set[str]]:
     """What is in the folder and in medias/, as the resolver wants it.
 
     medias/ comes back with relative paths, because a media set is a subfolder and the
-    resolver matches it by "wheels/<set>/<name>".
+    resolver matches it by "wheels/<set>/<name>". `listing` is the folder's
+    `folder_listing` where the caller already holds it.
     """
     # Locally: the asset registry reads this module's image extensions at import.
     from common.games import asset_resolver
 
-    files, subdirs = asset_resolver.folder_listing(game_dir)
+    files, subdirs = listing if listing is not None else asset_resolver.folder_listing(
+        game_dir)
     medias: set[str] = set()
     if "medias" in {name.lower() for name in subdirs}:
         medias_dir = game_dir / "medias"
@@ -104,6 +108,36 @@ def resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
     variant, active_sets = media_settings()
     return resolve_media_entries(game_dir, files, medias, variant,
                                  table_stem, active_sets)
+
+
+class ShownArt(NamedTuple):
+    kind: str
+    version: str
+
+
+CABINET_FALLS_TO = {"playfield": ("playfield_fss",)}
+
+
+def shown_art(game_dir: Path, kind: str, table_stem: str | None = None, *,
+              contents: tuple[set[str], set[str]] | None = None,
+              settings: tuple[str, dict[str, str] | None] | None = None
+              ) -> ShownArt | None:
+    """The file the cabinet shows for `kind`, as the kind its media route serves it
+    under and its version, or None.
+
+    `contents` and `settings` are `media_contents` and `media_settings` where the caller
+    reads them once for many tables.
+    """
+    files, medias = contents if contents is not None else media_contents(game_dir)
+    variant, active_sets = settings if settings is not None else media_settings()
+    resolved = resolve_media_entries(game_dir, files, medias, variant,
+                                     table_stem, active_sets)
+    for one in (kind, *CABINET_FALLS_TO.get(kind, ())):
+        hit = resolved.get(one)
+        version = sized_media.version(hit.path) if hit is not None else None
+        if version:
+            return ShownArt(one, version)
+    return None
 
 
 def media_map(game_dir: Path, prefix: str, table_stem: str | None = None) -> dict:
