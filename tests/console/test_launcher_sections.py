@@ -803,15 +803,6 @@ class PairTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(both.call_args.kwargs["hint"], back)
         none.assert_not_called()
 
-    def test_overridden_names_the_number_it_is_about(self) -> None:
-        held = {**self.SET, "in_effect": False}
-        with patch.object(workbench.panel, "state") as state:
-            workbench._config_mark(held, "launcher", self.WIDTH)
-            alone = state.call_args.kwargs["hint"]
-            workbench._config_mark(held, "launcher", self.WIDTH, paired=True)
-
-        self.assertEqual(state.call_args.kwargs["hint"], self._part(self.WIDTH, alone))
-
     def test_each_number_is_named_and_the_joiner_stands_between_them(self) -> None:
         with patch.object(workbench, "ui") as ui:
             workbench._pair([(Mock(), {}, self.WIDTH), (Mock(), {}, self.HEIGHT)], "×")

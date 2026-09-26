@@ -1797,7 +1797,6 @@
   "console.workbench.not_at_that_path": "{app} is not at that path",
   "console.workbench.not_disk_cannot_default": "Not on disk, so it cannot be the default",
   "console.workbench.not_disk_since": "Not on disk since {value}",
-  "console.workbench.not_effect": "Overridden",
   "console.workbench.not_in_vps": "Not in VPS",
   "console.workbench.not_installed": "Not installed",
   "console.workbench.not_matched": "Not matched",

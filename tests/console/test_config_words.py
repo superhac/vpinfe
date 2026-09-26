@@ -121,17 +121,6 @@ class MarkTests(unittest.TestCase):
 
         self.assertEqual(chip.call_args.args[0], "This Game")
 
-    def test_a_shadowed_value_is_the_loud_one_and_says_what_answers(self) -> None:
-        """Somebody wrote it and another layer answers over it. Invisible on the row
-        otherwise, and the bug report we would get."""
-        with patch.object(workbench.panel, "state") as chip:
-            workbench._config_mark(
-                {"set_here": True, "in_effect": False, "scope": "entry", "value": "0"},
-                "folder", _Bool)
-
-        self.assertEqual(chip.call_args.args[:2], ("Overridden", "warn"))
-        self.assertEqual(chip.call_args.kwargs["hint"], "This Table has its own: Off")
-
 
 class WhoseValueTests(unittest.TestCase):
     """What hovering a value says."""

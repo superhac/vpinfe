@@ -134,6 +134,18 @@ class LayerTests(_Case):
         found = self.config.read(SCOPE_LAUNCHER, str(self.table), self.settings)[KEY]
         self.assertTrue(found.set_here)
 
+    def test_a_value_a_table_s_own_file_sets_is_in_force_at_the_table(self) -> None:
+        self.folder_file("[Backglass]\nBackglassOutput = 0\nGrillHeight = 150\n")
+        self.table_file("[Backglass]\nBackglassOutput = 1\nGrillHeight = 200\n"
+                        "[DMD]\nProfile1Legacy = 0\n")
+
+        for key in (KEY, GRILL, PLAIN):
+            with self.subTest(key=key):
+                self.assertIn(SCOPE_ENTRY, self.config.scopes_for(key))
+                found = self.at(SCOPE_ENTRY, key=key)
+                self.assertTrue(found.set_here)
+                self.assertTrue(found.in_effect)
+
     def test_a_folder_named_for_its_table_makes_one_file_of_the_two(self) -> None:
         """The ordinary case, and the two scopes coincide rather than shadowing."""
         solo = self.root / "Attack from Mars"

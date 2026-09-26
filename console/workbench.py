@@ -4366,16 +4366,9 @@ CAME_FROM = {
 }
 
 
-def _config_mark(held: dict, scope: str, field: Any,
-                 paired: bool = False) -> Callable[[], None] | None:
-    """The word beside a value, where it is an exception: Overridden, or a scope other
-    than this one and All Tables. Set here is the dot's to say (`_marked`). One of a
-    `paired` two names itself in the hover."""
-    if held.get("set_here") and not held.get("in_effect"):
-        said = _whose_value(held, field, "")
-        return panel.state(t("console.workbench.not_effect"), "warn",
-                           hint=t("console.workbench.part_said", label=field.label,
-                                  said=said) if paired else said)
+def _config_mark(held: dict, scope: str, field: Any) -> Callable[[], None] | None:
+    """The word beside a value, where it is an exception: a scope other than this one and
+    All Tables. Set here is the dot's to say (`_marked`)."""
     came = held.get("scope") or ""
     if not held.get("set_here") and came not in ("", scope, "launcher"):
         return panel.state(t(CAME_FROM.get(came, "console.workbench.inherited")), "off")
@@ -4710,12 +4703,12 @@ async def _config_values(context: dict[str, Any]) -> dict[str, Any]:
     return values
 
 
-def _mark_for(held: dict, scope: str, field: Any, offered: bool,
-              paired: bool = False) -> Callable[[], None] | None:
+def _mark_for(held: dict, scope: str, field: Any,
+              offered: bool) -> Callable[[], None] | None:
     """`_config_mark`, or why this scope holds a value it does not offer: Per Table at the
     launcher, and Ignored at a table where the program never reads it."""
     if offered:
-        return _config_mark(held, scope, field, paired)
+        return _config_mark(held, scope, field)
     if held.get("set_here") and scope == "launcher":
         return panel.state(t("console.app_settings.per_table"), "off",
                            hint=t("console.app_settings.per_table.help"))
@@ -4849,7 +4842,7 @@ async def _setting_entries(context: dict[str, Any],
     def marks(parts: Sequence[Part], joiner: str = "") -> Callable[[], None] | None:
         return _in_turn(_varies(parts, context.get("tables") or [], app_name, joiner),
                         *(None if held.get("varies")
-                          else _mark_for(held, scope, field, offered(field), len(parts) > 1)
+                          else _mark_for(held, scope, field, offered(field))
                           for _, held, field in parts))
 
     entries: list[tuple[Any, Any]] = []
