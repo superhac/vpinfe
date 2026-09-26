@@ -85,19 +85,25 @@ def _app_configurable(launcher: launchers.Launcher | None) -> bool:
     return app is not None and app.config is not None
 
 
+POINT_OF_VIEW = "point_of_view"
+
+
 def launcher_settings_held(app_id: str, target: str) -> dict:
-    """What the app's own settings file for this table sets, split by whose file it is.
+    """What the app's own settings file for this table sets, split by whose file it is:
+    one list, a saved camera in it as `POINT_OF_VIEW`, and every count its length.
     Zeros where there is no file to read or the app keeps no settings of its own."""
     app = apps.get(app_id)
     held_for = getattr(getattr(app, "config", None), "held_for_table", None)
     held = held_for(target) if held_for is not None and target else {}
-    count = int(held.get("settings") or 0) + (1 if held.get("point_of_view") else 0)
+    listed = [str(key) for key in held.get("keys") or ()]
+    if held.get("point_of_view"):
+        listed.append(POINT_OF_VIEW)
     scope = held.get("scope")
     return {
-        "launcher_settings_here": count if scope == "entry" else 0,
-        "launcher_settings_from_folder": count if scope == "folder" else 0,
-        "launcher_point_of_view": bool(held.get("point_of_view")),
-        "launcher_settings_keys": [str(key) for key in held.get("keys") or ()],
+        "launcher_settings_here": len(listed) if scope == "entry" else 0,
+        "launcher_settings_from_folder": len(listed) if scope == "folder" else 0,
+        "launcher_point_of_view": POINT_OF_VIEW in listed,
+        "launcher_settings_keys": listed,
     }
 
 

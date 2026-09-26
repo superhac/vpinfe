@@ -909,11 +909,12 @@ class Table(ApiModel):
     # app has none opens onto nothing, so the row that leads there is simply absent.
     launcher_app_configurable: bool = False
     # How many settings the one file that program reads for this table changes, counted
-    # under whose file it is, a saved camera counting as one.
+    # under whose file it is: the length of `launcher_settings_keys`.
     launcher_settings_here: int = 0
     launcher_settings_from_folder: int = 0
     launcher_point_of_view: bool = False
-    # Which settings that file changes, by the program's own key, the camera left out.
+    # Which settings that file changes, by the program's own key, a saved camera as the
+    # one entry `point_of_view`.
     launcher_settings_keys: list[str] = Field(default_factory=list)
     filename: str
     # `contained` for something in the game's folder, `referenced` for a file elsewhere

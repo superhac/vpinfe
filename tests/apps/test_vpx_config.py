@@ -300,7 +300,7 @@ class ReadAtTableStartTests(_Case):
     def test_it_counts_among_the_table_s_own(self) -> None:
         self.table_file("[Player]\nAAFactor = 2\nPlayfieldFullScreen = 1\n")
 
-        self.assertEqual(self.config.held_for_table(str(self.table))["settings"], 1)
+        self.assertEqual(self.config.held_for_table(str(self.table))["keys"], [AA])
 
 
 AA = "Player.AAFactor"
@@ -314,40 +314,37 @@ class HeldForTableTests(_Case):
         return self.config.held_for_table(str(table or self.table))
 
     def test_a_table_with_no_file_holds_nothing(self) -> None:
-        self.assertEqual(self.held(), {"scope": "", "settings": 0, "keys": [],
-                                       "point_of_view": False})
+        self.assertEqual(self.held(), {"scope": "", "keys": [], "point_of_view": False})
 
     def test_its_own_file_is_counted_at_the_table(self) -> None:
         self.table_file("[Backglass]\nBackglassOutput = 0\nGrillHeight = 200\n")
 
         self.assertEqual(self.held(),
-                         {"scope": SCOPE_ENTRY, "settings": 2,
+                         {"scope": SCOPE_ENTRY,
                           "keys": ["Backglass.BackglassOutput", "Backglass.GrillHeight"],
                           "point_of_view": False})
 
     def test_a_blank_key_sets_nothing(self) -> None:
         self.table_file("[Backglass]\nBackglassOutput = 0\nGrillHeight =\n")
 
-        self.assertEqual((self.held()["settings"], self.held()["keys"]),
-                         (1, ["Backglass.BackglassOutput"]))
+        self.assertEqual(self.held()["keys"], ["Backglass.BackglassOutput"])
 
     def test_the_camera_is_one_thing_not_its_numbers(self) -> None:
         self.table_file(CAMERA)
 
         self.assertEqual(self.held(),
-                         {"scope": SCOPE_ENTRY, "settings": 0, "keys": [],
-                          "point_of_view": True})
+                         {"scope": SCOPE_ENTRY, "keys": [], "point_of_view": True})
 
     def test_a_setting_read_for_all_tables_only_is_not_counted(self) -> None:
         self.table_file("[Player]\nShowFPS = 1\n[Input]\nNudgeSensorCount = 4\n")
 
-        self.assertEqual((self.held()["settings"], self.held()["keys"]), (0, []))
+        self.assertEqual(self.held()["keys"], [])
 
     def test_a_folder_file_reaching_the_table_is_the_folder_s(self) -> None:
         self.folder_file("[Backglass]\nBackglassOutput = 0\n" + CAMERA)
 
         self.assertEqual(self.held(),
-                         {"scope": SCOPE_FOLDER, "settings": 1,
+                         {"scope": SCOPE_FOLDER,
                           "keys": ["Backglass.BackglassOutput"], "point_of_view": True})
 
 

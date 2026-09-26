@@ -637,8 +637,8 @@ class VPXConfig:
 
     def held_for_table(self, target: str) -> dict[str, Any]:
         """What the one file VPX reads for this table sets: which scope that file is,
-        which settings it changes for the table and how many, and whether it holds a
-        camera."""
+        which settings it changes for the table other than the camera, and whether it
+        holds a camera."""
         winning = table_layer(target)
         held = _read(winning)
         setting = [q for q in held.settings if held.value(q) is not None]
@@ -646,7 +646,6 @@ class VPXConfig:
                       and not q.startswith(POINT_OF_VIEW))
         return {
             "scope": _scope_of(winning, target, {}),
-            "settings": len(keys),
             "keys": keys,
             "point_of_view": any(q.startswith(POINT_OF_VIEW) for q in setting),
         }

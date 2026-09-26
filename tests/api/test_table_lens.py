@@ -307,13 +307,13 @@ class OwnSettingsTests(_Lens):
                          {"tbl0000001": (2, 0, True, True),
                           "tbl0000002": (0, 2, True, True)})
 
-    def test_both_lists_name_the_settings_the_camera_left_out(self) -> None:
+    def test_both_lists_name_the_settings_and_the_camera_once(self) -> None:
         (self.folder / f"{FOLDER}.ini").write_text(
             "[Backglass]\nBackglassOutput = 0\n[TableOverride]\nViewCabMode = 1\n")
         got = self.client.get(f"/games/{GAME_ID}/tables")
         self.assertEqual(got.status_code, 200, got.text)
-        named = {"tbl0000001": ["Backglass.BackglassOutput"],
-                 "tbl0000002": ["Backglass.BackglassOutput"]}
+        named = {"tbl0000001": ["Backglass.BackglassOutput", table_lens.POINT_OF_VIEW],
+                 "tbl0000002": ["Backglass.BackglassOutput", table_lens.POINT_OF_VIEW]}
 
         self.assertEqual({one["id"]: one["launcher_settings_keys"]
                           for one in got.json()["tables"]}, named)

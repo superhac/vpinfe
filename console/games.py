@@ -1166,6 +1166,14 @@ def _settings_cell(row: dict[str, Any]) -> dict[str, Any]:
             else []}
 
 
+def own_setting_names(groups: Mapping[str, list]) -> dict[str, str]:
+    """What each Own Settings chip says, by what a row lists: each launcher's settings
+    by name, and a saved camera as the Settings column says it."""
+    return {**{key: said for held in groups.values()
+               for key, said in workbench.setting_names(held).items()},
+            _POINT_OF_VIEW: t("asset.kind.pov.label")}
+
+
 def setting_their_own(rows: list[dict[str, Any]], launcher_id: str,
                       keys: str) -> dict[str, Any] | None:
     """A filter on the launcher's tables that set any of `keys`, comma separated, for
@@ -1207,9 +1215,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     """
     state = state if state is not None else {}
     tag_chips.install(library.tag_looks())
-    renderers.install_setting_names(
-        {key: said for groups in library.setting_groups().values()
-         for key, said in workbench.setting_names(groups).items()})
+    renderers.install_setting_names(own_setting_names(library.setting_groups()))
     built = table_rows(rows)
     # Taken once, as the Games grid takes its own.
     arriving = setting_their_own(rows, str(state.pop("launcher", None) or ""),
