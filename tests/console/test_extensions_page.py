@@ -123,10 +123,14 @@ class SwitchTests(unittest.IsolatedAsyncioTestCase):
             sections._extension_card(found)
         return switch, io
 
+    async def press(self, switch: mock.Mock) -> None:
+        with self.body:
+            await switch.call_args.args[1](SimpleNamespace(value=False))
+
     async def test_it_asks_the_api_and_draws_the_answer(self) -> None:
         switch, io = self.draw(RUNNING, SWITCHED_OFF)
 
-        await switch.call_args.args[1](SimpleNamespace(value=False))
+        await self.press(switch)
 
         [asked] = io.await_args_list
         self.assertEqual(asked.args[0].__name__, "set_extension_enabled")
@@ -137,11 +141,28 @@ class SwitchTests(unittest.IsolatedAsyncioTestCase):
         notify = self.enterContext(mock.patch.object(sections.ui, "notify"))
         switch, _io = self.draw(RUNNING, RuntimeError("Not allowed"))
 
-        await switch.call_args.args[1](SimpleNamespace(value=False))
+        await self.press(switch)
 
         notify.assert_called_once_with(i18n.t("said.could_not_turn_off"), caption="Not allowed",
                                        type="negative")
         self.assertEqual([one.args[0] for one in switch.call_args_list], [True, True])
+
+    async def test_a_refusal_is_said_after_the_page_is_left(self) -> None:
+        notify = self.enterContext(mock.patch.object(sections.ui, "notify", wraps=ui.notify))
+        switch, io = self.draw(RUNNING, None)
+        with self.body:
+            pressed = ui.row().default_slot
+
+        def refused_once_left(*_args: object) -> None:
+            self.body.clear()
+            raise RuntimeError("Not allowed")
+
+        io.side_effect = refused_once_left
+        with pressed:
+            await switch.call_args.args[1](SimpleNamespace(value=False))
+
+        notify.assert_called_once_with(i18n.t("said.could_not_turn_off"), caption="Not allowed",
+                                       type="negative")
 
 
 class LanguageTests(unittest.TestCase):

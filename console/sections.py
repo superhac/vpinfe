@@ -22,6 +22,7 @@ from common.media_specs import media_label_map
 from console import art_fill, offload, panel, verbs
 from console import dialog as frame
 from console.data import Library
+from console.on_page import on_page
 
 # name, one-line description, predicate over (game, media entries).
 #
@@ -226,7 +227,8 @@ def _metadata_action(library: Library, state: dict[str, Any],
     from console import confirm
     from console.api import ApiClient
 
-    async def ask_and_run(which: str) -> None:
+    @on_page
+    async def start(which: str) -> None:
         title, detail, word, icon, danger = _ASKS[which]
         if not await confirm.ask(title, detail=detail, confirm=word, icon=icon, danger=danger):
             return
@@ -259,10 +261,6 @@ def _metadata_action(library: Library, state: dict[str, Any],
             ui.notify(said, type="warning" if left else "positive")
         state.setdefault(_LEFT, {})[which] = left
         then()
-
-    async def start(which: str) -> None:
-        with ui.context.client:
-            await ask_and_run(which)
 
     return start
 
@@ -546,6 +544,7 @@ def table_scripts(library: Library) -> None:
         await run.io_bound(library.read_script_patches)
         draw()
 
+    @on_page
     async def fetch() -> None:
         offered = list(library.script_patches().get("offered") or [])
         if not await confirm.ask(
@@ -596,6 +595,7 @@ def _extension_card(found: dict, open_one: Callable[..., Any] | None = None) -> 
     shown = dict(found)
     card = ui.element("div").classes("console-card w-full mb-2")
 
+    @on_page
     async def flip(event: Any) -> None:
         from console.api import ApiClient
 
