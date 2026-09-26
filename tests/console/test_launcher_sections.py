@@ -12,7 +12,7 @@ import unittest
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import ANY, AsyncMock, Mock, patch
 from urllib.parse import parse_qs
 
 from common import path_checks
@@ -762,7 +762,9 @@ class PairTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual([call.args for call in named.props.__setitem__.call_args_list],
                          [("role", "group"), ("aria-label", "Width"),
-                          ("role", "group"), ("aria-label", "Height")])
+                          ("data-setting", self.WIDTH.key),
+                          ("role", "group"), ("aria-label", "Height"),
+                          ("data-setting", self.HEIGHT.key)])
         ui.label.assert_called_once_with("×")
 
     def test_pairs_travel_with_their_heading(self) -> None:
@@ -1738,6 +1740,56 @@ class TypedRedrawTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.sleep(0)
 
         rebuild.assert_awaited_once()
+
+    async def test_either_draw_keeps_the_place_of_the_setting_written(self) -> None:
+        kept = self.enterContext(patch.object(workbench, "_keeping_place", new=AsyncMock()))
+        entries, rebuild, typed, ui = await self._drawn("int")
+        entries[0][1]()
+        row = ui.row.return_value.classes.return_value.__enter__.return_value
+        _, leave = row.on.call_args.args
+        await typed(4)
+        await leave()
+        _, _, switched, _ = await self._drawn("bool")
+        await switched(True)
+        await asyncio.sleep(0)
+
+        self.assertEqual([call.args[1:] for call in kept.await_args_list],
+                         [(rebuild, "Player.SoundVolume"), (ANY, "Player.PlayMusic")])
+        row.props.__setitem__.assert_any_call("data-setting", "Player.SoundVolume")
+
+
+class KeepingPlaceTests(unittest.IsolatedAsyncioTestCase):
+    """Where focus is put once the panel is drawn again."""
+
+    async def _sent(self, where: Any) -> tuple[list[str], AsyncMock]:
+        rebuild = AsyncMock()
+        client = Mock()
+        asked = asyncio.get_running_loop().create_future()
+        if isinstance(where, Exception):
+            asked.set_exception(where)
+        else:
+            asked.set_result(where)
+        client.run_javascript.side_effect = [asked, None]
+        await workbench._keeping_place(client, rebuild, "Player.PlayMusic")
+        rebuild.assert_awaited_once()
+        return [call.args[0] for call in client.run_javascript.call_args_list[1:]], rebuild
+
+    async def test_the_control_that_had_focus_comes_first(self) -> None:
+        sent, _ = await self._sent(["Player.SoundVolume", 1])
+
+        self.assertEqual(len(sent), 1)
+        self.assertIn('[["Player.SoundVolume", 1], ["Player.PlayMusic", 0]]', sent[0])
+
+    async def test_focus_elsewhere_in_the_panel_goes_to_the_one_written(self) -> None:
+        sent, _ = await self._sent([])
+
+        self.assertIn('[["Player.PlayMusic", 0]]', sent[0])
+
+    async def test_focus_outside_the_panel_is_left_where_it_went(self) -> None:
+        self.assertEqual((await self._sent(None))[0], [])
+
+    async def test_a_page_that_cannot_say_is_still_drawn(self) -> None:
+        self.assertEqual((await self._sent(TimeoutError()))[0], [])
 
 
 class GridBehindTests(unittest.IsolatedAsyncioTestCase):

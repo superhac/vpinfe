@@ -171,6 +171,35 @@ _ADD_BOX = """
 })()
 """
 
+_FOCUSABLE = "input:not(.hidden), textarea, button, [tabindex='0']"
+
+# [setting, which of its controls] where focus is on one; [] for elsewhere in the panel
+# or a dialog over it, null for outside both. Marks every setting drawn so far, so the
+# one found afterwards is one the new draw made.
+_FOCUSED_SETTING = """(() => {
+  for (const one of document.querySelectorAll('[data-setting]')) one.dataset.drawn = '1';
+  const at = document.activeElement;
+  const one = at && at.closest('[data-setting]');
+  if (one) return [one.dataset.setting, [...one.querySelectorAll(FOCUSABLE)].indexOf(at)];
+  return at && at.closest('.console-workbench-body, .q-dialog') ? [] : null;
+})()""".replace("FOCUSABLE", json.dumps(_FOCUSABLE))
+
+_REFOCUS_SETTING = """(() => {
+  const places = %s;
+  let tries = 0;
+  const look = () => {
+    for (const [key, index] of places) {
+      const one = document.querySelector(
+        `[data-setting="${CSS.escape(key)}"]:not([data-drawn])`);
+      if (!one) continue;
+      const controls = [...one.querySelectorAll(FOCUSABLE)];
+      (controls[index] || controls[0])?.focus();
+      return;
+    }
+    if (++tries < 40) setTimeout(look, 25);
+  };
+  look();
+})()""".replace("FOCUSABLE", json.dumps(_FOCUSABLE))
 
 
 def _rebuilds(context: dict[str, Any], subject: str,
@@ -4369,7 +4398,8 @@ def _marked(parts: Sequence[Part], app_name: str,
     them.
     """
     def draw() -> None:
-        with ui.row().classes("items-center gap-1 no-wrap console-field-line"):
+        with ui.row().classes("items-center gap-1 no-wrap console-field-line") as line:
+            line.props["data-setting"] = parts[0][2].key
             with ui.row().classes("items-center gap-1 no-wrap console-field-row") as row:
                 dot = ui.element("span").classes(
                     "console-mark console-mark--full console-named-mark")
@@ -4419,6 +4449,7 @@ def _pair(parts: Sequence[Part], joiner: str) -> None:
                 control()
             named.props["role"] = "group"
             named.props["aria-label"] = field.label
+            named.props["data-setting"] = field.key
 
 
 def _each_said(said: Sequence[tuple[Any, str]], of: int) -> str:
@@ -4709,13 +4740,13 @@ async def _setting_entries(context: dict[str, Any],
     rows: dict[str, dict] = {}
     redraws: list[Callable[[], None]] = []
     shown = dict(values)
-    pending = {"rebuild": False}
+    pending = {"written": ""}
     in_turn = asyncio.Lock()
 
     async def settle() -> None:
-        if pending["rebuild"]:
-            pending["rebuild"] = False
-            await context["rebuild"]()
+        if written := pending["written"]:
+            pending["written"] = ""
+            await _keeping_place(ui.context.client, context["rebuild"], written)
 
     def written(values: dict[str, str]) -> Awaitable[Any]:
         if (write := context.get("config_write")) is not None:
@@ -4755,9 +4786,9 @@ async def _setting_entries(context: dict[str, Any],
             if cleared and not stuck:
                 ui.notify(t("console.app_settings.now_same_all_tables"), type="positive")
             if fresh and typed and (stuck or key in redraw_on or _moved(shown, fresh, key)):
-                pending["rebuild"] = True
+                pending["written"] = key
             elif not fresh or stuck or key in redraw_on or _moved(shown, fresh, key):
-                asyncio.create_task(context["rebuild"]())
+                asyncio.create_task(_keeping_place(ui.context.client, context["rebuild"], key))
                 return True
             saved = context.get("saved")
             if callable(saved) and _whose(shown, key) != _whose(fresh, key):
@@ -4839,6 +4870,20 @@ async def _setting_entries(context: dict[str, Any],
 
 def _whose(values: dict[str, Any], key: str) -> str:
     return str((values.get(key) or {}).get("scope") or "")
+
+
+async def _keeping_place(client: Any, rebuild: Callable[[], Awaitable[Any]],
+                         written: str) -> None:
+    """`rebuild`, then focus the control that held focus, else `written`'s first. Nothing
+    is focused where focus was outside the panel."""
+    try:
+        where = await client.run_javascript(_FOCUSED_SETTING)
+    except Exception:  # noqa: BLE001 - a panel that cannot say where focus is still draws
+        where = None
+    await rebuild()
+    if where is not None:
+        places = [where] if where else []
+        client.run_javascript(_REFOCUS_SETTING % json.dumps([*places, [written, 0]]))
 
 
 def no_longer_reads_game(cut: Sequence[dict[str, Any]],
