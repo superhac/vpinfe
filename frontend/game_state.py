@@ -294,6 +294,8 @@ def rebuild_view(api: API) -> None:
     A collection's own stored sort is not reapplied. Choosing a collection applies it
     once; a player who sorted differently afterwards keeps that.
     """
+    if api.library.show_all_if_gone():
+        return
     api.filtered_games = _current_membership(api)
     apply_sort(api.filtered_games, api.current_sort, api.current_order)
     api._rebuild_entries()

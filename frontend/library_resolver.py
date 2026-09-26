@@ -194,10 +194,19 @@ class LibraryResolver:
         it; the Game objects stay shared, so a rating update still reaches every reader."""
         with self.lock:
             self.current_collection = BUILTIN_ALL
+            self.current_filters = game_state.default_filter_state()
             self.current_sort = DEFAULT_ORDER_BY
             self.current_order = DEFAULT_DIRECTION
             self.filtered_games = self.resolve_view(BUILTIN_ALL)
             self.rebuild_entries()
+
+    def show_all_if_gone(self) -> bool:
+        with self.lock:
+            name = self.current_collection
+            if self._remote or name == BUILTIN_ALL or name in self.collections():
+                return False
+            self.reset_to_default()
+            return True
 
     # -- the payload ---------------------------------------------------------
 

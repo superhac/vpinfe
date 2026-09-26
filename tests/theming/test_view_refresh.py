@@ -40,6 +40,9 @@ class _Library:
     def reload(self):
         return self.all_games
 
+    def show_all_if_gone(self):
+        return False
+
     def resolve_view(self, collection, criteria=None):
         if criteria:
             self.store.set_view_filters(criteria)

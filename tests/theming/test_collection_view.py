@@ -18,6 +18,7 @@ from frontend import game_state
 from frontend.api import API
 from frontend.library_resolver import LibraryResolver
 from tests.support.library import TempTree
+from tests.support.library_loader import start_library_of
 
 
 def _game(gid, title, tables, manufacturer="", default=""):
@@ -231,3 +232,51 @@ class CabinetCollectionRowsTests(_Library):
 
         self.assertIsNone(row["table_count"])
         self.assertEqual(row["game_wheel_urls"], [])
+
+
+class CollectionGoneTests(_Library):
+    """The collection on show is deleted from the Console while the cabinet shows it."""
+
+    WHOLE_LIBRARY = [("taf", "t1"), ("afm", "a1"), ("mm", "vpw")]
+
+    def setUp(self) -> None:
+        super().setUp()
+        start_library_of(self, self.games)
+
+    def _refresh(self, api) -> None:
+        api.library.mark_stale()
+        api.get_tables()
+
+    def test_the_next_refresh_shows_the_whole_library(self) -> None:
+        self.collections.add_collection("Short", ["mm"])
+        api = self._api()
+        game_state.apply_collection(api, "Short")
+        self.collections.delete_collection("Short")
+
+        self._refresh(api)
+
+        self.assertEqual(api.current_collection, BUILTIN_ALL)
+        self.assertEqual(api.get_current_collection(), "None")
+        self.assertEqual(self._rows(api), self.WHOLE_LIBRARY)
+
+    def test_a_deleted_rule_does_not_come_back_as_all(self) -> None:
+        self.collections.add_filter_collection("Bally", manufacturer="Bally")
+        api = self._api()
+        game_state.apply_collection(api, "Bally")
+        self.collections.delete_collection("Bally")
+
+        self._refresh(api)
+        self._refresh(api)
+
+        self.assertEqual(api.current_filters, game_state.default_filter_state())
+        self.assertEqual(self._rows(api), self.WHOLE_LIBRARY)
+
+    def test_all_from_the_picker_stays_all_through_a_refresh(self) -> None:
+        self.collections.add_filter_collection("Bally", manufacturer="Bally")
+        api = self._api()
+        game_state.apply_collection(api, "Bally")
+
+        api.get_tables(reset=True)
+        self._refresh(api)
+
+        self.assertEqual(self._rows(api), self.WHOLE_LIBRARY)
