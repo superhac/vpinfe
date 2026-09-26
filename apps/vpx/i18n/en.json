@@ -1,4 +1,5 @@
 {
+  "enable": "Enable",
   "field.Backglass.BackglassDisplay.help": "The monitor it opens on, by the name Visual Pinball gives it",
   "field.Backglass.BackglassFullScreen.help": "Windowed, or filling the display",
   "field.Backglass.BackglassOutput.help": "Whether this window appears, on its own or inside the playfield",

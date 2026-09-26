@@ -128,14 +128,18 @@ def app_name(app_id: str | None) -> str:
 def field_words(app_id: str, field: Field) -> dict[str, str]:
     """`label`, `label_key` and `description` for a field on a launcher of this app.
 
-    The app's catalog answers first, then core's `launcher.field.*`, which holds the
-    fields every launcher has.
+    The app's catalog answers first, then the word its config hands back for a label the
+    setting shares, then core's `launcher.field.*`, which holds the fields every launcher
+    has.
     """
-    def leaf(name: str, literal: str, fallback: str) -> tuple[str, str]:
-        return i18n.literal_or(literal, f"app.{app_id}.field.{field.key}.{name}",
+    def leaf(name: str, literal: str, fallback: str, *shared: str) -> tuple[str, str]:
+        return i18n.literal_or(literal, f"app.{app_id}.field.{field.key}.{name}", *shared,
                                f"launcher.field.{field.key}.{name}", fallback=fallback)
 
-    label, label_key = leaf("label", field.label, humanized(field.key))
+    naming = getattr(getattr(get(app_id), "config", None), "label_word", None)
+    word = naming(field.key) if naming is not None else ""
+    label, label_key = leaf("label", field.label, humanized(field.key),
+                            *([f"app.{app_id}.{word}"] if word else []))
     return {"label": label, "label_key": label_key,
             "description": leaf("description", field.description, "")[0]}
 

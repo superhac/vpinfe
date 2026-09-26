@@ -538,6 +538,11 @@ class VPXConfig:
         return {**dict.fromkeys(FROM_THE_SCREEN, "from_the_screen"),
                 **dict.fromkeys(FROM_THE_TABLE, "the_tables_own")}
 
+    def label_word(self, key: str) -> str:
+        """The word in this app's catalog that names a setting with no words of its own,
+        or "" for one that has them."""
+        return "enable" if areas.is_plugin_switch(key) else ""
+
     def named_values(self) -> dict[str, tuple[tuple[str, str], ...]]:
         """By key, the values the program gives a meaning of their own, each with the word
         for it in this app's catalog."""

@@ -18,6 +18,7 @@ from unittest import mock
 from apps.vpx import areas, displays
 from apps.vpx.config import VPXConfig, own_file, own_log, settings_file
 from apps.vpx.setting_types import LABELS, TYPES
+from common import apps
 from common.apps.contract import SCOPE_ENTRY, SCOPE_FOLDER, SCOPE_LAUNCHER
 
 APP_INI = """\
@@ -1184,6 +1185,17 @@ class SchemaTests(_Case):
 
         self.assertEqual(said["Plugin.PinMAME.Enable"], "")
         self.assertEqual(said["DMD.Profile1Legacy"], "Use the legacy renderer")
+
+    def test_a_plugin_s_switch_is_named_from_the_catalog(self) -> None:
+        self.app_ini.write_text(APP_INI + "\n[Plugin.PinMAME]\n"
+                                "; Enable: Enable PinMAME plugin [Default: 0]\nEnable = 1\n"
+                                "\n[Plugin.Unheard]\nEnable = 1\n")
+        fields = {f.key: f for g in self.config.groups(self.settings) for f in g.settings}
+
+        for key in ("Plugin.PinMAME.Enable", "Plugin.Unheard.Enable"):
+            words = apps.field_words("vpx", fields[key])
+            self.assertEqual((words["label"], words["label_key"]),
+                             ("Enable", "app.vpx.enable"), key)
 
     def test_what_vpx_wrote_about_itself_is_not_offered_as_a_setting(self) -> None:
         offered = {f.key for g in self.config.groups(self.settings) for f in g.settings}
