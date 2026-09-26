@@ -1063,6 +1063,18 @@ async def apply_layout(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]
                    **{definition["field"]: definition.get("pinned") for definition in columns},
                    **{col_id: entry["pinned"] for col_id, entry in saved.items()
                       if "pinned" in entry}}
+    grid.run_grid_method("applyColumnState",
+                         {"state": applied_state(columns, saved), "applyOrder": True})
+
+
+def applied_state(columns: list[dict[str, Any]],
+                  saved: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """The column state `apply_layout` puts on a grid: the saved order, then every
+    column the save does not name in declared order, each at its saved width or else
+    its declared one."""
+    declared = {definition["field"]: definition for definition in columns}
+    order = [col_id for col_id in saved if col_id in declared]
+    order += [field_id for field_id in declared if field_id not in saved]
     # Every column this grid has gets a definite width, not only the ones with one
     # stored: a view with no geometry of its own must go back to the definitions rather
     # than keep the last view's. `defaultState: {"width": None}` reads as if it would do
@@ -1071,17 +1083,14 @@ async def apply_layout(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]
     # Pinning is deliberately not reset. It is set by the column definition rather than
     # by a layout, and forcing it here unpins the selection column.
     state = []
-    for definition in columns:
-        field_id = definition["field"]
+    for field_id in order:
         want = dict(saved.get(field_id) or {})
         want.setdefault("colId", field_id)
-        want.setdefault("width", definition.get("width"))
+        want.setdefault("width", declared[field_id].get("width"))
         if want.get("width") is None:
             want.pop("width", None)
         state.append(want)
-    # Ordered only where the view has an order of its own; otherwise the definitions'.
-    grid.run_grid_method("applyColumnState",
-                         {"state": state, "applyOrder": bool(saved)})
+    return state
 
 
 def _restore(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]],
