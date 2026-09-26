@@ -131,6 +131,51 @@ test("every capability method the docs name exists on core", () => {
     `documented methods that do not exist:\n  ${[...new Set(missing)].join("\n  ")}`);
 });
 
+/** A parameter list's names, in order: defaults dropped, a rest parameter kept as `...name`. */
+function parameterNames(list) {
+  const names = [];
+  let depth = 0;
+  let piece = "";
+  for (const char of `${list},`) {
+    if ("([{".includes(char)) depth += 1;
+    if (")]}".includes(char)) depth -= 1;
+    if (char === "," && depth === 0) {
+      const name = piece.split("=")[0].trim();
+      if (name) names.push(name);
+      piece = "";
+    } else {
+      piece += char;
+    }
+  }
+  return names;
+}
+
+test("every API heading names the parameters core's method takes", () => {
+  const { VPinFECore } = loadCore();
+  const wrong = [];
+  let checked = 0;
+  for (const m of doc.matchAll(/^#### ([A-Za-z_$][\w$]*)\(([^)]*)\)\s*$/gm)) {
+    const method = VPinFECore.prototype[m[1]];
+    if (typeof method !== "function") continue;
+    checked += 1;
+    const source = method.toString();
+    const opened = source.indexOf("(");
+    let depth = 0;
+    let closed = opened;
+    for (; closed < source.length; closed += 1) {
+      if (source[closed] === "(") depth += 1;
+      if (source[closed] === ")" && --depth === 0) break;
+    }
+    const takes = parameterNames(source.slice(opened + 1, closed));
+    const documented = parameterNames(m[2]);
+    if (documented.join(", ") !== takes.join(", ")) {
+      wrong.push(`${m[1]}(${documented.join(", ")}) takes (${takes.join(", ")})`);
+    }
+  }
+  assert.ok(checked > 20, `only ${checked} API headings matched a method`);
+  assert.deepEqual(wrong, [], `API headings that name the wrong parameters:\n  ${wrong.join("\n  ")}`);
+});
+
 test("every payload path the docs read is in the payload we serve", () => {
   const entry = (payload.contract2.entries || [])[0];
   assert.ok(entry, "the captured contract 2 payload has no entries to check against");

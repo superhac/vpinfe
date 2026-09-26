@@ -1243,19 +1243,28 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 
 ### API Reference
 
-#### t(key, params)
+#### t(key, english, params)
 
 What a key says, in the language this install speaks. Core's own words, and the handful
 every theme was writing out for itself.
 
 ```js
-wheel.textContent = vpin.t("frontend.theme.no_tables_found");
-status.textContent = vpin.t("frontend.theme.launching");
+wheel.textContent = vpin.t("frontend.theme.no_tables_found", "No tables found");
+status.textContent = vpin.t("frontend.theme.launching", "Launching...");
 ```
 
-An unknown key answers with the key, never blank, so a typo is visible rather than an
-empty element. Core ships these, and they are the ones seven themes had each written
-their own copy of:
+`english` is what shows until the catalog arrives. `init()` starts fetching it and does
+not wait, so a word drawn at startup without its English reads as the key. A key the
+catalog does not have answers with the English too, and with the key when there is none,
+so it is never blank.
+
+`params` fills the entry's slots by name: `{count}` from `count`. A `count` also picks
+the form, so an entry written as `{ "one": "{count} game", "other": "{count} games" }`
+says "1 game" and "12 games". The English can take the same shape. It comes before the
+parameters, so a call with parameters and no English passes `""` in its place.
+
+Core ships these, and they are the ones seven themes had each written their own copy
+of:
 
 | key | English |
 |---|---|
