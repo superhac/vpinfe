@@ -345,9 +345,7 @@ def _metadata_row(good: bool, name: str, said: str,
             ui.label(name).classes("console-setting")
             ui.label(said).classes("console-help")
             for text, hover in lines or []:
-                line = ui.label(text).classes("console-help")
-                if hover:
-                    line.tooltip(hover)
+                panel.line(text, hint=hover)
         if action is not None:
             label, run = action
             ui.button(label, icon=verbs.GO, on_click=run) \

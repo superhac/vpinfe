@@ -24,6 +24,7 @@ from common.games.info_maintenance import restore_library, upgrade_library
 from common.i18n import t
 from console import sections
 from console.data import Library
+from tests.support import lines
 from tests.support.library import game_info, write_game
 from tests.support.skips import needs_posix_permissions
 
@@ -180,10 +181,7 @@ def _card(metadata: dict, left: dict | None = None) -> dict[str, str]:
     """Each line the metadata card draws, with what hovering it shows."""
     with ui.column() as body:
         sections.metadata(metadata, lambda _which: None, left)
-    tips = {one.props["target"]: one.text
-            for one in body.descendants() if isinstance(one, ui.tooltip)}
-    return {one.text: tips.get(f"#{one.html_id}", "")
-            for one in body.descendants() if isinstance(one, ui.label)}
+    return lines.details(body)
 
 
 async def _now(callback, *args, **kwargs):

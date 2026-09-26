@@ -992,6 +992,24 @@ different jobs, so each job has a token and the token is where its value is deci
 draws a glyph. A relative unit passes: the icon inside a text link is `1em` because it is
 sized to the words it sits in, which is a decision and not a number left lying about.
 
+### A line with more to say shows it
+
+A line whose detail lives only in its tooltip looks exactly like a line with nothing more to
+say, and a hover does nothing on touch. So a line with a detail ends in a small `info_outline`
+mark (`verbs.SAYS_MORE`), `--ink-3` at rest like any icon at the end of a row. The detail
+shows on hover of the line, and on a click, tap or Enter on the mark; either way it reads
+the same.
+
+Draw it with `panel.line(text, hint=...)`, which does all of that, or with `panel.note` and
+`panel.intro`, which call it. A reason from `common.failures.why(exc)`, a record's `error` or
+`detail`, and a caption's hover all go through it. A chip or mark that carries a reason, a
+control's hint and a clipped value's full text are not lines, and keep their tooltips.
+
+`tests/invariants/test_a_line_with_more_to_say_shows_it.py` reads the whole `console/` tree
+and fails on a tooltip drawn anywhere else that carries a failure's words or sits on a
+`console-help` caption. It does not follow a detail carried in a plain variable onto a line
+that is not a caption; that half is held by this paragraph alone.
+
 ### One control per fact, and one way back
 
 **A control that sets a value does not also unset it.** Clicking the third star of a
