@@ -2014,6 +2014,7 @@
   "error.collections.collection_needs_name": "A collection needs a name",
   "error.collections.copy_or_contents": "A copy takes its games and rules from the collection it copies",
   "error.collections.file_empty": "That file is empty",
+  "error.collections.file_not_image": "That file is not an image",
   "error.collections.filter_collection_no_arrangement": "{name} is a filter collection - it has no arrangement to follow",
   "error.collections.filter_collection_order_comes": "{name} is a filter collection - its order comes from its criteria",
   "error.collections.no_collection_named": "No collection named {name}",

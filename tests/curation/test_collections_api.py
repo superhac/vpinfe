@@ -18,6 +18,7 @@ from starlette.testclient import TestClient
 import httpapi
 from common.games import collection_filters as cf
 from common.games.collection_store import CollectionStore
+from common.i18n import t
 from frontend import game_state
 from tests.support.library import TempTree, fake_game, write_game
 
@@ -447,6 +448,16 @@ class CollectionsApiTests(TempTree):
     def test_a_blank_name_is_refused(self) -> None:
         self.assertEqual(self.client.post("/collections", json={"name": "  "}).status_code,
                          400)
+
+    def test_a_picture_that_is_not_an_image_is_refused_in_words(self) -> None:
+        self.client.post("/collections", json={"name": "Favorites"})
+
+        response = self.client.put("/collections/Favorites/image",
+                                   files={"file": ("notes.txt", b"words", "text/plain")})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["message"],
+                         t("error.collections.file_not_image"))
 
     # --- membership -----------------------------------------------------
 

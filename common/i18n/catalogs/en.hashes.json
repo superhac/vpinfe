@@ -1747,6 +1747,7 @@
   "error.collections.collection_needs_name": "c512f77fd6f8",
   "error.collections.copy_or_contents": "7781be742159",
   "error.collections.file_empty": "b147ddec156c",
+  "error.collections.file_not_image": "1555ea2ef996",
   "error.collections.filter_collection_no_arrangement": "84c9932ba4ee",
   "error.collections.filter_collection_order_comes": "955a85cecf47",
   "error.collections.no_collection_named": "7fa3bbc47685",

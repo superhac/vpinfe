@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from common.games.collection_store import CollectionStore
+from common.i18n import t
 from common.paths import COLLECTIONS_PATH, get_ini_config
 from common.values import is_truthy
 
@@ -45,7 +46,7 @@ def save_collection_icon(filename: str, content: bytes) -> str:
     """
     suffix = Path(filename).suffix.lower()
     if suffix not in IMAGE_EXTENSIONS:
-        raise ValueError("Collection image must be an image file")
+        raise ValueError(t("error.collections.file_not_image"))
 
     icon_dir = ensure_collection_icons_dir()
     stem = _safe_icon_stem(filename)
