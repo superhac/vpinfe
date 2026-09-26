@@ -10,6 +10,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+import requests
+
 import httpapi
 from common import lifecycle
 from common.host import launch_state
@@ -130,6 +132,20 @@ class PerformUpdateTests(unittest.TestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["error"]["message"],
                          t("error.instance.download_damaged"))
+
+    def test_a_release_nothing_answers_for_is_said_and_takes_nothing_down(self) -> None:
+        launch_state.set_launching("Medieval Madness", source=launch_state.SOURCE_API)
+
+        def away():
+            raise requests.ConnectTimeout("HTTPSConnectionPool(host='api.github.com')")
+
+        with self.assertLogs("vpinfe.common.online.app_updater", "WARNING"):
+            response = self._post({"stop_table": True}, prepare=away)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["error"]["message"],
+                         t("error.instance.latest_unreachable"))
+        self.assertEqual(self.performed, [])
 
     def test_this_install_goes_down_so_the_updater_can_run(self) -> None:
         self._post()

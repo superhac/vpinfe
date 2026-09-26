@@ -2192,6 +2192,7 @@
   "error.instance.already_latest": "This is already the latest version",
   "error.instance.device_cannot_update_itself": "This device cannot update itself",
   "error.instance.download_damaged": "The download arrived damaged - try again",
+  "error.instance.latest_unreachable": "The latest release could not be reached - try again later",
   "error.instance.latest_unreadable": "The latest release could not be read - try again later",
   "error.instance.no_build_for_system": "The latest release has no build for this system",
   "error.instance.not_a_release": "This build is not a published release",

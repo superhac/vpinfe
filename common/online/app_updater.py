@@ -641,7 +641,11 @@ def take_published(*, stop_table: bool = False) -> dict:
         raise service_errors.BlockedError(t("error.instance.table_running"),
                                           details={"game_name": playing.game_name})
 
-    prepared = prepare_update()
+    try:
+        prepared = prepare_update()
+    except requests.RequestException as exc:
+        unreachable(logger, "Could not take the published build", exc)
+        raise UpdateError(t("error.instance.latest_unreachable")) from exc
 
     stopped_table = None
     if playing.launching and device_client.local().request(

@@ -1925,6 +1925,7 @@
   "error.instance.already_latest": "2bebcf93ba59",
   "error.instance.device_cannot_update_itself": "d546a7d383b6",
   "error.instance.download_damaged": "4fd445e09f1b",
+  "error.instance.latest_unreachable": "a1b4d9d7cd70",
   "error.instance.latest_unreadable": "2aaf300ef89a",
   "error.instance.no_build_for_system": "2d9fe9e74c7a",
   "error.instance.not_a_release": "884be056ff77",

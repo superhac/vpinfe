@@ -2192,6 +2192,7 @@
   "error.instance.already_latest": "Ţĥîš îš àŀřèàđý ţĥè ŀàţèšţ ṽèřšîöñ",
   "error.instance.device_cannot_update_itself": "Ţĥîš đèṽîçè çàññöţ ûþđàţè îţšèŀƒ",
   "error.instance.download_damaged": "Ţĥè đöŵñŀöàđ àřřîṽèđ đàɱàĝèđ - ţřý àĝàîñ",
+  "error.instance.latest_unreachable": "Ţĥè ŀàţèšţ řèŀèàšè çöûŀđ ñöţ ƀè řèàçĥèđ - ţřý àĝàîñ ŀàţèř",
   "error.instance.latest_unreadable": "Ţĥè ŀàţèšţ řèŀèàšè çöûŀđ ñöţ ƀè řèàđ - ţřý àĝàîñ ŀàţèř",
   "error.instance.no_build_for_system": "Ţĥè ŀàţèšţ řèŀèàšè ĥàš ñö ƀûîŀđ ƒöř ţĥîš šýšţèɱ",
   "error.instance.not_a_release": "Ţĥîš ƀûîŀđ îš ñöţ à þûƀŀîšĥèđ řèŀèàšè",
