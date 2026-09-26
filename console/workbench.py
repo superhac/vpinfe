@@ -846,8 +846,12 @@ async def _media_file_block(context: dict[str, Any]) -> None:
     overrides = {} if table_id else await run.io_bound(library.media_overrides, game_id)
     links = (await offload.io(library.outside_links, game_id, "", str(row["path"]))
              if row.get("present") and row.get("path") else [])
-    _slot(context, kind, entries.get(kind) or {}, detail, context["rebuild"],
-          (overrides or {}).get(kind) or [], titled=False, in_place=False, links=links)
+    entry = entries.get(kind) or {}
+    matched = await _match_line(context, kind, (detail or {}).get("matched_to")
+                                or entry.get("matched_to"))
+    _slot(context, kind, entry, detail, context["rebuild"],
+          (overrides or {}).get(kind) or [], titled=False, in_place=False, links=links,
+          matched=matched)
 
 
 def _loose_media(context: dict[str, Any]) -> None:
@@ -1661,16 +1665,20 @@ async def _media_block(context: dict[str, Any]) -> None:
             context["media"] = entries
             kind = context["slot"]["kind"]
             detail = None
+            matched = ""
             if kind and kind in entries:
                 try:
                     detail = await offload.io(library.media_detail, game_id,
                                                 table_id or None, kind)
                 except Exception:
                     logger.debug("No detail for %s", kind, exc_info=True)
+                matched = await _match_line(context, kind,
+                                            (detail or {}).get("matched_to")
+                                            or entries[kind].get("matched_to"))
             with dock:
                 if kind and kind in entries:
                     _slot(context, kind, entries[kind], detail, written,
-                          (overrides or {}).get(kind) or [])
+                          (overrides or {}).get(kind) or [], matched=matched)
                 else:
                     # The region is reserved either way, so it says what it is for
                     # rather than sitting there as an empty box. Named for what the
@@ -1817,7 +1825,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
           detail: dict[str, Any] | None, draw: Any,
           differing: list[dict[str, Any]] | None = None, *,
           titled: bool = True, in_place: bool = True,
-          links: Sequence[dict[str, Any]] = ()) -> None:
+          links: Sequence[dict[str, Any]] = (), matched: str = "") -> None:
     """One slot: the art at the size of the room, and what there is to know about it.
 
     The picture is the subject. Everything else is one line each underneath, because
@@ -1906,10 +1914,8 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                         .classes("console-help")
                 # Only when somebody has said - "not matched" is true of nearly every
                 # file, and the button below is where the unanswered case belongs.
-                named = _match_line(context, kind,
-                                    detail.get("matched_to") or entry.get("matched_to"))
-                if named:
-                    ui.label(named).classes("console-help")
+                if matched:
+                    ui.label(matched).classes("console-help")
                 _outside_lines(links)
             else:
                 ui.label(t("console.workbench.no", lower=(label.lower()),
@@ -3871,15 +3877,24 @@ def _listed_as(kind: str, inventory: str) -> Any:
     return listed if listed is not None and listed.held_in == inventory else None
 
 
-def _match_line(context: dict[str, Any], kind: str, matched_to: Any) -> str:
+async def _match_line(context: dict[str, Any], kind: str, matched_to: Any) -> str:
     """What the bound record is called. Resolved here because the catalog is already
     open on this side and an id is not something to put on screen."""
     said = str(matched_to or "")
     listed = _listed_as(kind, vps_kinds.MEDIA)
     if not said or listed is None:
         return ""
+    library = context["library"]
     vps_id = str(context["game"].get("vps_id") or "")
-    for record in _records_of(context, vps_id, listed.listed_as):
+    try:
+        records = (await offload.io(library.vps_releases, vps_id, listed.listed_as)
+                   if vps_id else [])
+        held = bool(records) or bool(vps_id and await offload.io(library.vps_catalog_held))
+    except Exception:
+        logger.warning("console: could not read %s for %s", listed.listed_as, vps_id,
+                       exc_info=True)
+        return t("console.workbench.matched_published_file")
+    for record in records:
         if str(record.get("vps_file_id") or "") == said:
             told = " · ".join(part for part in (
                 str(record.get("version") or ""),
@@ -3888,7 +3903,8 @@ def _match_line(context: dict[str, Any], kind: str, matched_to: Any) -> str:
             return t("console.workbench.matched",
                     told=(told)) if told else t("console.workbench.matched_published_file")
     # Worth saying: it is why no update will ever be reported for this file.
-    return t("console.workbench.matched_file_spreadsheet_no")
+    return (t("console.workbench.matched_file_spreadsheet_no") if held
+            else t("console.workbench.matched_published_file"))
 
 
 def _match_button(context: dict[str, Any], kind: str, label: str,
