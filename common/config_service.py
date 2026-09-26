@@ -13,6 +13,7 @@ its own.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import Any
 
 from common import config_schema, install_presence, path_checks
@@ -78,14 +79,26 @@ def _describe(option: config_schema.ConfigOption) -> dict[str, Any]:
     }
 
 
-def schema() -> dict[str, Any]:
-    """What a settings page is built from.
+def _settable(windows: Sequence[str]) -> tuple[config_schema.ConfigOption, ...]:
+    """The schema's settings, with a screen for each of `windows` it does not declare
+    placed after its own."""
+    declared = config_schema.settable()
+    held = {option.section for option in declared}
+    added = tuple(option for option in map(config_schema.window_screen, dict.fromkeys(windows))
+                  if option.section not in held)
+    after = 1 + max((at for at, option in enumerate(declared)
+                     if config_schema.window_name(option.section)), default=-1)
+    return (*declared[:after], *added, *declared[after:])
+
+
+def schema(windows: Sequence[str] = ()) -> dict[str, Any]:
+    """What a settings page is built from. `windows` are the active theme's.
 
     Internal options are left out: they are runtime state that happens to live in the
     config file, and offering a last-played pointer as a setting invites someone to set
     it. `settable()` is the same predicate the config file's own docs use.
     """
-    options = [_describe(option) for option in config_schema.settable()]
+    options = [_describe(option) for option in _settable(windows)]
     sections = [{"name": name,
                  "writable": name not in READ_ONLY_SECTIONS,
                  "options": [o for o in options if o["section"] == name]}
@@ -108,18 +121,19 @@ def path_states() -> dict[str, Any]:
     return {"checks": checks}
 
 
-def values() -> dict[str, Any]:
+def values(windows: Sequence[str] = ()) -> dict[str, Any]:
     """Current values, typed. A setting the file does not carry answers its default,
     because that is what the install is actually running on."""
     store = get_ini_config()
     found: dict[str, dict[str, Any]] = {}
-    for option in config_schema.settable():
+    for option in _settable(windows):
         found.setdefault(option.section, {})[option.key] = \
             store.value(option.section, option.key)
     return {"values": found}
 
 
-def set_values(wanted: dict[str, dict[str, Any]] | None) -> dict[str, Any]:
+def set_values(wanted: dict[str, dict[str, Any]] | None,
+               windows: Sequence[str] = ()) -> dict[str, Any]:
     """A patch: only the sections and keys given are written.
 
     Every key is checked against the schema first and the whole request is refused if any
@@ -127,6 +141,7 @@ def set_values(wanted: dict[str, dict[str, Any]] | None) -> dict[str, Any]:
     asked for and no screen reflects.
     """
     store = get_ini_config()
+    served = set(_settable(windows))
     staged: list[tuple[str, str, Any]] = []
     unknown: list[str] = []
     refused: list[str] = []
@@ -138,7 +153,7 @@ def set_values(wanted: dict[str, dict[str, Any]] | None) -> dict[str, Any]:
             # is the contract every other reader of the config already honours.
             here, name = config_schema.locate(section, key)
             option = config_schema.option(here, name)
-            if option is None or option.internal:
+            if option is None or option not in served:
                 unknown.append(f"{section}.{key}")
             elif option.section in READ_ONLY_SECTIONS:
                 refused.append(f"{option.section}.{option.key}")
@@ -150,7 +165,7 @@ def set_values(wanted: dict[str, dict[str, Any]] | None) -> dict[str, Any]:
     if refused:
         raise ReadOnlySettingsError(refused)
     if not staged:
-        return values()
+        return values(windows)
 
     for section, key, value in staged:
         store.set_value(section, key, value)
@@ -164,4 +179,4 @@ def set_values(wanted: dict[str, dict[str, Any]] | None) -> dict[str, Any]:
         # The registry holds a copy of what each install reported. This one just changed
         # what it reports, and every screen listing devices reads the copy.
         install_presence.record_self()
-    return values()
+    return values(windows)

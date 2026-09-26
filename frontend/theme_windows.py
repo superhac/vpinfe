@@ -12,7 +12,8 @@ import re
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 
-from frontend import theme_api
+from common.config_access import ConfigSource
+from frontend import theme_api, theme_contract
 
 logger = logging.getLogger("vpinfe.frontend.theme_windows")
 
@@ -115,6 +116,20 @@ def declared_windows(theme_dir: str | Path | None, contract: int) -> tuple[str, 
             _warn_on_foreign_names(theme_dir, contract, names)
             return names
     return _windows_with_a_page(theme_dir, default)
+
+
+def active(config: ConfigSource | None) -> tuple[str, ...]:
+    """The windows the active theme wants, controller first."""
+    theme_dir = (theme_api.resolve_theme_dir(theme_api.get_theme_name(config))
+                 if config is not None else None)
+    contract = theme_contract.declared_contract(theme_dir) if theme_dir else OLDEST_CONTRACT
+    return declared_windows(theme_dir, contract)
+
+
+def own_windows(windows: Iterable[str]) -> tuple[str, ...]:
+    """The ones beyond Playfield, Backglass and Score View, under any contract's name."""
+    return tuple(name for name in windows
+                 if canonical(name) not in CANONICAL.values() and window_title(name))
 
 
 def _windows_with_a_page(theme_dir: str | Path,

@@ -35,14 +35,10 @@ def window_configs(iniconfig: ConfigStore | None = None) -> list[tuple[str, str]
     which contract it was written against - which is what keeps index_table.html working
     without a fallback lookup.
     """
-    from frontend import theme_api, theme_contract, theme_windows
+    from frontend import theme_windows
 
-    theme_dir = None
-    if iniconfig is not None:
-        theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(iniconfig))
-    contract = theme_contract.declared_contract(theme_dir) if theme_dir else 1
-    windows = theme_windows.declared_windows(theme_dir, contract)
-    return [(name, theme_windows.screen_key(name)) for name in windows]
+    return [(name, theme_windows.screen_key(name))
+            for name in theme_windows.active(iniconfig)]
 
 
 def create_api_instances(iniconfig: ConfigStore,

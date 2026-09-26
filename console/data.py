@@ -194,7 +194,6 @@ class Library:
         self._vps_releases: dict[tuple[str, str], list[dict[str, Any]]] = {}
         self._overrides: dict[str, dict[str, Any]] = {}
         self._prefs: dict[str, dict[str, Any]] = {}
-        self._config_schema: list[dict[str, Any]] | None = None
         self._launch_apps: list[dict[str, Any]] | None = None
         self._kept: dict[str, set[str]] | None = None
         self._discovery: dict[str, Any] = {}
@@ -409,11 +408,8 @@ class Library:
         self._client.launch(game_id, file)
 
     def config_schema(self) -> list[dict]:
-        """Cached for the page's life: the schema is what this build declares, and it
-        cannot change while the process is up."""
-        if self._config_schema is None:
-            self._config_schema = self._client.config_schema()
-        return self._config_schema
+        """Never cached: the active theme's windows are in it."""
+        return self._client.config_schema()
 
     def config_values(self) -> dict:
         """Never cached - it is read when a settings page opens, which is exactly when

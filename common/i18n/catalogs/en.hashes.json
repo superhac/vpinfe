@@ -260,6 +260,7 @@
   "config.windows.score_view.override.description": "30fb968c4818",
   "config.windows.score_view.override.label": "4daa10d7ec0b",
   "config.windows.score_view.screen_id.label": "025338cd6699",
+  "config.windows.screen_id.label": "025338cd6699",
   "console.about.browser_not_let_page": "0af71b0074a3",
   "console.about.could_not_read_device": "d90d3f3d01c0",
   "console.about.everything_bug_report_asks": "4f6d9f60adf7",

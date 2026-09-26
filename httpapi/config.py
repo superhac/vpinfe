@@ -14,6 +14,8 @@ from fastapi import APIRouter, Body
 from common import config_service
 from common.failures import why
 from common.i18n import t
+from common.paths import get_ini_config
+from frontend import theme_windows
 
 from . import models, scopes
 from .auth import requires
@@ -22,11 +24,16 @@ from .errors import ConflictError, InvalidRequestError
 router = APIRouter(prefix="/config", tags=["config"])
 
 
+def _windows() -> tuple[str, ...]:
+    """The windows the active theme adds, which the schema cannot name in advance."""
+    return theme_windows.own_windows(theme_windows.active(get_ini_config()))
+
+
 @router.get("/schema", summary="Every setting this install has",
             dependencies=[requires(scopes.CONFIG_READ)])
 def get_schema() -> models.ConfigSchema:
     """What a settings page is built from. Internal options are left out."""
-    return models.ConfigSchema.model_validate(config_service.schema())
+    return models.ConfigSchema.model_validate(config_service.schema(_windows()))
 
 
 @router.get("/paths", summary="Whether each path setting finds anything",
@@ -44,7 +51,7 @@ def get_path_checks() -> models.ConfigPathChecks:
 @router.get("", summary="What this install is set to",
             dependencies=[requires(scopes.CONFIG_READ)])
 def get_values() -> models.ConfigValues:
-    return models.ConfigValues.model_validate(config_service.values())
+    return models.ConfigValues.model_validate(config_service.values(_windows()))
 
 
 @router.put("", summary="Change settings",
@@ -52,7 +59,8 @@ def get_values() -> models.ConfigValues:
 def put_values(values: dict[str, dict[str, Any]] = Body(...)) -> models.ConfigValues:
     """A patch: only the sections and keys sent are written."""
     try:
-        return models.ConfigValues.model_validate(config_service.set_values(values))
+        return models.ConfigValues.model_validate(
+            config_service.set_values(values, _windows()))
     except config_service.UnknownSettingsError as exc:
         raise InvalidRequestError(
             t("error.config.no_such_settings",

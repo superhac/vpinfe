@@ -12,6 +12,7 @@ store it replaces rather than trusted.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 
 from common import i18n, input_registry, setting_groups
@@ -1000,11 +1001,28 @@ def settable() -> tuple[ConfigOption, ...]:
     return tuple(option for option in CONFIG_OPTIONS if not option.internal)
 
 
+_WINDOW_SECTION = re.compile(r"windows\.([A-Za-z0-9_-]+)")
+
+
+def window_name(section: str) -> str:
+    """The window a `windows.<name>` section is for, or "" when it is not one."""
+    found = _WINDOW_SECTION.fullmatch(str(section or ""))
+    return found[1] if found else ""
+
+
+def window_screen(name: str) -> ConfigOption:
+    """The screen a window opens on, for a window a theme declares."""
+    return ConfigOption("screen_id", type="int", default="", section=f"windows.{name}",
+                        label_key="config.windows.screen_id", suggest=SUGGEST_SCREENS)
+
+
 def option(section: str, key: str) -> ConfigOption | None:
     section = canonical_section(section)
     for candidate in CONFIG_OPTIONS:
         if candidate.section == section and candidate.key == key:
             return candidate
+    if key == "screen_id" and window_name(section):
+        return window_screen(window_name(section))
     return None
 
 

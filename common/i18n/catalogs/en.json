@@ -263,6 +263,7 @@
   "config.windows.score_view.override.description": "Position and size for this window, as x,y,width,height. Empty means no override.",
   "config.windows.score_view.override.label": "Window Override",
   "config.windows.score_view.screen_id.label": "Screen",
+  "config.windows.screen_id.label": "Screen",
   "console.about.browser_not_let_page": "This browser will not let a page write to the clipboard",
   "console.about.could_not_read_device": "Could not read this device",
   "console.about.everything_bug_report_asks": "Everything a bug report asks for, in one block",

@@ -92,7 +92,7 @@ Everything about a window follows from its name:
 |---|---|
 | the file it loads | `index_<name>.html` |
 | what it is passed | `?window=<name>` |
-| the monitor it opens on | `[Displays] <name>screenid` |
+| the monitor it opens on | the screen picked for it under Hardware › Displays in the Console |
 
 **The first window is the controller.** It owns input, audio and the selection, and
 `vpin.isController()` is how a window knows. A window with no monitor set is not opened,

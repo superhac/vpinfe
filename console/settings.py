@@ -535,12 +535,15 @@ def _section_label(key: str) -> str:
     """What to call a config section on screen.
 
     A page's own name where a page is that one section, otherwise a declared heading,
-    otherwise the key made readable.
+    otherwise the key made readable, or for a window the window's name alone.
     """
     named = next((label for _group, pages in DEVICE_INDEX
                   for _item, label, _kind, sections, _feature in pages
                   if sections == (key,)), "") or SECTION_LABELS.get(key, "")
-    return t(named) if named else " ".join(humanize(part) for part in key.split("."))
+    if named:
+        return t(named)
+    return " ".join(humanize(part)
+                    for part in (config_schema.window_name(key) or key).split("."))
 
 
 # `install` and `themes` appear on no page below, deliberately: the first is the device's
@@ -951,6 +954,7 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
         return
     try:
         schema = await offload.io(library.config_schema)
+        sections = _with_windows(sections, schema)
         values = await offload.io(library.config_values)
         checks = await offload.io(library.config_path_checks)
         offered = await _suggestions(library, schema, sections)
@@ -970,6 +974,15 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
                                 schema, values, sections,
                                 checks=field_marks(trouble, checks),
                                 suggestions=offered, blocks=blocks)
+
+
+def _with_windows(sections: tuple[str, ...], schema: list[dict]) -> tuple[str, ...]:
+    """A page drawing windows draws every window the schema serves."""
+    if not any(config_schema.window_name(name) for name in sections):
+        return sections
+    served = [str(block.get("name")) for block in schema]
+    return (*sections, *(name for name in served
+                         if config_schema.window_name(name) and name not in sections))
 
 
 async def _suggestions(library: Library, schema: list[dict],
