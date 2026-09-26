@@ -1318,6 +1318,14 @@
   "console.sections.could_not_fetch_fixes": "Could not fetch the fixes",
   "console.sections.could_not_read_game": "1 could not be read, so that game is not in your library",
   "console.sections.could_not_read_games": "{count} could not be read, so those games are not in your library",
+  "console.sections.could_not_restore": {
+    "one": "Could not restore 1 game",
+    "other": "Could not restore {count} games"
+  },
+  "console.sections.could_not_upgrade": {
+    "one": "Could not upgrade 1 game",
+    "other": "Could not upgrade {count} games"
+  },
   "console.sections.coverage_kind": "Coverage by kind",
   "console.sections.declared_rom_not_installed": "Declared ROM is not installed",
   "console.sections.devices": "Devices",
@@ -1359,6 +1367,12 @@
   "console.sections.open": "Open",
   "console.sections.put_back_saved_metadata": "Put back the saved metadata?",
   "console.sections.readable": "Readable",
+  "console.sections.restore_failed": "The restore failed",
+  "console.sections.restored": {
+    "one": "Restored 1 game",
+    "other": "Restored {count} games"
+  },
+  "console.sections.restored_some": "Restored {done} of {total} games",
   "console.sections.script_fixes": "Script fixes",
   "console.sections.second_screen_sit_empty": "A second screen will sit empty while this game is selected.",
   "console.sections.show": "Show",
@@ -1366,10 +1380,17 @@
   "console.sections.sorting_filtering_year_place": "Sorting and filtering by year will place this game arbitrarily.",
   "console.sections.stopped": "Stopped",
   "console.sections.table_scripts": "Table scripts",
+  "console.sections.upgrade_failed": "The upgrade failed",
+  "console.sections.upgraded": {
+    "one": "Upgraded 1 game",
+    "other": "Upgraded {count} games"
+  },
+  "console.sections.upgraded_some": "Upgraded {done} of {total} games",
   "console.sections.way": "{word} under way",
   "console.sections.what_needs_attention": "What needs attention",
   "console.sections.written_later_version_vpinfe": "{newer} were written by a later version of VPinFE. This build reads what it understands and leaves the rest alone.",
   "console.sections.written_older_build_can": "{pending} were written by an older build and can be brought forward",
+  "console.sections.your_collections": "Your collections",
   "console.send_to_device.could_not_read_devices": "Could not read the devices",
   "console.send_to_device.device": "A device",
   "console.send_to_device.failed": "Could not send to {device}",

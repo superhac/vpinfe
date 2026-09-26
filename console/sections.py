@@ -8,13 +8,15 @@ embryo: each one is a name, a sentence a person can read, and a predicate.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import asyncio
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from nicegui import run, ui
 
 from common.extensions.host import SWITCHED_OFF
 from common.failures import why
+from common.games.collection_store import COLLECTIONS_NAME
 from common.i18n import t
 from common.media_specs import media_label_map
 from console import art_fill, offload, panel, verbs
@@ -187,7 +189,8 @@ def overview(library: Library, registry: list[dict], discovery: dict,
                 panel.action(t("console.sections.show"), lambda: go("games"),
                              icon=verbs.GO, enabled=bool(games))()
 
-    metadata(library.metadata_state(), _metadata_action(library))
+    metadata(library.metadata_state(), _metadata_action(library, state, go),
+             state.get(_LEFT))
     table_scripts(library)
 
 
@@ -207,13 +210,14 @@ _ASKS = {
 }
 
 
-def _metadata_action(library: Library) -> Callable[[str], Any]:
-    """Ask, start the job, and say it is under way.
+_POLL_S = 1.0
+_POLLS = 3600
+_LEFT = "metadata_left"
 
-    Under way rather than done: both of these rewrite a file per game and run as a job,
-    which the drawer already reports on. Waiting here would be a spinner in front of a
-    progress line that is already on screen.
-    """
+
+def _metadata_action(library: Library, state: dict[str, Any],
+                     go: Callable[[str], None]) -> Callable[[str], Any]:
+    """Ask, start the job, say it is under way, and say what came of it once it ends."""
     from console import confirm
     from console.api import ApiClient
 
@@ -224,16 +228,79 @@ def _metadata_action(library: Library) -> Callable[[str], Any]:
         client = ApiClient()
         call = client.upgrade_info if which == "upgrade" else client.restore_info
         try:
-            await run.io_bound(call)
+            job = await offload.io(call)
         except Exception as exc:
             ui.notify(t("said.could_not_start_it"), caption=why(exc), type="negative")
             return
         ui.notify(t("console.sections.way", word=(word)), type="positive")
+        watch = state.get("watch_jobs")
+        if callable(watch):
+            watch()
+        found = await _ended(client, str(job.get("id") or ""))
+        if found is None:
+            return
         # The counts this card is drawn from are now stale. Asked again off the loop,
         # for the same reason they were read there in the first place.
         await run.io_bound(library.read_metadata_state)
+        left: list[tuple[str, str]] = []
+        if found.get("state") == "failed":
+            ui.notify(t("console.sections.upgrade_failed") if which == "upgrade"
+                      else t("console.sections.restore_failed"),
+                      caption=str(found.get("error") or ""), type="negative")
+        else:
+            result = found.get("result") or {}
+            said, left = (upgrade_outcome(result, library.metadata_state())
+                          if which == "upgrade" else restore_outcome(result))
+            ui.notify(said, type="warning" if left else "positive")
+        state.setdefault(_LEFT, {})[which] = left
+        if state.get("view") == "overview":
+            go("overview")
 
     return start
+
+
+async def _ended(client: Any, job_id: str) -> dict[str, Any] | None:
+    """The job once it is no longer running, or None if it could not be asked."""
+    for _ in range(_POLLS):
+        await asyncio.sleep(_POLL_S)
+        try:
+            found = await offload.io(client.job, job_id)
+        except Exception:  # noqa: BLE001 - the footer line still reports it
+            return None
+        if found.get("state") != "running":
+            return found
+    return None
+
+
+def _failures(result: dict[str, Any]) -> list[tuple[str, str]]:
+    return [(str(one[0]), str(one[1])) for one in result.get("failures") or ()]
+
+
+def upgrade_outcome(result: dict[str, Any],
+                    metadata: dict[str, Any]) -> tuple[str, list[tuple[str, str]]]:
+    """What a finished upgrade says, and each folder it left that is still waiting for
+    one, with why."""
+    waiting = set(metadata.get("pending_games") or ())
+    left = [one for one in _failures(result) if one[0] in waiting]
+    done = int(result.get("upgraded") or 0)
+    if left and done:
+        return t("console.sections.upgraded_some", done=done, total=done + len(left)), left
+    if left:
+        return t("console.sections.could_not_upgrade", count=len(left)), left
+    return t("console.sections.upgraded", count=done), left
+
+
+def restore_outcome(result: dict[str, Any]) -> tuple[str, list[tuple[str, str]]]:
+    """What a finished restore says, and each game it could not put back, with why."""
+    left = [(t("console.sections.your_collections") if name == COLLECTIONS_NAME else name,
+             reason) for name, reason in _failures(result)]
+    games = sum(1 for name, _ in _failures(result) if name != COLLECTIONS_NAME)
+    done = int(result.get("restored") or 0)
+    if games and done:
+        return t("console.sections.restored_some", done=done, total=done + games), left
+    if games:
+        return t("console.sections.could_not_restore", count=games), left
+    return t("console.sections.restored", count=done), left
 
 
 # --- The library's own metadata, drawn ---------------------------------------------
@@ -257,8 +324,8 @@ def _first_of(names: list[str], most: int) -> str:
     return t("console.sections.more", names=listed) if len(names) > most else listed
 
 
-def _unreadable_lines(rows: list[dict[str, Any]], most: int = 4) -> list[tuple[str, str]]:
-    lines = [(str(row["folder"]), str(row.get("error") or "")) for row in rows[:most]]
+def _folder_lines(rows: list[tuple[str, str]], most: int = 4) -> list[tuple[str, str]]:
+    lines = rows[:most]
     if len(rows) > most:
         lines.append((t("said.and_more", count=len(rows) - most), ""))
     return lines
@@ -283,17 +350,23 @@ def _metadata_row(good: bool, name: str, said: str,
                 .props("flat dense no-caps size=sm").classes("shrink-0")
 
 
-def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
+def metadata(state: dict[str, Any], on_start: Callable[[str], Any],
+             left: Mapping[str, list[tuple[str, str]]] | None = None) -> None:
     """What the library's metadata files need, and the two ways to act on it.
 
     Drawn whole rather than only when something is wrong, the same as the card above it:
     a section that comes and goes cannot be looked for, and "everything is current" is
     worth being able to check rather than infer from an absence.
+
+    `left` is each folder the last Upgrade or Restore could not write, with why, by
+    which of the two ran.
     """
     pending = int(state.get("pending_upgrade") or 0)
     unreadable = list(state.get("unreadable") or [])
     newer = int(state.get("newer_than_us") or 0)
     restorable = int(state.get("restorable") or 0)
+    left = left or {}
+    not_restored = list(left.get("restore") or [])
 
     ui.label(t("console.sections.library_metadata")).classes("console-group mt-4")
     with ui.element("div").classes("console-card w-full"):
@@ -302,7 +375,8 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
             t("console.sections.every_game_current_format") if not pending
             else t("console.sections.written_older_build_can", pending=(pending)),
             None if not pending else (t("word.upgrade"),
-                    lambda: on_start("upgrade")))
+                    lambda: on_start("upgrade")),
+            lines=_folder_lines(list(left.get("upgrade") or [])))
 
         # No action: the fix is on disk, in a file this cannot repair without guessing
         # what it was meant to say. Naming the folders, and why, is the whole of the help.
@@ -311,7 +385,8 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
             t("console.sections.every_folder_s_metadata") if not unreadable
             else t("console.sections.could_not_read_game") if len(unreadable) == 1
             else t("console.sections.could_not_read_games", count=len(unreadable)),
-            lines=_unreadable_lines(unreadable))
+            lines=_folder_lines([(str(row["folder"]), str(row.get("error") or ""))
+                                 for row in unreadable]))
 
         # Only when it is true. A row saying "nothing here was written by a newer build"
         # is a sentence about a thing that has never happened to most installs.
@@ -321,15 +396,17 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
                 t("console.sections.written_later_version_vpinfe", newer=(newer)))
 
         # A fact with an action rather than a warning: having backups is not a problem,
-        # and a permanent amber row saying so would be one more thing to ignore.
+        # and a permanent amber row saying so would be one more thing to ignore. A
+        # restore that left something is one.
         if restorable:
             when = _stamp(str(state.get("newest_backup") or ""))
             _metadata_row(
-                True, t("console.sections.backups"),
+                not not_restored, t("console.sections.backups"),
                 (t("console.sections.games_saved_copy_from", restorable=(restorable),
                    when=(when)) if when
                  else t("console.sections.games_saved_copy", restorable=(restorable))),
-                (t("word.restore"), lambda: on_start("restore")))
+                (t("word.restore"), lambda: on_start("restore")),
+                lines=_folder_lines(not_restored))
 
 
 # --- The scripts the tables run ---------------------------------------------------

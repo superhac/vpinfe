@@ -7,7 +7,10 @@ caller is handed something to watch.
 
 from __future__ import annotations
 
+import asyncio
+import time
 import unittest
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
@@ -16,9 +19,12 @@ from nicegui import ui
 import httpapi
 from common import jobs as job_registry
 from common.games.game_parser import GameParser
+from common.games.info_maintenance import restore_library, upgrade_library
 from common.i18n import t
 from console import sections
+from console.data import Library
 from tests.support.library import write_game
+from tests.support.skips import needs_posix_permissions
 
 try:
     from starlette.testclient import TestClient
@@ -121,13 +127,7 @@ class MetadataCardTests(unittest.TestCase):
             return GameParser(tmp).get_unreadable_games()
 
     def _drawn(self, unreadable: list[dict]) -> dict[str, str]:
-        """Each line the card draws, with what hovering it shows."""
-        with ui.column() as body:
-            sections.metadata({"unreadable": unreadable}, lambda _which: None)
-        tips = {one.props["target"]: one.text
-                for one in body.descendants() if isinstance(one, ui.tooltip)}
-        return {one.text: tips.get(f"#{one.html_id}", "")
-                for one in body.descendants() if isinstance(one, ui.label)}
+        return _card({"unreadable": unreadable})
 
     def test_a_folder_it_could_not_read_is_named_with_why_on_hover(self) -> None:
         drawn = self._drawn(self._unreadable("Malformed Info (Original 2024)"))
@@ -143,6 +143,117 @@ class MetadataCardTests(unittest.TestCase):
 
         self.assertEqual([True] * 4 + [False] * 2, [name in drawn for name in names])
         self.assertIn(t("said.and_more", count=2), drawn)
+
+
+LEGACY = {"Info": {"Title": "Sample Game", "Rom": "sample"},
+          "VPXFile": {"filename": "Sample Game.vpx", "filehash": "abc", "rom": "sample"}}
+KEPT = "Sample Game (Original 2024)"
+LOCKED = "Locked Game (Original 2024)"
+
+
+def _card(metadata: dict, left: dict | None = None) -> dict[str, str]:
+    """Each line the metadata card draws, with what hovering it shows."""
+    with ui.column() as body:
+        sections.metadata(metadata, lambda _which: None, left)
+    tips = {one.props["target"]: one.text
+            for one in body.descendants() if isinstance(one, ui.tooltip)}
+    return {one.text: tips.get(f"#{one.html_id}", "")
+            for one in body.descendants() if isinstance(one, ui.label)}
+
+
+async def _now(callback, *args, **kwargs):
+    return callback(*args, **kwargs)
+
+
+@unittest.skipIf(TestClient is None, "starlette test client unavailable")
+@needs_posix_permissions
+class MetadataOutcomeTests(unittest.TestCase):
+    """What Upgrade and Restore say once their job ends, from the job run over a library
+    with one folder it may not write, read back as the resource the Console is handed."""
+
+    def setUp(self) -> None:
+        job_registry.reset_for_tests()
+        self.addCleanup(job_registry.reset_for_tests)
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        for name in (KEPT, LOCKED):
+            write_game(self.root, name, info=LEGACY)
+        self.addCleanup(self._lock, self.root / LOCKED, False)
+        self.addCleanup(self._lock, self.root, False)
+
+    def _lock(self, folder: Path, locked: bool = True) -> None:
+        folder.chmod(0o555 if locked else 0o755)
+
+    def _job(self, work) -> dict:
+        job = job_registry.submit(job_registry.KIND_LIBRARY_SCAN, lambda _job: work(self.root))
+        for _ in range(500):
+            if job.state != job_registry.RUNNING:
+                break
+            time.sleep(0.01)
+        api = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
+        return api.get(f"/jobs/{job.id}").json()
+
+    def _metadata(self) -> dict:
+        parser = GameParser(self.root)
+        games = parser.get_all_games()
+        pending = [one.game_dir_name for one in games if one.info_pending_upgrade]
+        return {"pending_upgrade": len(pending), "pending_games": pending,
+                "restorable": sum(1 for one in games if one.info_restorable),
+                "unreadable": parser.get_unreadable_games()}
+
+    def _press(self, which: str, work) -> tuple[list[tuple[str, str, str]], dict[str, str]]:
+        """Press Upgrade or Restore over what `work` did. Hand back each thing the Console
+        said, as lead, caption and type, and the card as it is drawn afterwards."""
+        client = mock.Mock()
+        client.upgrade_info.return_value = client.restore_info.return_value = {"id": which}
+        client.job.return_value = self._job(work)
+        client.info_maintenance.side_effect = self._metadata
+        library = Library(client)
+        page = {"view": "overview"}
+        with mock.patch("console.confirm.ask", mock.AsyncMock(return_value=True)), \
+                mock.patch("console.api.ApiClient", return_value=client), \
+                mock.patch("nicegui.run.io_bound", new=_now), \
+                mock.patch.object(sections, "_POLL_S", 0), \
+                mock.patch.object(sections.ui, "notify") as notify:
+            asyncio.run(sections._metadata_action(library, page, mock.Mock())(which))
+        said = [(one.args[0], one.kwargs.get("caption", ""), one.kwargs.get("type", ""))
+                for one in notify.call_args_list]
+        return said, _card(library.metadata_state(), page.get(sections._LEFT))
+
+    def _upgrade(self):
+        self._lock(self.root / LOCKED)
+        return self._press("upgrade", upgrade_library)
+
+    def test_it_says_how_many_came_through(self) -> None:
+        said, _ = self._upgrade()
+
+        self.assertIn((t("console.sections.upgraded_some", done=1, total=2), "", "warning"),
+                      said)
+
+    def test_the_folder_it_could_not_write_is_named_with_why_on_hover(self) -> None:
+        _, drawn = self._upgrade()
+
+        self.assertTrue(drawn.get(LOCKED, "").startswith(t("said.why.no_permission")), drawn)
+
+    def test_a_restore_names_what_it_could_not_put_back(self) -> None:
+        self._job(upgrade_library)
+        self._lock(self.root / LOCKED)
+
+        said, drawn = self._press("restore", restore_library)
+
+        self.assertIn((t("console.sections.restored_some", done=1, total=2), "", "warning"),
+                      said)
+        self.assertIn(LOCKED, drawn)
+
+    def test_a_job_that_fails_leads_with_words_and_its_reason(self) -> None:
+        self.root.chmod(0o000)
+
+        said, _ = self._press("upgrade", upgrade_library)
+
+        lead, caption, kind = said[-1]
+        self.assertEqual((lead, kind), (t("console.sections.upgrade_failed"), "negative"))
+        self.assertTrue(caption.startswith(t("said.why.no_permission")), caption)
 
 
 def _never_finishes() -> None:
