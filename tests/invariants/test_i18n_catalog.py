@@ -167,7 +167,25 @@ SPEAKS_TO_A_SURFACE = {
     "common/jobs.py": frozenset({"raise"}),
     "common/online/theme_service.py": frozenset({"refusal"}),
     "common/theme_options.py": frozenset({"refusal"}),
+    "common/online/themes.py": frozenset({"raise"}),
+    "common/online/theme_installer.py": frozenset({"raise", "refusal"}),
+    "common/online/theme_registry_client.py": frozenset({"raise"}),
 }
+
+# Functions in those modules whose raises are only ever caught and logged, never shown.
+SAID_TO_THE_LOG = {
+    "common/online/themes.py": frozenset({"_validate_manifest"}),
+    "common/online/theme_registry_client.py": frozenset({"fetch_json"}),
+}
+
+
+def _logged_lines(name: str) -> set[int]:
+    wanted = SAID_TO_THE_LOG.get(name, frozenset())
+    return {line for node in ast.walk(ast.parse(_source_of(name)))
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name in wanted
+            for line in range(node.lineno, (node.end_lineno or node.lineno) + 1)}
+
 
 # Said to whoever wrote the calling code, which has a bug to fix rather than a person
 # something to do.
@@ -272,8 +290,16 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
         offenders = [f"{name}:{one.lineno} {kind} {ast.unparse(one)[:60]}"
                      for name, ways in SPEAKS_TO_A_SURFACE.items()
                      for kind, one in _handed_back(_source_of(name))
-                     if kind in ways and _not_looked_up(kind, one)]
+                     if kind in ways and _not_looked_up(kind, one)
+                     and one.lineno not in _logged_lines(name)]
         self.assertEqual(offenders, [], "the catalog owns these words now")
+
+    def test_each_function_said_to_the_log_is_there(self) -> None:
+        """A name that matches nothing exempts nothing, and reads the same as one that does."""
+        for name, functions in SAID_TO_THE_LOG.items():
+            found = {node.name for node in ast.walk(ast.parse(_source_of(name)))
+                     if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+            self.assertEqual(functions - found, frozenset(), name)
 
     def test_it_found_each_way_out(self) -> None:
         """An empty sweep passes and measures nothing, which reads the same as clean."""

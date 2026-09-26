@@ -12,7 +12,9 @@ import shutil
 import zipfile
 from io import BytesIO
 
+from common.i18n import t
 from common.online import theme_releases
+from common.online.theme_registry_client import ThemeRegistryError
 from common.values import newer_version, parse_version
 
 # The folder a replaced theme is moved to, rather than deleted. Kept beside the install
@@ -105,7 +107,8 @@ class ThemeInstallStore:
                 archive.extractall(self.themes_dir)
             extracted = self._extracted_folder(before)
             if extracted is None:
-                raise ValueError(f"the archive for '{theme_key}' held no theme folder")
+                raise ThemeRegistryError(t("error.themes.download_holds_no_theme",
+                                           key=theme_key))
             os.rename(self._path(extracted), self._path(theme_key))
         except Exception:
             # Leave the user with their old theme rather than with neither.

@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import unittest
 from configparser import ConfigParser
+from unittest import mock
 
-from common.online import theme_releases, theme_sources
+from common.i18n import t
+from common.online import theme_ops, theme_releases, theme_sources
 from common.online.theme_registry_client import ThemeRegistryError
 from common.online.themes import ThemeRegistry
 
@@ -282,7 +284,20 @@ class LoadTests(unittest.TestCase):
         """An offline cab that dropped the stock registry still runs its installed theme."""
         registry = self._registry(theme_sources.ThemeSources(), {})
         registry.load_registry()
+        registry.load_theme_manifests()
         self.assertEqual(registry.themes_index, {})
+        self.assertEqual(registry.themes, {})
+
+    def test_a_theme_no_source_offers_is_refused_in_words(self) -> None:
+        registry = self._registry(theme_sources.ThemeSources(), {})
+        registry.load_registry()
+        registry.load_theme_manifests()
+        with mock.patch.object(theme_ops, "_loaded", return_value=registry), \
+                self.assertRaises(theme_ops.InstallFailedError) as raised:
+            theme_ops.install("Revolution")
+
+        self.assertEqual(str(raised.exception),
+                         t("error.themes.not_offered", key="Revolution"))
 
     def test_every_source_failing_is_still_an_error(self) -> None:
         """Sources were listed and none answered - that is a broken install, not a choice."""

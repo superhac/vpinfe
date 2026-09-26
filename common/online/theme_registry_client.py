@@ -9,6 +9,7 @@ from io import BytesIO
 import requests
 
 from common.http_client import get_json
+from common.i18n import t
 
 logger = logging.getLogger("vpinfe.common.online.theme_registry_client")
 
@@ -50,5 +51,5 @@ class ThemeRegistryClient:
                 continue
             response.raise_for_status()
             return BytesIO(response.content)
-        raise ThemeRegistryError(
-            f"Failed to download {url} after {max_retries} retries (rate limited)")
+        logger.warning("%s still rate limited after %s tries", url, max_retries)
+        raise ThemeRegistryError(t("error.themes.host_limiting_downloads"))

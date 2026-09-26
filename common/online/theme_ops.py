@@ -19,6 +19,7 @@ from typing import Any
 from common import service_errors
 from common.i18n import t
 from common.online import theme_service, theme_sources, theme_sync
+from common.online.theme_registry_client import ThemeRegistryError
 from common.online.themes import ThemeRegistry
 from common.paths import THEME_CACHE_PATH, get_ini_config
 
@@ -197,6 +198,8 @@ def listing(refresh: bool = False) -> dict[str, Any]:
     """
     try:
         registry = _loaded(refresh)
+    except ThemeRegistryError as exc:
+        raise SourceUnavailableError(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - a source that will not load is news
         raise SourceUnavailableError(
             t("error.themes.could_not_read_theme", exc=(exc))) from exc
@@ -211,6 +214,8 @@ def install(key: str) -> dict[str, Any]:
     registry = _loaded()
     try:
         theme_service.install_theme(registry, key)
+    except ThemeRegistryError as exc:
+        raise InstallFailedError(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise InstallFailedError(
             t("error.themes.could_not_install", key=(key), exc=(exc))) from exc
@@ -228,6 +233,8 @@ def remove(key: str) -> dict[str, Any]:
             t("error.themes.active_theme_make_another", key=(key)))
     try:
         theme_service.delete_theme(registry, key)
+    except ThemeRegistryError as exc:
+        raise service_errors.RefusedError(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise RemoveFailedError(
             t("error.themes.could_not_remove", key=(key), exc=(exc))) from exc

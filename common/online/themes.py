@@ -11,6 +11,7 @@ from io import BytesIO
 from typing import Any
 
 from common.http_client import get_json
+from common.i18n import t
 from common.online import theme_dates, theme_releases, theme_sources
 from common.online.theme_installer import ASIDE_SUFFIX, ThemeInstallStore
 from common.online.theme_registry_client import ThemeRegistryClient, ThemeRegistryError
@@ -103,7 +104,7 @@ class ThemeRegistry:
         self.origins = {}
         index = theme_sources.merge(parts, self.origins)
         if not index and parts:
-            raise ThemeRegistryError("No theme source could be read.")
+            raise ThemeRegistryError(t("error.themes.no_source_read"))
 
         self.themes_index = index
 
@@ -158,9 +159,6 @@ class ThemeRegistry:
         return chosen, manifest_url, index
 
     def load_theme_manifests(self, default_only: bool = False) -> None:
-        if not self.themes_index:
-            raise ThemeRegistryError("Registry not loaded.")
-
         # Reset loaded themes for this pass.
         self.themes = {}
 
@@ -285,7 +283,7 @@ class ThemeRegistry:
 
     def install_theme(self, theme_key: str, force: bool = False) -> None:
         if theme_key not in self.themes:
-            raise ThemeRegistryError(f"Theme '{theme_key}' not loaded.")
+            raise ThemeRegistryError(t("error.themes.not_offered", key=theme_key))
 
         theme_data = self.themes[theme_key]
         manifest = theme_data["manifest"]
@@ -303,9 +301,8 @@ class ThemeRegistry:
         needs = parse_version(manifest.get(MIN_VERSION_KEY))
         running = parse_version(get_version())
         if needs and running and newer_version(needs, running):
-            raise ThemeVersionError(
-                f"{theme_key} needs VPinFE {manifest[MIN_VERSION_KEY]} and this is "
-                f"{get_version()}")
+            raise ThemeVersionError(t("error.themes.needs_newer_vpinfe", key=theme_key,
+                                      needs=manifest[MIN_VERSION_KEY], running=get_version()))
 
         if not force and local_version:
             if not self._is_version_newer(remote_version, local_version):
@@ -388,13 +385,13 @@ class ThemeRegistry:
         """Delete an installed theme. Raises if theme has default_install=True."""
         theme_data = self.themes.get(theme_key)
         if theme_data and theme_data["registry_info"].get("default_install", False):
-            raise ThemeRegistryError(f"Cannot delete default theme '{theme_key}'")
+            raise ThemeRegistryError(t("error.themes.default_stays", key=theme_key))
 
         folder = self.get_installed_folder(theme_key)
         if folder:
             self.store.delete(folder)
         else:
-            raise ThemeRegistryError(f"Theme '{theme_key}' is not installed")
+            raise ThemeRegistryError(t("error.themes.not_installed", key=theme_key))
 
     # =========================================================
     # GETTERS
