@@ -710,7 +710,61 @@ def _literals_in(node) -> list[str]:
     return []
 
 
-def _fault(path, call, kwarg, node) -> list[str]:
+FunctionScope = ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
+
+
+def _given_in(scope: FunctionScope) -> dict[str, list[ast.expr]]:
+    """What a function gives each name it binds, nested functions included."""
+    given: dict[str, list[ast.expr]] = {}
+
+    def bind(target: ast.expr, value: ast.expr) -> None:
+        if isinstance(target, ast.Name):
+            given.setdefault(target.id, []).append(value)
+        elif isinstance(target, (ast.Tuple, ast.List)) \
+                and isinstance(value, (ast.Tuple, ast.List)) \
+                and len(target.elts) == len(value.elts):
+            for one, said in zip(target.elts, value.elts, strict=True):
+                bind(one, said)
+
+    arguments = scope.args
+    positional = [*arguments.posonlyargs, *arguments.args]
+    defaults = [*zip(positional[len(positional) - len(arguments.defaults):],
+                     arguments.defaults, strict=True),
+                *zip(arguments.kwonlyargs, arguments.kw_defaults, strict=True)]
+    for argument, default in defaults:
+        if default is not None:
+            bind(ast.Name(argument.arg), default)
+    for node in ast.walk(scope):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                bind(target, node.value)
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)) \
+                and node.value is not None:
+            bind(node.target, node.value)
+        elif isinstance(node, (ast.For, ast.comprehension)) \
+                and isinstance(node.iter, (ast.Tuple, ast.List, ast.Set)):
+            for one in node.iter.elts:
+                bind(node.target, one)
+    return given
+
+
+def _held_by_name(tree: ast.Module) -> dict[int, list[ast.expr]]:
+    """Each name a function reads, by node, and what that function gave it. The innermost
+    function binding it wins."""
+    held: dict[int, list[ast.expr]] = {}
+    for scope in ast.walk(tree):
+        if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            continue
+        given = _given_in(scope)
+        for node in ast.walk(scope):
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) \
+                    and node.id in given:
+                held[id(node)] = given[node.id]
+    return held
+
+
+def _fault(path, call, kwarg, node, held: dict[int, list[ast.expr]] | None = None,
+           following: frozenset[str] = frozenset()) -> list[str]:
     """Whether this argument hands a person English the catalog never saw.
 
     An f-string counts. It was the whole of the miss: 174 of these sat in plain sight
@@ -718,19 +772,25 @@ def _fault(path, call, kwarg, node) -> list[str]:
     sentence assembled from pieces is the one a translator most needs to own, because
     the order of the pieces is different in most languages.
     """
+    def inner(one: ast.expr) -> list[str]:
+        return _fault(path, call, kwarg, one, held, following)
+
+    if isinstance(node, ast.Name) and held and node.id not in following:
+        return [fault for one in held.get(id(node), ())
+                for fault in _fault(path, call, kwarg, one, held, following | {node.id})]
     where = f"{path.relative_to(ROOT)}:{node.lineno}"
     shown = f"{call}({kwarg}=" if kwarg else f"{call}("
     # A conditional picks between two sentences and a + joins one to another, and both
     # are still words typed where they are shown. Four of these sat behind a check that
     # only knew Constant and JoinedStr.
     if isinstance(node, ast.IfExp):
-        return _fault(path, call, kwarg, node.body) + _fault(path, call, kwarg, node.orelse)
+        return inner(node.body) + inner(node.orelse)
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        return _fault(path, call, kwarg, node.left) + _fault(path, call, kwarg, node.right)
+        return inner(node.left) + inner(node.right)
     if isinstance(node, ast.BoolOp):
-        return [fault for one in node.values for fault in _fault(path, call, kwarg, one)]
+        return [fault for one in node.values for fault in inner(one)]
     if isinstance(node, ast.Call) and _named(node.func) == "str" and len(node.args) == 1:
-        return _fault(path, call, kwarg, node.args[0])
+        return inner(node.args[0])
     if isinstance(node, ast.Constant) and _is_text(node.value):
         return [f"{where} {shown}{node.value!r})"]
     if isinstance(node, ast.JoinedStr):
@@ -742,6 +802,29 @@ def _fault(path, call, kwarg, node) -> list[str]:
         if slots > 1 and words:
             return [f"{where} {shown}f{words!r})"]
     return []
+
+
+def _shown_unlooked(path: Path, tree: ast.Module) -> list[str]:
+    """Each display call in a file handed English, directly or through a local."""
+    held = _held_by_name(tree)
+    found: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+        at = 0 if name in DISPLAY_CALLS else DISPLAY_ARG.get(name)
+        if at is None:
+            at = QUALIFIED.get((getattr(func.value, "id", None), name)) \
+                if isinstance(func, ast.Attribute) else None
+        if at is not None and len(node.args) > at:
+            found += _fault(path, name, "", node.args[at], held)
+        if name in API_DOCUMENTATION:
+            continue
+        for kw in node.keywords:
+            if kw.arg in DISPLAY_KWARGS:
+                found += _fault(path, name, kw.arg, kw.value, held)
+    return found
 
 
 class TestNoBareDisplayLiterals(unittest.TestCase):
@@ -756,25 +839,31 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
         for path in sorted((ROOT / "console").rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.Call):
-                    continue
-                func = node.func
-                name = func.attr if isinstance(func, ast.Attribute) \
-                    else getattr(func, "id", None)
-                at = 0 if name in DISPLAY_CALLS else DISPLAY_ARG.get(name)
-                if at is None:
-                    at = QUALIFIED.get((getattr(func.value, "id", None), name)) \
-                        if isinstance(func, ast.Attribute) else None
-                if at is not None and len(node.args) > at:
-                    offenders += _fault(path, name, "", node.args[at])
-                if name in API_DOCUMENTATION:
-                    continue
-                for kw in node.keywords:
-                    if kw.arg in DISPLAY_KWARGS:
-                        offenders += _fault(path, name, kw.arg, kw.value)
+            offenders += _shown_unlooked(path, ast.parse(path.read_text(encoding="utf-8")))
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
+
+    def test_a_local_is_read_through_what_it_was_given(self) -> None:
+        source = ("def draw(word, external, heading='Beside it'):\n"
+                  "    why = (t('x.beside') if external\n"
+                  "           else 'The table runs the script inside its own .vpx')\n"
+                  "    ui.label(word).tooltip(why)\n"
+                  "    for part in ('Left', t('x.right')):\n"
+                  "        ui.label(part)\n"
+                  "    first, second = 'First one', t('x.second')\n"
+                  "    ui.label(first).tooltip(second)\n"
+                  "    ui.label(heading)\n"
+                  "    def inner():\n"
+                  "        ui.notify(why)\n"
+                  "    ui.label(word)\n")
+
+        said = _shown_unlooked(ROOT / "console" / "planted.py", ast.parse(source))
+
+        self.assertEqual(sorted(said), [
+            "console/planted.py:1 label('Beside it')",
+            "console/planted.py:3 notify('The table runs the script inside its own .vpx')",
+            "console/planted.py:3 tooltip('The table runs the script inside its own .vpx')",
+            "console/planted.py:5 label('Left')",
+            "console/planted.py:7 label('First one')"])
 
     def test_two_values_joined_by_a_space_are_read(self) -> None:
         joined = ast.parse('f"{label} {value}"', mode="eval").body
