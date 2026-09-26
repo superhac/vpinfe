@@ -133,7 +133,7 @@ def fill_media(response: Response, payload: models.MediaFillRequest) -> models.J
 @router.get("/policy", summary="What this library collects",
             dependencies=[requires(scopes.CONFIG_READ)])
 def get_policy() -> models.LibraryPolicy:
-    """The library's, not a machine's - so every install reading it gets one answer rather
+    """The library's, not a device's - so every install reading it gets one answer rather
     than each carrying its own copy of a question about somebody else's files."""
     return models.LibraryPolicy(**library_ops.policy())
 

@@ -51,14 +51,14 @@ def _watched() -> list[str]:
 def read_gpu() -> dict[str, Any]:
     """Its own call because it shells out to nvtop. A page not showing GPUs should not
     pay for one on every tick, and where nvtop is missing this says so rather than
-    answering as though the machine has no cards."""
+    answering as though this device has no cards."""
     found = metrics.gpu()
     return {**found, "supported": metrics.gpu_supported(),
             "fields": [{"key": key, "label": t(label_key), "label_key": label_key}
                        for key, label_key in metrics.GPU_FIELDS]}
 
 
-@router.get("", summary="What this machine is doing now",
+@router.get("", summary="What this device is doing now",
             dependencies=[requires(scopes.SYSTEM_READ)])
 def read(history_seconds: float = Query(0, ge=0)) -> dict[str, Any]:
     """The current reading, and as much of this session as was asked for.

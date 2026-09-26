@@ -41,7 +41,7 @@ def list_collections() -> models.CollectionList:
               dependencies=[requires(scopes.COLLECTIONS_WRITE)])
 def arrange_collections(
         request: models.CollectionsArrangementRequest = Body(...)) -> models.CollectionList:
-    """Every collection named once, in the order the cabinet shows them."""
+    """Every collection named once, in the order the frontend shows them."""
     return models.CollectionList.model_validate(
         collection_ops.arrange_collections(request.order))
 

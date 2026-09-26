@@ -160,7 +160,7 @@ class ActionRequest(ApiModel):
 
 class ActionResult(ApiModel):
     """`performed` is false where the request was declined or nothing did it. For an
-    action that takes this process or the machine down it means the work was handed
+    action that takes this process or this device down it means the work was handed
     over, because a process that is stopping cannot report that it stopped."""
 
     scope: str
@@ -342,7 +342,7 @@ class DeviceAnnouncement(ApiModel):
 
     `port` is the other half of being reachable, and unlike the address the device is the
     only party that knows it - the socket says where a request came from, never what that
-    machine listens on. Without it the registry has half an address and can only ever read what
+    device listens on. Without it the registry has half an address and can only ever read what
     a device chose to tell it.
     """
 
@@ -428,7 +428,7 @@ class AssetEntry(ApiModel):
 
 
 class Guide(ApiModel):
-    """Material that explains a machine. `url` always opens it; `youtube_id` is there
+    """Material that explains a game. `url` always opens it; `youtube_id` is there
     for a surface that plays the video in place. `source` is where it lives, for
     showing. `origin` is `vps` for one the catalog supplied and `user` for a person's
     own, and `hidden` is only ever true on a game's own list - an entry and the theme
@@ -552,7 +552,7 @@ class LibraryPolicyChange(ApiModel):
 
 
 class ConfigPathCheck(ApiModel):
-    """One path setting against this machine's disk.
+    """One path setting against this device's disk.
 
     `state` is `unset` when the value is blank, which is not a failure - most of these
     are optional and blank means the default. `reason` is written for the person who
@@ -578,14 +578,14 @@ class ConfigValues(ApiModel):
 
 
 class GameOverrides(ApiModel):
-    """What the user said, against what was discovered about the machine.
+    """What the user said, against what was discovered about the game.
 
     Kept beside the discovered values rather than written onto them: the fields VPS
     supplies are rebuilt wholesale on every scan, so a value written on top does not
     survive one. Empty means no override - the discovered value stands and is still
     there to go back to.
 
-    These are the game's because they are about the machine: what it is, which VPS
+    These are the game's because they are about the game itself: what it is, which VPS
     record it is, and the effect it asks for when somebody browses to it. The ones that
     govern a single file are on the table - see `TableOverrides`.
     """
@@ -802,8 +802,8 @@ class ModOf(ApiModel):
 
     `vps_file_id` is empty where VPS does not say which release: tagged `MOD` with no
     link, or a link the catalog cannot find. `note` is then VPS's own comment, and empty
-    too where VPS has none, which is a mod of something unknown. `game` is the machine's
-    name only where it is another machine than the mod's. `url` is that machine's VPS page.
+    too where VPS has none, which is a mod of something unknown. `game` names the game
+    only where it is another game than the mod's. `url` is that game's VPS page.
     `game_id` and `table_id` are the table in this library matched to that release, empty
     where there is none.
     """
@@ -1010,7 +1010,7 @@ class TableReference(ApiModel):
 
 
 class GameDetails(ApiModel):
-    """What the machine is, for a game no catalog has matched.
+    """What the game is, where no catalog has matched it.
 
     A patch: a field left out is left alone, so a caller filling in a year need not
     restate a title it never knew. Sent empty, it is cleared.
@@ -1033,7 +1033,7 @@ class NewGameRequest(ApiModel):
 
 
 class TableImport(ApiModel):
-    """A game file elsewhere on this machine to copy into the game, as an absolute
+    """A game file elsewhere on this device to copy into the game, as an absolute
     path. Refused unless it is under a browsable root."""
 
     path: str
@@ -1060,7 +1060,7 @@ class TableList(ApiModel):
 class LaunchApp(ApiModel):
     """A program that plays a table, and the files it claims.
 
-    It carries no path. Where a program lives is a fact about one machine, and it is a
+    It carries no path. Where a program lives is a fact about one device, and it is a
     launcher that holds it - `GET /launchers` answers what this install can actually run
     with, and this list answers what kinds of file exist.
     """
@@ -1291,7 +1291,7 @@ class AssetPlacementList(ApiModel):
 
 
 class AssetImport(ApiModel):
-    """A file elsewhere on this machine, as an absolute path, and the table it is for -
+    """A file elsewhere on this device, as an absolute path, and the table it is for -
     empty for the folder's own name. Refused unless it is under a browsable root."""
 
     path: str
@@ -1369,7 +1369,7 @@ class EntryOverrides(ApiModel):
 
 
 class EntryTableOverrides(ApiModel):
-    """The ones that govern a single file rather than the machine.
+    """The ones that govern a single file rather than the game.
 
     The third a table can hold is not here: it names something one program does with one
     kind of hardware state, and a descriptor every app answers is the wrong place for
@@ -1384,7 +1384,7 @@ class EntryGame(ApiModel):
     """The game half of an entry: enough to show it without a second request, which is
     what the play lens is for. `links.game` has the rest.
 
-    No filesystem path - where a game lives is true only of the machine that answered.
+    No filesystem path - where a game lives is true only of the device that answered.
     """
 
     id: str
@@ -1413,7 +1413,7 @@ class EntryGame(ApiModel):
 class EntryTable(ApiModel):
     """The table half. `default` is the game's own default, not this entry's position.
 
-    `release_date` is when this build was published, which is the table's own answer and
+    `release_date` is when this table was published, which is the table's own answer and
     not the game's. The .vpx also records a company name, a company year and a playfield
     variant; none is here, because none is populated in practice and the first two would
     duplicate the game's.
@@ -1668,8 +1668,8 @@ class MediaPlacementList(ApiModel):
 
 
 class MediaImport(ApiModel):
-    """A file elsewhere on this machine to copy into the slot, as an absolute path,
-    and which build it should serve. Refused unless it is under a browsable root."""
+    """A file elsewhere on this device to copy into the slot, as an absolute path,
+    and which table it should serve. Refused unless it is under a browsable root."""
 
     path: str
     table: str = ""
@@ -1720,7 +1720,7 @@ class MediaWritten(ApiModel):
 
 
 class MediaRetier(ApiModel):
-    """Which build a file should serve after the move. An empty `table` means the
+    """Which table a file should serve after the move. An empty `table` means the
     folder's shared name, which every table in it resolves."""
 
     table: str = ""
@@ -2065,7 +2065,7 @@ class MemberTableRequest(ApiModel):
 
 
 class CollectionsArrangementRequest(ApiModel):
-    """Every collection by name, in the order the cabinet shows them."""
+    """Every collection by name, in the order the frontend shows them."""
 
     order: list[str]
 
@@ -2301,7 +2301,7 @@ class OwnedRequest(ApiModel):
 
 
 class Owned(ApiModel):
-    """`table_id` is empty where the id named a machine rather than one build of it."""
+    """`table_id` is empty where the id named a game rather than one of its tables."""
 
     game_id: str
     table_id: str = ""
@@ -2710,7 +2710,7 @@ class VpsSearchResults(ApiModel):
 class VpsSyncState(ApiModel):
     """How fresh the local catalog is. `checked` is when it was last asked, which is not
     when it last changed - asking is cheap and the answer is usually "no". `entries` is
-    how many machines it holds, and 0 means there is no catalog to answer from."""
+    how many games it holds, and 0 means there is no catalog to answer from."""
 
     schedule: str = "daily"
     checked: str = ""
@@ -2732,7 +2732,7 @@ class VpsSyncResult(ApiModel):
 
 
 class VpsRelease(ApiModel):
-    """One build of a machine, as VPSdb lists it.
+    """One release for a game, as VPSdb lists it.
 
     Every field is as optional as the catalog is. `img_url` is the exception worth
     naming: it is present on nearly every release where it is on a minority of the

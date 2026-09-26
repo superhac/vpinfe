@@ -39,7 +39,7 @@ def get_schema() -> models.ConfigSchema:
 @router.get("/paths", summary="Whether each path setting finds anything",
             dependencies=[requires(scopes.CONFIG_READ)])
 def get_path_checks() -> models.ConfigPathChecks:
-    """Every path setting, checked against this machine's disk.
+    """Every path setting, checked against this device's disk.
 
     The caller names no path. It asks about settings, and the install answers about the
     values it holds - so this cannot be used to ask whether a file exists somewhere a

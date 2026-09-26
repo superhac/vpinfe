@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import unittest
 from typing import Any
 
@@ -60,6 +61,29 @@ MEANT = {"cabinet": "the frontend", "machine": "a game, this device or a compute
          "build": "a table"}
 
 
+# What /api/v1/docs shows, keyed by where the string sits in the OpenAPI document.
+API_CABINET: dict[str, str] = {}
+
+API_MACHINE = {
+    "components.schemas.GameResource.description": "defines a game as the pinball machine",
+}
+
+API_BUILD = {
+    "components.schemas.Action.description": "this VPinFE build",
+    "components.schemas.EntryOverrides.description": "the verb",
+    "components.schemas.InfoMaintenance.description": "a VPinFE build",
+    "components.schemas.UpdateCheck.description": "a VPinFE build",
+    "paths./collections/{name}/members/from_filters.post.description": "the verb",
+    "paths./library/scan.post.summary": "the verb",
+    "paths./update.get.summary": "a VPinFE build",
+    "paths./update.post.description": "a VPinFE build",
+    "paths./update.post.summary": "a VPinFE build",
+    "paths./uploads/{upload_id}/plan.post.summary": "the verb",
+}
+
+API_WORDS = {"cabinet": API_CABINET, "machine": API_MACHINE, "build": API_BUILD}
+
+
 def _says(value: Any, word: str) -> bool:
     forms = value.values() if isinstance(value, dict) else [value]
     return any(word in str(form).lower() for form in forms)
@@ -96,6 +120,78 @@ class EveryCatalog(unittest.TestCase):
         self.assertEqual(unexplained(catalog, "cabinet", {"d": "the physical cabinet"}), ["a"])
         self.assertEqual(unexplained(catalog, "build", {}), ["b"])
         self.assertEqual(unexplained(catalog, "cabinet", {"a": "", "d": "x"}), ["a"])
+
+
+def api_text(document: dict[str, Any]) -> dict[str, str]:
+    """Every `summary` and `description` string in an OpenAPI document, at any depth, by
+    where it sits: `paths./games/{game_id}.get.summary`, a parameter by its name."""
+    found: dict[str, str] = {}
+
+    def walk(node: Any, where: str) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                here = f"{where}.{key}" if where else key
+                # A model field called `description` is a schema, not a string: walk into it.
+                if key in ("summary", "description") and isinstance(value, str):
+                    found[here] = value
+                else:
+                    walk(value, here)
+        elif isinstance(node, list):
+            for index, item in enumerate(node):
+                name = item.get("name") if isinstance(item, dict) else None
+                walk(item, f"{where}[{name if isinstance(name, str) else index}]")
+
+    walk(document, "")
+    return found
+
+
+@functools.cache
+def _served_api_text() -> dict[str, str]:
+    import httpapi
+
+    return api_text(httpapi.create_api_app().openapi())
+
+
+class TheApiDocument(unittest.TestCase):
+    maxDiff = None
+
+    def test_each_use_of_the_words_is_on_its_list(self) -> None:
+        for word, allowed in API_WORDS.items():
+            with self.subTest(word=word):
+                self.assertEqual(
+                    unexplained(_served_api_text(), word, allowed), [],
+                    f"say {MEANT[word]} if that is what it means; if not, add the site to "
+                    f"API_{word.upper()} with what the word names there")
+
+    def test_every_listed_site_still_says_its_word(self) -> None:
+        text = _served_api_text()
+        for word, allowed in API_WORDS.items():
+            with self.subTest(word=word):
+                self.assertEqual(sorted(site for site in allowed
+                                        if not _says(text.get(site, ""), word)), [])
+
+    def test_the_sweep_reads_operations_parameters_and_models(self) -> None:
+        sites = _served_api_text()
+        self.assertTrue(any(".get.summary" in site for site in sites))
+        self.assertTrue(any(".parameters[" in site for site in sites))
+        self.assertTrue(any(site.startswith("components.schemas.") for site in sites))
+
+    def test_it_reads_every_depth(self) -> None:
+        document = {
+            "info": {"description": "I"},
+            "paths": {"/a": {"get": {"summary": "S", "parameters": [
+                {"name": "t", "description": "P", "schema": {"description": "Q"}}]}}},
+            "components": {"schemas": {"M": {"description": "M", "properties": {
+                "description": {"type": "string", "description": "F"}}}}},
+        }
+        self.assertEqual(api_text(document), {
+            "info.description": "I",
+            "paths./a.get.summary": "S",
+            "paths./a.get.parameters[t].description": "P",
+            "paths./a.get.parameters[t].schema.description": "Q",
+            "components.schemas.M.description": "M",
+            "components.schemas.M.properties.description.description": "F",
+        })
 
 
 if __name__ == "__main__":

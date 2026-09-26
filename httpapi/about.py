@@ -20,7 +20,7 @@ from .auth import requires
 router = APIRouter(prefix="/about", tags=["about"])
 
 
-@router.get("", summary="What this install and this machine are",
+@router.get("", summary="What this install and this device are",
             dependencies=[requires(scopes.SYSTEM_READ)])
 def read(refresh: bool = False) -> dict[str, Any]:
     """Read once per process and kept.

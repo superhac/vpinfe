@@ -127,7 +127,7 @@ async def put_table_asset(game_id: str, table_id: str, kind: str,
 
 
 @router.post("/{game_id}/assets/{kind}/import",
-             summary="Copy a file from this machine in under a table's or the folder's name",
+             summary="Copy a file from this device in under a table's or the folder's name",
              dependencies=[requires(scopes.GAMES_WRITE), requires(scopes.FILESYSTEM_READ)])
 def import_asset(game_id: str, kind: str, body: models.AssetImport) -> models.AssetWritten:
     source = media_browse.within_roots(body.path)
@@ -202,10 +202,10 @@ def get_placements(game_id: str, kind: str) -> models.MediaPlacementList:
 
 
 @router.post("/{game_id}/media/{kind}/import",
-             summary="Put a file from this machine into a slot",
+             summary="Put a file from this device into a slot",
              dependencies=[requires(scopes.GAMES_WRITE), requires(scopes.FILESYSTEM_READ)])
 def import_media(game_id: str, kind: str, body: models.MediaImport) -> models.MediaWritten:
-    """Copy artwork in from anywhere on this machine the install is allowed to read.
+    """Copy artwork in from anywhere on this device the install is allowed to read.
 
     Both scopes, because it is both things: it reads a file off the disk and it writes a
     game's media, and holding one of those is not permission for the other. Which paths
@@ -231,7 +231,7 @@ def get_game_media_detail(game_id: str, kind: str) -> models.MediaDetail:
 
 
 @router.get("/{game_id}/tables/{table_id}/media/{kind}/detail",
-            summary="One build's slot, in detail",
+            summary="One table's slot, in detail",
             dependencies=[requires(scopes.GAMES_READ)])
 def get_table_media_detail(game_id: str, table_id: str, kind: str) -> models.MediaDetail:
     return models.MediaDetail(**media_ops.detail(game_id, kind, table_id))
@@ -241,7 +241,7 @@ def get_table_media_detail(game_id: str, table_id: str, kind: str) -> models.Med
              summary="Rename a placed file so it serves a different tier",
              dependencies=[requires(scopes.GAMES_WRITE)])
 def retier_media(game_id: str, kind: str, body: models.MediaRetier,
-                 table: str = Query("", description="the build the file serves now")
+                 table: str = Query("", description="the table the file serves now")
                  ) -> models.MediaWritten:
     """`table` says where the file is now and the body says where it should go; either may
     be empty, which means the folder's shared name."""
@@ -258,7 +258,7 @@ def get_game_media_displaced(game_id: str, kind: str,
 
 
 @router.get("/{game_id}/tables/{table_id}/media/{kind}/displaced",
-            summary="What placing this file for one build would replace",
+            summary="What placing this file for one table would replace",
             dependencies=[requires(scopes.GAMES_READ)])
 def get_table_media_displaced(game_id: str, table_id: str, kind: str,
                               filename: str = Query(...)) -> models.MediaDisplaced:
@@ -295,10 +295,10 @@ async def put_game_media(game_id: str, kind: str,
 
 
 @router.put("/{game_id}/tables/{table_id}/media/{kind}",
-            summary="Place a file for one build", dependencies=[requires(scopes.GAMES_WRITE)])
+            summary="Place a file for one table", dependencies=[requires(scopes.GAMES_WRITE)])
 async def put_table_media(game_id: str, table_id: str, kind: str,
                           file: UploadFile = File(...)) -> models.MediaWritten:
-    """Named for this .vpx, so it serves this build and no other."""
+    """Named for this .vpx, so it serves this table and no other."""
     stem = media_ops.stem_or_refuse(game_lens.game_or_refuse(game_id), table_id)
     return models.MediaWritten(
         **await _staged_write(game_id, kind, table_id, stem, file))
@@ -307,12 +307,12 @@ async def put_table_media(game_id: str, table_id: str, kind: str,
 @router.delete("/{game_id}/media/{kind}", summary="Remove the file every table shares",
                dependencies=[requires(scopes.GAMES_WRITE)])
 def delete_game_media(game_id: str, kind: str) -> models.MediaRemoved:
-    """Only the folder-named file. A build's own art and the default both survive."""
+    """Only the folder-named file. A table's own art and the default both survive."""
     return models.MediaRemoved.model_validate(media_ops.remove(game_id, kind))
 
 
 @router.delete("/{game_id}/tables/{table_id}/media/{kind}",
-               summary="Remove one build's file",
+               summary="Remove one table's file",
                dependencies=[requires(scopes.GAMES_WRITE)])
 def delete_table_media(game_id: str, table_id: str, kind: str) -> models.MediaRemoved:
     return models.MediaRemoved.model_validate(
@@ -453,7 +453,7 @@ def launch_game(game_id: str,
          "links": {"state": "/api/v1/play/state", "events": "/api/v1/events"}})
 
 
-@router.put("/{game_id}/details", summary="Say what the machine is",
+@router.put("/{game_id}/details", summary="Say what the game is",
             dependencies=[requires(scopes.GAMES_WRITE)])
 def put_game_details(game_id: str, body: models.GameDetails) -> models.GameResource:
     """Describe a game no catalog has matched. Not where a VPS id goes - the alt_vps_id

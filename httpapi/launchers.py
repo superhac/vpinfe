@@ -36,7 +36,7 @@ def list_launchers() -> dict[str, Any]:
             dependencies=[requires(scopes.CONFIG_WRITE)])
 def put_launcher(launcher_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """Write one whole, under the id the caller names - which is also how a launcher
-    arrives from another machine, mappings and all."""
+    arrives from another device, mappings and all."""
     return launcher_ops.put(launcher_id, body)
 
 

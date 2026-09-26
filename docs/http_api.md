@@ -98,7 +98,7 @@ the documented entry point is a plain 200. Both spellings work.
 | PUT | `/api/v1/library/watching` | Set it, `{"since": ...}` |
 | POST | `/api/v1/library/watching/acknowledge` | Dismiss one catalog change, `{"game_id", "kind", "vps_file_id"}` |
 | GET | `/api/v1/devices` | The devices this install knows about |
-| PUT | `/api/v1/devices` | Record a device (idempotent). For a phone, or a machine mDNS cannot reach. `port` is declared by the caller — the address is read off the socket, which never says what that machine listens on |
+| PUT | `/api/v1/devices` | Record a device (idempotent). For a phone, or a device mDNS cannot reach. `port` is declared by the caller — the address is read off the socket, which never says what that device listens on |
 | GET | `/api/v1/devices/discovered` | Installs announcing themselves on this network right now. Announcements, not records: nothing here has been decided about |
 | GET | `/api/v1/devices/{id}` | One device |
 | POST | `/api/v1/devices/probe` | Ask every device whether it is there, and record the ones that answer. `unaskable` means there was nothing to dial, which is not the same as down. One that did not answer carries `reason`, in this install's language, and `reason_key`, the catalog key it was read from |
@@ -108,17 +108,17 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/devices/{id}/games` | Send games to it, `{"games": [...]}` or `{"everything": true}`. Returns `202` and a job |
 | DELETE | `/api/v1/devices/{id}/games/{name}` | Remove a game from it. `204` |
 | GET | `/api/v1/actions` | What this install can be asked to do to itself. Every pair the build has, with `available` saying which are wired up here. One that is not carries `reason`, in this install's language, and `reason_key`, the catalog key it was read from |
-| POST | `/api/v1/actions` | Do one. `{"scope","action","reason"}`. One that takes this process or the machine down answers before it goes, so `performed` means the work was handed over |
+| POST | `/api/v1/actions` | Do one. `{"scope","action","reason"}`. One that takes this process or this device down answers before it goes, so `performed` means the work was handed over |
 | GET | `/api/v1/logs` | Recent records from this install's own log, oldest last (`limit`, `level`, `contains`). A record carries its continuation lines, so a traceback arrives whole |
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library game count. The reference for logo packs and alias maps |
 | GET | `/api/v1/games` | List games (`q`, `limit`, `offset`). `hidden` is true on a game whose tables are hidden with none left to offer, which no frontend lists |
 | POST | `/api/v1/games` | Create one. A folder with a record in it, in the location new games go to; `location` overrides that for this one. The only way to bring an entry into being without a file arriving |
-| POST | `/api/v1/games/{id}/tables/import` | Copy a game file on this machine into the game. A copy, not a move, and refused unless the file is under a browsable root |
+| POST | `/api/v1/games/{id}/tables/import` | Copy a game file on this device into the game. A copy, not a move, and refused unless the file is under a browsable root |
 | POST | `/api/v1/games/{id}/tables` | Add a table the game holds with no file, `{"app", "key"}` - a ROM, a Pinball FX table, anything its program finds by name - or with `{"path"}`, a file the game points at without holding. `201` |
 | POST | `/api/v1/games/{id}/tables/{table_id}/contain` | Copy a table the game points at into its folder, and stop pointing. The table keeps its id |
 | DELETE | `/api/v1/games/{id}/tables/{table_id}` | Forget a table whose file is gone. Nothing on disk is deleted, and a table whose file is still there is refused |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/source` | Say which release a table is, `{"vps_file_id"}`. Empty takes the claim back |
-| PUT | `/api/v1/games/{id}/details` | Say what the machine is, for a game no catalog matched. A patch - a field left out is left alone, a field sent empty is cleared. Not where a VPS id goes; that is the `alt_vps_id` override |
+| PUT | `/api/v1/games/{id}/details` | Say what the game is, where no catalog matched it. A patch - a field left out is left alone, a field sent empty is cleared. Not where a VPS id goes; that is the `alt_vps_id` override |
 | PUT | `/api/v1/games/{id}/guides` | The game's guides, in order. An entry naming a stored guide by its address keeps it and sets `hidden`; any other is a new guide of the person's own. Leaving out a guide VPS lists is refused - hide it instead |
 | PUT | `/api/v1/games/{id}/overrides` | The game's overrides. A patch - a field left out is left alone, a field sent empty clears it |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/overrides` | One table's, the same way |
@@ -142,7 +142,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/games/{id}/media/{kind}/displaced?filename=` | What placing that file under the folder's name would replace, asked before the bytes are sent |
 | PUT | `/api/v1/games/{id}/media/{kind}` | Place a file every table shares, named for the folder (multipart: `file`) |
 | DELETE | `/api/v1/games/{id}/media/{kind}` | Remove the file every table shares. A table's own file and the default stay |
-| POST | `/api/v1/games/{id}/media/{kind}/import` | Place a file from this machine, `{"path", "table"}`, under a browsable root |
+| POST | `/api/v1/games/{id}/media/{kind}/import` | Place a file from this device, `{"path", "table"}`, under a browsable root |
 | POST | `/api/v1/games/{id}/media/{kind}/fetch` | Place a file from an online catalog, `{"source", "vps_id"}` with optional `size` and `table` |
 | POST | `/api/v1/games/{id}/media/{kind}/retier?table=` | Rename a placed file so it serves another table, or every table. `?table=` is the table it serves now and `{"table"}` the one it should; empty means every table |
 | GET | `/api/v1/games/{id}/tables/{table_id}/media` | One table's media |
@@ -156,7 +156,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/games/{id}/assets/{kind}/displaced?filename=&table=` | What placing that file would replace, asked before the bytes are sent |
 | PUT | `/api/v1/games/{id}/assets/{kind}` | Place a file under the folder's own name, which every table without its own reads |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/assets/{kind}` | Place a file under one table's name |
-| POST | `/api/v1/games/{id}/assets/{kind}/import` | The same, from `{"path", "table"}` on this machine, under a browsable root |
+| POST | `/api/v1/games/{id}/assets/{kind}/import` | The same, from `{"path", "table"}` on this device, under a browsable root |
 | DELETE | `/api/v1/games/{id}/assets?path=` | Remove one of those five kinds of file by its path in the game's folder |
 | GET | `/api/v1/games/{id}/archive` | Download a game as `.vpxz` — one table by default; `?file=` picks which table. `?full=true` (whole folder) carries its own scope, `games:export_full` |
 | POST | `/api/v1/games/{id}/launch` | Launch a game here. Optional `{"file": "..."}` picks which table |
@@ -170,10 +170,10 @@ the documented entry point is a plain 200. Both spellings work.
 | PUT | `/api/v1/games/{id}/tables/{table_id}/tags` | One table's own tags, the whole set |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/hidden` | Hide one table, or show it again, `{"hidden": bool}`. The file stays on disk. Answers with `table` and `default`, the table the game now offers first, or `null` when it offers none. Hiding the table chosen as the default clears the choice |
 | PUT | `/api/v1/games/{id}/default_table` | Which table the game offers first, `{"table": "<table id>"}`; empty clears the choice. A hidden table is refused |
-| POST | `/api/v1/games/{id}/tables/{table_id}/script` | Extract the table's script to a `<table>.vbs` beside it. **VPX then runs that instead of the one inside the .vpx.** Needs Visual Pinball on the machine called, like `/launch`; `501` where there is none |
+| POST | `/api/v1/games/{id}/tables/{table_id}/script` | Extract the table's script to a `<table>.vbs` beside it. **VPX then runs that instead of the one inside the .vpx.** Needs Visual Pinball on the device called, like `/launch`; `501` where there is none |
 | DELETE | `/api/v1/games/{id}/tables/{table_id}/script` | Remove the sidecar, putting the table back on its own script. `404` if there is none |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
-| POST | `/api/v1/uploads/from_path` | Begin a session over a file, a folder or an archive already on this machine, `{"path": ...}`. Bounded like `/filesystem`, and needs both `uploads:write` and `filesystem:read`. Analysis, plan and import read it in place; the session's end never removes it, and nothing can be uploaded into it |
+| POST | `/api/v1/uploads/from_path` | Begin a session over a file, a folder or an archive already on this device, `{"path": ...}`. Bounded like `/filesystem`, and needs both `uploads:write` and `filesystem:read`. Analysis, plan and import read it in place; the session's end never removes it, and nothing can be uploaded into it |
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
 | GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count", "total_bytes"}` |
 | DELETE | `/api/v1/uploads/{id}` | Abort a session |
@@ -201,13 +201,13 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/launchers/{id}/config/backups` | Take a copy now. `{"label": "..."}` is optional |
 | POST | `/api/v1/launchers/{id}/config/backups/{name}/restore` | Put a copy back. What is there now is copied first, and comes back as `safety_copy` |
 | PUT | `/api/v1/launchers/mappings/{table_id}` | Point one table at a launcher, `{"launcher_id": "..."}`. An empty `launcher_id` puts it back on the default |
-| GET | `/api/v1/metrics` | What this machine is doing now. `history_seconds` adds as much of this session as you ask for; 0 means none |
+| GET | `/api/v1/metrics` | What this device is doing now. `history_seconds` adds as much of this session as you ask for; 0 means none |
 | GET | `/api/v1/metrics/gpu` | What the graphics cards are doing. Separate because it shells out to nvtop, and says so where nvtop is missing rather than reporting no cards |
-| GET | `/api/v1/about` | What this install and this machine *are* - version, build, OS, browser, and where files live. `text` is the same answer as something to paste into a report |
+| GET | `/api/v1/about` | What this install and this device *are* - version, build, OS, browser, and where files live. `text` is the same answer as something to paste into a report |
 | GET | `/api/v1/config/schema` | Every setting this install has. An option's `group` is a token (`navigation`, `local_services`...) and `group_label` beside it is the heading in this install's language. A window the active theme declares beyond the three every theme has is a `windows.<name>` section of its own, with the `screen_id` it opens on, after `windows.score_view` |
 | GET | `/api/v1/config` | What this install is set to, by section and key |
 | PUT | `/api/v1/config` | Change settings, `{"values": {section: {key: value}}}`. A patch: only what is sent is written |
-| GET | `/api/v1/config/paths` | Whether each path setting finds anything on this machine |
+| GET | `/api/v1/config/paths` | Whether each path setting finds anything on this device |
 | GET | `/api/v1/preferences/{scope}` | A stored UI arrangement |
 | PUT | `/api/v1/preferences/{scope}` | Store one. The body is the whole value |
 | GET | `/api/v1/locations` | Every location this install looks in, in order, each with what the disk says about it now |
@@ -780,7 +780,7 @@ What's on it, each alongside the `install_id` described below:
 
 | Event | Payload |
 |-------|---------|
-| `table.launching` / `table.launched` / `table.exited` | `{"game": {"id", "name", "links"}, "table": {"id"}}` — which game, and which of its builds launched. `table` is null when the launch didn't come from the wheel, and the whole payload is `{"game": null}` when there is no game at all |
+| `table.launching` / `table.launched` / `table.exited` | `{"game": {"id", "name", "links"}, "table": {"id"}}` — which game, and which of its tables launched. `table` is null when the launch didn't come from the wheel, and the whole payload is `{"game": null}` when there is no game at all |
 | `game.selected` | `{"game": {"id", "name", "links"}, "table": null}` — the wheel stops on a game, so there is no table to name |
 | `game.changed` | `{"game": {"id", "name", "links"}}` — a game's metadata was rewritten, so anything holding it is stale |
 | `collections.changed` | `{}` — the collections were edited, or a read of a Community list moved a ranked order; re-read them |

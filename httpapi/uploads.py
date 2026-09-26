@@ -27,7 +27,7 @@ def begin_upload() -> models.UploadBegun:
     return models.UploadBegun(**upload_ops.begin())
 
 
-@router.post("/from_path", summary="Begin a session over a folder on this machine",
+@router.post("/from_path", summary="Begin a session over a folder on this device",
              dependencies=[requires(scopes.UPLOADS_WRITE), requires(scopes.FILESYSTEM_READ)])
 def begin_upload_from(body: models.UploadFromPath) -> models.UploadBegun:
     """A file, a folder or an archive already here, read where it is and never removed
@@ -103,11 +103,11 @@ def vps_entry(vps_id: str) -> models.VpsSearchResult:
     return models.VpsSearchResult(**vps_lens.entry(vps_id))
 
 
-@vps_router.get("/entry/{vps_id}/releases", summary="The builds VPSdb lists for one entry",
+@vps_router.get("/entry/{vps_id}/releases", summary="The releases VPSdb lists for one entry",
                 dependencies=[requires(scopes.VPS_READ)])
 def vps_releases(vps_id: str,
                  listed_as: str = Query("tableFiles")) -> models.VpsReleases:
-    """Every record of one kind this machine has, in the order VPSdb holds them - never
+    """Every record of one kind this device has, in the order VPSdb holds them - never
     ordered by likeness, which was measured at chance."""
     return models.VpsReleases.model_validate(vps_lens.releases(vps_id, listed_as))
 

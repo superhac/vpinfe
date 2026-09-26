@@ -64,7 +64,7 @@ def _game_event(game: Any = None, table_id: str | None = None, **_: Any) -> dict
     rest. That link is what keeps this a pointer instead of a second, thinner answer
     to "what does a game look like".
 
-    `table` is which build launched, and it is why the launch events are named for a
+    `table` is which of the game's tables launched, and it is why the launch events are named for a
     table. The bus carries it; dropping it here leaves the wire with an event called
     `table.launching` that says nothing about which table.
     """
