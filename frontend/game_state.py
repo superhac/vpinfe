@@ -19,6 +19,7 @@ from common.games.collection_store import (
     BUILTIN_ALL,
     DEFAULT_DIRECTION,
     DEFAULT_ORDER_BY,
+    MANUAL_ORDER,
     ORDER_ALIASES,
     normalize_direction,
 )
@@ -270,10 +271,12 @@ def apply_collection(api: API, collection: str) -> None:
     name = collection or BUILTIN_ALL
     api.current_collection = name
     # A remote library's collections live over there, so the local store need not know.
-    # It still resolves - that install already did - but there is no local order to read.
+    # That install already resolved it, and the order it arrived in is the order.
     if name in store:
         api.current_filters = _filter_state(store.get_filters(name))
         api.current_sort, api.current_order = sort_state(store.get_order(name))
+    else:
+        api.current_sort, api.current_order = MANUAL_ORDER, DEFAULT_DIRECTION
     api.filtered_games = api.library.resolve_view(name)
     api._rebuild_entries()
 

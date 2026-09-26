@@ -14,13 +14,18 @@ from __future__ import annotations
 import configparser
 import json
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from common.games import remote_library
 from common.games.collection_resolver import Entry
+from common.games.collection_store import CollectionStore
 from common.games.wire_entry import WireGame
+from frontend import game_state
 from frontend import library_resolver as frontend_library
+from frontend.api import API
 from frontend.library_resolver import LibraryResolver
 
 TITLES = ("Attack from Mars", "Medieval Madness", "Twilight Zone")
@@ -128,13 +133,50 @@ class RemoteViewTests(unittest.TestCase):
     def test_newest_orders_by_what_the_library_stamped(self) -> None:
         """The one sort that cannot work without `created_at` crossing: the timestamps
         decide it, so a reversed order is the field arriving rather than a tiebreak."""
-        from frontend import game_state
-
         rows = list(self.library.entries)
         game_state.apply_sort(rows, "Newest", "Descending")
 
         self.assertEqual([row.game.meta_config["Info"]["Title"] for row in rows],
                          list(reversed(TITLES)))
+
+
+class LibraryCollectionTests(unittest.TestCase):
+    """A collection only the library install holds, ranked there and shown here."""
+
+    RANKED = ("Twilight Zone", "Attack from Mars", "Medieval Madness")
+
+    def setUp(self) -> None:
+        sent = {"entries": [_wire_entry(title, "2026-01-01T00:00:00Z")
+                            for title in self.RANKED]}
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        store = CollectionStore(str(Path(tmp.name) / "collections.json"))
+        for patcher in (patch.object(remote_library.http_client, "get_json",
+                                     lambda *a, **k: sent),
+                        patch("frontend.library_resolver.get_collections_manager",
+                              lambda: store)):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+        ini = _ini("http://library.example:8001")
+        self.api = API.__new__(API)
+        self.api._ini_config = ini
+        self.api.library = LibraryResolver(ini)
+        game_state.apply_collection(self.api, "Top Ranked")
+
+    def _refreshed(self) -> list[str]:
+        self.api.library.mark_stale()
+        self.api.get_tables()
+        return [entry.game.meta_config["Info"]["Title"] for entry in self.api.entries]
+
+    def test_a_refresh_keeps_the_order_it_arrived_in(self) -> None:
+        self.assertEqual(self._refreshed(), list(self.RANKED))
+        self.assertEqual(self._refreshed(), list(self.RANKED))
+
+    def test_a_sort_picked_here_outlives_a_refresh(self) -> None:
+        self.api.apply_sort("title", "asc")
+
+        self.assertEqual(self._refreshed(), sorted(self.RANKED))
 
 
 if __name__ == "__main__":
