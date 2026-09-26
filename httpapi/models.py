@@ -1182,8 +1182,8 @@ class MediaSlot(ApiModel):
     table: str = ""
     table_file: str = ""
     vps_id: str = ""
-    # How many tables fall through to this file. **Null on a table row**, which serves
-    # the one it is named for - not 1, because the question does not apply.
+    # How many tables this file answers for: 1 on a table row, the count on a shared row,
+    # 0 on an unused or orphaned file. Null only where the shared row has no file.
     serves: int | None = None
     present: bool = False
     file: str | None = None

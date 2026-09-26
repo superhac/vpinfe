@@ -229,6 +229,16 @@ class ListingTests(PlacementTests):
                          [("", f"(Playfield) {FOLDER}.png", "game", 2),
                           ("", "table.png", "unused", 0)])
 
+    def test_a_file_named_for_one_table_is_a_row_serving_that_one(self) -> None:
+        (self.folder / "medias" / f"(Playfield) {FOLDER} - VR.png").write_bytes(b"\x89PNG")
+        response = self.client.get("/media", params={"game": GAME_ID, "kind": "playfield"})
+        self.assertEqual(response.status_code, 200, response.text)
+
+        self.assertEqual([(row["table"], row["file"], row["via"], row["serves"])
+                          for row in response.json()["media"]],
+                         [("", "table.png", "default", 1),
+                          ("tbl0000002", f"(Playfield) {FOLDER} - VR.png", "table", 1)])
+
 
 if __name__ == "__main__":
     unittest.main()
