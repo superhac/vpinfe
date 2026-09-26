@@ -2403,6 +2403,13 @@ body.console-dragging-rows .q-drawer--mini .console-rail-drops {
    the label instead. Tight to what it explains and loose to the next row, which is what
    groups the two without a rule between them. */
 .console-fact-aside { grid-column: 2; padding: 0; margin-top: -8px; min-width: 0; }
+.console-fact-label:has(+ :is(.console-field-line, .console-field-row)
+                        + .console-fact-aside:not(.hidden)),
+.console-fact-label:has(+ :is(.console-field-line, .console-field-row)
+                        + .console-fact-aside.hidden + .console-fact-aside:not(.hidden)) {
+  grid-row: span 2; align-self: start;
+}
+.console-facts > :is(.console-field-line, .console-field-row) { min-height: var(--fact-row); }
 
 /* What is wrong with this thing, before anything merely true about it: one block per
    finding, ending in the act that fixes it. Amber, which is already the exception color
