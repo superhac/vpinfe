@@ -96,9 +96,11 @@ def resolve_for_table(table: str, folder_name: str, files: Iterable[str],
     """
     lookup = _by_lower(files)
     stem = _stem(table)
+    as_folder = stem.lower() == folder_name.lower()
     resolved = {}
     for kind in kinds:
-        dedicated = lookup.get((stem + kind.extension).lower())
+        dedicated = (None if as_folder and kind.folder_fallback
+                     else lookup.get((stem + kind.extension).lower()))
         if dedicated is not None:
             resolved[kind.key] = {"resolution": RESOLUTION_DEDICATED, "file": dedicated}
             continue
@@ -124,8 +126,9 @@ def inventory(folder_name: str, files: Iterable[str], tables: Iterable[str],
     """The inventory lens: every asset file present, attributed.
 
     `dedicated` names the table it serves; `shared` is the folder-named
-    fallback; `orphaned` is stem-named for a table that is not there - the
-    residue of a deleted or renamed table, which is what an audit wants to see.
+    fallback, whatever the tables are called; `orphaned` is stem-named for a table
+    that is not there - the residue of a deleted or renamed table, which is what an
+    audit wants to see.
     """
     stems = {_stem(name).lower(): name for name in tables}
     folder_lower = folder_name.lower()
@@ -135,7 +138,8 @@ def inventory(folder_name: str, files: Iterable[str], tables: Iterable[str],
             if not name.lower().endswith(kind.extension):
                 continue
             stem_lower = _stem(name).lower()
-            if stem_lower in stems:
+            if stem_lower in stems and not (kind.folder_fallback
+                                            and stem_lower == folder_lower):
                 entry = {"file": name, "binding": BINDING_DEDICATED,
                          "table": stems[stem_lower]}
             elif stem_lower == folder_lower:

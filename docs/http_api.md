@@ -287,8 +287,9 @@ Assets come in two lenses, both computed from the folder at request time:
 
 - **The launch lens** — each entry in `GET .../tables` reports what *that* table
   would use on launch, mirroring VPX's own lookup order per kind: `dedicated` (a file named
-  for the table), `shared` (the folder-named fallback), or `none` — plus the winning
-  filename. A `.pov` never falls back to the folder name, because VPX doesn't.
+  for the table), `shared` (the folder-named fallback, which a table named as its folder
+  reports too), or `none` — plus the winning filename. A `.pov` never falls back to the
+  folder name, because VPX doesn't.
 - **The inventory lens** — `GET /games/{id}` attributes every asset file in the folder:
   `dedicated` to the table it serves, `shared`, or `orphaned` (stem-named for a table
   that is no longer there — what an audit wants to see). The list endpoint carries a

@@ -121,6 +121,27 @@ class LaunchLensTests(unittest.TestCase):
 
         self.assertEqual(resolved["ini"]["resolution"], "shared")
 
+    def test_a_table_named_as_its_folder_is_served_the_game_s_file(self) -> None:
+        """Its sibling is served the same file, so the two can only be told the same."""
+        files = [f"{FOLDER}.vpx", CYBER, *(f"{FOLDER}{ext}" for ext in
+                                            (".directb2s", ".ini", ".vbs", ".scv"))]
+        for table in (f"{FOLDER}.vpx", f"{FOLDER.lower()}.vpx", CYBER):
+            with self.subTest(table=table):
+                resolved = res.resolve_for_table(table, FOLDER, files)
+
+                self.assertEqual({kind: resolved[kind]["resolution"]
+                                  for kind in ("backglass", "ini", "script", "scv")},
+                                 dict.fromkeys(("backglass", "ini", "script", "scv"),
+                                               "shared"))
+
+    def test_but_a_folder_named_pov_is_that_table_s_alone(self) -> None:
+        files = [f"{FOLDER}.vpx", CYBER, f"{FOLDER}.pov"]
+
+        self.assertEqual(
+            [res.resolve_for_table(table, FOLDER, files)["pov"]["resolution"]
+             for table in (f"{FOLDER}.vpx", CYBER)],
+            [res.RESOLUTION_DEDICATED, res.RESOLUTION_NONE])
+
 
 class InventoryLensTests(unittest.TestCase):
     def test_every_file_is_attributed(self) -> None:
@@ -137,6 +158,19 @@ class InventoryLensTests(unittest.TestCase):
         self.assertEqual(bindings, {"dedicated", "shared", "orphaned"})
         dedicated = [e for e in inv["backglass"]["files"] if e["binding"] == "dedicated"]
         self.assertEqual(dedicated[0]["table"], BIGUS)
+
+    def test_a_file_named_as_the_folder_is_shared_beside_a_table_of_that_name(
+            self) -> None:
+        tables = [f"{FOLDER.lower()}.vpx", CYBER]
+
+        inv = res.inventory(FOLDER, [*tables, f"{FOLDER}.directb2s", f"{FOLDER}.pov"],
+                            tables)
+
+        self.assertEqual(inv["backglass"]["files"],
+                         [{"file": f"{FOLDER}.directb2s", "binding": "shared"}])
+        self.assertEqual(inv["pov"]["files"],
+                         [{"file": f"{FOLDER}.pov", "binding": "dedicated",
+                           "table": f"{FOLDER.lower()}.vpx"}])
 
     def test_an_orphan_is_the_residue_of_a_deleted_build(self) -> None:
         inv = res.inventory(FOLDER, ["Old Build.directb2s"], [BIGUS])

@@ -46,6 +46,28 @@ class AssetWrites(TempTree):
                           for one in body["placements"]])
         self.assertEqual([".directb2s"], body["extensions"])
 
+    def test_a_table_named_as_its_folder_in_another_case_is_not_offered_either(
+            self) -> None:
+        lower = f"{FOLDER.lower()}.vpx"
+        info = {"Info": {"Name": "Attack from Mars"}, "VPinFE": {"game_id": GAME_ID},
+                "tables": {"a3": {"id": "a3", "filename": lower}}}
+        folder = write_game(self.root / "other", FOLDER, info=info, vpx=False,
+                            files={lower: b"vpx"})
+        with patch("common.games.game_repository.catalog",
+                   return_value={GAME_ID: fake_game(folder, FOLDER, meta=info)}):
+            body = self.client.get(f"/games/{GAME_ID}/assets/backglass/placements").json()
+
+        self.assertEqual([""], [one["table"] for one in body["placements"]])
+
+    def test_a_file_named_as_the_folder_is_one_row_serving_every_table(self) -> None:
+        (self.folder / f"{FOLDER}.ini").write_bytes(b"[Player]")
+
+        rows = self.client.get("/assets", params={"game": GAME_ID, "kind": "ini"}).json()
+
+        self.assertEqual([("", f"{FOLDER}.ini", "game", 2)],
+                         [(row["table"], row["file"], row["binding"], row["serves"])
+                          for row in rows["assets"]])
+
     def test_a_point_of_view_is_offered_only_for_a_table(self) -> None:
         body = self.client.get(f"/games/{GAME_ID}/assets/pov/placements").json()
 

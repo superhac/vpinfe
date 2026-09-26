@@ -70,7 +70,8 @@ def placements(game_id: str, kind: str) -> dict:
                       "displaces": _here(game_dir, game_dir.name + found_kind.extension)})
     for table in table_lens.table_rows(game, game_to_row(game)):
         stem = Path(str(table.get("filename") or "")).stem
-        if not table.get("id") or not stem or stem in {item["base"] for item in found}:
+        if not table.get("id") or not stem or stem.lower() in {
+                str(item["base"]).lower() for item in found}:
             continue
         found.append({"table": table["id"], "label": table["filename"], "base": stem,
                       "displaces": _here(game_dir, stem + found_kind.extension)})

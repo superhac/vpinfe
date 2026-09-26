@@ -1476,8 +1476,10 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                 # The script sidecar. VPX loads a `<table>.vbs` beside the .vpx in
                 # preference to the one inside it, so this is per table and belongs on
                 # the row rather than only on the panel that was carrying it.
-                script = (row.get("assets") or {}).get("script") or {}
-                if (script.get("resolution") or "") == "dedicated":
+                script = str(((row.get("assets") or {}).get("script") or {})
+                             .get("file") or "")
+                if script and Path(script).stem.lower() == \
+                        Path(str(row.get("filename") or "")).stem.lower():
                     panel.menu_entry(t("console.games.delete_script"),
                                      lambda r=row: drop_script(r),
                                      classes="console-menu-danger")
