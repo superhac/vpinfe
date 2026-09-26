@@ -25,6 +25,8 @@ from urllib.parse import parse_qs, urlparse
 import websockets
 from websockets.asyncio.server import ServerConnection
 
+from common.i18n import t
+from common.service_errors import ServiceError
 from frontend.api import API, API_ALLOWED_METHODS
 
 logger = logging.getLogger("vpinfe.frontend.device_channel")
@@ -251,12 +253,16 @@ class DeviceChannel:
         except websockets.exceptions.ConnectionClosed:
             pass  # Client disconnected before response (e.g. close_app)
         except Exception as e:
-            logger.exception("API call error: %s(%s)", method, args)
+            if isinstance(e, ServiceError) and str(e):
+                said = str(e)
+            else:
+                logger.exception("API call error: %s(%s)", method, args)
+                said = t("error.frontend.call_failed", method=method)
             try:
                 await websocket.send(json.dumps({
                     'type': 'api_response',
                     'id': call_id,
-                    'error': str(e)
+                    'error': said
                 }))
             except websockets.exceptions.ConnectionClosed:
                 pass

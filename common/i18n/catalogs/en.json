@@ -2127,6 +2127,7 @@
   "error.filesystem.not_media_file": "That is not a media file",
   "error.filesystem.nothing_there": "Nothing is there",
   "error.filesystem.path_cannot_read": "That path cannot be read",
+  "error.frontend.call_failed": "{method} failed - the log says why",
   "error.frontend.library_unreachable": "The library at {url} could not be reached",
   "error.frontend.not_on_screen": "The collection on screen does not hold {game_id}",
   "error.frontend.not_running": "The frontend is not running",

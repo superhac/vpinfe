@@ -2127,6 +2127,7 @@
   "error.filesystem.not_media_file": "Ţĥàţ îš ñöţ à ɱèđîà ƒîŀè",
   "error.filesystem.nothing_there": "Ñöţĥîñĝ îš ţĥèřè",
   "error.filesystem.path_cannot_read": "Ţĥàţ þàţĥ çàññöţ ƀè řèàđ",
+  "error.frontend.call_failed": "{method} ƒàîŀèđ - ţĥè ŀöĝ šàýš ŵĥý",
   "error.frontend.library_unreachable": "Ţĥè ŀîƀřàřý àţ {url} çöûŀđ ñöţ ƀè řèàçĥèđ",
   "error.frontend.not_on_screen": "Ţĥè çöŀŀèçţîöñ öñ šçřèèñ đöèš ñöţ ĥöŀđ {game_id}",
   "error.frontend.not_running": "Ţĥè ƒřöñţèñđ îš ñöţ řûññîñĝ",
