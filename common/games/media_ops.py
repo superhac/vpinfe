@@ -272,8 +272,7 @@ def placements(game_id: str, kind: str) -> dict:
     game = game_lens.game_or_refuse(game_id)
     game_dir = _folder(game)
 
-    found = [_placement(game_dir, kind, spec, "", game_dir.name,
-                        "Shared by every table")]
+    found = [_placement(game_dir, kind, spec, "", game_dir.name, "")]
     for table in table_lens.table_rows(game, game_to_row(game)):
         stem = Path(table["filename"]).stem
         option = _placement(game_dir, kind, spec, table["id"], stem, table["filename"])

@@ -111,7 +111,7 @@ def _slot(in_view: str, saved_for: str, tables: tuple[str, ...] = (),
                               "tables": [{"id": one, "filename": f"{one}.vpx"}
                                          for one in tables]},
                              "wheel", "Wheel", _nothing, mediasource._media(LIBRARY, "wheel"))
-    slot.placements = [{"table": "", "label": "Shared", "displaces": []},
+    slot.placements = [{"table": "", "label": "", "displaces": []},
                        *({"table": one, "label": f"{one}.vpx",
                           "displaces": [f"medias/(Wheel) {one}.png"] if one in own_files
                           else []} for one in own_names)]

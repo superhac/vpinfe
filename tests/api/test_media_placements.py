@@ -50,7 +50,7 @@ class PlacementTests(TempTree):
         order, which is the order the tables list uses - here that puts " - VR.vpx"
         ahead of ".vpx", since a hyphen sorts before a dot."""
         found = self._placements()["placements"]
-        self.assertEqual(found[0]["table"], "")
+        self.assertEqual((found[0]["table"], found[0]["label"]), ("", ""))
         self.assertEqual([item["label"] for item in found[1:]], [VR])
 
     def test_each_choice_shows_the_name_the_file_would_take(self) -> None:

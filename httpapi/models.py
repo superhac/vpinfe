@@ -1641,16 +1641,9 @@ class MediaOfferList(ApiModel):
 
 
 class MediaPlacement(ApiModel):
-    """One place a file could land for this kind, and what putting it there costs.
-
-    `table` is empty for the name every table in the folder resolves, and a table's id
-    for a name only that build resolves. It is what a write addresses, so a client
-    picks one of these rather than deciding a tier for itself.
-
-    `base` has no extension because the file decides that, and `displaces` does not
-    depend on it: a write takes the whole family at that tier, so a .jpg arriving over
-    a .png removes the .png and the answer is the same either way.
-    """
+    """One place a file could land. `table` is empty for the folder's own name, which
+    every table resolves, and `label` is then empty too. `base` has no extension, which
+    the file decides, and `displaces` is the whole family at that tier."""
 
     table: str
     label: str
