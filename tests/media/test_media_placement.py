@@ -13,6 +13,8 @@ from tempfile import TemporaryDirectory
 
 from common.games import media_placement
 from common.games.media_placement import UnplaceableError
+from common.i18n import t
+from common.media_specs import MEDIA_SPECS
 
 KIND = "backglass"
 GAME = "MyGame"
@@ -92,8 +94,22 @@ class RetierTests(PlacementTests):
         self.assertEqual(self._medias(), ["(Backglass) MyGame.jpg"])
 
     def test_moving_a_file_that_is_not_there_is_refused(self) -> None:
-        with self.assertRaises(UnplaceableError):
+        with self.assertRaises(UnplaceableError) as caught:
             media_placement.retier(self.root, KIND, BUILD, GAME)
+
+        self.assertEqual(str(caught.exception),
+                         t("error.games.nothing_in_slot_to_move",
+                           slot=t("media.kind.backglass.label"), name=BUILD))
+
+    def test_a_file_the_slot_does_not_take_names_what_it_does(self) -> None:
+        spec = next(one for one in MEDIA_SPECS if one.kind == KIND)
+        with self.assertRaises(UnplaceableError) as caught:
+            media_placement.place(self.root, KIND, GAME, self._source("theme.mp3"))
+
+        self.assertEqual(str(caught.exception),
+                         t("error.games.slot_does_not_take", slot=spec.label,
+                           extension=".mp3", join=", ".join(spec.family)))
+        self.assertEqual(self._medias(), [])
 
 
 if __name__ == "__main__":

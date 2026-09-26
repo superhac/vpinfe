@@ -21,6 +21,7 @@ import shutil
 from collections.abc import Iterator
 from pathlib import Path
 
+from common.i18n import t
 from common.media_specs import MEDIA_SPECS
 
 logger = logging.getLogger("vpinfe.common.games.media_placement")
@@ -43,13 +44,13 @@ def target_name(kind: str, stem: str, extension: str) -> str:
     """
     spec = _SPEC_BY_KIND.get(kind)
     if spec is None:
-        raise UnplaceableError(f"Unknown media kind {kind}")
+        raise UnplaceableError(t("error.games.unknown_media_kind"))
     if not spec.token:
-        raise UnplaceableError(f"{kind} has no spec name, so it can only be a default")
+        raise RuntimeError(f"{kind} has no spec name, so it can only be a default")
     extension = extension.lower()
     if extension not in spec.family:
-        raise UnplaceableError(
-            f"{kind} does not accept {extension}; it takes {', '.join(spec.family)}")
+        raise UnplaceableError(t("error.games.slot_does_not_take", slot=spec.label,
+                                 extension=extension, join=", ".join(spec.family)))
     return f"{spec.token} {stem}{extension}"
 
 
@@ -118,7 +119,9 @@ def retier(game_dir: str | Path, kind: str, from_stem: str, to_stem: str) -> Pat
     game_dir = Path(game_dir)
     sources = sorted(_family_at_tier(game_dir, kind, from_stem))
     if not sources:
-        raise UnplaceableError(f"There is no {kind} file named for {from_stem}")
+        spec = _SPEC_BY_KIND.get(kind)
+        raise UnplaceableError(t("error.games.nothing_in_slot_to_move",
+                                 slot=spec.label if spec else kind, name=from_stem))
 
     source = sources[0]
     target = place(game_dir, kind, to_stem, source)
@@ -152,8 +155,10 @@ def remove(game_dir: str | Path, kind: str, stem: str) -> list[str]:
     """Delete this kind's files at this stem's tier. Never touches another tier."""
     game_dir = Path(game_dir)
     spec = _SPEC_BY_KIND.get(kind)
-    if spec is None or not spec.token:
-        raise UnplaceableError(f"Cannot address {kind} by name")
+    if spec is None:
+        raise UnplaceableError(t("error.games.unknown_media_kind"))
+    if not spec.token:
+        raise RuntimeError(f"Cannot address {kind} by name")
     removed = []
     for extension in spec.family:
         for folder in (game_dir / "medias", game_dir):
