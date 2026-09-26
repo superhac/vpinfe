@@ -163,8 +163,10 @@ _ADD_BOX = """
     if (!box) { if (++tries < 40) setTimeout(wire, 25); return; }
     vm.findFilteredOptions = () => {
       const needle = vm.$el.querySelector('input[type=search]')?.value.toLocaleLowerCase();
-      return needle ? vm.initialOptions.filter(one => [one.label, one.also].some(
-        said => String(said ?? '').toLocaleLowerCase().includes(needle))) : vm.initialOptions;
+      const joined = said => String(said ?? '').toLocaleLowerCase().replace(/[\\s.]+/g, '');
+      return needle ? vm.initialOptions.filter(one =>
+        String(one.label ?? '').toLocaleLowerCase().includes(needle)
+        || joined(one.also).includes(joined(needle))) : vm.initialOptions;
     };
     vm.$watch('filteredOptions', () => setTimeout(() => {
       const typed = vm.$el.querySelector('input')?.value;
