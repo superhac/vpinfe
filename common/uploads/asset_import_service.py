@@ -15,6 +15,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 
+from common.atomic_write import naming_folder, staged_for, write_atomic
 from common.failures import why
 from common.games import media_placement
 from common.games.asset_registry import ARCHIVE_EXTENSIONS, lens_kind, spec_for
@@ -560,23 +561,21 @@ def _import_game_info(source: AssetSource, asset: DetectedAsset, base: Path) -> 
             existing = {}
         if not isinstance(existing, dict):
             existing = {}
-        shutil.copy2(dest, dest.with_name(dest.name + ".bak"))
+        with naming_folder(dest):
+            shutil.copy2(dest, dest.with_name(dest.name + ".bak"))
         payload = merge_info(incoming, existing)
     else:
         payload = incoming
 
-    tmp = dest.with_name(f".{dest.name}.uploading")
-    tmp.write_text(json.dumps(payload, indent=4), encoding="utf-8")
-    os.replace(tmp, dest)
+    write_atomic(dest, lambda handle: json.dump(payload, handle, indent=4))
 
 
 # --- Execution -------------------------------------------------------------
 
 def _extract_replace(source: AssetSource, entry: SourceEntry, dest: Path) -> None:
     ensure_dir(dest.parent)
-    tmp = dest.with_name(f".{dest.name}.uploading")
-    source.extract_member(entry.path, tmp)
-    os.replace(tmp, dest)
+    with staged_for(dest) as staged:
+        source.extract_member(entry.path, staged)
 
 
 def replaced_table(game_dir: Path) -> Path | None:
@@ -598,11 +597,10 @@ def _replace_vpx_from_file(source: AssetSource, asset: DetectedAsset,
     old_b2s = _find_directb2s_file(base, old_vpx.stem) if old_vpx else None
     old_ini = _find_ini_file(base, old_vpx.stem) if old_vpx else None
 
-    tmp = new_vpx.with_name(f".{new_vpx.name}.uploading")
-    source.extract_member(entry.path, tmp)
-    if old_vpx and old_vpx.resolve() != new_vpx.resolve():
-        old_vpx.unlink()
-    os.replace(tmp, new_vpx)
+    with staged_for(new_vpx) as staged:
+        source.extract_member(entry.path, staged)
+        if old_vpx and old_vpx.resolve() != new_vpx.resolve():
+            old_vpx.unlink()
 
     if old_b2s and old_b2s.exists():
         new_b2s = base / f"{new_vpx.stem}.directb2s"
@@ -635,8 +633,8 @@ def _add_table_from_file(source: AssetSource, asset: DetectedAsset, base: Path,
 
 def _build_rom_zip(source: AssetSource, asset: DetectedAsset, dest: Path) -> None:
     ensure_dir(dest.parent)
-    tmp = dest.with_name(f".{dest.name}.uploading")
-    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as archive:
+    with (staged_for(dest) as staged,
+          zipfile.ZipFile(staged, "w", zipfile.ZIP_DEFLATED) as archive):
         for entry in asset.entries:
             if entry.is_dir:
                 continue
@@ -647,7 +645,6 @@ def _build_rom_zip(source: AssetSource, asset: DetectedAsset, dest: Path) -> Non
                 archive.write(scratch, arcname=_basename(entry.arcname))
             finally:
                 scratch.unlink(missing_ok=True)
-    os.replace(tmp, dest)
 
 
 def _extract_tree(source: AssetSource, asset: DetectedAsset, base_dir: Path) -> None:

@@ -12,18 +12,16 @@ need to tell "declares nothing" from "declares 1"; the migration treats them ali
 
 from __future__ import annotations
 
-import contextlib
 import json
 import logging
 import os
 import shutil
-import tempfile
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from common.atomic_write import naming_folder, write_atomic
+from common.atomic_write import naming_folder, staged_for, write_atomic
 from common.games.tables import TABLES_KEY, parse_authors
 from common.timestamps import iso_from_asctime, iso_from_authored_date
 
@@ -265,21 +263,8 @@ def replace_atomic(source: str | Path, path: str | Path) -> None:
 
     A plain copy truncates first, and restore does that once per game across the library.
     """
-    directory = os.path.dirname(path) or "."
-    with naming_folder(path):
-        handle_fd, tmp = tempfile.mkstemp(dir=directory, prefix=".vpinfe_write_",
-                                          suffix=".tmp")
-        os.close(handle_fd)
-        try:
-            shutil.copy2(source, tmp)
-            os.replace(tmp, path)
-        except BaseException:
-            with contextlib.suppress(OSError):
-                os.unlink(tmp)
-            raise
-
-
-
+    with staged_for(path) as staged:
+        shutil.copy2(source, staged)
 
 
 def write_json_atomic(path: str | Path, data: object) -> None:

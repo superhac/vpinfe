@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from common import jobs
-from common.atomic_write import naming_folder
+from common.atomic_write import staged_for
 from common.config_access import SettingsConfig
 from common.config_store import ConfigStore
 from common.games import game_index_service, game_repository, info_maintenance, metadata_service
@@ -364,10 +364,8 @@ def _find_ini_file(game_dir: Path, preferred_stem: str = "") -> Path | None:
 
 def _write_replace(dest_file: Path, content: bytes) -> None:
     ensure_dir(dest_file.parent)
-    tmp_file = dest_file.with_name(f".{dest_file.name}.uploading")
-    with naming_folder(dest_file):
-        tmp_file.write_bytes(content)
-        os.replace(tmp_file, dest_file)
+    with staged_for(dest_file) as staged:
+        staged.write_bytes(content)
 
 
 def replace_table(game_dir: Path, filename: str, content: bytes, file_kind: str,
@@ -391,12 +389,9 @@ def replace_table(game_dir: Path, filename: str, content: bytes, file_kind: str,
         if old_vpx.resolve() == new_vpx.resolve():
             _write_replace(new_vpx, content)
         else:
-            tmp_file = new_vpx.with_name(f".{new_vpx.name}.uploading")
-            with naming_folder(new_vpx):
-                tmp_file.write_bytes(content)
-            old_vpx.unlink()
-            with naming_folder(new_vpx):
-                os.replace(tmp_file, new_vpx)
+            with staged_for(new_vpx) as staged:
+                staged.write_bytes(content)
+                old_vpx.unlink()
 
         renamed_b2s = ""
         if old_b2s and old_b2s.exists():

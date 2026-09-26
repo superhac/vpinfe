@@ -10,6 +10,7 @@ from pathlib import Path
 
 import requests
 
+from common.atomic_write import staged_for
 from common.games import asset_origin
 from common.games.game import Game
 from common.games.info_file import MetaConfig
@@ -118,12 +119,8 @@ def file_md5(path: str | Path) -> str:
 
 def replace_file(url: str, target: Path) -> None:
     """Download over `target`, which stays as it was if the download raises."""
-    partial = target.with_name(f"{target.name}.part")
-    try:
-        download_file(url, partial)
-        os.replace(partial, target)
-    finally:
-        partial.unlink(missing_ok=True)
+    with staged_for(target) as staged:
+        download_file(url, staged)
 
 
 class VPSMediaDownloader:
