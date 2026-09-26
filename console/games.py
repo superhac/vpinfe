@@ -409,7 +409,7 @@ async def _launch(games: list[dict[str, Any]]) -> None:
     if len(games) != 1:
         ui.notify(t("console.games.select_single_game_launch"), type="warning")
         return
-    await offload.io(ApiClient().launch, games[0]["id"])
+    await run.io_bound(ApiClient().launch, games[0]["id"])
     ui.notify(t("console.games.launching", get=(games[0].get('name'))), type="positive")
 
 

@@ -210,7 +210,7 @@ async def _remove_many(picked: list[dict[str, Any]], library: Library,
         return
     for row in picked:
         try:
-            await offload.io(library.delete_location, str(row.get("id") or ""))
+            await run.io_bound(library.delete_location, str(row.get("id") or ""))
         except Exception as exc:  # noqa: BLE001
             ui.notify(t("said.could_not_remove_it", exc=(exc)), type="negative")
             return
