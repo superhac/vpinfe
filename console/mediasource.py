@@ -604,16 +604,21 @@ class _Slot(_OneFile):
         the pair reads as a failure.
         """
         chosen = self.placed_at or {}
-        tables = list(self.context.get("tables") or [])
-        alone = (not self.destination and len(tables) == 1
-                 and not any(item.get("table") for item in self.placements))
-        named = (str(tables[0].get("filename") or "") if alone
-                 else str(chosen.get("label") or "") if self.destination else "")
-        where = (t("console.mediasource.for", table=_trimmed_stem(named)) if named
-                 else t("console.mediasource.every_table_game"))
-        if not alone and self.destination != (self.table_id or ""):
+        where = (t("console.mediasource.for",
+                   table=_trimmed_stem(str(chosen.get("label") or "")))
+                 if self.destination else t("console.mediasource.every_table_game"))
+        if not self._in_view():
             where = t("console.mediasource.not_what_view_showing", where=where)
         return t("console.mediasource.saved_where", message=message, where=where)
+
+    def _in_view(self) -> bool:
+        """Whether the panel behind shows what was just saved. A table missing from the
+        placements has no name apart from the folder's."""
+        if self.destination == (self.table_id or ""):
+            return True
+        own = next((item for item in self.placements
+                    if item.get("table") == self.table_id), None)
+        return not self.destination and not (own or {}).get("displaces")
 
     async def confirmed(self, filename: str) -> bool:
         """Ask before a write that deletes something, naming what goes.

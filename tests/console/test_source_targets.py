@@ -101,14 +101,19 @@ class ACollectionTakingAGameWheel(unittest.TestCase):
 
 
 def _slot(in_view: str, saved_for: str, tables: tuple[str, ...] = (),
-          own_names: tuple[str, ...] = ()) -> mediasource._Slot:
+          own_names: tuple[str, ...] = (),
+          own_files: tuple[str, ...] = ()) -> mediasource._Slot:
+    """`own_names` are the tables named apart from the folder, and `own_files` those of
+    them already holding a file of their own."""
     slot = mediasource._Slot({"library": LIBRARY, "game_id": "game", "game": {},
                               "lens": in_view,
                               "tables": [{"id": one, "filename": f"{one}.vpx"}
                                          for one in tables]},
                              "wheel", "Wheel", _nothing, mediasource._media(LIBRARY, "wheel"))
-    slot.placements = [{"table": "", "label": "Shared"},
-                       *({"table": one, "label": f"{one}.vpx"} for one in own_names)]
+    slot.placements = [{"table": "", "label": "Shared", "displaces": []},
+                       *({"table": one, "label": f"{one}.vpx",
+                          "displaces": [f"medias/(Wheel) {one}.png"] if one in own_files
+                          else []} for one in own_names)]
     slot.placed_at = {"table": saved_for, "label": f"{saved_for}.vpx"}
     return slot
 
@@ -118,23 +123,34 @@ class WhereItWent(unittest.TestCase):
         self.assertEqual("Wheel saved for Attack from Mars",
                          _slot("Attack from Mars", "Attack from Mars").said_where("Wheel saved"))
 
-    def test_saved_for_every_table_while_one_is_in_view_says_so(self) -> None:
+    def test_saved_for_every_table_while_one_with_its_own_is_in_view_says_so(self) -> None:
+        """Its own file still covers the shared one, so nothing on screen changes."""
         self.assertEqual(
             "Wheel saved for every table in this game - not what this view is showing",
-            _slot("Attack from Mars", "").said_where("Wheel saved"))
+            _slot("AFM VPW", "", tables=("AFM VPW",), own_names=("AFM VPW",),
+                  own_files=("AFM VPW",)).said_where("Wheel saved"))
 
-    def test_the_one_table_named_as_its_folder_is_named_from_either_view(self) -> None:
-        for in_view in ("Attack from Mars", ""):
-            with self.subTest(in_view=in_view):
-                self.assertEqual(
-                    "Wheel saved for Attack from Mars",
-                    _slot(in_view, "", tables=("Attack from Mars",)).said_where("Wheel saved"))
-
-    def test_the_one_table_with_a_name_of_its_own_keeps_the_shared_wording(self) -> None:
+    def test_saved_for_every_table_while_one_with_none_is_in_view_is_shown(self) -> None:
         self.assertEqual(
-            "Wheel saved for every table in this game - not what this view is showing",
+            "Wheel saved for every table in this game",
             _slot("AFM VPW", "", tables=("AFM VPW",), own_names=("AFM VPW",))
             .said_where("Wheel saved"))
+
+    def test_a_table_named_as_its_folder_is_shown_a_shared_save(self) -> None:
+        one = {"tables": ("Attack from Mars",)}
+        several = {"tables": ("Attack from Mars", "AFM VR"), "own_names": ("AFM VR",),
+                   "own_files": ("AFM VR",)}
+        for game, shape in (("one table", one), ("several", several)):
+            for in_view in ("Attack from Mars", ""):
+                with self.subTest(game=game, in_view=in_view):
+                    self.assertEqual("Wheel saved for every table in this game",
+                                     _slot(in_view, "", **shape).said_where("Wheel saved"))
+
+    def test_saved_for_a_table_not_in_view_says_so(self) -> None:
+        self.assertEqual(
+            "Wheel saved for AFM VR - not what this view is showing",
+            _slot("", "AFM VR", tables=("Attack from Mars", "AFM VR"),
+                  own_names=("AFM VR",)).said_where("Wheel saved"))
 
     def test_saved_for_every_table_of_several_says_so(self) -> None:
         self.assertEqual("Wheel saved for every table in this game",
