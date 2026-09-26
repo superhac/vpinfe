@@ -145,8 +145,7 @@ def differences(groups: Sequence[Any], values: dict[str, Any],
     """What this table's file sets, what reaches it from its game's and what was just
     added, by area: the rows an area curates first, in its order, then the rest in the
     program's. A plugin's rows lead with the plugin's name, which is all that tells five
-    Enables apart, and a row whose label another setting in its area shares leads with
-    its window's."""
+    Enables apart, and a window's rows lead with the window's."""
     names = workbench._plugin_names(groups)
     found = []
     for group in groups:
@@ -276,8 +275,7 @@ def _named(field: Any, group: Any, names: dict[str, str]) -> Any:
     section = workbench._section_of(field.key)
     if section.startswith(workbench.PLUGIN_SECTION):
         label = workbench.plugin_row(section, field.label, names)
-    elif (sum(one.label == field.label for one in group.settings) > 1
-          and (window := _window_of(field.key, group))):
+    elif window := _window_of(field.key, group):
         label = t("console.app_settings.window_row", window=window, label=field.label)
     else:
         return field
@@ -285,17 +283,14 @@ def _named(field: Any, group: Any, names: dict[str, str]) -> Any:
 
 
 def _window_of(key: str, group: Any) -> str:
-    """The curated heading a setting is drawn under, or the one whose keys its own
-    continues: `BackglassFSWidth` goes with the heading of `BackglassOutput` and
-    `BackglassDisplay`."""
+    """The window or view a setting belongs to: the curated heading it is drawn under, or
+    the one whose keys its own continues, where that heading's keys share one name.
+    `BackglassFSWidth` goes with the heading of `BackglassOutput` and `BackglassDisplay`."""
     held = next((heading for heading in group.curated if key in heading.keys), None)
-    if held is not None:
-        return str(held.label)
-    name = key.rsplit(".", 1)[-1]
-    for heading in group.curated:
+    for heading in (held,) if held is not None else group.curated:
         names = [one.rsplit(".", 1)[-1] for one in heading.keys]
         stem = os.path.commonprefix(names)
-        if (len(names) > 1 and stem and name.startswith(stem)
+        if (len(names) > 1 and stem and key.rsplit(".", 1)[-1].startswith(stem)
                 and {workbench._section_of(one) for one in heading.keys}
                 == {workbench._section_of(key)}):
             return str(heading.label)
@@ -305,8 +300,8 @@ def _window_of(key: str, group: Any) -> str:
 def point_of_view(groups: Sequence[Any], values: dict[str, Any],
                   added: Collection[str] = ()) -> SimpleNamespace | None:
     """A summarized group, where anything in it differs at this table or was just added:
-    the rows it draws, each named by its heading where they share a label, and the
-    headings the rest is saved under."""
+    the rows it draws, each named by its view, and the headings the rest is saved
+    under."""
     group = next((one for one in groups if one.summarized), None)
     if group is None or not _shown(group, values, added):
         return None

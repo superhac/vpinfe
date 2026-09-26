@@ -1092,15 +1092,17 @@ class DifferencesTests(unittest.TestCase):
         _field("Player.PlayfieldColorDepth", "Color Depth"),
         _field("Backglass.BackglassColorDepth", "Color Depth"),
         _field("Player.BGSet", "View Mode"),
+        _field("Player.ScreenWidth", "Screen Width"),
         curated=(SimpleNamespace(key="playfield", label="Playfield",
                                  keys=("Player.PlayfieldFullScreen", "Player.PlayfieldWidth")),
                  SimpleNamespace(key="backglass", label="Backglass",
                                  keys=("Backglass.BackglassFullScreen",
                                        "Backglass.BackglassWidth")),
-                 SimpleNamespace(key="cabinet", label="Cabinet", keys=("Player.BGSet",))))
+                 SimpleNamespace(key="cabinet", label="Cabinet",
+                                 keys=("Player.BGSet", "Player.ScreenWidth"))))
 
-    def _labels(self, *keys: str) -> list[str]:
-        found = app_settings.differences([self.DISPLAYS], dict.fromkeys(keys, self.SET))
+    def _labels(self, *keys: str, group: Any = DISPLAYS) -> list[str]:
+        found = app_settings.differences([group], dict.fromkeys(keys, self.SET))
         return [field.label for field in found[0][1]]
 
     def test_a_row_several_windows_share_names_its_window(self) -> None:
@@ -1109,8 +1111,20 @@ class DifferencesTests(unittest.TestCase):
         self.assertEqual(self._labels("Backglass.BackglassFullScreen"),
                          ["Backglass Display Mode"])
 
-    def test_a_label_nothing_else_in_the_area_shares_is_the_program_s(self) -> None:
-        self.assertEqual(self._labels("Player.BGSet"), ["View Mode"])
+    def test_a_window_s_row_names_its_window_where_no_other_window_shares_it(self) -> None:
+        preview = _group(
+            "more", _field("PlayerVR.PreviewDisplay", "Display"),
+            _field("PlayerVR.PreviewWidth", "Width"), _field("Player.Shadows", "Shadows"),
+            curated=(SimpleNamespace(key="vr_preview", label="VR Preview",
+                                     keys=("PlayerVR.PreviewDisplay",
+                                           "PlayerVR.PreviewWidth")),))
+
+        self.assertEqual(self._labels("PlayerVR.PreviewDisplay", "Player.Shadows",
+                                      group=preview), ["VR Preview Display", "Shadows"])
+
+    def test_a_heading_over_several_things_leaves_its_rows_the_program_s(self) -> None:
+        self.assertEqual(self._labels("Player.BGSet", "Player.ScreenWidth"),
+                         ["View Mode", "Screen Width"])
 
     def test_a_window_s_row_it_does_not_curate_goes_with_its_window(self) -> None:
         self.assertEqual(self._labels("Backglass.BackglassColorDepth"),
