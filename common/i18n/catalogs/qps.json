@@ -1389,7 +1389,10 @@
   "console.sections.way": "{word} ûñđèř ŵàý",
   "console.sections.what_needs_attention": "Ŵĥàţ ñèèđš àţţèñţîöñ",
   "console.sections.written_later_version_vpinfe": "{newer} ŵèřè ŵřîţţèñ ƀý à ŀàţèř ṽèřšîöñ öƒ ṼÞîñƑÈ. Ţĥîš ƀûîŀđ řèàđš ŵĥàţ îţ ûñđèřšţàñđš àñđ ŀèàṽèš ţĥè řèšţ àŀöñè.",
-  "console.sections.written_older_build_can": "{pending} ŵèřè ŵřîţţèñ ƀý àñ öŀđèř ƀûîŀđ àñđ çàñ ƀè ƀřöûĝĥţ ƒöřŵàřđ",
+  "console.sections.written_older_build_can": {
+    "one": "1 ŵàš ŵřîţţèñ ƀý àñ öŀđèř ƀûîŀđ àñđ çàñ ƀè ƀřöûĝĥţ ƒöřŵàřđ",
+    "other": "{count} ŵèřè ŵřîţţèñ ƀý àñ öŀđèř ƀûîŀđ àñđ çàñ ƀè ƀřöûĝĥţ ƒöřŵàřđ"
+  },
   "console.sections.your_collections": "Ýöûř çöŀŀèçţîöñš",
   "console.send_to_device.could_not_read_devices": "Çöûŀđ ñöţ řèàđ ţĥè đèṽîçèš",
   "console.send_to_device.device": "À đèṽîçè",

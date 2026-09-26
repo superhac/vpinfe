@@ -373,7 +373,7 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any],
         _metadata_row(
             not pending, t("console.sections.format"),
             t("console.sections.every_game_current_format") if not pending
-            else t("console.sections.written_older_build_can", pending=(pending)),
+            else t("console.sections.written_older_build_can", count=pending),
             None if not pending else (t("word.upgrade"),
                     lambda: on_start("upgrade")),
             lines=_folder_lines(list(left.get("upgrade") or [])))

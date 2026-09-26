@@ -144,6 +144,13 @@ class MetadataCardTests(unittest.TestCase):
         self.assertEqual([True] * 4 + [False] * 2, [name in drawn for name in names])
         self.assertIn(t("said.and_more", count=2), drawn)
 
+    def test_one_game_written_by_an_older_build_reads_as_one(self) -> None:
+        one, two = (t("console.sections.written_older_build_can", count=n) for n in (1, 2))
+
+        self.assertIn(one, _card({"pending_upgrade": 1}))
+        self.assertIn(two, _card({"pending_upgrade": 2}))
+        self.assertNotEqual(one, two.replace("2", "1"))
+
 
 LEGACY = {"Info": {"Title": "Sample Game", "Rom": "sample"},
           "VPXFile": {"filename": "Sample Game.vpx", "filehash": "abc", "rom": "sample"}}

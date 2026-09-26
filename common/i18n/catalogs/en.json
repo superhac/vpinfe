@@ -1389,7 +1389,10 @@
   "console.sections.way": "{word} under way",
   "console.sections.what_needs_attention": "What needs attention",
   "console.sections.written_later_version_vpinfe": "{newer} were written by a later version of VPinFE. This build reads what it understands and leaves the rest alone.",
-  "console.sections.written_older_build_can": "{pending} were written by an older build and can be brought forward",
+  "console.sections.written_older_build_can": {
+    "one": "1 was written by an older build and can be brought forward",
+    "other": "{count} were written by an older build and can be brought forward"
+  },
   "console.sections.your_collections": "Your collections",
   "console.send_to_device.could_not_read_devices": "Could not read the devices",
   "console.send_to_device.device": "A device",
