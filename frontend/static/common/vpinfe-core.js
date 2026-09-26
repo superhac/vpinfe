@@ -2876,7 +2876,7 @@ class VPinFECore {
     const normalized = Object.assign({}, DEFAULT_MEDIA_PRIORITIES);
     if (!priorities || typeof priorities !== "object") return normalized;
 
-    for (const key of ["playfield", "bg", "dmd"]) {
+    for (const key of ["playfield", "backglass", "scoreview", "bg", "dmd"]) {
       const value = String(priorities[key] || "").trim().toLowerCase();
       if (value === "image" || value === "video") normalized[key] = value;
     }

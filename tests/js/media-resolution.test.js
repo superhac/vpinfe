@@ -151,11 +151,71 @@ describe("image versus video is the user's preference, and it is honoured", () =
   test("the preference falls back rather than showing nothing", () => {
     // Congo has neither playfield image nor video; bg exists only as an image.
     const vpin = coreWithLibrary();
-    vpin.mediaPriorities = { ...vpin.mediaPriorities, bg: "video" };
+    vpin.mediaPriorities = { ...vpin.mediaPriorities, backglass: "video" };
     const media = vpin.getMedia(MM, "bg");
 
     assert.equal(media.kind, "image", "a missing video must fall back to the image");
   });
+});
+
+describe("the priority the settings send reaches every window's media", () => {
+  // What the bridge answers with every priority set to image.
+  const IMAGE_FIRST = {
+    playfield: "image", backglass: "image", scoreview: "image", real_dmd: "color",
+    bg: "image", dmd: "image",
+  };
+  const BRIDGE = {
+    get_theme_assets_port: 8000, get_initial_table_index: 0, get_theme_config: {},
+    get_keymapping: {}, get_joymaping: {}, get_mainmenu_config: {}, get_monitors: [],
+    get_collections: [], get_media_priorities: IMAGE_FIRST,
+  };
+
+  // The first game, with a video for every window so image first has something to beat.
+  function withEveryVideo(contract) {
+    if (contract === 1) {
+      const rows = ROWS.map((row) => ({ ...row }));
+      const medias = rows[AFM].BGImagePath.replace(/[^/]+$/, "");
+      rows[AFM].BGVideoPath = `${medias}bg.mp4`;
+      rows[AFM].DMDVideoPath = `${medias}dmd.mp4`;
+      return { payload: rows, index: AFM };
+    }
+    const entries = PAYLOAD.contract2.entries.map((entry) => ({ ...entry }));
+    entries[0].media = [...entries[0].media, "backglass_video", "scoreview_video"];
+    return { payload: { ...PAYLOAD.contract2, entries }, index: 0 };
+  }
+
+  async function coreThroughInit(contract, payload) {
+    const { vpin, browser } = newCore({ windowName: contract === 1 ? "table" : "playfield" });
+    vpin.call = (method) => {
+      if (method === "get_theme_contract") return Promise.resolve(contract);
+      if (method === "get_tables") return Promise.resolve(JSON.stringify(payload));
+      return Promise.resolve(BRIDGE[method]);
+    };
+    vpin.init();
+    await browser.WebSocket.instances.at(-1).onopen();
+    return vpin;
+  }
+
+  test("a theme reading 2.x's bg and dmd off mediaPriorities still finds them", async () => {
+    const vpin = await coreThroughInit(1, ROWS);
+
+    assert.equal(vpin.mediaPriorities.bg, "image");
+    assert.equal(vpin.mediaPriorities.dmd, "image");
+  });
+
+  for (const contract of [1, 2]) {
+    test(`image first is honoured for all three windows at contract ${contract}`, async () => {
+      const { payload, index } = withEveryVideo(contract);
+      const vpin = await coreThroughInit(contract, payload);
+
+      for (const kind of ["playfield", "backglass", "scoreview"]) {
+        assert.ok(!vpin.getVideoURL(index, kind).includes("file_missing"),
+          `${kind} needs a video for image first to mean anything`);
+        const media = vpin.getMedia(index, kind);
+        assert.equal(media.kind, "image", `${kind} came back ${media.url}`);
+      }
+    });
+  }
 });
 
 describe("realdmd is one kind with two frames", () => {
