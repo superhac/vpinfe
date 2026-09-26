@@ -31,6 +31,7 @@ from common.config_store import ConfigStore
 from common.games import remote_library
 from common.log_setup import include_thirdparty_logs
 from common.paths import bundled
+from frontend import theme_windows
 
 logger = logging.getLogger("vpinfe.frontend.chromium_manager")
 
@@ -67,6 +68,9 @@ CHROMIUM_BASE_FLAGS = [
     # Suppress "unsupported command-line flag" info bar warnings.
     "--test-type",
 ]
+
+# The windows with a high-DPI override setting, by canonical name.
+OVERRIDE_SECTIONS = {"backglass": "windows.backglass", "scoreview": "windows.score_view"}
 
 
 def parse_additional_chromium_options(raw_options: str) -> list[str]:
@@ -375,6 +379,7 @@ class ChromiumManager:
         self._exit_event = threading.Event()
         # Windows only: [(window_name, hwnd)] awaiting restore.
         self._minimized_hwnds: list[tuple[str, int]] = []
+        self._controller = ""
         sweep_stale_profiles()
 
     def launch_window(
@@ -499,7 +504,9 @@ class ChromiumManager:
         # list - is launched last and takes focus.
         from frontend.runtime import window_configs
 
-        for window_name, config_key in reversed(window_configs(iniconfig)):
+        configs = window_configs(iniconfig)
+        self._controller = theme_windows.controller([name for name, _ in configs])
+        for window_name, config_key in reversed(configs):
             screen_id_str = displays.window_screen_id(config_key).strip()
             if not screen_id_str:
                 continue
@@ -528,22 +535,15 @@ class ChromiumManager:
                 library_assets_port=library.assets_port,
             )
 
-            override_key = f"{window_name}windowoverride"
-            logger.debug("Found override key: '%s' in [Displays] section", override_key)
-
-            override_str = cfg_get(iniconfig, "Displays", override_key, "").strip()
-            logger.debug(
-                "Retrieved value: '%s' (empty=%s)", override_str, len(override_str) == 0
-            )
-
+            section = OVERRIDE_SECTIONS.get(theme_windows.canonical(window_name))
+            override_str = cfg_get(iniconfig, section, "override", "").strip() if section else ""
             if override_str:
                 separator = "&" if "?" in url else "?"
                 url += f"{separator}override={override_str}"
                 logger.debug("Override applied - Final URL: %s", url)
 
-            # Brief delay before launching the table window to ensure bg/dmd
-            # are initialized first, so table gets focus as the last window
-            if window_name == "table":
+            # The other windows are up before the controller opens and takes focus.
+            if window_name == self._controller:
                 time.sleep(0.5)
 
             # One window failing is one window. Unwrapped, whatever went wrong on the
@@ -554,7 +554,7 @@ class ChromiumManager:
                     url,
                     monitor,
                     screen_id,
-                    mute_audio=(window_name != "table"),
+                    mute_audio=(window_name != self._controller),
                     additional_options=settings.chrome_options,
                     include_default_options=not settings.disable_default_chrome_options,
                     exclude_options=cfg_get(iniconfig, "Settings",
@@ -565,19 +565,19 @@ class ChromiumManager:
 
         logger.info("Launched %s browser windows", len(self._processes))
 
-        # macOS: ensure the table window gets focus after all windows launch
+        # macOS: ensure the controller gets focus after all windows launch
         if sys.platform == "darwin":
             threading.Thread(target=self._focus_game_window_mac, daemon=True).start()
 
     def _focus_game_window_mac(self) -> None:
-        """macOS: ensure focus goes to the table window after launch."""
+        """macOS: ensure focus goes to the controller after launch."""
         time.sleep(0.5)
         try:
             import AppKit
 
             game_pid = None
             for win_name, proc, _, _ in self._processes:
-                if win_name == "table":
+                if win_name == self._controller:
                     game_pid = proc.pid
                     break
 
@@ -697,8 +697,8 @@ class ChromiumManager:
     def restore_all_windows(self) -> int:
         """Windows: restore the kiosk windows minimized by minimize_all_windows().
 
-        Safe to call more than once, and a no-op if nothing was minimized. The table
-        window is restored last so it ends up on top and holding focus.
+        Safe to call more than once, and a no-op if nothing was minimized. The
+        controller is restored last so it ends up on top and holding focus.
         """
         if sys.platform != "win32":
             return 0
@@ -713,12 +713,12 @@ class ChromiumManager:
 
             user32 = ctypes.WinDLL("user32", use_last_error=True)
             SW_RESTORE = 9  # noqa: N806 - Win32's own name
-            # Table last: whichever window is restored last wins the foreground.
-            ordered = sorted(minimized, key=lambda item: item[0] == "table")
+            # Controller last: whichever window is restored last wins the foreground.
+            ordered = sorted(minimized, key=lambda item: item[0] == self._controller)
             for window_name, hwnd in ordered:
                 user32.ShowWindow(hwnd, SW_RESTORE)
                 restored += 1
-                if window_name == "table":
+                if window_name == self._controller:
                     user32.SetForegroundWindow(hwnd)
             logger.info("Windows: restored %s frontend windows after launch", restored)
         except Exception:

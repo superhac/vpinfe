@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import sys
+import tempfile
 import threading
 import types
 import unittest
+from pathlib import Path
+from typing import Any
 from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 
-from frontend import chromium_manager
+from common.config_store import ConfigStore
+from frontend import chromium_manager, theme_windows
 from frontend.chromium_manager import ChromiumManager
 
 
@@ -241,6 +247,102 @@ class ChromiumManagerTests(unittest.TestCase):
         manager.terminate_all()
 
         self.assertTrue(manager._exit_event.is_set())
+
+
+class WindowRoleTests(unittest.TestCase):
+    """What each window gets at launch, whichever contract named it."""
+
+    OVERRIDES = {"backglass": "10,20,300,400", "scoreview": "1,2,3,4"}
+
+    def _launch(self, contract: int) -> tuple[ChromiumManager, list[Any]]:
+        ini = Path(self.enterContext(tempfile.TemporaryDirectory())) / "vpinfe.ini"
+        ini.write_text("[windows.playfield]\nscreen_id = 0\n"
+                       "[windows.backglass]\nscreen_id = 1\n"
+                       f"override = {self.OVERRIDES['backglass']}\n"
+                       "[windows.score_view]\nscreen_id = 2\n"
+                       f"override = {self.OVERRIDES['scoreview']}\n", encoding="utf-8")
+        config = ConfigStore(str(ini))
+        screens = [types.SimpleNamespace(x=i * 100, y=0, width=100, height=100)
+                   for i in range(3)]
+        events: list[Any] = []
+
+        def launch(manager: ChromiumManager, name: str, url: str, monitor: Any,
+                   index: int, **kwargs: Any) -> None:
+            override = parse_qs(urlsplit(url).query).get("override", [""])[0]
+            events.append((name, override, kwargs["mute_audio"]))
+            manager._processes.append((name, mock.Mock(pid=100 + index), "", monitor))
+
+        with (
+            mock.patch.object(theme_windows, "active",
+                              return_value=theme_windows.DEFAULT_WINDOWS[contract]),
+            mock.patch.object(sys, "platform", "darwin"),
+            mock.patch.object(chromium_manager, "get_mac_screens", return_value=screens),
+            mock.patch.object(ChromiumManager, "launch_window", launch),
+            mock.patch.object(ChromiumManager, "_focus_game_window_mac"),
+            mock.patch.object(chromium_manager.time, "sleep",
+                              side_effect=lambda _seconds: events.append("pause")),
+        ):
+            manager = ChromiumManager()
+            manager.launch_all_windows(config)
+        return manager, events
+
+    def test_the_controller_plays_sound_opens_last_and_the_others_get_their_override(
+            self) -> None:
+        for contract, (controller, backglass, scoreview) in (
+                theme_windows.DEFAULT_WINDOWS.items()):
+            with self.subTest(contract=contract):
+                _manager, events = self._launch(contract)
+
+                self.assertEqual(events, [
+                    (scoreview, self.OVERRIDES["scoreview"], True),
+                    (backglass, self.OVERRIDES["backglass"], True),
+                    "pause",
+                    (controller, "", False),
+                ])
+
+    def _focused_on_macos(self, contract: int) -> list[int]:
+        """The pids macOS was asked to bring forward, after a launch."""
+        manager, _events = self._launch(contract)
+        activated: list[int] = []
+        apps = [types.SimpleNamespace(
+                    processIdentifier=lambda pid=pid: pid,
+                    activateWithOptions_=lambda _how, pid=pid: activated.append(pid))
+                for pid in (100, 101, 102)]
+        workspace = types.SimpleNamespace(runningApplications=lambda: apps)
+        appkit = types.SimpleNamespace(
+            NSWorkspace=types.SimpleNamespace(sharedWorkspace=lambda: workspace),
+            NSApplicationActivateIgnoringOtherApps=1)
+
+        with (mock.patch.dict("sys.modules", {"AppKit": appkit}),
+              mock.patch.object(chromium_manager.time, "sleep")):
+            manager._focus_game_window_mac()
+        return activated
+
+    def _restored_on_windows(self, contract: int) -> list[tuple[str, int]]:
+        """What Windows was told, with the controller minimized first."""
+        manager, _events = self._launch(contract)
+        manager._minimized_hwnds = [(name, hwnd) for hwnd, name
+                                    in enumerate(theme_windows.DEFAULT_WINDOWS[contract])]
+        calls: list[tuple[str, int]] = []
+        user32 = types.SimpleNamespace(
+            ShowWindow=lambda hwnd, _how: calls.append(("show", hwnd)),
+            SetForegroundWindow=lambda hwnd: calls.append(("front", hwnd)))
+
+        with (mock.patch.object(sys, "platform", "win32"),
+              mock.patch("ctypes.WinDLL", create=True, return_value=user32)):
+            manager.restore_all_windows()
+        return calls
+
+    def test_macos_focuses_the_controller(self) -> None:
+        for contract in theme_windows.DEFAULT_WINDOWS:
+            with self.subTest(contract=contract):
+                self.assertEqual(self._focused_on_macos(contract), [100])
+
+    def test_windows_restores_the_controller_last_and_brings_it_forward(self) -> None:
+        for contract in theme_windows.DEFAULT_WINDOWS:
+            with self.subTest(contract=contract):
+                self.assertEqual(self._restored_on_windows(contract),
+                                 [("show", 1), ("show", 2), ("show", 0), ("front", 0)])
 
 
 class LibraryEndpointTests(unittest.TestCase):

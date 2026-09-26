@@ -56,8 +56,7 @@
 
       vpin.ready.then(async () => {
         console.log("VPinFECore is fully initialized");
-        const windowName = await vpin.call("get_my_window_name");
-        const isTableWindow = windowName === "table";
+        const isController = vpin.isController();
         const fadeMs = 1000;
 
         const redirectToTheme = async () => {
@@ -88,7 +87,7 @@
         const splashImage = document.getElementById("splash-image");
 
         const fadeOutAndRedirect = () => {
-          if (isTableWindow) {
+          if (isController) {
             splashVideo.classList.add("fade-out");
           } else {
             splashImage.classList.add("fade-out");
@@ -127,7 +126,7 @@
           });
         };
 
-        if (isTableWindow) {
+        if (isController) {
           const cabMode = await vpin.call("get_cab_mode");
           const rotationDegree = await vpin.call("get_playfield_rotation");
           const effectiveRotationDegree =

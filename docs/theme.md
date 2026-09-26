@@ -750,7 +750,7 @@ theme = <THEME NAME>
 
 The main JS file for interacting with VPinFE and controlling the theme UI. Every window loads the same `theme.js`, so use `vpin.windowName` to branch logic per window - or `vpin.isController()`, which does not care what the controller is called. Older themes read a global `windowName` that they set themselves from `get_my_window_name`; `vpin.windowName` is the same answer without the round trip.
 
-VPinFE also passes the current window identity in the page URL as `?window=playfield`, `?window=backglass`, or `?window=scoreview`. For a high-DPI setup, a contract 1 theme's `bg` and `dmd` windows may also get an optional `override` query parameter in the form `x,y,width,height`. Theme authors can read that value when they need to use the configured bounds instead of the auto-detected browser window size.
+VPinFE also passes the current window identity in the page URL as `?window=playfield`, `?window=backglass`, or `?window=scoreview`. For a high-DPI setup, the `backglass` and `scoreview` windows may also get an optional `override` query parameter in the form `x,y,width,height`. Theme authors can read that value when they need to use the configured bounds instead of the auto-detected browser window size.
 
 ```javascript
 /*
@@ -1466,7 +1466,7 @@ Theme pages receive the current window name in the `window` query parameter:
 - `?window=backglass`
 - `?window=scoreview`
 
-For a contract 1 theme's `bg` and `dmd`, VPinFE can also pass an optional high-DPI display override:
+For `backglass` and `scoreview`, VPinFE can also pass an optional high-DPI display override:
 
 - `?override=x,y,width,height`
 
@@ -1491,7 +1491,7 @@ if (override) {
 }
 ```
 
-If `override` is present, themes that position or scale BG/DMD content based on window bounds should prefer those values over `window.innerWidth`, `window.innerHeight`, or other automatically detected measurements.
+If `override` is present, themes that position or scale backglass or score view content based on window bounds should prefer those values over `window.innerWidth`, `window.innerHeight`, or other automatically detected measurements.
 
 ##### Core Audio Helpers
 

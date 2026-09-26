@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from common import media_specs
-from frontend import theme_contract, theme_windows
+from frontend import chromium_manager, theme_contract, theme_windows
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 THEME_DOC = REPO_ROOT / "docs" / "theme.md"
@@ -120,6 +120,16 @@ class NamesTests(unittest.TestCase):
                  for found in CONTRACT_1_NAME.findall(sentence)]
 
         self.assertEqual(stray, [], "\n" + "\n".join(stray))
+
+    def test_the_override_sentences_name_the_windows_that_get_one(self) -> None:
+        sentences = [" ".join(unit.split()) for unit in UNIT.split(_doc())
+                     if "high-DPI" in unit and "override" in unit]
+        self.assertGreaterEqual(len(sentences), 2)
+
+        for sentence in sentences:
+            with self.subTest(sentence=sentence[:80]):
+                named = tuple(re.findall(r"`(\w+)`", sentence.split("override", 1)[0]))
+                self.assertEqual(named, tuple(chromium_manager.OVERRIDE_SECTIONS))
 
     def test_the_kinds_table_names_each_kind_and_the_file_it_resolves(self) -> None:
         rows = dict(KIND_ROW.findall(_section("### The kinds")))
