@@ -16,6 +16,7 @@ import re
 import sys
 import threading
 from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +32,7 @@ from common.apps.contract import (
 
 from . import areas, displays, plugins
 from . import ini as vini
-from .setting_types import CONTEXTUAL, LABELS, TYPES
+from .setting_types import CONTEXTUAL, LABELS, REGISTERED, TYPES
 
 REST = areas.REST
 
@@ -302,6 +303,28 @@ def _default_color(said: str) -> str:
         return ""
 
 
+def _registered(one: vini.Setting) -> vini.Setting:
+    """A setting as the file describes it, or as its plugin registers it where the file
+    writes it bare."""
+    said = REGISTERED.get(one.qualified)
+    if said is None or one.default or one.choices:
+        return one
+    return replace(one, default=said.default, choices=said.choices, minimum=said.minimum,
+                   maximum=said.maximum,
+                   kind=vini.KIND_CHOICE if said.choices else one.kind)
+
+
+def _unwritten(app: vini.Ini,
+               installed: Mapping[str, plugins.Plugin] | None) -> list[vini.Setting]:
+    """What each plugin the program has registers that the file does not hold yet.
+    Where what is installed cannot be read, a plugin the file has a section for."""
+    held = {areas.plugin_of(key) for key in app.settings}
+    return [_registered(vini.Setting(section, key, "", label=key))
+            for qualified in REGISTERED if qualified not in app.settings
+            for section, key in (vini.section_and_key(qualified),)
+            if areas.plugin_of(qualified) in (held if installed is None else installed)]
+
+
 def _colors(app: vini.Ini) -> frozenset[str]:
     return frozenset(key for key, one in app.settings.items()
                      if _type_of(one) == vini.KIND_COLOR)
@@ -353,7 +376,8 @@ class VPXConfig:
         schema = _read(settings_file(settings))
         installed = plugins.installed(str(settings.get("bin_path") or ""))
         by_area: dict[str, list[Field]] = {}
-        for one in schema.settings.values():
+        for one in (*map(_registered, schema.settings.values()),
+                    *_unwritten(schema, installed)):
             if _offered(one.qualified):
                 area = areas.area_of(one.qualified)
                 if (area == areas.PLUGINS and installed is not None
@@ -584,12 +608,14 @@ def _inherited(scope: str, values: Mapping[str, str],
 
 def _given(app: vini.Ini, key: str) -> str | None:
     """What the application gives a key: its own value, or the default its file states
-    where it leaves the key blank. None where neither is known."""
+    or its plugin registers where it leaves the key blank. None where neither is
+    known."""
     held = app.value(key)
     if held is not None:
         return held
     one = app.settings.get(key)
-    return one.default if one is not None and one.default != "" else None
+    said = _registered(one) if one is not None else REGISTERED.get(key)
+    return said.default if said is not None and said.default != "" else None
 
 
 def _alike(key: str, one: str | None, two: str | None) -> bool:

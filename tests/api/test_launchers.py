@@ -455,8 +455,8 @@ class PointOfViewTests(_TableCase):
 class BackglassPluginAtATableTests(_TableCase):
     VALUES = {"Plugin.B2S.ShowGrill": "1", "Plugin.B2S.BackglassDMDX": "120",
               "Plugin.B2S.BackglassDMDY": "40", "Plugin.B2S.BackglassDMDW": "512",
-              "Plugin.B2S.BackglassDMDH": "128", "Plugin.B2S.BackglassDMDAutoPos": "0",
-              "Plugin.B2S.ScoreViewDMDAutoPos": "0"}
+              "Plugin.B2S.BackglassDMDH": "128", "Plugin.B2S.BackglassDMDAutoPos": "1",
+              "Plugin.B2S.ScoreViewDMDAutoPos": "1"}
 
     def setUp(self) -> None:
         super().setUp()
@@ -868,7 +868,8 @@ class CuratedTests(_TableCase):
         plugins = self._groups("launcher")["plugins"]
 
         self.assertEqual(plugins["curated"][0]["keys"],
-                         ["Plugin.PinMAME.Enable", "Plugin.PinMAME.PinMAMEPath"])
+                         ["Plugin.PinMAME.Enable", "Plugin.PinMAME.Sound",
+                          "Plugin.PinMAME.PinMAMEPath"])
         self.assertEqual(plugins["curated"][0]["enabled_by"], "Plugin.PinMAME.Enable")
 
     def test_a_plugin_heading_has_the_program_s_words_before_the_catalog_s(self) -> None:
@@ -890,7 +891,8 @@ class CuratedTests(_TableCase):
     def test_a_heading_holds_only_rows_the_scope_offers(self) -> None:
         plugins = self._groups("entry")["plugins"]
 
-        self.assertEqual(plugins["curated"][0]["keys"], ["Plugin.PinMAME.Enable"])
+        self.assertEqual(plugins["curated"][0]["keys"],
+                         ["Plugin.PinMAME.Enable", "Plugin.PinMAME.Sound"])
 
     def test_a_setting_carries_a_help_line_and_whether_a_table_sets_it(self) -> None:
         settings = {f["key"]: f for g in self._groups("launcher").values()

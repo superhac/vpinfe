@@ -10,6 +10,7 @@ from __future__ import annotations
 import threading
 import time
 import unittest
+from itertools import groupby
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
@@ -375,7 +376,8 @@ class AreaTests(_Case):
 
         self.assertEqual([h.key for h in headings], ["FlexDMD", "PinMAME"])
         pinmame = headings[1]
-        self.assertEqual(pinmame.keys, ("Plugin.PinMAME.Enable", "Plugin.PinMAME.PinMAMEPath"))
+        self.assertEqual(pinmame.keys, ("Plugin.PinMAME.Enable", "Plugin.PinMAME.Sound",
+                                        "Plugin.PinMAME.PinMAMEPath"))
         self.assertEqual(pinmame.enabled_by, "Plugin.PinMAME.Enable")
         self.assertEqual(pinmame.rivals, ())
 
@@ -417,7 +419,8 @@ class AreaTests(_Case):
     def test_the_plugins_rows_follow_their_headings_each_in_the_file_s_order(self) -> None:
         self.assertEqual([f.key for f in self.groups[areas.PLUGINS].settings],
                          ["Plugin.FlexDMD.Enable", "Plugin.PinMAME.Enable",
-                          "Plugin.PinMAME.PinMAMEPath", "Plugin.PinMAME.Cheat"])
+                          "Plugin.PinMAME.PinMAMEPath", "Plugin.PinMAME.Cheat",
+                          "Plugin.PinMAME.Sound"])
 
     def test_a_curated_row_the_file_lacks_is_left_out(self) -> None:
         playfield = next(h for h in self.groups[areas.SOUND].curated
@@ -511,9 +514,9 @@ class InstalledPluginTests(_Case):
 
     def test_the_plugins_sort_by_that_name(self) -> None:
         self.assertEqual(list(self.headings), ["UpscaleDMD", "PinMAME", "Serum"])
-        self.assertEqual([f.key for f in self.groups[areas.PLUGINS].settings],
-                         ["Plugin.UpscaleDMD.Enable", "Plugin.PinMAME.Enable",
-                          "Plugin.Serum.Enable", "Plugin.Serum.SerumPath"])
+        self.assertEqual([plugin for plugin, _ in groupby(
+                             areas.plugin_of(f.key) for f in self.groups[areas.PLUGINS].settings)],
+                         ["UpscaleDMD", "PinMAME", "Serum"])
 
     def test_a_plugin_the_program_does_not_have_is_in_the_rest(self) -> None:
         self.assertIn("Plugin.FlexDMD.Enable",
@@ -533,6 +536,84 @@ class InstalledPluginTests(_Case):
         self.assertEqual([h.key for h in groups[areas.PLUGINS].curated],
                          ["FlexDMD", "PinMAME", "Serum", "UpscaleDMD"])
         self.assertEqual({h.label for h in groups[areas.PLUGINS].curated}, {""})
+
+
+REGISTERED_INI = """\
+[Plugin.B2S]
+; Enable: Enable B2S plugin [Default: 0]
+Enable = 1
+ShowGrill =
+"""
+
+
+class RegisteredTests(_Case):
+    """A plugin's settings as it registers them, which the file only holds once the
+    program has run that plugin, and then bare."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.app_ini.write_text(REGISTERED_INI)
+        bundle = self.root / "VPinballX_BGFX.app" / "Contents"
+        for folder, plugin in (("b2s", "B2S"), ("upscaledmd", "UpscaleDMD")):
+            (bundle / "PlugIns" / folder).mkdir(parents=True)
+            (bundle / "PlugIns" / folder / "plugin.cfg").write_text(
+                f'[configuration]\nid = "{plugin}"\n')
+        self.settings["bin_path"] = str(bundle / "MacOS" / "VPinballX_BGFX")
+
+    def fields(self) -> dict:
+        return {f.key: f for g in self.config.groups(self.settings) for f in g.settings}
+
+    def test_a_setting_the_file_does_not_hold_yet_is_offered_with_its_default(self) -> None:
+        dmd_x = self.fields()["Plugin.B2S.BackglassDMDX"]
+
+        self.assertEqual((dmd_x.type, dmd_x.default, dmd_x.minimum, dmd_x.maximum),
+                         ("int", "0", 0, 65535))
+        self.assertEqual(dmd_x.label, "Backglass DMD X position")
+
+    def test_a_setting_the_file_writes_bare_takes_its_registered_default(self) -> None:
+        grill = self.fields()["Plugin.B2S.ShowGrill"]
+
+        self.assertEqual((grill.type, grill.default), ("bool", "0"))
+
+    def test_an_enumerated_one_offers_its_answers(self) -> None:
+        mode = self.fields()["Plugin.UpscaleDMD.UpscaleMode"]
+
+        self.assertEqual(mode.type, "choice")
+        self.assertEqual(mode.default, "0")
+        self.assertEqual(mode.choices[0], ("0", "Disabled"))
+
+    def test_a_plugin_s_own_switch_is_off_until_it_is_turned_on(self) -> None:
+        self.assertEqual(self.fields()["Plugin.UpscaleDMD.Enable"].default, "0")
+
+    def test_what_the_file_says_is_left_as_it_says_it(self) -> None:
+        self.app_ini.write_text("[Plugin.B2S]\n; Show Grill: Grill [Default: 1]\n"
+                                "ShowGrill =\n")
+
+        self.assertEqual(self.fields()["Plugin.B2S.ShowGrill"].default, "1")
+
+    def test_a_plugin_the_program_does_not_have_offers_nothing_new(self) -> None:
+        self.assertNotIn("Plugin.Serum.DisabledSize", self.fields())
+
+    def test_without_the_program_the_file_s_plugins_are_the_ones_offered(self) -> None:
+        self.settings["bin_path"] = str(self.root / "elsewhere" / "VPinballX_BGFX")
+        fields = self.fields()
+
+        self.assertIn("Plugin.B2S.BackglassDMDX", fields)
+        self.assertNotIn("Plugin.UpscaleDMD.UpscaleMode", fields)
+
+    def test_a_table_given_the_registered_default_holds_nothing(self) -> None:
+        cleared = self.config.write(SCOPE_ENTRY, str(self.table),
+                                    {"Plugin.B2S.ShowGrill": "0",
+                                     "Plugin.B2S.BackglassDMDX": "0"}, self.settings)
+
+        self.assertEqual(cleared, {"Plugin.B2S.ShowGrill", "Plugin.B2S.BackglassDMDX"})
+        self.assertFalse((self.game / "MM (VPW 1.2).ini").exists())
+
+    def test_a_table_given_another_value_keeps_it(self) -> None:
+        self.config.write(SCOPE_ENTRY, str(self.table), {"Plugin.B2S.ShowGrill": "1"},
+                          self.settings)
+
+        self.assertTrue(self.at(SCOPE_ENTRY, key="Plugin.B2S.ShowGrill").set_here)
 
 
 class PluginFolderTests(unittest.TestCase):
