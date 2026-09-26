@@ -12,7 +12,6 @@ clean.
 
 from __future__ import annotations
 
-import ast
 import asyncio
 import json
 import re
@@ -43,10 +42,20 @@ KEYS = {key.lower(): key for key in CATALOG}
 FIRST_ROW = ".ag-row .ag-cell"
 # Each page in Settings' own rail. `view=settings` alone is its first page.
 SETTINGS_PAGE = ".console-section-rail .console-section-hit"
+ICONS = ".q-icon, .material-icons { visibility: hidden !important; }"
+
+
+def _without_icons(expression: str) -> str:
+    return ("(() => { const quiet = document.createElement('style');"
+            f" quiet.textContent = {json.dumps(ICONS)}; document.head.append(quiet);"
+            f" try {{ return {expression}; }} finally {{ quiet.remove(); }} }})()")
+
+
 # Rendered elements only: the grid's paging bar is in every page, hidden, and unread.
-PAGE_WORDS = ("[document.body.innerText, ...[...document.querySelectorAll('[aria-label]')]"
-              ".filter(e => e.getClientRects().length)"
-              ".map(e => e.getAttribute('aria-label'))].join('\\n')")
+PAGE_WORDS = _without_icons(
+    "[document.body.innerText, ...[...document.querySelectorAll('[aria-label]')]"
+    ".filter(e => e.getClientRects().length)"
+    ".map(e => e.getAttribute('aria-label'))].join('\\n')")
 
 
 def _keys_in(text: str) -> list[str]:
@@ -77,42 +86,6 @@ def _machine_words(*paths: Path) -> set[str]:
     return {w.lower() for s in sources for w in re.findall(r"[A-Za-z]{4,}", s)}
 
 
-def _icon_names() -> set[str]:
-    """Material icons render their own name as ligature text, so the name is on screen.
-
-    Read from the tree rather than listed: a name nobody passes is not on any page, and
-    a hand-kept list here would go stale into a false pass.
-
-    `console/verbs.py` is where a button's drawing is declared, and the literal scan
-    below cannot see through the constant, so both are read.
-    """
-    from console import verbs
-    names: set[str] = set(verbs.declared())
-    for path in (ROOT / "console").rglob("*.py"):
-        if "__pycache__" in path.parts:
-            continue
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-            if not isinstance(node, ast.Call):
-                continue
-            if getattr(node.func, "attr", None) == "icon" and node.args \
-               and isinstance(node.args[0], ast.Constant):
-                names.add(str(node.args[0].value).lower())
-            for kw in node.keywords:
-                if kw.arg in ("icon", "mark") and isinstance(kw.value, ast.Constant) \
-                   and isinstance(kw.value.value, str):
-                    names.add(kw.value.value.lower())
-    # The rail's icons sit at index 2 of a nav tuple, which no keyword scan reaches.
-    from console import page
-    for parent, items in page.NAV_GROUPS:
-        if parent is not None:
-            names.add(str(parent[2]).lower())
-        names.update(str(item[2]).lower() for item in items)
-    out = set(names)
-    for name in names:
-        out.update(name.split("_"))
-    return out
-
-
 _OPEN_PICKER = """(() => {
   const b = [...document.querySelectorAll('.q-btn')].filter(x => x.offsetParent)
       .find(x => (x.innerText || '').includes('more_vert'));
@@ -121,12 +94,9 @@ _OPEN_PICKER = """(() => {
   return 'opened';
 })()"""
 
-_PICKER_TEXT = """(() => {
-  const parts = [...document.querySelectorAll(
-      '.q-menu, .q-item, .console-group, .console-menu-item')]
-      .filter(x => x.offsetParent).map(x => x.innerText || '');
-  return parts.join('\\n');
-})()"""
+_PICKER_TEXT = _without_icons(
+    "[...document.querySelectorAll('.q-menu, .q-item, .console-group, .console-menu-item')]"
+    ".filter(x => x.offsetParent).map(x => x.innerText || '').join('\\n')")
 
 
 async def _picker_text(browser) -> str:
@@ -176,11 +146,8 @@ class PseudoLocaleTests(unittest.TestCase):
             # `httpapi/assets.py:_label` builds a label from the identifier. That is the
             # documented fallback for a kind from outside; the fix is to register the
             # kind, which is a data change rather than a localization one.
-            | {"color", "sound"}
-            # Quasar draws the clear button of a `clearable` field with its own `cancel`
-            # icon, which renders its name as text. A collection's Limit is one.
-            | {"cancel"})
-        allowed = _icon_names() | content
+            | {"color", "sound"})
+        allowed = set(content)
 
         from console import page as console_page
         sections = sorted(set(console_page.SECTIONS) - CONTENT_HEAVY)
