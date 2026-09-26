@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from common.games import locations
+from common.i18n import t
 from tests.support.skips import needs_posix_permissions
 
 
@@ -65,20 +66,29 @@ class RefusalTests(_Destinations):
         found = locations.destination()
 
         self.assertIsNone(found.location)
-        self.assertIn("no longer here", found.reason)
+        self.assertEqual(found.reason, t("error.locations.new_games_location_gone"))
 
     @needs_posix_permissions
     def test_and_a_read_only_one_is_refused_too(self) -> None:
         import os
         os.chmod(self.root / "second", 0o500)
         self.addCleanup(os.chmod, self.root / "second", 0o700)
-        self._save(self._root("l1", "first"), self._root("l2", "second"),
-                   write_to="l2")
+        second = self._root("l2", "second")
+        self._save(self._root("l1", "first"), second, write_to="l2")
 
         found = locations.destination()
 
         self.assertIsNone(found.location)
-        self.assertIn("cannot be written to", found.reason)
+        self.assertEqual(found.reason, t("error.locations.read_only", name=second.name))
+
+    def test_an_unreachable_one_says_why_once(self) -> None:
+        gone = self._root("l2", "never-mounted")
+        self._save(self._root("l1", "first"), gone, write_to="l2")
+
+        found = locations.destination()
+
+        self.assertEqual(found.reason, t("error.locations.not_reachable", name=gone.name,
+                                         reason=t("error.locations.nothing_at_path")))
 
     def test_a_refusal_offers_the_writable_ones_instead(self) -> None:
         """What a caller needs on a refusal is not only that it failed - it is where
@@ -90,13 +100,14 @@ class RefusalTests(_Destinations):
         self.assertEqual([one.location_id for one in found.alternatives], ["l1"])
 
     def test_a_single_game_folder_cannot_hold_a_new_game(self) -> None:
-        self._save(self._root("l1", "first"),
-                   self._root("l2", "single", kind="game"), write_to="l2")
+        single = self._root("l2", "single", kind="game")
+        self._save(self._root("l1", "first"), single, write_to="l2")
 
         found = locations.destination()
 
         self.assertIsNone(found.location)
-        self.assertIn("single game folder", found.reason)
+        self.assertEqual(found.reason,
+                         t("error.locations.single_game_folder", name=single.name))
 
     def test_an_override_that_cannot_be_written_to_is_refused_in_its_turn(self) -> None:
         """It does not fall back either. An override is somebody naming a place."""
@@ -112,7 +123,7 @@ class RefusalTests(_Destinations):
         found = locations.destination()
 
         self.assertIsNone(found.location)
-        self.assertIn("nowhere to create", found.reason)
+        self.assertEqual(found.reason, t("error.locations.nowhere_to_create"))
 
 
 class ImportTests(_Destinations):

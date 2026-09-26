@@ -27,6 +27,7 @@ from pathlib import Path
 from common.atomic_write import write_atomic
 from common.config_access import cfg_get
 from common.config_store import ConfigStore
+from common.i18n import t
 from common.install_identity import mint_id
 from common.paths import CONFIG_DIR
 
@@ -107,11 +108,11 @@ def state_of(location: Location) -> LocationState:
     # `~/tables` unreachable while the scan happily walked it.
     path = Path(canonical(location.path) or location.path)
     if not path.exists():
-        return LocationState(False, False, "Not reachable.")
+        return LocationState(False, False, t("error.locations.nothing_at_path"))
     if not path.is_dir():
-        return LocationState(False, False, "Not a folder.")
+        return LocationState(False, False, t("error.locations.not_a_folder"))
     if not os.access(path, os.W_OK):
-        return LocationState(True, False, "Read-only.")
+        return LocationState(True, False, t("error.locations.nothing_can_be_written"))
     return LocationState(True, True)
 
 
@@ -346,31 +347,24 @@ def destination(location_id: str = "") -> Destination:
         # refusal: an install that has never been asked still has to be able to create.
         if writable:
             return Destination(location=writable[0])
-        return Destination(
-            reason="No location can be written to, so there is nowhere to create a "
-                   "game. Add one, or check the ones you have are reachable.")
+        return Destination(reason=t("error.locations.nowhere_to_create"))
 
     named = next((one for one in held if one.location_id == wanted), None)
     others = tuple(one for one in writable if one.location_id != wanted)
     if named is None:
-        return Destination(
-            reason="The location new games were set to go to is no longer here.",
-            alternatives=others)
+        return Destination(reason=t("error.locations.new_games_location_gone"),
+                           alternatives=others)
     state = state_of(named)
     if named.kind != KIND_ROOT:
-        return Destination(
-            reason=f"{named.name} is a single game folder, so a new game cannot be "
-                   "created inside it.", alternatives=others)
+        return Destination(reason=t("error.locations.single_game_folder", name=named.name),
+                           alternatives=others)
     if not state.reachable:
-        return Destination(
-            reason=f"{named.name} is not reachable"
-                   + (f": {state.reason}" if state.reason else "."),
-            alternatives=others)
+        return Destination(reason=t("error.locations.not_reachable", name=named.name,
+                                    reason=state.reason),
+                           alternatives=others)
     if not state.writable:
-        return Destination(
-            reason=f"{named.name} cannot be written to"
-                   + (f": {state.reason}" if state.reason else "."),
-            alternatives=others)
+        return Destination(reason=t("error.locations.read_only", name=named.name),
+                           alternatives=others)
     return Destination(location=named, alternatives=others)
 
 
