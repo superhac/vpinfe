@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 def register(ws_bridge: DeviceChannel, library: LibraryResolver) -> None:
     def show(collection: str) -> None:
-        if collection and collection != BUILTIN_ALL and collection not in library.collections():
+        if collection and collection != BUILTIN_ALL and library.stored(collection) is None:
             raise NotFoundError(t("error.collections.no_collection_named", name=collection))
         ws_bridge.send_event_all_with_iframe({
             "type": "TableDataChange", "index": 0,

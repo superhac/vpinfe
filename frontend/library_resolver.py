@@ -14,12 +14,18 @@ from typing import Any
 from urllib.parse import quote
 
 from common.config_access import ConfigSource, NetworkConfig
-from common.games import collection_resolver, game_identity, remote_library
+from common.games import collection_resolver, game_identity, rankings, remote_library
 from common.games.collection_store import (
     BUILTIN_ALL,
     DEFAULT_DIRECTION,
     DEFAULT_ORDER_BY,
+    MANUAL_ORDER,
+    ORDER_BY_KEY,
+    ORDER_DIRECTION_KEY,
+    ORDER_PAGING_GROUP_KEY,
     CollectionStore,
+    normalize_direction,
+    normalize_paging_group,
     public_name,
 )
 from common.games.collections_service import (
@@ -62,6 +68,9 @@ class LibraryResolver:
         # resolved, not games off a disk this one may not have.
         self._library_url = library_url(ini_config)
         self._remote = bool(self._library_url)
+        # A library's entries arrive one collection at a time: which one `all_games` is.
+        self._held = BUILTIN_ALL
+        self._orders: dict[str, dict[str, Any]] = {}
 
         # An unreadable library is empty, not fatal: a first run before the scan has
         # none, and wants a view it can fill in rather than an exception.
@@ -101,6 +110,7 @@ class LibraryResolver:
         stale wheel beats a screen emptying because one request failed."""
         try:
             self.all_games = self._load(public_name(self.current_collection))
+            self._held = self.current_collection
         except Exception:
             logger.debug("Could not reload the library; keeping what is shown",
                          exc_info=True)
@@ -134,6 +144,43 @@ class LibraryResolver:
             return ""
         return str(remote_library.metadata_row(self._library_url, resource)["image_url"])
 
+    def stored(self, name: str) -> tuple[dict | None, dict[str, Any]] | None:
+        """A collection's criteria and its order block, or None when there is no
+        collection by that name. A library's criteria stay over there, and its ranked
+        orders arrive ranked."""
+        if not self._remote:
+            store = self.collections()
+            if name not in store:
+                return None
+            return store.get_filters(name), store.get_order(name)
+        order: dict[str, Any] = {ORDER_BY_KEY: DEFAULT_ORDER_BY,
+                                 ORDER_DIRECTION_KEY: DEFAULT_DIRECTION,
+                                 ORDER_PAGING_GROUP_KEY: None}
+        if name != BUILTIN_ALL:
+            try:
+                resource = remote_library.fetch_collection(self._library_url, name)
+            except Exception:
+                logger.warning("The library did not answer for %r", name, exc_info=True)
+                return None
+            by = str(resource.get("order_by") or DEFAULT_ORDER_BY)
+            order = {ORDER_BY_KEY: MANUAL_ORDER if rankings.is_token(by) else by,
+                     ORDER_DIRECTION_KEY: normalize_direction(
+                         resource.get("direction") or DEFAULT_DIRECTION),
+                     ORDER_PAGING_GROUP_KEY: normalize_paging_group(
+                         resource.get("paging_group") or None)}
+        self._orders[name] = order
+        return None, order
+
+    def paging_group(self, name: str) -> str | None:
+        """How a page press moves through `name`, or None to follow the player. A
+        library's is the one it gave when the collection was chosen."""
+        if self._remote:
+            return (self._orders.get(name) or {}).get(ORDER_PAGING_GROUP_KEY)
+        try:
+            return self.collections().get_order(name)[ORDER_PAGING_GROUP_KEY]
+        except (KeyError, ValueError):
+            return None
+
     def resolve_view(self, collection: str, criteria: dict | None = None) -> list:
         """The entries a collection holds, off this install's library.
 
@@ -145,6 +192,9 @@ class LibraryResolver:
         library rather than narrowing one - so they only arrive with `builtin:all`.
         """
         if self._remote:
+            if collection != self._held:
+                self.all_games = self._load(public_name(collection))
+                self._held = collection
             return list(self.all_games)
         store = self.collections()
         if criteria:
@@ -222,11 +272,12 @@ class LibraryResolver:
         list is the resolver's own, so an in-place sort never disturbs the library behind
         it; the Game objects stay shared, so a rating update still reaches every reader."""
         with self.lock:
+            games = self.resolve_view(BUILTIN_ALL)
             self.current_collection = BUILTIN_ALL
             self.current_filters = game_state.default_filter_state()
             self.current_sort = DEFAULT_ORDER_BY
             self.current_order = DEFAULT_DIRECTION
-            self.filtered_games = self.resolve_view(BUILTIN_ALL)
+            self.filtered_games = games
             self.rebuild_entries()
 
     def show_all_if_gone(self) -> bool:

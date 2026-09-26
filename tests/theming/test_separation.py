@@ -19,6 +19,7 @@ import time
 import unittest
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 
 import requests
@@ -35,6 +36,10 @@ PNG = bytes.fromhex(
     "1f15c4890000000a49444154789c6300010000050001"
     "0d0a2db40000000049454e44ae426082")
 
+# The titles the device's wheel holds, in order.
+SHOWN = ("(async () => JSON.parse(await vpin.call('get_tables'))"
+         ".entries.map(entry => entry.game.name))")
+
 # Same scope as the render smoke test, and for the same reason recorded there.
 _UNSUPPORTED = sys.platform.startswith("win")
 
@@ -49,6 +54,10 @@ def _info(title: str) -> dict:
 def _fetch(url: str):
     with urllib.request.urlopen(url, timeout=30) as handle:
         return json.load(handle)
+
+
+def _patch(url: str, body: dict) -> None:
+    requests.patch(url, json=body, timeout=30).raise_for_status()
 
 
 def _post(url: str) -> tuple[int, str]:
@@ -287,9 +296,54 @@ class SeparationTests(TempTree):
                          "the collection's image and both wheels load from the hub")
         self.assertEqual(failures, [])
 
-    def _evaluate(self, device: LiveInstance, expressions: tuple[str, ...]):
-        """Open the device's playfield window and evaluate each expression there, in
-        order, once the theme is ready."""
+    def test_a_device_shows_the_hub_s_collection_in_the_hub_s_order(self) -> None:
+        """Picked on the device, the hub's hand-ordered collection arrives in that order
+        and keeps it through a refresh - with a collection of the same name in the
+        device's own file, ordered by title."""
+        with LiveInstance(self.library_root) as library:
+            library.wait_for_api()
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+            ids = {entry["game"]["name"]: entry["game"]["id"] for entry in
+                   _fetch(f"{library_api}/api/v1/library/entries")["entries"]}
+            picks = [ids["Twilight Zone"], ids["Attack from Mars"]]
+            library.post("/api/v1/collections", {"name": "Hub Picks", "games": picks})
+            _patch(f"{library_api}/api/v1/collections/Hub%20Picks", {"order_by": "manual"})
+
+            with LiveInstance(self.device_root,
+                              extra_settings={("network", "library_url"): library_api}) as device:
+                device.wait_for_api()
+                device.library_assets_port = library.ports["assets"]
+                device_api = f"http://127.0.0.1:{device.ports['manager']}"
+                device.post("/api/v1/collections", {"name": "Hub Picks", "games": []})
+
+                def hub_adds_one_then_device_refreshes() -> None:
+                    _patch(f"{library_api}/api/v1/collections/Hub%20Picks",
+                           {"games": [*picks, ids["Medieval Madness"]]})
+                    # Any write to the device's own collections sends its windows back
+                    # for the payload.
+                    _patch(f"{device_api}/api/v1/collections/Hub%20Picks",
+                           {"description": "Only here"})
+
+                (_, picked, _, refreshed), failures = self._evaluate(device, (
+                    "vpin.call('set_tables_by_collection', 'Hub Picks')",
+                    f"{SHOWN}()",
+                    hub_adds_one_then_device_refreshes,
+                    f"""(async () => {{
+                          for (let tries = 0; tries < 100; tries++) {{
+                            const names = await {SHOWN}();
+                            if (names.length === 3) return names;
+                            await new Promise(done => setTimeout(done, 100));
+                          }}
+                          return {SHOWN}();
+                        }})()"""))
+
+        self.assertEqual(picked, ["Twilight Zone", "Attack from Mars"])
+        self.assertEqual(refreshed, ["Twilight Zone", "Attack from Mars", "Medieval Madness"])
+        self.assertEqual(failures, [])
+
+    def _evaluate(self, device: LiveInstance, steps: tuple[str | Callable[[], object], ...]):
+        """Open the device's playfield window and take each step, in order, once the
+        theme is ready: a string is evaluated in the page, anything else is called here."""
         async def run():
             async with BrowserSession(chromium_path()) as browser:
                 await browser.navigate(device.theme_url("playfield"))
@@ -298,7 +352,8 @@ class SeparationTests(TempTree):
                                            timeout=self.READY_TIMEOUT)
                 except TimeoutError as exc:
                     raise AssertionError(self._diagnose(exc, browser, device)) from exc
-                results = [await browser.evaluate(expression) for expression in expressions]
+                results = [await browser.evaluate(step) if isinstance(step, str)
+                           else await asyncio.to_thread(step) for step in steps]
                 return results, list(browser.failed_requests)
 
         return asyncio.run(run())

@@ -267,17 +267,17 @@ def apply_collection(api: API, collection: str) -> None:
     visible and can be adjusted from there. Adjusting leaves the collection rather than
     narrowing it - see `apply_filters`.
     """
-    store = api.library.collections()
     name = collection or BUILTIN_ALL
+    games = api.library.resolve_view(name)
+    stored = api.library.stored(name)
     api.current_collection = name
-    # A remote library's collections live over there, so the local store need not know.
-    # That install already resolved it, and the order it arrived in is the order.
-    if name in store:
-        api.current_filters = _filter_state(store.get_filters(name))
-        api.current_sort, api.current_order = sort_state(store.get_order(name))
+    if stored:
+        criteria, order = stored
+        api.current_filters = _filter_state(criteria)
+        api.current_sort, api.current_order = sort_state(order)
     else:
         api.current_sort, api.current_order = MANUAL_ORDER, DEFAULT_DIRECTION
-    api.filtered_games = api.library.resolve_view(name)
+    api.filtered_games = games
     api._rebuild_entries()
 
 

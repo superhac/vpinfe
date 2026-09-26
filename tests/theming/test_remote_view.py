@@ -141,45 +141,6 @@ class RemoteViewTests(unittest.TestCase):
                          list(reversed(TITLES)))
 
 
-class LibraryCollectionTests(unittest.TestCase):
-    """A collection only the library install holds, ranked there and shown here."""
-
-    RANKED = ("Twilight Zone", "Attack from Mars", "Medieval Madness")
-
-    def setUp(self) -> None:
-        sent = {"entries": [_wire_entry(title, "2026-01-01T00:00:00Z")
-                            for title in self.RANKED]}
-        tmp = TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        store = CollectionStore(str(Path(tmp.name) / "collections.json"))
-        for patcher in (patch.object(remote_library.http_client, "get_json",
-                                     lambda *a, **k: sent),
-                        patch("frontend.library_resolver.get_collections_manager",
-                              lambda: store)):
-            patcher.start()
-            self.addCleanup(patcher.stop)
-
-        ini = _ini("http://library.example:8001")
-        self.api = API.__new__(API)
-        self.api._ini_config = ini
-        self.api.library = LibraryResolver(ini)
-        game_state.apply_collection(self.api, "Top Ranked")
-
-    def _refreshed(self) -> list[str]:
-        self.api.library.mark_stale()
-        self.api.get_tables()
-        return [entry.game.meta_config["Info"]["Title"] for entry in self.api.entries]
-
-    def test_a_refresh_keeps_the_order_it_arrived_in(self) -> None:
-        self.assertEqual(self._refreshed(), list(self.RANKED))
-        self.assertEqual(self._refreshed(), list(self.RANKED))
-
-    def test_a_sort_picked_here_outlives_a_refresh(self) -> None:
-        self.api.apply_sort("title", "asc")
-
-        self.assertEqual(self._refreshed(), sorted(self.RANKED))
-
-
 LIBRARY = "http://library.example:8001"
 
 
@@ -190,6 +151,90 @@ def _resource(name: str, count: int, *, image: str | None = None,
             "image_version": "7" if image else None, "in_frontend": in_frontend,
             "count": count, "game_count": count, "game_wheels": list(wheels),
             "order_by": "title", "direction": "asc", "paging_group": ""}
+
+
+class LibraryCollectionTests(unittest.TestCase):
+    """A collection the library install holds, ranked there and chosen here - where this
+    install's own file holds another by the same name."""
+
+    RANKED = ("Twilight Zone", "Attack from Mars")
+
+    def setUp(self) -> None:
+        self.sent = {"entries": [_wire_entry(title, "2026-01-01T00:00:00Z")
+                                 for title in self.RANKED]}
+        self.resource = _resource("Top Ranked", 2) | {
+            "order_by": "challenge/ratings/top", "direction": "desc",
+            "paging_group": "count"}
+        self.reachable = True
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        store = CollectionStore(str(Path(tmp.name) / "collections.json"))
+        store.add_collection("Top Ranked", ["Medi"])
+        store.set_order("Top Ranked", "year", "asc", paging_group="sort")
+        for patcher in (patch.object(remote_library.http_client, "get_json", self._answer),
+                        patch("frontend.library_resolver.get_collections_manager",
+                              lambda: store)):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+        ini = _ini(LIBRARY)
+        self.api = API.__new__(API)
+        self.api._ini_config = ini
+        self.api.library = LibraryResolver(ini)
+        game_state.apply_collection(self.api, "Top Ranked")
+
+    def _answer(self, url: str, **_: object) -> dict:
+        path = url.removeprefix(LIBRARY)
+        if not self.reachable:
+            raise OSError("nothing answers")
+        if path == "/api/v1/library/entries":
+            return PAYLOAD
+        if path == "/api/v1/collections/Top%20Ranked/entries":
+            return self.sent
+        if path == "/api/v1/collections/Top%20Ranked":
+            return self.resource
+        raise OSError(f"404 for {path}")
+
+    def _titles(self) -> list[str]:
+        return [entry.game.meta_config["Info"]["Title"] for entry in self.api.entries]
+
+    def _refreshed(self) -> list[str]:
+        self.api.library.mark_stale()
+        self.api.get_tables()
+        return self._titles()
+
+    def test_choosing_it_shows_its_entries_at_once(self) -> None:
+        self.assertEqual(self._titles(), list(self.RANKED))
+
+    def test_a_refresh_keeps_the_order_it_arrived_in(self) -> None:
+        self.assertEqual(self._refreshed(), list(self.RANKED))
+        self.assertEqual(self._refreshed(), list(self.RANKED))
+
+    def test_a_sort_picked_here_outlives_a_refresh(self) -> None:
+        self.api.apply_sort("title", "asc")
+
+        self.assertEqual(self._refreshed(), sorted(self.RANKED))
+
+    def test_the_librarys_order_and_paging_are_taken_rather_than_this_installs(self) -> None:
+        self.resource |= {"order_by": "year", "direction": "desc", "paging_group": "count"}
+        game_state.apply_collection(self.api, "Top Ranked")
+
+        self.assertEqual((self.api.current_sort, self.api.current_order), ("year", "desc"))
+        self.assertEqual(self.api.paging_state()["group"], "count")
+
+    def test_all_games_is_the_whole_library_again(self) -> None:
+        game_state.apply_collection(self.api, "")
+
+        self.assertEqual(self._titles(), sorted(TITLES))
+
+    def test_a_pick_the_library_cannot_answer_leaves_the_wheel_as_it_was(self) -> None:
+        self.reachable = False
+
+        with self.assertRaises(OSError):
+            game_state.apply_collection(self.api, "")
+
+        self.assertEqual(self.api.current_collection, "Top Ranked")
+        self.assertEqual(self._titles(), list(self.RANKED))
 
 
 class LibraryPickerTests(unittest.TestCase):
@@ -260,9 +305,10 @@ class LibraryPickerTests(unittest.TestCase):
     def test_a_library_that_cannot_be_reached_offers_none(self) -> None:
         self.reachable = False
 
-        self.assertEqual(self.api.get_collections(), [])
-        self.assertEqual([item["name"] for item in self.api.get_collection_picker_items()],
-                         [""])
+        with self.assertLogs("vpinfe.frontend.library_resolver", "WARNING"):
+            self.assertEqual(self.api.get_collections(), [])
+            self.assertEqual([item["name"] for item in
+                              self.api.get_collection_picker_items()], [""])
 
 
 if __name__ == "__main__":

@@ -22,7 +22,6 @@ from common.deprecations import announce
 from common.extensions import services as ext_services
 from common.games import game_identity
 from common.games.collection_store import BUILTIN_ALL, normalize_direction, public_name
-from common.games.collections_service import get_collections_manager
 from common.games.game_metadata import game_rating, normalize_meta, set_game_rating
 from common.games.game_repository import all_games
 from common.host import frontend_state, launch, launch_state
@@ -594,13 +593,8 @@ class API:
         would come to disagree about what a press just did.
         """
         default, page_size = input_api.get_paging_config(self._ini_config.config)
-        chosen: str | None = None
         name = self.current_collection
-        if name:
-            try:
-                chosen = get_collections_manager().get_order(name)["paging_group"]
-            except (KeyError, ValueError):
-                chosen = None
+        chosen = self.library.paging_group(name) if name else None
         group = chosen or default
         kind = game_state.group_kind(self.current_sort)
         # Asking for the sort's groups where the sort has none gets a count anyway.
