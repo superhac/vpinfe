@@ -129,7 +129,8 @@ async def _program_entries(context: dict[str, Any],
     if view is not None:
         blocks.append((view.label, view.rows))
     entries += await workbench._setting_entries(
-        inner, [(label, "", fields) for label, fields in blocks], curated=True, sub=True)
+        inner, [(label, "", fields) for label, fields in blocks], curated=True, sub=True,
+        pairs=named_pairs(groups))
     remove = partial(_remove, inner)
     if view is not None:
         entries += _camera_entries(view, remove, inner["playing"])
@@ -157,11 +158,45 @@ def differences(groups: Sequence[Any], values: dict[str, Any],
             continue
         order = {key: at for at, key in
                  enumerate(key for heading in group.curated for key in heading.keys)}
-        fields = sorted((field for field in group.settings
-                         if _differs(values.get(field.key) or {}) or field.key in added),
+        shown = _whole(group, {field.key for field in group.settings
+                               if _differs(values.get(field.key) or {}) or field.key in added})
+        paired = {key for pair in _pairs_of(group) for key in pair.keys}
+        fields = sorted((field for field in group.settings if field.key in shown),
                         key=lambda field: order.get(field.key, len(order)))
         if fields:
-            found.append((group.label, [_named(field, group, names) for field in fields]))
+            found.append((group.label, [field if field.key in paired
+                                        else _named(field, group, names) for field in fields]))
+    return found
+
+
+def _pairs_of(group: Any) -> list[Any]:
+    return [pair for heading in group.curated for pair in getattr(heading, "pairs", ())]
+
+
+def _whole(group: Any, keys: set[str]) -> set[str]:
+    """`keys`, and the rest of each pair one of them is in."""
+    return keys | {key for pair in _pairs_of(group) if not keys.isdisjoint(pair.keys)
+                   for key in pair.keys}
+
+
+def named_pairs(groups: Sequence[Any]) -> list[Any]:
+    """Each pair, named as a row is away from its heading: by its plugin, or by its
+    window where another pair in its area shares its label."""
+    names = workbench._plugin_names(groups)
+    found = []
+    for group in groups:
+        held = [(heading, pair) for heading in group.curated
+                for pair in getattr(heading, "pairs", ())]
+        for heading, pair in held:
+            section = workbench._section_of(pair.keys[0])
+            if section.startswith(workbench.PLUGIN_SECTION):
+                label = workbench.plugin_row(section, pair.label, names)
+            elif sum(other.label == pair.label for _, other in held) > 1:
+                label = t("console.app_settings.window_row", window=heading.label,
+                          label=pair.label)
+            else:
+                label = pair.label
+            found.append(SimpleNamespace(**{**vars(pair), "label": label}))
     return found
 
 
@@ -188,19 +223,25 @@ def addable(groups: Sequence[Any], values: dict[str, Any],
     with its area: the settings commonly set per table first, then the rest. Of the point
     of view, only the view modes it would draw."""
     names = workbench._plugin_names(groups)
+    pairs = {pair.keys[0]: pair for pair in named_pairs(groups)}
     first: list[tuple[Any, str]] = []
     rest: list[tuple[Any, str]] = []
     for group in groups:
         if getattr(group, "read_only", False) or (
                 group.summarized and _shown(group, values, added)):
             continue
+        shown = _whole(group, {field.key for field in group.settings
+                               if field.key in added or _differs(values.get(field.key) or {})})
+        later = {key for pair in _pairs_of(group) for key in pair.keys[1:]}
         for field in group.settings:
-            if (field.key in added or _differs(values.get(field.key) or {})
+            if (field.key in shown or field.key in later
                     or SCOPE_ENTRY not in (field.scopes or (SCOPE_ENTRY,))
                     or (group.summarized and field.key not in group.rows)):
                 continue
+            pair = pairs.get(field.key)
             (first if field.per_table else rest).append(
-                (_named(field, group, names), str(group.label)))
+                (SimpleNamespace(**{**vars(field), "label": pair.label}) if pair is not None
+                 else _named(field, group, names), str(group.label)))
     return first + rest
 
 
@@ -480,19 +521,20 @@ def _for_all(inner: dict[str, Any], others: list[dict[str, Any]], shares_here: b
              tables: list[dict[str, Any]],
              offered: frozenset[str]) -> Callable[[dict, Any], Callable[[], None] | None]:
     """Set for All N Tables, beside a value this table sets itself that another of its
-    game's tables does not use."""
+    game's tables does not use. A pair's row hands in its other rows as `paired`, and
+    each of them set here is written with it."""
     count = len(others) + 1
 
-    def verb(held: dict, field: Any) -> Callable[[], None] | None:
-        value = str(held.get("value") or "")
-        if (field.key not in offered or not held.get("set_here")
-                or not held.get("in_effect", True)
-                or all(already_uses(one, field, value, shares_here) for one in others)):
+    def verb(held: dict, field: Any, *paired: tuple[dict, Any]) -> Callable[[], None] | None:
+        own = [(one, str(said.get("value") or "")) for said, one in ((held, field), *paired)
+               if one.key in offered and said.get("set_here") and said.get("in_effect", True)]
+        if all(already_uses(other, one, value, shares_here)
+               for other in others for one, value in own):
             return None
         playing = bool(inner.get("playing"))
         return panel.action(
             t("console.app_settings.set_for_all", count=count),
-            partial(_set_for_all, inner, others, field, value, shares_here, tables),
+            partial(_set_for_all, inner, others, own, shares_here, tables),
             icon=verbs.SHARE, inline=True, enabled=not playing,
             hint=t(workbench.PLAYING_NOTE) if playing
             else t("console.app_settings.set_for_all.help"))
@@ -563,11 +605,13 @@ def write_shared(library: Any, targets: list[dict[str, Any]], groups: Sequence[A
     return {"cut": cut}
 
 
-async def _set_for_all(inner: dict[str, Any], others: list[dict[str, Any]], field: Any,
-                       value: str, shares_here: bool, tables: list[dict[str, Any]]) -> None:
+async def _set_for_all(inner: dict[str, Any], others: list[dict[str, Any]],
+                       own: Sequence[tuple[Any, str]], shares_here: bool,
+                       tables: list[dict[str, Any]]) -> None:
     try:
-        cut = await offload.io(write_for_all, inner["library"], others, field, value,
-                               shares_here)
+        cut = await offload.io(lambda: [
+            table for field, value in own
+            for table in write_for_all(inner["library"], others, field, value, shares_here)])
     except Exception as exc:  # noqa: BLE001 - said, never raised into the page
         ui.notify(t("said.could_not_save_it", exc=exc), type="negative")
     else:

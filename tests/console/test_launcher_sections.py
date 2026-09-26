@@ -1023,7 +1023,8 @@ class DifferencesTests(unittest.TestCase):
         _field("Player.PlayfieldWidth", "Width"),
         _field("Backglass.BackglassFullScreen", "Display Mode"),
         _field("Backglass.BackglassWidth", "Width"),
-        _field("Backglass.BackglassFSWidth", "Width"),
+        _field("Player.PlayfieldColorDepth", "Color Depth"),
+        _field("Backglass.BackglassColorDepth", "Color Depth"),
         _field("Player.BGSet", "View Mode"),
         curated=(SimpleNamespace(key="playfield", label="Playfield",
                                  keys=("Player.PlayfieldFullScreen", "Player.PlayfieldWidth")),
@@ -1046,7 +1047,8 @@ class DifferencesTests(unittest.TestCase):
         self.assertEqual(self._labels("Player.BGSet"), ["View Mode"])
 
     def test_a_window_s_row_it_does_not_curate_goes_with_its_window(self) -> None:
-        self.assertEqual(self._labels("Backglass.BackglassFSWidth"), ["Backglass Width"])
+        self.assertEqual(self._labels("Backglass.BackglassColorDepth"),
+                         ["Backglass Color Depth"])
 
     def test_the_camera_is_not_listed_setting_by_setting(self) -> None:
         view = _field("TableOverride.ViewCabMode")
@@ -1227,6 +1229,57 @@ class AddASettingTests(unittest.TestCase):
         self.assertEqual(self._headings(offered), [])
 
 
+def _pair(key: str, label: str, *keys: str) -> SimpleNamespace:
+    return SimpleNamespace(key=key, label=label, note="", joiner="×", keys=keys)
+
+
+class TablePairTests(unittest.TestCase):
+    """A pair at a table: listed whole, named as a row away from its heading is, and
+    offered once."""
+
+    SET = DifferencesTests.SET
+    MODE = ("Backglass.BackglassFSWidth", "Backglass.BackglassFSHeight")
+    SIZE = ("Backglass.BackglassWidth", "Backglass.BackglassHeight")
+    TOPPER = ("Topper.TopperWidth", "Topper.TopperHeight")
+    DMD = ("Plugin.B2S.BackglassDMDX", "Plugin.B2S.BackglassDMDY")
+    DISPLAYS = _group(
+        "displays", *(_field(key, "Height" if key.endswith("Height") else "Width")
+                      for key in (*MODE, *SIZE, *TOPPER)),
+        curated=(_heading("backglass", *MODE, *SIZE, pairs=[
+                     _pair("video_mode", "Video Mode", *MODE), _pair("size", "Size", *SIZE)]),
+                 _heading("topper", *TOPPER, pairs=[_pair("size", "Size", *TOPPER)])))
+    PLUGINS = _group(
+        "plugins", _field("Plugin.B2S.Enable", "Enable"), *(_field(key) for key in DMD),
+        curated=(_heading("B2S", "Plugin.B2S.Enable", *DMD, label="B2S",
+                          pairs=[_pair("dmd_position", "DMD Position", *DMD)]),))
+
+    def test_a_pair_is_listed_whole_where_the_table_sets_either_row(self) -> None:
+        found = app_settings.differences([self.DISPLAYS], {self.SIZE[1]: self.SET})
+
+        self.assertEqual([(f.key, f.label) for f in found[0][1]],
+                         [(self.SIZE[0], "Width"), (self.SIZE[1], "Height")])
+
+    def test_a_pair_is_named_by_its_plugin_or_by_its_window_where_its_label_is_shared(
+            self) -> None:
+        self.assertEqual([pair.label for pair in app_settings.named_pairs(
+                             [self.DISPLAYS, self.PLUGINS])],
+                         ["Video Mode", "Backglass Size", "Topper Size",
+                          t("console.app_settings.plugin_row", plugin="B2S",
+                            label="DMD Position")])
+
+    def test_add_a_setting_offers_a_pair_once_by_its_name(self) -> None:
+        self.assertEqual([(str(field.label), field.key) for field, _ in
+                          app_settings.addable([self.DISPLAYS], {}, ())],
+                         [("Video Mode", self.MODE[0]), ("Backglass Size", self.SIZE[0]),
+                          ("Topper Size", self.TOPPER[0])])
+
+    def test_and_not_once_either_of_its_rows_is_drawn(self) -> None:
+        offered = app_settings.addable([self.DISPLAYS], {self.SIZE[1]: self.SET},
+                                       [self.TOPPER[0]])
+
+        self.assertEqual([field.key for field, _ in offered], [self.MODE[0]])
+
+
 def _other(table_id: str, value: str = "1", *, scope: str = "entry",
            shares: bool = False) -> dict:
     return {"table": {"id": table_id}, "launcher_id": "l1", "shares": shares,
@@ -1250,13 +1303,16 @@ class _Game:
     def write_launcher_config(self, _launcher: str, values: dict, *, table: str,
                               scope: str) -> dict:
         self.written.append(f"{table}@{scope}")
-        self.held[table]["values"] = {"Player.X": {"value": values["Player.X"],
-                                                   "scope": "entry"}}
-        if self.held[table]["shares"]:
+        held = self.held[table]
+        held["values"] = {**{key: one for key, one in held["values"].items()
+                             if one["scope"] != "folder"},
+                          **{key: {"value": value, "scope": "entry"}
+                             for key, value in values.items()}}
+        if held["shares"]:
             for one in self.held.values():
-                if one["values"]["Player.X"]["scope"] == "folder":
-                    one["values"] = {"Player.X": {"value": values["Player.X"],
-                                                  "scope": "folder"}}
+                one["values"] = {**one["values"], **{
+                    key: {"value": value, "scope": "folder"} for key, value in values.items()
+                    if (one["values"].get(key) or {}).get("scope") == "folder"}}
         return {}
 
 
@@ -1336,6 +1392,53 @@ class SetForAllTests(unittest.TestCase):
 
         more.assert_called_once()
         verb.assert_called_once_with()
+
+    HEIGHT = _field("Player.Y")
+    UNSET = {"set_here": False, "in_effect": True, "scope": "launcher", "value": "2"}
+    BOTH = frozenset({"Player.X", "Player.Y"})
+
+    @staticmethod
+    def _pair_other(table_id: str, x: str, y: str, scope: str = "entry") -> dict:
+        return {**_other(table_id, x, scope=scope), "values": {
+            "Player.X": {"value": x, "scope": scope}, "Player.Y": {"value": y, "scope": scope}}}
+
+    def test_a_pair_s_row_offers_it_where_either_row_is_set_here(self) -> None:
+        verb = self._verb(self._pair_other("b", "2", "1"), offered=self.BOTH)
+
+        self.assertIsNotNone(verb(self.UNSET, self.FIELD, (self.SET, self.HEIGHT)))
+        self.assertIsNone(verb(self.UNSET, self.FIELD, (self.UNSET, self.HEIGHT)))
+
+    def test_and_not_where_every_other_table_uses_each_row_set_here(self) -> None:
+        verb = self._verb(self._pair_other("b", "1", "2"), offered=self.BOTH)
+
+        self.assertIsNone(verb(self.UNSET, self.FIELD, (self.SET, self.HEIGHT)))
+
+    def test_a_pair_s_row_draws_it_where_only_its_second_row_is_set_here(self) -> None:
+        verb = Mock()
+        more = Mock(return_value=verb)
+        with patch.object(workbench, "ui"):
+            workbench._beside(lambda: None, dict(self.UNSET), self.FIELD, more=more,
+                              paired=[(dict(self.SET), self.HEIGHT)])()
+
+        more.assert_called_once_with(self.UNSET, self.FIELD, (self.SET, self.HEIGHT))
+        verb.assert_called_once_with()
+
+    def test_a_pair_writes_each_of_its_rows_set_here(self) -> None:
+        other = self._pair_other("b", "1", "1", scope="folder")
+        game = _Game(other)
+        inner = {"playing": False, "library": game, "rebuild": AsyncMock()}
+        with patch.object(app_settings.panel, "action") as action:
+            app_settings._for_all(inner, [other], False, [], self.BOTH)(
+                dict(self.SET), self.FIELD, (dict(self.SET), self.HEIGHT))
+        with patch.object(app_settings, "ui") as ui, \
+                patch.object(app_settings.offload, "io",
+                             new=AsyncMock(side_effect=lambda call: call())):
+            asyncio.run(action.call_args.args[1]())
+
+        self.assertEqual({key: one["value"] for key, one in game.held["b"]["values"].items()},
+                         {"Player.X": "2", "Player.Y": "2"})
+        self.assertEqual(sum(call.kwargs.get("type") == "warning"
+                             for call in ui.notify.call_args_list), 1)
 
 
 class _Tables:

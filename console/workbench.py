@@ -4485,11 +4485,13 @@ def _clear_hint(held: dict, field: Any, app_name: str) -> str:
 
 def _beside(mark_of: Callable[[], Callable[[], None] | None], held: dict, field: Any,
             redraws: list[Callable[[], None]] | None = None,
-            more: Callable[[dict, Any], Callable[[], None] | None] | None = None,
+            more: Callable[..., Callable[[], None] | None] | None = None,
             beyond: Callable[[], None] | None = None,
+            paired: Sequence[tuple[dict, Any]] = (),
             ) -> Callable[[], None]:
     """The mark, whatever `more` offers for somebody's own value, then `beyond` whoever's
     value it is. Drawn as a panel ASIDE, whose cell it hides while it holds none of them.
+    `paired` is the rest of a pair's rows, `(held, field)` each, handed to `more` too.
     """
     def draw() -> None:
         cell = ui.context.slot.parent
@@ -4498,7 +4500,8 @@ def _beside(mark_of: Callable[[], Callable[[], None] | None], held: dict, field:
         def fill() -> None:
             box.clear()
             mark = mark_of()
-            verb = more(held, field) if more is not None and held.get("set_here") else None
+            own = any(one.get("set_here") for one in (held, *(said for said, _ in paired)))
+            verb = more(held, field, *paired) if more is not None and own else None
             with box:
                 if mark is not None:
                     mark()
@@ -4816,10 +4819,10 @@ async def _setting_entries(context: dict[str, Any],
                 else None, clear=clear(keys), playing=playing)))
             entries.append((panel.ASIDE, _beside(
                 partial(marks, parts, pair.joiner if pair else ""), parts[0][1], field,
-                redraws,
-                None if pair else context.get("config_more"),
+                redraws, context.get("config_more"),
                 _in_turn(*(_conflict(clashing[key]) for key in keys if key in clashing),
-                         _tables_of_their_own(launcher, keys, owned) if owned else None))))
+                         _tables_of_their_own(launcher, keys, owned) if owned else None),
+                paired=[(held, one) for _, held, one in parts[1:]])))
             if pair:
                 said = pair.note
             else:
