@@ -442,14 +442,28 @@ def transact(table: Any, held: list[dict[str, Any]], transaction: dict[str, Any]
 
 def replace_rows(table: Any, held: list[dict[str, Any]], by_id: dict[str, Any],
                  fresh: list[dict[str, Any]], belongs: Callable[[dict], bool]) -> None:
-    """Swap the rows `belongs` picks for `fresh` in one transaction, so what stayed keeps
-    its place, focus and selection while what was added or went away does."""
+    """Swap the rows `belongs` picks for `fresh`, so what stayed keeps its focus and
+    selection while what was added or went away does.
+
+    What stayed keeps its place unless `fresh` brings it back in another order: then the
+    slots those rows held are filled in `fresh`'s order.
+    """
     old_ids = [row["id"] for row in held if belongs(row)]
     was, fresh_ids = set(old_ids), {row["id"] for row in fresh}
-    transact(table, held, {
-        "remove": [{"id": row_id} for row_id in old_ids if row_id not in fresh_ids],
-        "update": [row for row in fresh if row["id"] in was],
-        "add": [row for row in fresh if row["id"] not in was]}, by_id)
+    kept = [row for row in fresh if row["id"] in was]
+    added = [row for row in fresh if row["id"] not in was]
+    if [row["id"] for row in kept] == [row_id for row_id in old_ids if row_id in fresh_ids]:
+        transact(table, held, {
+            "remove": [{"id": row_id} for row_id in old_ids if row_id not in fresh_ids],
+            "update": kept, "add": added}, by_id)
+        return
+    slots = iter(kept)
+    held[:] = [next(slots) if row["id"] in was else row for row in held
+               if row["id"] in fresh_ids or row["id"] not in was] + added
+    for row_id in was - fresh_ids:
+        by_id.pop(row_id, None)
+    by_id.update({row["id"]: row for row in fresh})
+    table.run_grid_method("setGridOption", "rowData", list(held))
 
 
 def two_line(header: str) -> str:
@@ -725,7 +739,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         "columnDefs": for_grid(columns),
         "rowData": rows,
         "rowHeight": base_row_px(columns),
-        # Which grid a cell belongs to, for a column drawn by name.
+        # Which grid a cell belongs to, for a column drawn by name. The focus follow keeps
+        # its state here too, since the grid hands the same object to every callback.
         "context": {"scope": scope},
         "defaultColDef": DEFAULT_COL_DEF,
         "rowSelection": dict(ROW_SELECTION),
@@ -739,16 +754,25 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         #
         # Marked on every fragment: AG Grid splits a row across the pinned and center
         # containers, each its own .ag-row.
+        #
+        # A focus the follow below makes is `quiet`: the row is the one already open.
         ":onCellFocused":
-            "params => { const r = params.api.getDisplayedRowAtIndex(params.rowIndex); "
-            "if (r) emitEvent('hub_row_focus', "
-            "{id: r.data.id, col: params.column && params.column.getColId(), "
+            "params => { const c = params.context; "
+            "const r = params.api.getDisplayedRowAtIndex(params.rowIndex); "
+            "const quiet = r && c.quiet === r.data.id; c.quiet = null; "
+            "if (r) { c.focusId = r.data.id; "
+            "c.focusCol = params.column && params.column.getColId(); } "
+            "if (r && !quiet) emitEvent('hub_row_focus', {id: r.data.id, col: c.focusCol, "
             f"scope: {json.dumps(scope)}}}); "
             "window.__hubFocusRow = params.rowIndex; "
             "window.__hubMarkFocus && window.__hubMarkFocus(); }",
         # Rows are recycled as you scroll, so the mark rides the wrong row without
         # this.
         ":onBodyScroll": "() => { window.__hubMarkFocus && window.__hubMarkFocus(); }",
+        ":onRowDataUpdated": "params => { params.context.changed = true; }",
+        ":onModelUpdated":
+            "params => window.__hubFollowFocus && "
+            "window.__hubFollowFocus(params.api, params.context)",
         # AG Grid's own words - the filter menu on every column, "No Rows To Show", the
         # column menu. Empty in English, where its built-ins are already right.
         **({"localeText": grid_locale} if (grid_locale := i18n.under("grid")) else {}),
@@ -778,6 +802,27 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
       if (i === undefined || i === null) return;
       document.querySelectorAll(`.ag-row[row-index="${i}"]`)
         .forEach(e => e.classList.add('console-row-focus'));
+    };
+    window.__hubFollowFocus = (api, c) => {
+      const changed = c.changed;
+      c.changed = false;
+      if (!c.focusId || window.__hubFocusScope !== c.scope) return;
+      const node = api.getRowNode(c.focusId);
+      const at = node && node.displayed && node.rowIndex != null ? node.rowIndex : null;
+      const active = document.activeElement;
+      const inside = !!(active && active.closest('.ag-cell') && active.closest(
+        `.ag-root-wrapper[grid-id="${api.getGridId()}"]`));
+      if (at === window.__hubFocusRow) return window.__hubMarkFocus();
+      window.__hubFocusRow = at;
+      if (at !== null && inside) {
+        api.ensureNodeVisible(node);
+        c.quiet = c.focusId;
+        api.setFocusedCell(at, c.focusCol);
+      } else if (!inside) {
+        if (at !== null && changed) api.ensureNodeVisible(node);
+        api.clearFocusedCell();
+      }
+      window.__hubMarkFocus();
     };
     """)
     renderers.install()

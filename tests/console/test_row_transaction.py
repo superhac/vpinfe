@@ -26,10 +26,10 @@ def _fresh(*pairs):
 
 class _Grid:
     def __init__(self) -> None:
-        self.sent: list[tuple[str, dict]] = []
+        self.sent: list[tuple] = []
 
-    def run_grid_method(self, name: str, transaction: dict) -> None:
-        self.sent.append((name, transaction))
+    def run_grid_method(self, name: str, *args: object) -> None:
+        self.sent.append((name, *args))
 
 
 class RowTransactionTests(unittest.TestCase):
@@ -138,6 +138,50 @@ class TransactTests(unittest.TestCase):
         grid.transact(self.screen, self.held, transaction)
 
         self.assertEqual(self.screen.sent, [("applyTransaction", transaction)])
+
+
+class MovedTests(unittest.TestCase):
+    def _replace(self, held: list[dict], fresh: list[dict], game: str | None = None):
+        by_id = {row["id"]: row for row in held}
+        screen = _Grid()
+        grid.replace_rows(screen, held, by_id, fresh,
+                          lambda row: game is None or row.get("game_id") == game)
+        return screen, by_id
+
+    def test_an_update_whose_place_changed_moves(self) -> None:
+        held = [{"id": "a", "v": 1}, {"id": "b", "v": 1}, {"id": "c", "v": 1}]
+
+        screen, by_id = self._replace(held, [{"id": "c", "v": 2}, {"id": "a", "v": 1},
+                                             {"id": "b", "v": 1}])
+
+        self.assertEqual([row["id"] for row in held], ["c", "a", "b"])
+        (method, option, rows), = screen.sent
+        self.assertEqual((method, option), ("setGridOption", "rowData"))
+        self.assertEqual([row["id"] for row in rows], ["c", "a", "b"])
+        self.assertEqual(by_id["c"]["v"], 2)
+
+    def test_rows_another_game_holds_keep_their_slots(self) -> None:
+        held = _fresh(("a1", "ga"), ("b1", "gb"), ("a2", "ga"))
+
+        self._replace(held, _fresh(("a2", "ga"), ("a1", "ga")), game="ga")
+
+        self.assertEqual([row["id"] for row in held], ["a2", "b1", "a1"])
+
+    def test_a_move_takes_what_went_and_what_came_with_it(self) -> None:
+        held = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+
+        _screen, by_id = self._replace(held, [{"id": "c"}, {"id": "a"}, {"id": "d"}])
+
+        self.assertEqual([row["id"] for row in held], ["c", "a", "d"])
+        self.assertEqual(set(by_id), {"a", "c", "d"})
+
+    def test_an_update_in_its_place_is_a_transaction(self) -> None:
+        held = [{"id": "a", "v": 1}, {"id": "b", "v": 1}]
+
+        screen, _by_id = self._replace(held, [{"id": "a", "v": 1}, {"id": "b", "v": 2}])
+
+        self.assertEqual(screen.sent[0][0], "applyTransaction")
+        self.assertEqual([row["v"] for row in held], [1, 2])
 
 
 class RatingTests(unittest.TestCase):
