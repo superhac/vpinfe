@@ -53,7 +53,7 @@ class Findings(unittest.IsolatedAsyncioTestCase):
         found = await self._found(_table("a", dependencies={
             "pinmame": {"effective": "hustler", "installed": False}}))
 
-        self.assertEqual(found, [(t("console.workbench.rom_not_installed", value="hustler"),
+        self.assertEqual(found, [(t("console.workbench.rom_not_installed", rom="hustler"),
                                   ("act", t("word.add")), "")])
 
     async def test_a_file_that_is_gone_is_forgotten_from_its_alert(self) -> None:

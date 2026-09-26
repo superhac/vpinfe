@@ -6,12 +6,14 @@ recorded hash that has drifted means `--stale` stops reporting.
 """
 
 import ast
+import builtins
 import dataclasses
 import importlib.util
 import json
 import re
 import string
 import unittest
+from collections.abc import Callable
 from pathlib import Path
 
 from common import apps, i18n, tokens
@@ -1342,16 +1344,51 @@ class TestASlotIsNamedForWhatItHolds(unittest.TestCase):
     """A translator reads the slot's name to know what goes there."""
 
     def test_no_slot_is_named_after_a_private_helper(self) -> None:
-        catalogs = {"common": SOURCE}
-        catalogs |= {f"apps/{path.parent.parent.name}": _file(path.parent)
-                     for path in sorted(APPS.glob("*/i18n/en.json"))}
-        catalogs |= {f"extensions/{path.name}": _file(path / "i18n")
-                     for path in _extensions()}
-        offenders = [f"{owner} {key}: {{{slot}}}"
-                     for owner, catalog in catalogs.items()
-                     for key, entry in sorted(catalog.items())
-                     for slot in sorted(_slots(entry)) if slot.startswith("_")]
-        self.assertEqual(offenders, [], "name the slot for what it holds")
+        self.assertEqual(_slots_where(lambda slot: slot.startswith("_")), [],
+                         "name the slot for what it holds")
+
+    def test_no_slot_is_told_apart_by_a_number(self) -> None:
+        self.assertEqual(_slots_where(lambda slot: slot[-1:].isdigit()), [],
+                         "name each slot for what it holds")
+
+    def test_no_slot_is_named_after_the_call_that_fills_it(self) -> None:
+        offenders = []
+        for root in ("console", "frontend", "httpapi", "common", "extensions"):
+            for path in sorted((ROOT / root).rglob("*.py")):
+                if "__pycache__" in path.parts:
+                    continue
+                for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                    if not isinstance(node, ast.Call) \
+                       or getattr(node.func, "id", None) not in TAKES_A_KEY:
+                        continue
+                    offenders += [f"{path.relative_to(ROOT)}:{node.lineno} {kw.arg}"
+                                  for kw in node.keywords
+                                  if kw.arg and isinstance(kw.value, ast.Call)
+                                  and _called(kw.value) == kw.arg.rstrip(string.digits)
+                                  and kw.arg.rstrip(string.digits) in _BUILT_IN_CALLS]
+        self.assertEqual(offenders, [], "name the slot for what the call gives back")
+
+
+# Only a built-in's name is the operation's rather than the value's: a helper of ours is
+# named for what it returns, and `app_name=app_name(...)` says what the slot holds.
+_BUILT_IN_CALLS = {name for kind in (builtins, str, dict, list) for name in dir(kind)
+                   if not name.startswith("_")}
+
+
+def _called(call: ast.Call) -> str:
+    return str(getattr(call.func, "id", None) or getattr(call.func, "attr", None) or "")
+
+
+def _slots_where(named: Callable[[str], bool]) -> list[str]:
+    """Each slot in the core, app and extension catalogs whose name is `named`."""
+    catalogs = {"common": SOURCE}
+    catalogs |= {f"apps/{path.parent.parent.name}": _file(path.parent)
+                 for path in sorted(APPS.glob("*/i18n/en.json"))}
+    catalogs |= {f"extensions/{path.name}": _file(path / "i18n") for path in _extensions()}
+    return [f"{owner} {key}: {{{slot}}}"
+            for owner, catalog in catalogs.items()
+            for key, entry in sorted(catalog.items())
+            for slot in sorted(_slots(entry)) if named(slot)]
 
 
 APPS = ROOT / "apps"

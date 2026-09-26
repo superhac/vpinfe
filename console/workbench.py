@@ -904,8 +904,9 @@ async def _asset_file_block(context: dict[str, Any]) -> None:
                 ui.icon(_asset_icon(kind)).classes("console-slot-blank-icon")
         with ui.column().classes("w-full gap-0 console-slot-facts"):
             if not present:
-                ui.label(t("console.workbench.no", lower=label.lower(),
-                           value=("table" if context["lens"] else "game"))) \
+                ui.label(t("console.workbench.no_kind_for_table", kind=label.lower())
+                         if context["lens"]
+                         else t("console.workbench.no_kind_for_game", kind=label.lower())) \
                     .classes("console-help")
             else:
                 with ui.row().classes("items-start gap-2 w-full no-wrap"):
@@ -1738,7 +1739,7 @@ def _preview(src: str, kind: str, label: str) -> None:
     else:
         # A rule sheet is a document; there is no element that previews one usefully
         # in a panel this size, and a broken <img> would say it is missing.
-        panel.link_out(t("console.workbench.open", lower=(label.lower())), to=src)()
+        panel.link_out(t("console.workbench.open", kind=label.lower()), to=src)()
 
 
 def _kept_kinds(context: dict[str, Any], family: str) -> set[str] | None:
@@ -1948,8 +1949,10 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                     ui.label(matched).classes("console-help")
                 _outside_lines(links)
             else:
-                ui.label(t("console.workbench.no", lower=(label.lower()),
-                        value=('table' if table_id else 'game'))).classes("console-help")
+                ui.label(t("console.workbench.no_kind_for_table", kind=label.lower())
+                         if table_id
+                         else t("console.workbench.no_kind_for_game", kind=label.lower())) \
+                    .classes("console-help")
 
         # Only when there is more than one, because with one the sentence above has
         # already said where it is. Two is the case worth a list: the second file is
@@ -3307,7 +3310,7 @@ def _faults(context: dict[str, Any], table: dict[str, Any],
         faults.append((t("console.workbench.made_from_gone"), None))
     if pinmame.get("effective") and pinmame.get("installed") is False:
         opens = _add_opener(context, "rom")
-        faults.append((t("console.workbench.rom_not_installed", value=(pinmame['effective'])),
+        faults.append((t("console.workbench.rom_not_installed", rom=pinmame["effective"]),
                        panel.action(t("word.add"), opens, icon=verbs.ADD) if opens else None))
     if flex.get("detected") and not flex.get("installed"):
         faults.append((t("console.workbench.script_uses_flexdmd_not"), None))
@@ -3986,10 +3989,10 @@ async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
     """
     library = context["library"]
     records, empty, reason = await _listed_by_vps(
-        context, t("console.workbench.vps_lists_none_for_game", lower=(label.lower())),
+        context, t("console.workbench.vps_lists_none_for_game", kind=label.lower()),
         listed_as)
 
-    with frame.opened(t("console.workbench.published", lower=(label.lower())), wide=True,
+    with frame.opened(t("console.workbench.published", kind=label.lower()), wide=True,
                       persistent=True) as box:
         ui.label(path).classes("console-help px-3")
         with ui.column().classes("w-full gap-0 console-source-list console-pick-list px-3"):
@@ -5653,7 +5656,7 @@ async def _shadowed_block(context: dict[str, Any], row: dict[str, Any]) -> None:
 
     count = len(held)
     ui.label(t("console.workbench.shadowed",
-            the_count=(count))).classes("console-card-title console-fact-heading")
+            count=count)).classes("console-card-title console-fact-heading")
     ui.label(t("console.workbench.same_game_library_twice")).classes("console-help")
     for one in held:
         # Marked, so the action stays visible rather than waiting for a hover. Every row
