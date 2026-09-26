@@ -31,6 +31,10 @@ class SettingPickerTests(unittest.TestCase):
             ("Beta", "Sound", "", False), ("", "", "Second Run", True),
             ("Gamma", "Displays", "", False)])
 
+    def test_a_setting_s_option_carries_its_key_for_the_filter(self):
+        self.assertEqual([one.get("also") for one in _picker()._props["options"]],
+                         [None, "a", "b", None, "c"])
+
     def test_the_payload_survives_an_update(self):
         picker = _picker()
         before = _listed(picker)

@@ -549,7 +549,8 @@ class GamePicker(ui.select):
 
 class SettingPicker(ui.select):
     """One setting, typed into, each option with its area under it and a heading above
-    the option in `headings` that starts a run.
+    the option in `headings` that starts a run. An option's `also` is its key, for
+    `workbench._ADD_BOX`'s filter.
 
     A heading is an option of its own with an empty label, so anything typed filters it
     out: a heading left above a filtered list would claim a run that is no longer whole."""
@@ -588,7 +589,7 @@ class SettingPicker(ui.select):
             if key in self.headings:
                 option.update(heading=self.headings[key], disable=True)
             else:
-                option["area"] = self.areas.get(key, "")
+                option.update(area=self.areas.get(key, ""), also=key)
 
 
 def hint(control: Any, said: str) -> None:
