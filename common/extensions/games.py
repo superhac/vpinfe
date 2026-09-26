@@ -13,7 +13,9 @@ core as a way to read somewhere it never declared.
 
 from __future__ import annotations
 
+import errno
 import logging
+import os
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -268,13 +270,12 @@ class ExtensionGames:
         game_dir = Path(self.folder(game_id))
         into = folder_for(kind, game_dir, rom)
         if into is None:
-            raise ValueError(
-                f"{kind!r} is not a kind with a folder of its own"
-                + ("; it needs a ROM name" if kind in self.asset_kinds() else ""))
+            raise ValueError(t("error.games.kind_needs_rom" if kind in self.asset_kinds()
+                               else "error.games.kind_no_folder", kind=kind))
 
         landing = into / source.name
         if landing.exists():
-            raise FileExistsError(str(landing.relative_to(game_dir)))
+            raise FileExistsError(errno.EEXIST, os.strerror(errno.EEXIST), str(landing))
         into.mkdir(parents=True, exist_ok=True)
         if source.is_dir():
             shutil.copytree(source, landing)
@@ -292,7 +293,7 @@ class ExtensionGames:
         from common.games import media_placement
 
         if kind not in self.kinds():
-            raise ValueError(f"No media kind called {kind!r}")
+            raise ValueError(t("error.games.no_media_kind_called", kind=kind))
         source = self._source(path)
         game_dir = Path(self.folder(game_id))
         written = media_placement.place(game_dir, kind, table_stem or game_dir.name,

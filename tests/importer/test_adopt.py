@@ -139,7 +139,8 @@ class ImportTests(AdoptCase):
         self.assertEqual(report["failed"], 1)
         failed = next(row for row in report["rows"] if row["key"] == "Taxi")
         self.assertEqual(failed["error"]["text"], "no folder could be made for it")
-        self.assertIn("Taxi (Williams 1988)", failed["error"]["detail"])
+        self.assertEqual(f"Something is already at {self.library / 'Taxi (Williams 1988)'}",
+                         failed["error"]["detail"])
 
     def test_running_it_twice_creates_nothing_the_second_time(self) -> None:
         """It only ever creates, so the second run has nowhere to put anything rather

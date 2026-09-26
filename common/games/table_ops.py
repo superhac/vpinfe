@@ -261,7 +261,7 @@ def import_file(game_id: str, path: str) -> dict:
         game_service.add_table_file(game_dir, source, table_id)
     except FileExistsError as exc:
         raise service_errors.BlockedError(t("error.games.game_already_file_name"),
-                                          details={"filename": str(exc)}) from exc
+                                          details={"filename": Path(exc.filename).name}) from exc
     except (OSError, ValueError) as exc:
         raise service_errors.BlockedError(why(exc)) from exc
 

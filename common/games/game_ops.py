@@ -60,7 +60,7 @@ def create(name: str, location_id: str = "") -> dict:
         folder = game_service.create_game(name, location_id)
     except FileExistsError as exc:
         raise service_errors.BlockedError(t("error.games.already_folder_name"),
-                                          details={"path": str(exc)}) from exc
+                                          details={"path": exc.filename}) from exc
     except ValueError as exc:
         raise service_errors.RefusedError(
             why(exc), details=_where_else(location_id)) from exc

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import logging
 import os
@@ -714,6 +715,10 @@ def companions_beside(source: Path) -> list[Path]:
             and one.suffix.lower() in wanted]
 
 
+def _already(path: Path) -> FileExistsError:
+    return FileExistsError(errno.EEXIST, os.strerror(errno.EEXIST), str(path))
+
+
 def add_table_file(game_dir: Path, source: Path, table_id: str) -> dict:
     """Copy a game file into a folder and record it, as one operation.
 
@@ -730,7 +735,7 @@ def add_table_file(game_dir: Path, source: Path, table_id: str) -> dict:
     """
     landing = game_dir / source.name
     if landing.exists():
-        raise FileExistsError(source.name)
+        raise _already(landing)
 
     shutil.copy2(source, landing)
     rom = record_arrived_table(game_dir, landing, table_id)
@@ -810,7 +815,7 @@ def create_game(name: str, location_id: str = "") -> Path:
 
     folder = Path(where.path) / wanted
     if folder.exists():
-        raise FileExistsError(str(folder))
+        raise _already(folder)
 
     folder.mkdir(parents=True)
     try:

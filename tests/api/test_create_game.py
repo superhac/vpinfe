@@ -135,7 +135,8 @@ class CreateTests(CreateGameCase):
         found = self.create("Taxi")
 
         self.assertEqual(found.status_code, 409)
-        self.assertEqual(found.json()["error"]["code"], "conflict")
+        self.assertEqual((found.json()["error"]["code"], found.json()["error"]["details"]),
+                         ("conflict", {"path": str(self.library / "Taxi")}))
 
     def test_a_name_that_is_only_reserved_characters_is_refused(self) -> None:
         self.add_location(self.library)
@@ -233,6 +234,7 @@ class ImportTableTests(CreateGameCase):
                                  json={"path": str(source)})
 
         self.assertEqual(again.status_code, 409)
+        self.assertEqual(again.json()["error"]["details"], {"filename": source.name})
 
 
 class DetailsTests(CreateGameCase):

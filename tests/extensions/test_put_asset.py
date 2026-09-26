@@ -1,4 +1,4 @@
-"""Putting a ROM set, a sound bank or a colour set into a game.
+"""Putting a ROM set, a sound bank or a color set into a game.
 
 The things that are neither the game file nor artwork live in a folder of their own, and
 which folder is the registry's answer - the same one an upload gets. That is the point:
@@ -14,6 +14,7 @@ from pathlib import Path
 
 from common.extensions.contract import ContractError
 from common.extensions.games import ExtensionGames
+from common.failures import why
 
 
 class _Files:
@@ -74,7 +75,7 @@ class DestinationTests(PutAssetCase):
 
         with self.assertRaises(ValueError) as caught:
             self.games.put_asset("g1", "altsound", bank)
-        self.assertIn("ROM", str(caught.exception))
+        self.assertEqual("altsound needs a ROM name", why(caught.exception))
 
     def test_a_kind_with_no_folder_of_its_own_is_refused(self) -> None:
         """A backglass sits beside the game file and is named after it, so "which
@@ -82,8 +83,17 @@ class DestinationTests(PutAssetCase):
         glass = self.source / "x.directb2s"
         glass.write_bytes(b"glass")
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as caught:
             self.games.put_asset("g1", "backglass", glass)
+        self.assertEqual("backglass has no folder of its own", why(caught.exception))
+
+    def test_a_media_kind_nobody_has_is_named(self) -> None:
+        art = self.source / "wheel.png"
+        art.write_bytes(b"art")
+
+        with self.assertRaises(ValueError) as caught:
+            self.games.put_media("g1", "hologram", art)
+        self.assertEqual("No media kind called hologram", why(caught.exception))
 
 
 class BoundsTests(PutAssetCase):
@@ -97,10 +107,12 @@ class BoundsTests(PutAssetCase):
     def test_it_will_not_write_over_what_is_already_there(self) -> None:
         rom = self.source / "afm_113b.zip"
         rom.write_bytes(b"rom")
-        self.games.put_asset("g1", "rom", rom)
+        where = self.games.put_asset("g1", "rom", rom)
 
-        with self.assertRaises(FileExistsError):
+        with self.assertRaises(FileExistsError) as caught:
             self.games.put_asset("g1", "rom", rom)
+        self.assertEqual(f"Something is already at {self.game / where}",
+                         why(caught.exception))
 
     def test_placing_needs_the_write_scope(self) -> None:
         rom = self.source / "afm_113b.zip"
