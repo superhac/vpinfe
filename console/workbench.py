@@ -739,14 +739,17 @@ async def build_file(container: ui.column, title: ui.column, library: Library,
 def _same_file(rows: list[dict[str, Any]], wanted: dict[str, Any]) -> dict[str, Any] | None:
     """The row `wanted` was, read again: by id; else by table and kind, which is all an
     address names; else the kind's shared row, which is what a table's own file that
-    was just removed leaves behind."""
+    was just removed leaves behind; else, when it names no table, the kind's row on any
+    table."""
     exact = next((one for one in rows if wanted.get("id") and one.get("id") == wanted["id"]),
                  None)
     if exact is not None:
         return exact
-    for table in dict.fromkeys((str(wanted.get("table") or ""), "")):
-        alike = [one for one in rows if (one.get("table") or "") == table
-                 and one.get("kind") == wanted.get("kind")]
+    kind = [one for one in rows if one.get("kind") == wanted.get("kind")]
+    table = str(wanted.get("table") or "")
+    for alike in ([one for one in kind if (one.get("table") or "") == table],
+                  [one for one in kind if not one.get("table")],
+                  [] if table else kind):
         if alike:
             return next((one for one in alike if one.get("present")), alike[0])
     return None

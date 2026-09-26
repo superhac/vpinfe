@@ -30,6 +30,15 @@ class FindingTheRowAgain(unittest.TestCase):
 
         self.assertIs(shared, workbench._same_file([shared], _row(table="t1")))
 
+    def test_a_missing_row_filled_on_a_table_is_found_there(self) -> None:
+        missing = _row(present=False)
+        added = {**_row(table="t1"), "id": "g:backglass:AFM.directb2s"}
+
+        self.assertIs(added, workbench._same_file([_row(kind="wheel"), added], missing))
+
+    def test_a_table_row_is_not_answered_by_another_table(self) -> None:
+        self.assertIsNone(workbench._same_file([_row(table="t2")], _row(table="t1")))
+
     def test_a_kind_the_game_no_longer_has_is_not_found(self) -> None:
         self.assertIsNone(workbench._same_file([_row(kind="wheel")], _row()))
 
