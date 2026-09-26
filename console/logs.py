@@ -149,8 +149,8 @@ def _draw_bar(bar: Any, held: dict[str, Any], reload: Callable[[], Any],
                 .props("flat dense round size=sm").tooltip(t("word.read_it_again"))
 
         if held["path"]:
-            ui.label(held["path"]).classes("console-help truncate max-w-xs") \
-                .tooltip(t("console.logs.where_file_reading_rest"))
+            panel.line(held["path"], hint=t("console.logs.where_file_reading_rest"),
+                       classes="console-help truncate max-w-xs")
 
 
 async def _draw(viewport: Any, held: dict[str, Any]) -> None:

@@ -673,9 +673,7 @@ def _tag_source(said: dict[str, Any]) -> None:
     with ui.column().classes("gap-0 min-w-0"):
         panel.link(tag_source(said), to=community.address(str(said.get("extension") or ""),
                                                           str(said.get("list") or "")))()
-        age = ui.label(read_state(said)).classes("console-help")
-        if said.get("error"):
-            age.tooltip(str(said["error"]))
+        panel.line(read_state(said), hint=str(said.get("error") or ""))
 
 
 def _swatches(context: dict[str, Any]) -> None:
@@ -2439,8 +2437,8 @@ async def _collections_block(context: dict[str, Any]) -> None:
         members = await offload.io(library.held_members,
                                    [str(one.get("name") or "") for one in every])
     except Exception as exc:  # noqa: BLE001 - the panel says why, never raises
-        ui.label(t("console.workbench.could_not_read_collections")) \
-            .classes("console-help px-3").tooltip(why(exc))
+        panel.line(t("console.workbench.could_not_read_collections"), hint=why(exc),
+                   classes="console-help px-3")
         return
     with ui.column().classes("gap-0 console-form w-full min-w-0"):
         if not held["collections"] and not held["taken_out"]:
@@ -4052,9 +4050,7 @@ async def _listed_by_vps(context: dict[str, Any], none_listed: str,
 
 def _in_place_of_list(line: str, reason: str) -> None:
     if line:
-        shown = ui.label(line).classes("console-help")
-        if reason:
-            shown.tooltip(reason)
+        panel.line(line, hint=reason)
 
 
 async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -6494,8 +6490,8 @@ def _games_list(context: dict[str, Any], row: dict[str, Any],
                            + deeplink.query({"view": "games", "collection": name}))()
     controls()
     if lens.get("error"):
-        ui.label(t("console.workbench.could_not_work")) \
-            .classes("console-help text-warning").tooltip(str(lens["error"]))
+        panel.line(t("console.workbench.could_not_work"), hint=str(lens["error"]),
+                   classes="console-help text-warning")
         return
     if live and len((context.get("membership") or {}).get("members") or []) > 8:
         box = ui.input(placeholder=t("console.workbench.find_collection")) \

@@ -1151,7 +1151,7 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
    text verbatim, so `pre-line` is what makes a newline in the help a line on screen -
    an explanation that names three states runs three lines or it runs together.
    Widened past the default, which wraps a sentence into a column two words across. */
-.ag-tooltip {
+.ag-tooltip, .q-tooltip.console-detailed, .q-menu.console-detailed {
   white-space: pre-line;
   max-width: 340px;
   background: var(--surface-2);
@@ -1833,6 +1833,25 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   font-size: var(--fs-caption); color: var(--ink-3); line-height: 1.4;
   max-width: var(--measure); white-space: pre-line;
 }
+/* A line with more to say than it shows ends in a mark, which opens what the line's
+   hover shows. The padding is the target, taken back out of the line's height. */
+.console-detailed > .q-icon {
+  font-size: var(--icon-row); color: var(--ink-3); cursor: pointer;
+  padding: calc((var(--target-inline) - var(--icon-row)) / 2);
+  margin-block: calc((var(--target-inline) - var(--icon-row)) / -2);
+  margin-inline-end: calc((var(--target-inline) - var(--icon-row)) / -2);
+  border-radius: 50%;
+}
+.console-detailed > .q-icon:hover,
+.console-detailed > .q-icon:focus-visible { color: var(--accent); }
+.console-detailed > .q-icon:focus-visible { outline: 2px solid var(--accent); }
+/* A line cut short keeps its mark: the words give way, the mark does not. */
+.console-detailed.truncate { position: relative; padding-right: calc(var(--icon-row) + 4px); }
+.console-detailed.truncate > .q-icon {
+  position: absolute; top: 50%; right: 0; transform: translateY(-50%);
+  margin: 0; padding: 0;
+}
+.q-menu.console-detailed { min-width: 0; }
 .console-setting { font-size: var(--fs-body); color: var(--ink); font-weight: 600; }
 
 /* The names a command can use, beside the field it is typed into. Two columns so the

@@ -213,11 +213,10 @@ def _tag_chip(said: dict[str, Any], library: Library) -> None:
 
 
 def _said_age(age: Any, state: dict[str, Any]) -> None:
-    age.text = read_state(state)
     age.clear()
-    if state.get("error"):
-        with age:
-            ui.tooltip(str(state["error"]))
+    with age:
+        panel.line(read_state(state), hint=str(state.get("error") or ""),
+                   classes="text-xs console-label")
 
 
 def as_it_stands(extension: dict[str, Any]) -> dict[str, Any]:
@@ -337,7 +336,7 @@ async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Li
             with bar.bottom, panel.bar_end():
                 if tagging:
                     _tag_chip(tagging, library)
-                age = ui.label().classes("text-xs console-label")
+                age = ui.element("div")
                 _said_age(age, state)
                 count = ui.label(t("console.community.rows", count=len(built))) \
                     .classes("text-xs console-label")

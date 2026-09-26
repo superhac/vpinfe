@@ -1055,17 +1055,31 @@ def out(*, to: str, hint: str) -> Callable[[], None]:
     return draw
 
 
+def line(text: str, *, hint: str = "", classes: str = "console-help") -> ui.label:
+    """A line of words, ending in a mark that opens `hint` when there is one."""
+    shown = ui.label(text).classes(classes)
+    if not hint:
+        return shown
+    shown.classes("console-detailed")
+    with shown:
+        mark = ui.icon(verbs.SAYS_MORE).props('tabindex=0 role=button aria-hidden=false')
+        mark.props["aria-label"] = hint
+        mark.on("click.stop", js_handler="() => {}")
+        with mark, ui.menu().classes("console-detailed"):
+            ui.label(hint)
+    ui.tooltip(hint).classes("console-detailed").props["target"] = f"#{shown.html_id}"
+    return shown
+
+
 def note(text: str, hint: str = "") -> tuple[Any, Callable[[], None]]:
-    """The sentence under a control that says what it does, and why on hover.
+    """The sentence under a control that says what it does, and `hint` behind its mark.
 
     Written out rather than left to a tooltip, and only where the label cannot carry
     the meaning on its own: a config key's name says what it is called, not what
     turning it off costs. Help you have to already suspect you need is not help.
     """
     def draw() -> None:
-        label = ui.label(text).classes("console-help")
-        if hint:
-            label.tooltip(hint)
+        line(text, hint=hint)
 
     return (ASIDE, draw)
 
@@ -1092,8 +1106,6 @@ def intro(text: str, hint: str = "") -> tuple[Any, Callable[[], None]]:
     difference between this and `note`.
     """
     def draw() -> None:
-        label = ui.label(text).classes("console-help")
-        if hint:
-            label.tooltip(hint)
+        line(text, hint=hint)
 
     return (FULL, draw)

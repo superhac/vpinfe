@@ -296,9 +296,8 @@ class _Sources:
             starts = await offload.io(self.starts)
         except Exception as exc:
             with body:
-                ui.label(t("console.mediasource.could_not_read_host",
-                           host=_host_name(self.library))).classes("console-help") \
-                    .tooltip(why(exc))
+                panel.line(t("console.mediasource.could_not_read_host",
+                             host=_host_name(self.library)), hint=why(exc))
             return
         self.browse_roots = starts
         with body:
@@ -324,8 +323,7 @@ class _Sources:
             here = await offload.io(self.listing, path)
         except Exception as exc:
             with listing:
-                ui.label(t("console.mediasource.could_not_read_folder")) \
-                    .classes("console-help").tooltip(why(exc))
+                panel.line(t("console.mediasource.could_not_read_folder"), hint=why(exc))
             return
         with listing:
             # Named from the start it was reached through rather than as an absolute
@@ -736,8 +734,7 @@ class _Slot(_OneFile):
             found = await offload.io(self.library.search_vps, query.strip())
         except Exception as exc:
             with results:
-                ui.label(t("console.mediasource.could_not_search")) \
-                    .classes("console-help").tooltip(why(exc))
+                panel.line(t("console.mediasource.could_not_search"), hint=why(exc))
             return
         with results:
             if not found:
@@ -783,8 +780,7 @@ class _Slot(_OneFile):
             found = await offload.io(self.library.media_offers, vps_id, self.kind)
         except Exception as exc:
             with body:
-                ui.label(t("console.mediasource.could_not_reach_catalogs")) \
-                    .classes("console-help").tooltip(why(exc))
+                panel.line(t("console.mediasource.could_not_reach_catalogs"), hint=why(exc))
             return
         with body:
             if not found:
@@ -1063,8 +1059,7 @@ class _Table(_Folder):
             apps = await offload.io(self.library.launch_apps)
         except Exception as exc:  # noqa: BLE001
             with body:
-                ui.label(t("console.launchers.could_not_read_launchers")) \
-                    .classes("console-help").tooltip(why(exc))
+                panel.line(t("console.launchers.could_not_read_launchers"), hint=why(exc))
             return
         takes_ids = {str(app.get("id") or "") for app in apps if app.get("accepts_keys")}
         offered = [one for one in found.get("launchers") or []
@@ -1185,8 +1180,7 @@ class _Image(_OneFile):
             entries = await offload.io(self.library.collection_entries, self.name)
         except Exception as exc:  # noqa: BLE001
             with body:
-                ui.label(t("console.mediasource.could_not_read_its_games")) \
-                    .classes("console-help").tooltip(why(exc))
+                panel.line(t("console.mediasource.could_not_read_its_games"), hint=why(exc))
             return
         wheeled = [entry for entry in entries if "wheel" in (entry.get("media") or [])]
         with body:

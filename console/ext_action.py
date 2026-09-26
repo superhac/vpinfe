@@ -223,9 +223,7 @@ def _worded(said: Any) -> tuple[str, str]:
 
 
 def _line(text: str, detail: str) -> None:
-    label = ui.label(text).classes("console-help px-3")
-    if detail:
-        label.tooltip(detail)
+    panel.line(text, hint=detail, classes="console-help px-3")
 
 
 def _lines(lines: list[Any], title: str) -> None:

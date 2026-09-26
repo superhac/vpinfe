@@ -12,6 +12,7 @@ from nicegui import ui
 from common.timestamps import utc_now_iso
 from console import collection_rules, community, games, tageditor, workbench
 from console.data import Library, read_state, sources_of
+from tests.support import lines
 
 SOURCE = {"extension": "challenge", "display_name": "Challenge", "list": "releases",
           "title": "Weekly Challenge", "read_at": "2026-09-23T12:00:00Z", "stale": False}
@@ -42,10 +43,7 @@ def _hovered(said: dict[str, Any]) -> dict[str, str]:
     """The read state the panel draws for one source, with what hovering it shows."""
     with ui.column() as body:
         workbench._tag_source(said)
-    tips = {one.props["target"]: one.text
-            for one in body.descendants() if isinstance(one, ui.tooltip)}
-    return {one.text: tips.get(f"#{one.html_id}", "")
-            for one in body.descendants() if isinstance(one, ui.label)}
+    return lines.details(body)
 
 
 class InTheGrids(unittest.TestCase):

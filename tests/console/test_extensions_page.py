@@ -19,6 +19,7 @@ from nicegui import ui
 from common import i18n
 from common.extensions import host
 from console import ext_action, ext_page, sections
+from tests.support import lines
 
 
 class StateWordTests(unittest.TestCase):
@@ -163,24 +164,16 @@ def _said(job: dict, under: str = "ext.sample.action.run") -> list[str]:
     return [one.text for one in body.descendants() if isinstance(one, ui.label)]
 
 
-def _hovers(body: ui.element) -> dict[str, str]:
-    """Each line drawn, with what hovering it shows."""
-    tips = {one.props["target"]: one.text
-            for one in body.descendants() if isinstance(one, ui.tooltip)}
-    return {one.text: tips.get(f"#{one.html_id}", "")
-            for one in body.descendants() if isinstance(one, ui.label)}
-
-
 def _reported(job: dict) -> dict[str, str]:
     with ui.column() as body:
         ext_action._report(body, job, "ext.sample.action.run")
-    return _hovers(body)
+    return lines.details(body)
 
 
 def _noted(notes: list) -> dict[str, str]:
     with ui.column() as body:
         ext_action._lines(notes, "")
-    return _hovers(body)
+    return lines.details(body)
 
 
 class NoteTests(unittest.TestCase):

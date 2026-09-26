@@ -49,7 +49,7 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
     held: dict[str, Any] = {"gpu": None, "watch_gpu": bool(state.get("metrics_gpu"))}
 
     with ui.column().classes("w-full gap-3"):
-        note = ui.label("").classes("console-help")
+        note = ui.element("div")
         note.set_visibility(False)
         with ui.row().classes("w-full gap-4 no-wrap items-stretch") as readings:
             cpu = _reading_card(t("console.metrics.processor"))
@@ -74,13 +74,11 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
         _draw_cards(cards, held)
 
     def show(said: str, detail: str = "") -> None:
-        note.text = said
-        if detail != held.get("detail"):
-            held["detail"] = detail
+        if (said, detail) != held.get("said"):
+            held["said"] = (said, detail)
             note.clear()
-            if detail:
-                with note:
-                    ui.tooltip(detail)
+            with note:
+                panel.line(said, hint=detail)
         note.set_visibility(bool(said))
         for element in (readings, disks_title, disks):
             element.set_visibility(not said)
@@ -148,21 +146,25 @@ def _fill_disks(target: Any, disks: list[dict[str, Any]]) -> None:
 def _draw_cards(target: Any, held: dict[str, Any]) -> None:
     """What the switch reveals. Its own function so the switch above it is built once
     and never replaced under somebody's finger."""
+    found = held.get("gpu")
+    said = None
+    if held["watch_gpu"] and found is not None and not found.get("available"):
+        said = (str(found.get("reason") or ""), str(found.get("detail") or ""))
+        if said == held.get("drawn"):
+            return
+    held["drawn"] = said
     target.clear()
     with target:
         if not held["watch_gpu"]:
             ui.label(t("console.metrics.off_reading_them_runs")).classes("console-help")
             return
-        found = held.get("gpu")
         if found is None:
             ui.label(t("console.metrics.reading_them")).classes("console-help")
             return
-        if not found.get("available"):
+        if said is not None:
             # "This machine has no graphics section" and "the tool that reads one is
             # not installed" are different answers, and only the second can be acted on.
-            said = ui.label(str(found.get("reason") or "")).classes("console-help")
-            if found.get("detail"):
-                said.tooltip(str(found["detail"]))
+            panel.line(said[0], hint=said[1])
             return
         for card in found.get("gpus") or []:
             _card(card, found.get("fields") or [])

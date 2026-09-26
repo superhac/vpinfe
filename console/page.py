@@ -624,8 +624,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                                            "no-wrap console-job cursor-pointer")
             with failed_line:
                 ui.icon("error", size="16px").classes("shrink-0 text-negative")
-                failed_text = ui.label("").classes("text-xs min-w-0 truncate")
-                failed_why = ui.tooltip("")
+                failed_text = ui.element("div").classes("flex min-w-0")
             failed_line.set_visibility(False)
             failed_line.on("click", lambda: _dismiss_failed())
             labels.append(failed_text)
@@ -638,7 +637,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                               .classes("text-xs opacity-70"))
 
     opened = time.time()
-    shown_failed = {"id": ""}
+    shown_failed: dict[str, Any] = {"id": "", "said": None}
     dismissed: set[str] = set()
 
     def _dismiss_failed() -> None:
@@ -659,9 +658,14 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         job_line.set_visibility(bool(running))
         failed_line.set_visibility(failed is not None)
         if failed is not None:
-            failed_text.text = (str(failed.get("message") or "").strip()
-                                or t("console.page.failed"))
-            failed_why.text = str(failed.get("error") or "")
+            failure = ((str(failed.get("message") or "").strip() or t("console.page.failed")),
+                       str(failed.get("error") or ""))
+            if failure != shown_failed["said"]:
+                shown_failed["said"] = failure
+                failed_text.clear()
+                with failed_text:
+                    panel_parts.line(failure[0], hint=failure[1],
+                                     classes="text-xs min-w-0 truncate")
             shown_failed["id"] = str(failed.get("id") or "")
         if not running:
             return

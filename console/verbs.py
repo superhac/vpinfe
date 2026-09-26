@@ -118,6 +118,7 @@ SMART = "settings_suggest"
 OPENS_ON = "home"
 # A collection's row held to one table.
 LOCKED = "lock"
+SAYS_MORE = "info_outline"
 
 
 def declared() -> frozenset[str]:
