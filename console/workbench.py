@@ -178,21 +178,29 @@ _ADD_BOX = """
 
 _FOCUSABLE = "input:not(.hidden), textarea, button, [tabindex='0']"
 
-# [setting, which of its controls] where focus is on one; [] for elsewhere in the panel
-# or a dialog over it, null for outside both. Marks every setting drawn so far, so the
-# one found afterwards is one the new draw made.
+# Where focus is on a setting, [[setting, which of its controls], which row]; [] for
+# elsewhere in the panel or a dialog over it, null for outside both. Marks every setting
+# drawn so far, so the one found afterwards is one the new draw made.
 _FOCUSED_SETTING = """(() => {
   for (const one of document.querySelectorAll('[data-setting]')) one.dataset.drawn = '1';
   const at = document.activeElement;
   const one = at && at.closest('[data-setting]');
-  if (one) return [one.dataset.setting, [...one.querySelectorAll(FOCUSABLE)].indexOf(at)];
-  return at && at.closest('.console-workbench-body, .q-dialog') ? [] : null;
+  if (!one) return at && at.closest('.console-workbench-body, .q-dialog') ? [] : null;
+  const lines = [...document.querySelectorAll('.console-field-line[data-setting]')];
+  return [[one.dataset.setting, [...one.querySelectorAll(FOCUSABLE)].indexOf(at)],
+          lines.indexOf(at.closest('.console-field-line'))];
 })()""".replace("FOCUSABLE", json.dumps(_FOCUSABLE))
 
 _REFOCUS_SETTING = """(() => {
-  const places = %s;
+  const [places, row] = %s;
   let tries = 0;
   const look = () => {
+    const drawn = [...document.querySelectorAll(
+      '.console-field-line[data-setting]:not([data-drawn])')];
+    if (!drawn.length) {
+      if (++tries < 40) setTimeout(look, 25);
+      return;
+    }
     for (const [key, index] of places) {
       const one = document.querySelector(
         `[data-setting="${CSS.escape(key)}"]:not([data-drawn])`);
@@ -201,7 +209,7 @@ _REFOCUS_SETTING = """(() => {
       (controls[index] || controls[0])?.focus();
       return;
     }
-    if (++tries < 40) setTimeout(look, 25);
+    if (row >= 0) drawn[Math.min(row, drawn.length - 1)].querySelector(FOCUSABLE)?.focus();
   };
   look();
 })()""".replace("FOCUSABLE", json.dumps(_FOCUSABLE))
@@ -4769,7 +4777,7 @@ async def _setting_entries(context: dict[str, Any],
                 ui.notify(t("said.could_not_clear_it", exc=(exc)), type="negative")
                 return
             context.pop("config_values", None)
-            await context["rebuild"]()
+            await _keeping_place(ui.context.client, context["rebuild"], keys[0])
         return wipe
 
     def save(key: str, typed: bool) -> Callable[[Any], Awaitable[bool]]:
@@ -4880,16 +4888,17 @@ def _whose(values: dict[str, Any], key: str) -> str:
 
 async def _keeping_place(client: Any, rebuild: Callable[[], Awaitable[Any]],
                          written: str) -> None:
-    """`rebuild`, then focus the control that held focus, else `written`'s first. Nothing
-    is focused where focus was outside the panel."""
+    """`rebuild`, then focus the control that held focus, else `written`'s first, else the
+    row now where the one that held it was. Nothing is focused where focus was outside the
+    panel."""
     try:
         where = await client.run_javascript(_FOCUSED_SETTING)
     except Exception:  # noqa: BLE001 - a panel that cannot say where focus is still draws
         where = None
     await rebuild()
     if where is not None:
-        places = [where] if where else []
-        client.run_javascript(_REFOCUS_SETTING % json.dumps([*places, [written, 0]]))
+        places, row = ([where[0]], where[1]) if where else ([], -1)
+        client.run_javascript(_REFOCUS_SETTING % json.dumps([[*places, [written, 0]], row]))
 
 
 def no_longer_reads_game(cut: Sequence[dict[str, Any]],

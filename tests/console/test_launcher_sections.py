@@ -1533,6 +1533,20 @@ class SetForAllTests(unittest.TestCase):
         dialog.assert_awaited_once()
         section.assert_not_awaited()
 
+    def test_it_keeps_the_place_of_the_setting_it_wrote(self) -> None:
+        other = _other("b", "1")
+        inner = {"playing": False, "library": _Game(other), "rebuild": AsyncMock()}
+        with patch.object(app_settings.panel, "action") as action:
+            app_settings.ForAll(inner, [other], False, [], frozenset({"Player.X"}),
+                                inner["rebuild"], read=True)(dict(self.SET), self.FIELD)
+        with patch.object(app_settings, "ui"), \
+                patch.object(workbench, "_keeping_place", new=AsyncMock()) as kept, \
+                patch.object(app_settings.offload, "io",
+                             new=AsyncMock(side_effect=lambda call: call())):
+            asyncio.run(action.call_args.args[1]())
+
+        kept.assert_awaited_once_with(ANY, inner["rebuild"], "Player.X")
+
     def test_a_table_reads_them_at_its_draw_and_again_after_a_write(self) -> None:
         before = {"Player.X": {**self.SET, "set_here": False, "scope": "launcher"}}
         after = {"Player.X": self.SET}
@@ -1757,6 +1771,14 @@ class TypedRedrawTests(unittest.IsolatedAsyncioTestCase):
                          [(rebuild, "Player.SoundVolume"), (ANY, "Player.PlayMusic")])
         row.props.__setitem__.assert_any_call("data-setting", "Player.SoundVolume")
 
+    async def test_a_clear_keeps_the_place_of_the_setting_cleared(self) -> None:
+        kept = self.enterContext(patch.object(workbench, "_keeping_place", new=AsyncMock()))
+        marked = self.enterContext(patch.object(workbench, "_marked"))
+        _, rebuild, _, _ = await self._drawn("int")
+        await marked.call_args.kwargs["clear"]()
+
+        kept.assert_awaited_once_with(ANY, rebuild, "Player.SoundVolume")
+
 
 class KeepingPlaceTests(unittest.IsolatedAsyncioTestCase):
     """Where focus is put once the panel is drawn again."""
@@ -1774,16 +1796,17 @@ class KeepingPlaceTests(unittest.IsolatedAsyncioTestCase):
         rebuild.assert_awaited_once()
         return [call.args[0] for call in client.run_javascript.call_args_list[1:]], rebuild
 
-    async def test_the_control_that_had_focus_comes_first(self) -> None:
-        sent, _ = await self._sent(["Player.SoundVolume", 1])
+    async def test_the_control_that_had_focus_comes_first_then_its_row_s_place(
+            self) -> None:
+        sent, _ = await self._sent([["Player.SoundVolume", 1], 3])
 
         self.assertEqual(len(sent), 1)
-        self.assertIn('[["Player.SoundVolume", 1], ["Player.PlayMusic", 0]]', sent[0])
+        self.assertIn('[[["Player.SoundVolume", 1], ["Player.PlayMusic", 0]], 3]', sent[0])
 
     async def test_focus_elsewhere_in_the_panel_goes_to_the_one_written(self) -> None:
         sent, _ = await self._sent([])
 
-        self.assertIn('[["Player.PlayMusic", 0]]', sent[0])
+        self.assertIn('[[["Player.PlayMusic", 0]], -1]', sent[0])
 
     async def test_focus_outside_the_panel_is_left_where_it_went(self) -> None:
         self.assertEqual((await self._sent(None))[0], [])

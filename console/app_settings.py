@@ -642,4 +642,4 @@ async def _set_for_all(inner: dict[str, Any], others: list[dict[str, Any]],
                   type="positive")
         if cut:
             workbench.no_longer_reads_game(cut, tables)
-    await rebuild()
+    await workbench._keeping_place(ui.context.client, rebuild, own[0][0].key)
