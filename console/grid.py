@@ -11,7 +11,7 @@ import inspect
 import json
 import logging
 import weakref
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -90,12 +90,13 @@ _SAVERS: weakref.WeakKeyDictionary[Any, Callable[[dict[str, Any]], Awaitable[Non
     weakref.WeakKeyDictionary()
 
 
-# Chrome measured at 50px, plus the 8px gap the theme puts between a header and its
-# filter icon; 9px/char is the widest average in the header font, so a header never has
-# to wrap. Counted here because a gap the width does not know about is a gap that
-# squeezes the text it was added to protect.
-_HEADER_CHROME_PX = 66
+# A header's chrome with the column sorted: padding, sort arrow, filter button and the
+# theme's gap before them. 9px/char is the widest average in the header font, so a
+# header never has to wrap.
+_HEADER_CHROME_PX = 80
 _HEADER_CHAR_PX = 9
+# The number AG Grid draws beside the arrow once more than one column is sorted.
+_SORT_ORDER_PX = 25
 
 
 def header_width(header: str) -> int:
@@ -108,6 +109,17 @@ def header_width(header: str) -> int:
     # No header, no floor: a column of pictures carries no text, no sort arrow and no
     # filter button, so charging it for their chrome makes it wider than it needs.
     return longest * _HEADER_CHAR_PX + _HEADER_CHROME_PX if longest else 0
+
+
+def room_for_sort_order(columns: list[dict[str, Any]],
+                        sorts: Iterable[Sequence[dict[str, Any]]]) -> None:
+    """Widen, in place, each column a sort of two or more keys names, so its header
+    reads whole beside the order number too."""
+    named = {entry.get("colId") for sort in sorts if len(sort) > 1 for entry in sort}
+    for definition in columns:
+        floor = header_width(str(definition.get("headerName") or ""))
+        if floor and definition.get("field") in named:
+            definition["width"] = max(definition.get("width") or 0, floor + _SORT_ORDER_PX)
 
 
 # A picker in the funnel, where AG Grid's text box would be: on a column of marks that

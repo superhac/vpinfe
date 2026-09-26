@@ -1548,6 +1548,8 @@ def view_control(library: Any, scope: str,
     the first view put on the grid, and each column it filters is shown.
     """
     custom, active = views.stored(library, scope)
+    # Before the grid is built from `columns`, which is the same list.
+    grid.room_for_sort_order(columns, [view.sort for view in views.builtins(presets)])
     known = views.builtins(presets) + custom
     if active not in {view.id for view in known}:
         active = known[0].id
