@@ -4662,10 +4662,13 @@ async def _config_values(context: dict[str, Any]) -> dict[str, Any]:
 
 def _mark_for(held: dict, scope: str, field: Any, offered: bool,
               paired: bool = False) -> Callable[[], None] | None:
-    """`_config_mark`, or Ignored where this scope holds a value the program never reads
-    at it."""
+    """`_config_mark`, or why this scope holds a value it does not offer: Per Table at the
+    launcher, and Ignored at a table where the program never reads it."""
     if offered:
         return _config_mark(held, scope, field, paired)
+    if held.get("set_here") and scope == "launcher":
+        return panel.state(t("console.app_settings.per_table"), "off",
+                           hint=t("console.app_settings.per_table.help"))
     if not held.get("set_here") or held.get("in_effect"):
         return None
     return panel.state(t("console.app_settings.unused"), "warn",
@@ -4772,7 +4775,7 @@ async def _setting_entries(context: dict[str, Any],
     app_name = str(launcher.get("app_name") or "")
 
     def offered(field: Any) -> bool:
-        return not table or scope in (getattr(field, "scopes", ()) or (scope,))
+        return scope in (getattr(field, "scopes", ()) or (scope,))
 
     def part(field: Any) -> Part:
         held = rows.setdefault(field.key, dict(values.get(field.key) or {}))

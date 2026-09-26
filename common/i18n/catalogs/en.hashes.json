@@ -234,6 +234,8 @@
   "console.app_settings.no_longer_reads_game": "05bd38e4f04d",
   "console.app_settings.now_same_all_tables": "d30a2c0b2121",
   "console.app_settings.option_reset.help": "5a03d27e951b",
+  "console.app_settings.per_table": "42a9a244c5e4",
+  "console.app_settings.per_table.help": "fcc91b8fcb54",
   "console.app_settings.plugin_row": "592d9b0c4e18",
   "console.app_settings.reset_all": "8815f382574a",
   "console.app_settings.same_as_all_tables": "1bf4f418ad3e",

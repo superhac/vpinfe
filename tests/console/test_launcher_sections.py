@@ -585,6 +585,56 @@ class ClearTests(unittest.IsolatedAsyncioTestCase):
             scope="entry")
 
 
+class ScopeTests(unittest.IsolatedAsyncioTestCase):
+    """A value held at a scope that does not offer its setting is read-only there, keeps
+    Clear, and says why."""
+
+    CAMERA = SimpleNamespace(key="TableOverride.ViewDTMode", type="text", label="View Mode",
+                             default="", description="", choices=(), help="",
+                             scopes=("folder", "entry"))
+    INPUT = SimpleNamespace(**{**vars(CAMERA), "key": "Player.PlayfieldWidth",
+                               "label": "Width", "scopes": ("launcher",)})
+    HELD = {"set_here": True, "in_effect": True, "scope": "launcher", "value": "1"}
+
+    async def _writable(self, field: SimpleNamespace, scope: str, table: str) -> bool:
+        context = {"library": Mock(), "launcher": {"launcher_id": "probe"},
+                   "config_scope": scope, "config_table": table, "rebuild": AsyncMock()}
+        self.enterContext(patch.object(workbench, "ui"))
+        self.enterContext(patch.object(workbench, "_config_values",
+                                       new=AsyncMock(return_value={field.key: self.HELD})))
+        self.enterContext(patch.object(workbench, "_set_by_tables",
+                                       new=AsyncMock(return_value=[])))
+        control_for = self.enterContext(patch.object(workbench.settings_page, "control_for"))
+        marked = self.enterContext(patch.object(workbench, "_marked"))
+        await workbench._setting_entries(context, [("", "", [field])])
+        self.assertIsNotNone(marked.call_args.kwargs["clear"])
+        return control_for.call_args.kwargs["writable"]
+
+    async def test_a_table_only_setting_is_read_only_at_the_launcher(self) -> None:
+        self.assertFalse(await self._writable(self.CAMERA, "launcher", ""))
+
+    async def test_and_one_for_all_tables_only_is_read_only_at_a_table(self) -> None:
+        self.assertFalse(await self._writable(self.INPUT, "entry", "t1"))
+
+    async def test_each_is_editable_where_it_is_offered(self) -> None:
+        self.assertTrue(await self._writable(self.CAMERA, "entry", "t1"))
+
+    def test_at_the_launcher_it_is_marked_per_table(self) -> None:
+        with patch.object(workbench.panel, "state") as state:
+            workbench._mark_for(self.HELD, "launcher", self.CAMERA, offered=False)
+
+        state.assert_called_once_with(t("console.app_settings.per_table"), "off",
+                                      hint=t("console.app_settings.per_table.help"))
+
+    def test_at_a_table_one_the_program_does_not_read_is_ignored(self) -> None:
+        with patch.object(workbench.panel, "state") as state:
+            workbench._mark_for({**self.HELD, "scope": "launcher", "in_effect": False},
+                                "entry", self.INPUT, offered=False)
+
+        state.assert_called_once_with(t("console.app_settings.unused"), "warn",
+                                      hint=t("console.app_settings.all_tables_only"))
+
+
 class PairTests(unittest.IsolatedAsyncioTestCase):
     """Two numbers of one kind are one row: one dot and one Clear for both, and a mark
     for each."""

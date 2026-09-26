@@ -300,6 +300,8 @@
   },
   "console.app_settings.now_same_all_tables": "Ñöŵ ţĥè šàɱè àš àŀŀ ţàƀŀèš",
   "console.app_settings.option_reset.help": "Ɓàçķ ţö ţĥè ţàƀŀè'š đèƒàûŀţ",
+  "console.app_settings.per_table": "Þèř Ţàƀŀè",
+  "console.app_settings.per_table.help": "Šèţ ƒöř èàçĥ ţàƀŀè, îñ îţš Šèţţîñĝš",
   "console.app_settings.plugin_row": "{plugin}: {label}",
   "console.app_settings.reset_all": "Řèšèţ Àŀŀ",
   "console.app_settings.same_as_all_tables": "Šàɱè àš àŀŀ ţàƀŀèš",

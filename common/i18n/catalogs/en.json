@@ -300,6 +300,8 @@
   },
   "console.app_settings.now_same_all_tables": "Now the same as all tables",
   "console.app_settings.option_reset.help": "Back to the table's default",
+  "console.app_settings.per_table": "Per Table",
+  "console.app_settings.per_table.help": "Set for each table, in its Settings",
   "console.app_settings.plugin_row": "{plugin}: {label}",
   "console.app_settings.reset_all": "Reset All",
   "console.app_settings.same_as_all_tables": "Same as all tables",
