@@ -4496,7 +4496,7 @@ def _said_value(field: Any, value: str) -> str:
     """A value as somebody reads it rather than as it is stored. A switch is On or Off,
     never 1 or 0, and an enumerated setting is its own label."""
     if value == "":
-        return ""
+        return getattr(field, "blank", "")
     if getattr(field, "type", "") == "bool":
         return t("word.off") if value in ("0", "false",
                 t("console.workbench.false")) else t("word.on")

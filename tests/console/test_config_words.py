@@ -67,6 +67,17 @@ class ClearHintTests(unittest.TestCase):
         self.assertEqual(workbench._clear_hint({}, _Text, "Visual Pinball X"),
                          "Back to Visual Pinball X's default")
 
+    def test_a_blank_that_has_a_word_goes_back_to_that_word(self) -> None:
+        class _ViewMode(_Choice):
+            default = ""
+            blank = "The table's own"
+
+        for held, whose in (({}, "Visual Pinball X's default"),
+                            ({"fallback_scope": "folder", "fallback": ""}, "This Game")):
+            with self.subTest(whose=whose):
+                self.assertEqual(workbench._clear_hint(held, _ViewMode, "Visual Pinball X"),
+                                 f"Back to The table's own - {whose}")
+
 
 class SwitchedOffTests(unittest.TestCase):
     ONE = {"launcher_id": "a", "app": "vpx", "enabled": True, "display_name": "Wide"}
