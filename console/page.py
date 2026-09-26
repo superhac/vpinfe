@@ -415,6 +415,21 @@ def _drop_target(library: Library, state: dict, drop: Any) -> tuple[str, str, st
     return game_id, str((found or {}).get("folder") or ""), drop.media_kind
 
 
+def reads_before_drawing(view: str, library: Library) -> Callable[[], Any] | None:
+    """What `view` reads off the loop before it draws, or None where it holds all of it.
+    render() runs on the loop, and the client refuses an HTTP call there."""
+    reads = {"games": (library.has_games_grid, library.load_games_grid),
+             "overview": (library.has_overview, library.load_overview),
+             "tables": (library.has_table_rows, library.load_tables),
+             "collections": (library.has_collections, library.load_collections),
+             "media": (library.has_media_rows, library.load_media_rows),
+             "assets": (library.has_asset_rows, library.load_asset_rows)}
+    if view not in reads:
+        return None
+    has, load = reads[view]
+    return None if has() else load
+
+
 @ui.page("/", title=t("console.page.vpinfe_console"), reconnect_timeout=300)
 @ui.page("/console", title=t("console.page.vpinfe_console"), reconnect_timeout=300)
 async def console_page(view: str = "", game: str = "", table: str = "", section: str = "",
@@ -776,8 +791,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             return
         leave_for(state, "games")
         state["section"] = "game_details"
-        if not library.has_game_collections():
-            await run.io_bound(library.load_game_collections)
+        if not library.has_games_grid():
+            await run.io_bound(library.load_games_grid)
         render()
         await show_game({"id": game_id})
 
@@ -1221,41 +1236,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 render()
             asyncio.create_task(read_extensions_then_draw())
             return
-        if state["view"] == "games" and not library.has_game_collections():
-            async def read_game_collections_then_draw() -> None:
-                await run.io_bound(library.load_game_collections)
-                render()
-            asyncio.create_task(read_game_collections_then_draw())
-            return
-        if state["view"] == "overview" and not library.has_overview():
-            async def read_overview_then_draw() -> None:
-                await run.io_bound(library.load_overview)
-                render()
-            asyncio.create_task(read_overview_then_draw())
-            return
-        if state["view"] == "tables" and not library.has_table_rows():
+        reads = reads_before_drawing(state["view"], library)
+        if reads is not None:
             async def read_then_draw() -> None:
-                await run.io_bound(library.load_tables)
+                await run.io_bound(reads)
                 render()
             asyncio.create_task(read_then_draw())
-            return
-        if state["view"] == "collections" and not library.has_collections():
-            async def read_collections_then_draw() -> None:
-                await run.io_bound(library.load_collections)
-                render()
-            asyncio.create_task(read_collections_then_draw())
-            return
-        if state["view"] == "media" and not library.has_media_rows():
-            async def read_media_then_draw() -> None:
-                await run.io_bound(library.load_media_rows)
-                render()
-            asyncio.create_task(read_media_then_draw())
-            return
-        if state["view"] == "assets" and not library.has_asset_rows():
-            async def read_assets_then_draw() -> None:
-                await run.io_bound(library.load_asset_rows)
-                render()
-            asyncio.create_task(read_assets_then_draw())
             return
         render()
 
@@ -1314,18 +1300,9 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # An address that names a section has to read what that section needs, because the
     # first draw goes straight to render() and only redraw() reads on the way in. Both
     # of these drew empty from a link and filled in on the next click.
-    if state["view"] == "overview":
-        await run.io_bound(library.load_overview)
-    if state["view"] == "games":
-        await run.io_bound(library.load_game_collections)
-    if state["view"] == "tables":
-        await run.io_bound(library.load_tables)
-    if state["view"] == "collections":
-        await run.io_bound(library.load_collections)
-    if state["view"] == "media":
-        await run.io_bound(library.load_media_rows)
-    if state["view"] == "assets":
-        await run.io_bound(library.load_asset_rows)
+    reads = reads_before_drawing(state["view"], library)
+    if reads is not None:
+        await run.io_bound(reads)
     await workbench.build(panel, workbench_title, library, None, state)
     _land(state)
     render()

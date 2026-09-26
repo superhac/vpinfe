@@ -819,6 +819,14 @@ class Library:
     def has_game_collections(self) -> bool:
         return self._game_collections is not None
 
+    def load_games_grid(self) -> None:
+        """What the Games grid draws from. Off the event loop."""
+        self.load_game_collections()
+        self._read_missing_media()
+
+    def has_games_grid(self) -> bool:
+        return self.has_game_collections() and not self._media_missing()
+
     def smart_collections(self) -> set[str]:
         """The smart ones among the collections holding a game. Read with the Games grid,
         so this asks nothing."""
