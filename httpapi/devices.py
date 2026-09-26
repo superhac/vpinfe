@@ -75,6 +75,14 @@ async def probe_devices() -> models.DeviceProbeList:
     return models.DeviceProbeList.model_validate({"probes": probes})
 
 
+@router.post("/{device_id}/probe", summary="Ask one device whether it is there",
+             dependencies=[requires(scopes.DEVICES_WRITE)])
+async def probe_device(device_id: str) -> models.DeviceProbe:
+    """The same question as above, of one device, recording it if it answered."""
+    device = device_ops.device_or_refuse(device_id)
+    return models.DeviceProbe(**await run_in_threadpool(device_ops.probe_one, device))
+
+
 @router.delete("/{device_id}", summary="Forget a device", status_code=204,
                dependencies=[requires(scopes.DEVICES_WRITE)])
 def forget(device_id: str) -> Response:

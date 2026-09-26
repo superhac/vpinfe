@@ -664,25 +664,42 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
 
     state["watch_jobs"] = watch_jobs
 
+    def _probe_one(device_id: str) -> dict:
+        return ApiClient().probe_device(device_id)
+
+    async def _reached(device_id: str, found: dict) -> None:
+        """One device's answer, onto its row and, when it is the one open, the panel."""
+        state.setdefault("device_reach", {})[device_id] = found
+        landed = state.get("device_landed")
+        if state.get("view") != "devices" or landed is None:
+            return
+        landed(device_id)
+        if state.get("device_id") == device_id:
+            await show_device(None)
+
     async def _look_for_update() -> None:
-        """Mark Devices with how many of them have an update, once per page load.
+        """Mark each device with whether it answered, and Devices with how many of them
+        have an update, once per page load.
 
         Off the loop and never fatal: an install with no internet is not broken, a
         device that is asleep is not a broken device, and a rail that cannot say whether
-        a build is current says nothing rather than claiming it is. Asked one device at
-        a time because one that is down should cost its own answer and nobody else's.
+        a build is current says nothing rather than claiming it is.
         """
+        local_id = discovery.get("install_id")
+        entries = {str(entry.get("device_id") or ""): entry for entry in devices}
         waiting: list[str] = []
-        for entry in devices:
-            client = device_client.for_device(entry, discovery.get("install_id"))
-            if client is None:
-                continue
-            ask = devices_page.update_checker(
-                entry.get("device_id") == discovery.get("install_id"), client)
+
+        async def reached(device_id: str, found: dict) -> None:
+            await _reached(device_id, found)
+            entry = entries.get(device_id) or {}
+            client = device_client.for_device(entry, local_id)
+            if found.get("state") != device_client.ANSWERING or client is None:
+                return
+            ask = devices_page.update_checker(device_id == local_id, client)
             if ask is None:
-                continue
+                return
             try:
-                found = await offload.io(ask)
+                update = await offload.io(ask)
             except Exception as exc:  # noqa: BLE001
                 # Debug, because a device being off is not news. This runs on every
                 # draw, so at any louder level a cabinet somebody switched off in
@@ -690,29 +707,15 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 # already says which devices are unreachable, on the page about them.
                 logger.debug("Could not ask %s what it is running: %s",
                              devices_page.device_label(entry), exc)
-                continue
-            if entry.get("device_id") == discovery.get("install_id"):
+                return
+            if device_id == local_id:
                 # Kept so the device's own page does not ask a second time on arrival.
-                state["update"] = found
-            if found.get("update_available") and not found.get("error"):
+                state["update"] = update
+            if update.get("update_available") and not update.get("error"):
                 waiting.append(devices_page.device_label(entry))
 
-        # Which of them answered, on the same pass. The rail draws a dot per device from
-        # this, and the registry's own "last seen" advances for the ones that did - a
-        # asking is the pull half of that timestamp.
-        try:
-            found = {p.get("device_id"): p
-                     for p in await offload.io(ApiClient().probe_devices)}
-            state["device_reach"] = found
-            if state.get("view") == "devices":
-                # render() empties the pane, so the device open in it is redrawn after -
-                # otherwise a probe landing a few seconds in wipes what you were reading.
-                render()
-                await show_device(None)
-        except Exception as exc:  # noqa: BLE001
-            # Same as the pass above: asked for by hand rather than on a draw, but a
-            # device that is off is still the ordinary answer, and the page says so.
-            logger.debug("Could not probe the devices: %s", exc)
+        for exc in await devices_page.ask_each(devices, _probe_one, reached):
+            logger.debug("Could not probe a device: %s", exc)
 
         badge = badges.get("devices")
         if badge is None or not waiting:
@@ -981,16 +984,10 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     async def _probe_devices() -> None:
         """Ask every device again, on demand. The page's own pass runs once on load;
         this is for when you have just gone and switched one on."""
-        try:
-            found = {p.get("device_id"): p
-                     for p in await offload.io(ApiClient().probe_devices)}
-        except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(t("console.page.could_not_ask_devices"), caption=why(exc),
+        failed = await devices_page.ask_each(devices, _probe_one, _reached)
+        if failed:
+            ui.notify(t("console.page.could_not_ask_devices"), caption=why(failed[0]),
                       type="negative")
-            return
-        state["device_reach"] = found
-        render()
-        await show_device(None)
 
     async def show_collection(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about - the same rule

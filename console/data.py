@@ -568,9 +568,6 @@ class Library:
     def forget_device(self, device_id: str) -> None:
         self._client.forget_device(device_id)
 
-    def probe_devices(self) -> list[dict]:
-        return self._client.probe_devices()
-
     def actions(self) -> list[dict]:
         """Never cached: whether a thing can be done depends on what is running."""
         return self._client.actions()

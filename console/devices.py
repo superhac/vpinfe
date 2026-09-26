@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from nicegui import run, ui
@@ -426,11 +427,11 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
     from .games import view_control
 
     built = rows(found, state.get("device_reach"), local_device_id)
-    away = sum(1 for row in built if row["state"]
-               and row["state"] != _REACH[device_client.ANSWERING][0])
     on_screen = {"rows": len(built)}
 
     def said() -> str:
+        away = sum(1 for row in built if row["state"]
+                   and row["state"] != _REACH[device_client.ANSWERING][0])
         if on_screen["rows"] != len(built):
             return t("console.devices.devices_2", shown=(on_screen["rows"]),
                      count=(len(built)))
@@ -482,6 +483,18 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
 
         # Inside the wrapper, so it goes when the grid does.
         ui.timer(60, keep_current)
+
+    def landed(device_id: str) -> None:
+        """One device's answer, into its row and the count."""
+        device = known.get(device_id)
+        if device is None:
+            return
+        grid.transact(table, built,
+                      {"update": rows([device], state.get("device_reach"), local_device_id)},
+                      by_id)
+        count.text = said()
+
+    state["device_landed"] = landed
     wire_views(table)
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText",
@@ -727,6 +740,29 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
 def connection_rows(device: dict[str, Any],
                     reach: dict[str, Any] | None) -> list[tuple[Any, Any]]:
     return _connection_rows(device, reach)
+
+
+async def ask_each(entries: list[dict[str, Any]],
+                   probe: Callable[[str], dict[str, Any]],
+                   landed: Callable[[str, dict[str, Any]], Awaitable[None]]) -> list[Exception]:
+    """Ask every device at once, and hand each answer to `landed` as it arrives.
+
+    Returns what went wrong with the asking itself. A device that does not answer is an
+    answer, and lands like any other.
+    """
+    failed: list[Exception] = []
+
+    async def one(entry: dict[str, Any]) -> None:
+        device_id = str(entry.get("device_id") or "")
+        try:
+            found = await offload.io(probe, device_id)
+        except Exception as exc:  # noqa: BLE001 - the caller decides whether to say so
+            failed.append(exc)
+            return
+        await landed(device_id, found)
+
+    await asyncio.gather(*(one(entry) for entry in entries))
+    return failed
 
 
 def update_checker(is_local: bool, client: Any) -> Any:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import re
+import threading
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -39,6 +40,48 @@ class UpdateConfirm(unittest.IsolatedAsyncioTestCase):
                          t("console.devices.stop_table_update"))
         self.assertEqual(ask.call_args.kwargs["icon"], verbs.STOP)
         self.assertTrue(ask.call_args.kwargs["danger"])
+
+
+class EachAnswerLandsOnItsOwn(unittest.IsolatedAsyncioTestCase):
+    """A device that refuses at once is shown so while one that is off is still timing out."""
+
+    OFF = {"device_id": "Oooo111111"}
+    REFUSES = {"device_id": "Rrrr222222"}
+
+    async def test_a_quick_answer_does_not_wait_behind_a_slow_one(self) -> None:
+        refused = threading.Event()
+        landed: list[str] = []
+
+        def probe(device_id: str) -> dict:
+            if device_id == self.OFF["device_id"]:
+                refused.wait(timeout=2)
+            return {"device_id": device_id, "state": "unreachable"}
+
+        async def land(device_id: str, found: dict) -> None:
+            landed.append(device_id)
+            if device_id == self.REFUSES["device_id"]:
+                refused.set()
+
+        await devices.ask_each([self.OFF, self.REFUSES], probe, land)
+
+        self.assertEqual(landed, [self.REFUSES["device_id"], self.OFF["device_id"]])
+
+    async def test_one_that_could_not_be_asked_is_handed_back_and_the_rest_land(self) -> None:
+        broken = RuntimeError("the API went away")
+        landed: list[str] = []
+
+        def probe(device_id: str) -> dict:
+            if device_id == self.OFF["device_id"]:
+                raise broken
+            return {"device_id": device_id, "state": "unreachable"}
+
+        async def land(device_id: str, found: dict) -> None:
+            landed.append(device_id)
+
+        failed = await devices.ask_each([self.OFF, self.REFUSES], probe, land)
+
+        self.assertEqual(failed, [broken])
+        self.assertEqual(landed, [self.REFUSES["device_id"]])
 
 
 CHECKED = "2026-09-25T08:00:00Z"

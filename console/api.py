@@ -1063,14 +1063,9 @@ class ApiClient:
         looking at the list."""
         return list(self._get("/devices/discovered").get("installs") or [])
 
-    def probe_devices(self) -> list[dict]:
-        """Ask every device whether it is there. Slower than an ordinary read - it dials
-        each one - so the timeout is the number of them times their own."""
-        _refuse_the_event_loop("/devices/probe")
-        response = self._session.post(f"{self._base}/devices/probe",
-                                      timeout=_TIMEOUT * 4)
-        self._answered(response)
-        return list((response.json() or {}).get("probes") or [])
+    def probe_device(self, device_id: str) -> dict:
+        """Ask one device whether it is there."""
+        return self._post(f"/devices/{quote(device_id)}/probe", {})
 
     def perform_update(self, *, stop_table: bool = False) -> dict:
         """Take the published build. The install goes down to do it, so this is the last

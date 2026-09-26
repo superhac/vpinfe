@@ -241,6 +241,23 @@ class DeviceRegistryApiTests(TempTree):
         self.assertEqual(probe["reason"], t(probe["reason_key"]))
         self.assertNotIn("HTTPConnectionPool", probe["reason"])
 
+    def test_one_device_can_be_asked_on_its_own(self) -> None:
+        """So a page can show each answer as it comes, rather than all of them when the
+        slowest has timed out."""
+        self.client.put("/devices", json={**CAB, "port": 9})
+        self.client.put("/devices", json=DESK)
+
+        response = self.client.post(f"/devices/{CAB['device_id']}/probe")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["device_id"], CAB["device_id"])
+        self.assertEqual(response.json()["state"], "unreachable")
+
+    def test_asking_one_it_does_not_know_is_a_404(self) -> None:
+        response = self.client.post("/devices/Zzzz999999/probe")
+
+        self.assertEqual(response.status_code, 404)
+
     def test_a_device_that_never_answered_has_no_reachable_time_from_a_probe(self) -> None:
         """It has one from announcing - that is the push half - but a failed probe must
         not advance it, or the value stops meaning anything."""
