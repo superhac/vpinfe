@@ -72,6 +72,35 @@ def _doc_files() -> list[Path]:
     return sorted(REPO_ROOT.joinpath("docs").glob("*.md")) + [REPO_ROOT / "README.md"]
 
 
+API_DOC = REPO_ROOT / "docs" / "http_api.md"
+
+PLACEHOLDER = re.compile(r"\{[^}]*\}")
+
+Served = dict[tuple[str, str], str]
+
+
+def _route_shape(path: str) -> str:
+    """`/games/{game_id}/` and `/games/{id}` are one route: `/games/{}`."""
+    return PLACEHOLDER.sub("{}", path).rstrip("/")
+
+
+@functools.cache
+def _served_routes() -> tuple[Served, Served]:
+    """What the mounted API answers, keyed by method and shape: the routes it declares,
+    then the schema and pages FastAPI serves beside them."""
+    from starlette.routing import Route
+
+    import httpapi
+    from httpapi.auth import iter_api_routes
+
+    app = httpapi.create_api_app()
+    declared = {(method, _route_shape(path)): path
+                for path, route in iter_api_routes(app) for method in route.methods or ()}
+    own = {(method, _route_shape(route.path)): route.path
+           for route in app.routes if type(route) is Route for method in route.methods or ()}
+    return declared, own
+
+
 def _is_catalog_key(dotted: str) -> bool:
     """DOTTED_REF captures only the tail, so match on that."""
     return any(key.endswith(dotted) for key in _catalog_keys())
@@ -188,14 +217,11 @@ class DocRouteTests(unittest.TestCase):
     separately from paths on disk: the app can answer what the filesystem cannot.
     """
 
-    # FastAPI serves these itself, so they are absent from the paths it reports.
-    SERVED_ELSEWHERE = {"/api/v1/openapi.json", "/api/v1/docs"}
     ROUTE = re.compile(r"`(/api/v1/[A-Za-z0-9_{}/.-]*)`")
 
     def test_every_documented_route_exists(self) -> None:
-        import httpapi
-
-        real = set(httpapi.create_api_app().openapi()["paths"])
+        declared, own = _served_routes()
+        real = set(declared.values()) | set(own.values())
         # Every literal segment the app actually uses. Anything else in a doc URL is a
         # stand-in - `{id}` or a sample id like `tuF3WogthK` - and normalizes to one.
         literals = {seg for route in real for seg in route.split("/") if seg and "{" not in seg}
@@ -211,11 +237,47 @@ class DocRouteTests(unittest.TestCase):
                 continue
             for number, line in enumerate(doc.read_text(encoding="utf-8").splitlines(), 1):
                 for ref in self.ROUTE.findall(line):
-                    if ref in self.SERVED_ELSEWHERE or shape(ref) in known:
+                    if shape(ref) in known:
                         continue
                     missing.append(f"{doc.name}:{number} documents {ref!r}")
 
         self.assertEqual(missing, [], "\n".join(missing))
+
+
+class EndpointTableTests(unittest.TestCase):
+    """The endpoint table in docs/http_api.md has a row for every route the API serves,
+    by method and path, and no row for one it does not."""
+
+    # | GET | `/api/v1/games/{id}` | ... and | PUT/GET/DELETE | `/api/v1/...?q=` | ...
+    ROW = re.compile(r"^\| *([A-Z]+(?:/[A-Z]+)*) *\| *`/api/v1(/[^`?]*)?[^`]*` *\|")
+
+    def _rows(self) -> dict[tuple[str, str], list[str]]:
+        rows: dict[tuple[str, str], list[str]] = {}
+        for number, line in enumerate(API_DOC.read_text(encoding="utf-8").splitlines(), 1):
+            found = self.ROW.match(line)
+            if not found:
+                continue
+            for method in found.group(1).split("/"):
+                where = f"{API_DOC.name}:{number}"
+                rows.setdefault((method, _route_shape(found.group(2) or "")), []).append(where)
+        return rows
+
+    def test_every_route_the_api_serves_has_a_row(self) -> None:
+        declared, _ = _served_routes()
+        rows = self._rows()
+        missing = sorted(f"{method} /api/v1{path}"
+                         for (method, shape), path in declared.items()
+                         if (method, shape) not in rows)
+        self.assertEqual(missing, [], f"{len(missing)} of {len(declared)} routes have no row "
+                                      f"in {API_DOC.name}:\n" + "\n".join(missing))
+
+    def test_every_row_names_a_route_the_api_serves(self) -> None:
+        declared, own = _served_routes()
+        unserved = sorted(f"{where} {method} /api/v1{shape}"
+                          for (method, shape), places in self._rows().items()
+                          if (method, shape) not in declared and (method, shape) not in own
+                          for where in places)
+        self.assertEqual(unserved, [], "\n".join(unserved))
 
 
 class CitedMarkdownTests(unittest.TestCase):

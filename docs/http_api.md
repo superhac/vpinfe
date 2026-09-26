@@ -53,6 +53,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/collections` | List collections |
 | GET | `/api/v1/collections/{name}` | One collection |
 | GET | `/api/v1/collections/{name}/games` | Its games, resolved — works for both kinds |
+| GET | `/api/v1/collections/{name}/entries` | What it resolves to, one entry per game, in the order a frontend shows them |
 | POST | `/api/v1/collections` | Create one. `filters` makes it filter-based, `games` makes it manual. `copy_of` starts it as a copy of that collection - its games, criteria, exclusions, order, limit, description and image, under the new name - and is refused beside `filters`, `games` or `description` |
 | DELETE | `/api/v1/collections/{name}` | Delete it |
 | PATCH | `/api/v1/collections/{name}` | Change one. Only what you send is written — a rename need not restate the rest |
@@ -78,7 +79,10 @@ the documented entry point is a plain 200. Both spellings work.
 | PUT | `/api/v1/library/policy` | Change it. A patch: an absent key is left alone, a key sent empty is stored empty |
 | GET | `/api/v1/library/tags` | Every tag - carried by games or tables, or only written down - with how many carry it, its description and its color. A tag an extension's Community list puts on names that list in `sources`, with when it was last read, whether that read is `stale` and the `error` that made it so; it cannot be renamed, merged or removed |
 | PUT | `/api/v1/library/tags/{tag}` | Describe a tag and pick its color, writing it down if nothing has. `color` is one of `red orange amber green teal blue purple pink gray`; empty goes back to the one derived from its name |
+| POST | `/api/v1/library/tags/merge` | Fold `{"sources": [...]}` into `into` across the library. A rename is one source into a name nothing uses. Answers `changed` |
+| DELETE | `/api/v1/library/tags/{tag}` | Take a tag off everything in the library that carries it. Answers `changed` |
 | POST | `/api/v1/library/owned` | Which of `{"ids": [...]}` - VPS entry or release ids - this library holds: an entry with its game, a release with its table. A release this library holds another version of comes back under `other_versions`, with that table's `version` and the release's `url` |
+| POST | `/api/v1/library/refresh` | Find tables added or removed on disk, and read what nothing has read yet. Never reaches the network. Returns `202` and a job |
 | POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
 | GET | `/api/v1/library/info` | What the library's `.info` files need - see [Schema version](#schema-version) |
 | POST | `/api/v1/library/info/upgrade` | Bring every `.info` onto the current schema. Returns `202` and a job |
@@ -86,6 +90,13 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/library/auto_match` | Match `{"game_ids": [...]}` again from their folder names, off the catalog on disk. A match a person made or cleared stays. Answers `games`, `changed`, `unmatched` and `yours`; `409` while a scan runs |
 | POST | `/api/v1/library/media/missing` | What getting missing art for `{"game_ids": [...]}` would fetch, fetching nothing; leaving `game_ids` out asks about the whole library. Per kind the library keeps and an enabled source publishes: `missing` games with no file for it, and `available` those of them a source has one for. `unmatched` counts the games with no VPS match. `sources` names the enabled sources, and `unreachable` those of them that could not be reached, which count nothing available |
 | POST | `/api/v1/library/media/fill` | Get missing art. Returns `202` and a job. `{"game_ids": [...], "kinds": [...]}`, either left out meaning all of them, or `{"slots": [{"game_id", "kind"}]}` for exact slots. Fills gaps only, never replaces a file, and never fetches a kind the library does not keep. The job's result counts `games`, `filled`, `unmatched` and `failed`; `409` while another fill or the downloaded-art update runs |
+| GET | `/api/v1/library/patches` | Which script fixes are published for this library's tables. Changes nothing |
+| POST | `/api/v1/library/patches` | Fetch them. Returns `202` and a job. A table with a `.vbs` beside it already is left alone |
+| GET | `/api/v1/library/vps_state` | What the catalog lists across the library, as last counted. `computed` empty means it has never been counted |
+| POST | `/api/v1/library/vps_state` | Count it again. Returns `202` and a job, which can run beside a scan |
+| GET | `/api/v1/library/watching` | Since when a catalog change counts as new. Empty until somebody answers |
+| PUT | `/api/v1/library/watching` | Set it, `{"since": ...}` |
+| POST | `/api/v1/library/watching/acknowledge` | Dismiss one catalog change, `{"game_id", "kind", "vps_file_id"}` |
 | GET | `/api/v1/devices` | The devices this install knows about |
 | PUT | `/api/v1/devices` | Record a device (idempotent). For a phone, or a machine mDNS cannot reach. `port` is declared by the caller — the address is read off the socket, which never says what that machine listens on |
 | GET | `/api/v1/devices/discovered` | Installs announcing themselves on this network right now. Announcements, not records: nothing here has been decided about |
@@ -93,6 +104,9 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/devices/probe` | Ask every device whether it is there, and record the ones that answer. `unaskable` means there was nothing to dial, which is not the same as down. One that did not answer carries `reason`, in this install's language, and `reason_key`, the catalog key it was read from |
 | POST | `/api/v1/devices/{id}/probe` | Ask one device the same, answering with that one probe. For showing each device as it answers rather than all of them once the slowest has |
 | DELETE | `/api/v1/devices/{id}` | Forget one |
+| GET | `/api/v1/devices/{id}/games` | What a VPX Mobile device is carrying, asked of the device every time |
+| POST | `/api/v1/devices/{id}/games` | Send games to it, `{"games": [...]}` or `{"everything": true}`. Returns `202` and a job |
+| DELETE | `/api/v1/devices/{id}/games/{name}` | Remove a game from it. `204` |
 | GET | `/api/v1/actions` | What this install can be asked to do to itself. Every pair the build has, with `available` saying which are wired up here. One that is not carries `reason`, in this install's language, and `reason_key`, the catalog key it was read from |
 | POST | `/api/v1/actions` | Do one. `{"scope","action","reason"}`. One that takes this process or the machine down answers before it goes, so `performed` means the work was handed over |
 | GET | `/api/v1/logs` | Recent records from this install's own log, oldest last (`limit`, `level`, `contains`). A record carries its continuation lines, so a traceback arrives whole |
@@ -100,15 +114,43 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/games` | List games (`q`, `limit`, `offset`). `hidden` is true on a game whose tables are hidden with none left to offer, which no frontend lists |
 | POST | `/api/v1/games` | Create one. A folder with a record in it, in the location new games go to; `location` overrides that for this one. The only way to bring an entry into being without a file arriving |
 | POST | `/api/v1/games/{id}/tables/import` | Copy a game file on this machine into the game. A copy, not a move, and refused unless the file is under a browsable root |
+| POST | `/api/v1/games/{id}/tables` | Add a table the game holds with no file, `{"app", "key"}` - a ROM, a Pinball FX table, anything its program finds by name - or with `{"path"}`, a file the game points at without holding. `201` |
+| POST | `/api/v1/games/{id}/tables/{table_id}/contain` | Copy a table the game points at into its folder, and stop pointing. The table keeps its id |
+| DELETE | `/api/v1/games/{id}/tables/{table_id}` | Forget a table whose file is gone. Nothing on disk is deleted, and a table whose file is still there is refused |
+| PUT | `/api/v1/games/{id}/tables/{table_id}/source` | Say which release a table is, `{"vps_file_id"}`. Empty takes the claim back |
 | PUT | `/api/v1/games/{id}/details` | Say what the machine is, for a game no catalog matched. A patch - a field left out is left alone, a field sent empty is cleared. Not where a VPS id goes; that is the `alt_vps_id` override |
 | PUT | `/api/v1/games/{id}/guides` | The game's guides, in order. An entry naming a stored guide by its address keeps it and sets `hidden`; any other is a new guide of the person's own. Leaving out a guide VPS lists is refused - hide it instead |
+| PUT | `/api/v1/games/{id}/overrides` | The game's overrides. A patch - a field left out is left alone, a field sent empty clears it |
+| PUT | `/api/v1/games/{id}/tables/{table_id}/overrides` | One table's, the same way |
+| DELETE | `/api/v1/games/{id}/vps_match` | Say the game is in no catalog, so the scan's match is not used. Clearing `alt_vps_id` instead puts the scan's match back |
+| GET | `/api/v1/games/{id}/vps_details` | Where the game's details and its VPS entry disagree |
+| PUT | `/api/v1/games/{id}/vps_details` | Take the entry's details: `{"fields": [...]}` for some, no body for all. Answers with what still disagrees |
+| GET | `/api/v1/games/{id}/vps_state` | What the catalog lists for the game, kind by kind |
+| PUT | `/api/v1/games/{id}/asset_source` | Say which VPS record one file in the game's folder is, `{"path", "vps_file_id"}` |
 | GET | `/api/v1/games/{id}` | One game. `vps_matched_by` says who made the match in `vps_id`: `import` for an entry picked on import, `user` for one a person picked or a no-match they declared, and empty for VPinFE's guess from the folder name or no match. `discovered.vps_matched_by` says the same of the entry under an override |
 | GET | `/api/v1/games/{id}/tables` | The game's tables, with resolved assets and dependencies. `update_available` is true where VPS lists a later version of the release a table is matched to than the file's own `version`, false where it does not, and null where nothing can be weighed - no release, or a version on either side that does not read as one. `launcher_settings_keys` lists the settings the program's file for the table changes, by the program's own key, with a saved camera as the one entry `point_of_view`. `launcher_settings_here` and `launcher_settings_from_folder` count that list, under whichever of the two files it is, and `launcher_point_of_view` says whether that file holds a camera |
 | GET | `/api/v1/tables` | Every table in the library (`game`, `limit`, `offset`, `art`), each row carrying `source`, the named release, `update_available`, `launcher_settings_here`, `launcher_settings_from_folder`, `launcher_settings_keys`, `launcher_point_of_view` and `launcher_app_configurable` as a game's tables do, and `derived_tags`. The launcher counts read each table's settings file. `?art=` - `wheel`, `backglass`, `playfield` or `logo`, anything else an `invalid_request` - fills each row's `art_kind` and `art_version` with the file the frontend shows for that table: its own file, the game's, the active wheel set, the fixed name, then the kind's fallback. `art_kind` is the kind the table's media route serves it under, `playfield_fss` where a playfield falls back to the FSS render, so `.../tables/{id}/media/{art_kind}?v={art_version}` is kept for good. Both are null where nothing resolves, and on every row without `art`. A keyed table has no file to name art after, so its art is the game's and `/games/{id}/media/{art_kind}` serves it. A game whose tables have no id yet has no row |
+| GET | `/api/v1/tables/apps` | The programs that can launch something in this library, and which files each one claims |
+| GET | `/api/v1/media` | Every media file in the library (`game`, `kind`, `limit`, `offset`). A game has a shared row per kind, and a table a row of its own only where a file is named for it |
+| GET | `/api/v1/assets` | Every asset file in the library, the same way. A file named for no table gets a row too, and says so |
 | GET | `/api/v1/games/{id}/links` | Where the game is elsewhere, as extensions have contributed. `?table=` for one table, `?path=` for one of its files |
 | GET | `/api/v1/games/{id}/media` | Every media kind, present or not |
 | GET | `/api/v1/games/{id}/media/{kind}` | Stream one media file. `?size=` sends a picture smaller; `?v=` lets it be kept |
 | GET | `/api/v1/games/{id}/media/{kind}/detail` | What that file is. `format` is what the file's header says it is, `width`/`height` are an image's or a video's, and `duration_s` is a video's or a sound's running time |
+| GET | `/api/v1/games/{id}/media/overrides` | The kinds where a table has art of its own |
+| GET | `/api/v1/games/{id}/media/{kind}/placements` | Where a file of that kind could go, and what each place would replace |
+| GET | `/api/v1/games/{id}/media/{kind}/displaced?filename=` | What placing that file under the folder's name would replace, asked before the bytes are sent |
+| PUT | `/api/v1/games/{id}/media/{kind}` | Place a file every table shares, named for the folder (multipart: `file`) |
+| DELETE | `/api/v1/games/{id}/media/{kind}` | Remove the file every table shares. A table's own file and the default stay |
+| POST | `/api/v1/games/{id}/media/{kind}/import` | Place a file from this machine, `{"path", "table"}`, under a browsable root |
+| POST | `/api/v1/games/{id}/media/{kind}/fetch` | Place a file from an online catalog, `{"source", "vps_id"}` with optional `size` and `table` |
+| POST | `/api/v1/games/{id}/media/{kind}/retier?table=` | Rename a placed file so it serves another table, or every table. `?table=` is the table it serves now and `{"table"}` the one it should; empty means every table |
+| GET | `/api/v1/games/{id}/tables/{table_id}/media` | One table's media |
+| GET | `/api/v1/games/{id}/tables/{table_id}/media/{kind}` | Stream one table's media file. `?size=` and `?v=` as for the game's |
+| GET | `/api/v1/games/{id}/tables/{table_id}/media/{kind}/detail` | What that file is, as for the game's |
+| GET | `/api/v1/games/{id}/tables/{table_id}/media/{kind}/displaced?filename=` | What placing that file for one table would replace |
+| PUT | `/api/v1/games/{id}/tables/{table_id}/media/{kind}` | Place a file for one table, named for its `.vpx` (multipart: `file`) |
+| DELETE | `/api/v1/games/{id}/tables/{table_id}/media/{kind}` | Remove one table's file |
 | GET | `/api/v1/games/{id}/assets/detail?path=` | One asset file or folder: size, date and format, a folder's file count, and a text file's first lines (`lines=`, 0 for all). A path out of the game's folder is refused |
 | GET | `/api/v1/games/{id}/assets/{kind}/placements` | Where a backglass, ini, script, point of view or score view could go - the folder's own name, or one table's - and what each would replace. A point of view has no folder name |
 | GET | `/api/v1/games/{id}/assets/{kind}/displaced?filename=&table=` | What placing that file would replace, asked before the bytes are sent |
@@ -120,6 +162,11 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/games/{id}/launch` | Launch a game here. Optional `{"file": "..."}` picks which table |
 | PUT | `/api/v1/games/{id}/rating` | Rate a game, `{"rating": 0-5}`. `0` is unrated |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/rating` | Rate one table, same body. Refines the game's rather than replacing it; returns the table |
+| PUT | `/api/v1/games/{id}/favorite` | Mark a game a favorite, or not, `{"favorite": bool}` |
+| PUT | `/api/v1/games/{id}/tags` | The game's tags, the whole set |
+| PUT | `/api/v1/games/{id}/play_record` | Set a game's play counters, for a library that arrives already played. `play_count`, `play_time_seconds` and `last_played`; one left out is left alone |
+| DELETE | `/api/v1/games/{id}/play_record` | Reset them |
+| DELETE | `/api/v1/games/{id}/tables/{table_id}/play_record` | Reset one table's |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/tags` | One table's own tags, the whole set |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/hidden` | Hide one table, or show it again, `{"hidden": bool}`. The file stays on disk. Answers with `table` and `default`, the table the game now offers first, or `null` when it offers none. Hiding the table chosen as the default clears the choice |
 | PUT | `/api/v1/games/{id}/default_table` | Which table the game offers first, `{"table": "<table id>"}`; empty clears the choice. A hidden table is refused |
@@ -134,9 +181,15 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/uploads/{id}/plan` | Build an import plan. `asset_kind`, the asset lens's name for a kind (`pup_pack`, `alt_color`, `backglass`...), plans only that kind, and everything else the upload holds comes back under `blocked`. `add_table` with `game_dir` makes a table in the upload one more for that game instead of replacing its table; one with a filename the game already has comes back under `blocked`. `new_game_dir_name` plans a new game under that folder name, as the import would write it, and a name the import would refuse is refused here too. An item's `replaces` says what it would replace, and where that is a table, `made_from_it` names the game's tables a patch made from it, by filename |
 | POST | `/api/v1/uploads/{id}/import` | Execute the plan. Takes `asset_kind` and `add_table` the same way. `added_tables` lists the ids of the tables it added. For a new game, `vps_associated` says whether the `vps_id` sent with it was saved, and without one `vps_matched` says whether VPinFE matched the game from its folder name |
 | GET | `/api/v1/filesystem/entries` | What is in one folder. With `kind`, the files that asset kind takes are listed beside the media (`backglass` lists `.directb2s`); `kind` is the registry's name or the asset lens's, so `alt_color` lists both Serum and VNI files. `archives=true` lists archives too. `/filesystem/file` still serves media only |
+| GET | `/api/v1/filesystem/roots` | Where browsing may start. `game` puts that game's folder first. Empty when nothing is configured |
+| GET | `/api/v1/filesystem/file?path=` | Serve one media file under a browsable root |
 | GET | `/api/v1/vps/search?q=&limit=` | VPSdb lookup |
 | GET | `/api/v1/vps/entry/{id}` | One VPSdb entry, in the shape a search result has |
 | GET | `/api/v1/vps/entry/{id}/releases?listed_as=` | The releases VPSdb lists for one entry, in the order it holds them. `listed_as` picks the list: `tableFiles` by default, or another such as `b2sFiles`. Each release carries `mod_of`, what it is a mod of, or `null` where it is not one - see [Which release a table is](#which-release-a-table-is) |
+| GET | `/api/v1/vps/sync` | When the catalog was last checked, and whether a check is due |
+| POST | `/api/v1/vps/sync` | Check VPSdb for a newer catalog now, whatever the schedule |
+| GET | `/api/v1/media-sources` | The online artwork catalogs this install knows, a switched-off one included |
+| GET | `/api/v1/media-sources/offers?vps_id=&kind=` | What they have for one game and kind |
 | GET | `/api/v1/launchers` | Every launcher this install has, the tables that deviate from the default, and the fields each launcher's app takes. `has_config` says whether its app has settings of its own for `/config` to read. `tables` is how many tables each one plays, by launcher id: the ones that name it and, for a default, the ones that fall to it. Each of `apps` lists its `fields`, so a client can ask for a new launcher's paths before one exists, and its own `has_config` |
 | PUT | `/api/v1/launchers/{id}` | Add or replace one. The whole launcher, so a partial write cannot leave one half-configured. A name another launcher on the install has is refused, whatever its app, compared ignoring case and the spaces around it; a blank name is the app's. Switching one off is refused when the tables it plays would land on a launcher with no program, or on none |
 | DELETE | `/api/v1/launchers/{id}` | Forget one. Tables pointed at it fall back to the default |
@@ -152,6 +205,19 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/metrics/gpu` | What the graphics cards are doing. Separate because it shells out to nvtop, and says so where nvtop is missing rather than reporting no cards |
 | GET | `/api/v1/about` | What this install and this machine *are* - version, build, OS, browser, and where files live. `text` is the same answer as something to paste into a report |
 | GET | `/api/v1/config/schema` | Every setting this install has. An option's `group` is a token (`navigation`, `local_services`...) and `group_label` beside it is the heading in this install's language. A window the active theme declares beyond the three every theme has is a `windows.<name>` section of its own, with the `screen_id` it opens on, after `windows.score_view` |
+| GET | `/api/v1/config` | What this install is set to, by section and key |
+| PUT | `/api/v1/config` | Change settings, `{"values": {section: {key: value}}}`. A patch: only what is sent is written |
+| GET | `/api/v1/config/paths` | Whether each path setting finds anything on this machine |
+| GET | `/api/v1/preferences/{scope}` | A stored UI arrangement |
+| PUT | `/api/v1/preferences/{scope}` | Store one. The body is the whole value |
+| GET | `/api/v1/locations` | Every location this install looks in, in order, each with what the disk says about it now |
+| GET | `/api/v1/locations/destination` | Where a new game would be created, or why it could not, and where else it could go |
+| PUT | `/api/v1/locations/order` | Set which location outranks which, `{"order": [...]}` |
+| PUT | `/api/v1/locations/{id}` | Add or replace one, whole, `{"path", "kind"}` |
+| DELETE | `/api/v1/locations/{id}` | Forget one. The records inside it go with it |
+| PUT | `/api/v1/locations/{id}/write-to` | Create new games here |
+| GET | `/api/v1/locations/{id}/shadowed` | Game folders here whose id another folder answers for, with both sides |
+| POST | `/api/v1/locations/{id}/shadowed/adopt` | Give one of them, `{"path"}`, an id of its own |
 | GET | `/api/v1/themes` | Every frontend theme this install knows, active first. `refresh=true` re-reads the sources, which reaches the network. Each has `registry`, the address of the registry that offers it - empty for one listed by its own repository or placed by hand - and `updated`, the date of the newest commit on the release this build would install. `checked` is when the sources were last read |
 | POST | `/api/v1/themes/{key}/install` | Install or update. Installing over an existing copy is what an update is |
 | DELETE | `/api/v1/themes/{key}` | Remove an installed theme. Refused for the active one - the frontend would come up with no theme at all |
