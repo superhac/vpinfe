@@ -17,6 +17,7 @@ from starlette.responses import Response
 from starlette.routing import BaseRoute
 
 from common import extensions
+from common.i18n import t
 
 from . import scopes
 from .errors import CODE_FORBIDDEN, ApiError
@@ -117,8 +118,9 @@ class ScopeMiddleware(BaseHTTPMiddleware):
 
 
 class ForbiddenError(ApiError):
-    def __init__(self, message: str = "Not permitted", *,
+    def __init__(self, message: str = "", *,
                  details: dict[str, Any] | None = None) -> None:
+        message = message or t("error.envelope.forbidden")
         super().__init__(CODE_FORBIDDEN, message, status_code=403, details=details)
 
 
@@ -140,9 +142,9 @@ def requires(scope: str) -> Any:
         if identity is None:
             logger.error("No identity on %s - the scope middleware did not run",
                          request.url.path)
-            raise ForbiddenError("Authorization unavailable")
+            raise ForbiddenError(t("error.auth.unavailable"))
         if not identity.can(scope):
-            raise ForbiddenError(f"Requires {scope}")
+            raise ForbiddenError(t("error.auth.needs_scope", scope=scope))
 
     setattr(_check, _SCOPE_ATTR, scope)
     return Depends(_check)

@@ -34,6 +34,7 @@ from common.games import (
     table_ops,
 )
 from common.host import play_service
+from common.i18n import t
 
 from . import models, responses, scopes
 from .auth import ForbiddenError, requires
@@ -565,7 +566,7 @@ def get_game_archive(request: Request, game_id: str, download_token: str = "",
         # Local trust grants both today.
         identity = getattr(request.state, "identity", None)
         if identity is None or not identity.can(scopes.GAMES_EXPORT_FULL):
-            raise ForbiddenError(f"Requires {scopes.GAMES_EXPORT_FULL}")
+            raise ForbiddenError(t("error.auth.needs_scope", scope=scopes.GAMES_EXPORT_FULL))
 
     archive = archive_service.archive_for(game_id, everything=full, table=file)
     logger.info("Created download archive: %s", archive.path)
