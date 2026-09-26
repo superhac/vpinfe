@@ -29,6 +29,7 @@ from common.games.game_metadata import (
     first_meta_value,
     game_discovered,
     game_override,
+    game_title,
     guides_on_wire,
     info_matched_by,
     load_game_meta,
@@ -107,6 +108,12 @@ def catalog() -> dict[str, Any]:
 def game_by_id(game_id: str) -> Any | None:
     """The game an id names, or None. One lookup, so nothing forms a second answer."""
     return catalog().get(game_id)
+
+
+def called(game_id: str) -> str:
+    """What a person calls the game an id names, or the id where no game has it."""
+    game = game_by_id(game_id)
+    return game_title(game) if game is not None else game_id
 
 
 def game_folder(game_id: str) -> Path | None:

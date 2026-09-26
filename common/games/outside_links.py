@@ -8,6 +8,7 @@ from pathlib import Path
 from common import service_errors
 from common.extensions import catalogs, descriptors
 from common.games import asset_lens, asset_origin, game_lens, table_lens
+from common.games.game_metadata import game_title
 from common.games.game_repository import game_to_row
 from common.i18n import t
 
@@ -28,6 +29,6 @@ def links(game_id: str, table_id: str = "", path: str = "") -> dict:
                     if one.get("id") == table_id), None)
         if row is None:
             raise service_errors.NotFoundError(
-                t("error.games.no_table_id_game", table_id=table_id, game_id=game_id))
+                t("error.games.no_table_id_game", table_id=table_id, game=game_title(record)))
         return {"links": catalogs.links("table", descriptors.table(record, row))}
     return {"links": catalogs.links("game", descriptors.game(record))}

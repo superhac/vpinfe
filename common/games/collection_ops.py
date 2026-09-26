@@ -261,8 +261,9 @@ def _one_table_of(game_id: str, table_id: str) -> None:
     known = ({str(row.get("id")) for row in table_lens.table_rows(game, game_to_row(game))}
              if game else set())
     if table_id not in known:
-        raise service_errors.NotFoundError(
-            t("error.collections.no_table", game_id=(game_id), table_id=(table_id)))
+        raise service_errors.NotFoundError(t(
+            "error.collections.no_table",
+            game=game_repository.called(game_id), table_id=table_id))
 
 
 def _resolved(name: str) -> list[Entry]:
@@ -670,7 +671,7 @@ def remove_member(name: str, game_id: str, table: str | None = None) -> None:
                 and (table is None or (ref.get("table") or "") == table)]
         if not here:
             raise service_errors.NotFoundError(
-                t("error.collections.not", game_id=(game_id), name=(name)))
+                t("error.collections.not", game=game_repository.called(game_id), name=name))
         manager.remove_member(name, game_id, table)
 
 
@@ -697,7 +698,8 @@ def unexclude(name: str, game_id: str, table: str | None = None) -> None:
                 and (table is None or (ref.get("table") or "") == table)]
         if not here:
             raise service_errors.NotFoundError(
-                t("error.collections.not_excluded", game_id=(game_id), name=(name)))
+                t("error.collections.not_excluded", game=game_repository.called(game_id),
+                  name=name))
         manager.unexclude(name, game_id, table)
 
 

@@ -699,7 +699,7 @@ class CollectionStore:
                                 MEMBER_TABLE_KEY: table_id})
             keep = [m for m in members if m != gone]
         if len(keep) == len(members):
-            raise ValueError(t("error.collections.not", game_id=member_id, name=section))
+            raise ValueError(t("error.collections.not", game=member_id, name=section))
         record["members"] = keep
 
     def set_member_table(self, section: str, member_id: str, table_id: str,

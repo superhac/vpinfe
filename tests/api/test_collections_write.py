@@ -17,6 +17,7 @@ import unittest
 from common import service_errors
 from common.games import collection_ops as ops
 from common.games.collection_store import MANUAL_ORDER
+from tests.support.library import fake_game
 
 
 class Manager:
@@ -89,13 +90,13 @@ class Manager:
                                  and (not table_id or r.get("table") == table_id))]
 
     def set_members(self, section, members):
-        """Normalised to refs, as the store does - a caller may hand it either, and a
+        """Normalized to refs, as the store does - a caller may hand it either, and a
         fake that kept bare ids would let a route pass here and lose tables in real
         use."""
         self.members = [m if isinstance(m, dict) else {"game": m} for m in members]
 
     def set_order(self, section, by, direction="asc", paging_group=None):
-        """Normalised as the store does it: anything it cannot read - "" included -
+        """Normalized as the store does it: anything it cannot read - "" included -
         is the collection saying nothing, and the key is dropped rather than stored."""
         from common.games.collection_store import normalize_paging_group
         self.order = by
@@ -150,7 +151,8 @@ class Harness(unittest.TestCase):
         self._res_fn = ops._resolved
         self._game_id = ops.game_identity.game_id
         ops.get_collections_manager = lambda: manager
-        ops.game_repository.catalog = lambda: {g: object() for g in catalog}
+        ops.game_repository.catalog = lambda: {
+            g: fake_game(f"/games/{g}", f"Title {g}") for g in catalog}
         ops._row_or_refuse = lambda name: {"name": name}
         ops._resource_for = lambda row: {"name": row["name"]}
 
@@ -418,8 +420,13 @@ class NamedTableTests(Harness):
 
     def test_removing_something_that_is_not_a_member(self):
         self.use(Manager([{"game": "g1"}]))
-        with self.assertRaises(service_errors.NotFoundError):
+        with self.assertRaisesRegex(service_errors.NotFoundError, "^Title g2 is not in Coll$"):
             ops.remove_member("Coll", "g2")
+
+    def test_a_game_the_library_does_not_hold_is_named_by_its_id(self):
+        self.use(Manager([{"game": "g1"}]))
+        with self.assertRaisesRegex(service_errors.NotFoundError, "^gone is not in Coll$"):
+            ops.remove_member("Coll", "gone")
 
 
 class ExclusionTests(Harness):
@@ -455,7 +462,8 @@ class ExclusionTests(Harness):
 
     def test_lifting_one_that_is_not_there(self):
         self.use(Manager([]))
-        with self.assertRaises(service_errors.NotFoundError):
+        with self.assertRaisesRegex(service_errors.NotFoundError,
+                                    "^Title g1 is not excluded from Coll$"):
             ops.unexclude("Coll", "g1")
 
 
@@ -529,7 +537,7 @@ class PagingGroupTests(Harness):
         ops.patch("Coll", paging_group="sort")
         self.assertEqual(self.manager.paging, "sort")
 
-    def test_nonsense_is_refused_rather_than_normalised_away(self):
+    def test_nonsense_is_refused_rather_than_normalized_away(self):
         """`normalize_paging_group` answers None for anything unreadable, so accepting
         this would turn a typo into "follow the player" and report success."""
         self.use(Manager(["g1"]))

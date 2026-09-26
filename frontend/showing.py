@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from common.games import game_identity
+from common.games import game_identity, game_repository
 from common.games.collection_store import BUILTIN_ALL, public_name
 from common.host import frontend_state
 from common.i18n import t
@@ -33,7 +33,8 @@ def register(ws_bridge: DeviceChannel, library: LibraryResolver) -> None:
                 ws_bridge.send_event_all_with_iframe({"type": "TableIndexUpdate",
                                                       "index": index})
                 return
-        raise NotFoundError(t("error.frontend.not_on_screen", game_id=game_id))
+        raise NotFoundError(t("error.frontend.not_on_screen",
+                              game=game_repository.called(game_id)))
 
     def windows_changed(connected: int) -> None:
         if connected:

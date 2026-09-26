@@ -18,6 +18,7 @@ from common.games import derived_tags, game_lens, locations, mods, table_lens, t
 from common.games.collection_resolver import visible_entries
 from common.games.game import Game
 from common.games.game_metadata import (
+    game_title,
     load_game_meta,
     meta_file_path,
     reset_table_play_record,
@@ -224,7 +225,7 @@ def set_overrides(game_id: str, table_id: str, changes: dict) -> dict:
     game_dir = Path(game.full_path_game)
     if table_id not in table_entries(load_game_meta(game)):
         raise service_errors.NotFoundError(
-            t("error.games.no_table_id_game", table_id=(table_id), game_id=(game_id)))
+            t("error.games.no_table_id_game", table_id=table_id, game=game_title(game)))
     for name, value in changes.items():
         if not game_service.update_table_vpinfe_setting(game_dir, table_id, name, value):
             raise service_errors.BlockedError(
