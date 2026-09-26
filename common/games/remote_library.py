@@ -14,6 +14,7 @@ from typing import Any
 from urllib.parse import quote, urlencode, urljoin
 
 from common import http_client
+from common.games.collection_ops import wheel_paths
 from common.games.collection_resolver import Entry
 from common.games.wire_entry import WireGame, table_of
 
@@ -169,3 +170,9 @@ def metadata_row(library_url: str, resource: dict[str, Any]) -> dict[str, Any]:
         "game_wheel_urls": [_on(library_url, str(url))
                             for url in resource.get("game_wheels") or []],
     }
+
+
+def glance(library_url: str, entries: list[Entry]) -> dict[str, Any]:
+    """How many `entries` that install sent, and whole URLs to the first few wheels."""
+    return {"table_count": len(entries),
+            "game_wheel_urls": [_on(library_url, path) for path in wheel_paths(entries)]}

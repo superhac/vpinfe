@@ -267,8 +267,10 @@ class LibraryPickerTests(unittest.TestCase):
 
     def _answer(self, url: str, **_: object) -> dict:
         path = url.removeprefix(LIBRARY)
-        if path.endswith("/entries"):
+        if path == "/api/v1/library/entries":
             return PAYLOAD
+        if path.endswith("/entries"):
+            return {"entries": PAYLOAD["entries"][:1]}
         if not self.reachable:
             raise OSError("nothing answers")
         if path == "/api/v1/collections":
@@ -295,7 +297,16 @@ class LibraryPickerTests(unittest.TestCase):
                          f"{LIBRARY}/api/v1/collections/Favorites/image?v=7")
         self.assertEqual(favorites["game_wheel_urls"], [f"{LIBRARY}{self.WHEEL}"])
         self.assertEqual(self._row("Hub Picks")["image_url"], "")
-        self.assertIsNone(self._row("")["table_count"])
+
+    def test_all_games_is_counted_and_drawn_from_the_whole_library(self) -> None:
+        wheels = [f"{LIBRARY}/api/v1/games/{title[:4]}/tables/t-{title[:4]}/media/wheel"
+                  for title in TITLES]
+        game_state.apply_collection(self.api, "Hub Picks")
+        self.assertEqual(len(self.api.library.entries), 1)
+
+        whole = self._row("")
+        self.assertEqual(whole["table_count"], len(TITLES))
+        self.assertEqual(whole["game_wheel_urls"], wheels)
 
     def test_a_collections_image_is_the_librarys(self) -> None:
         self.assertEqual(self.api.get_collection_image_url("Favorites"),

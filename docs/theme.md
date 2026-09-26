@@ -992,8 +992,7 @@ The picker's items are the rows `get_collections_metadata` returns, with *All Ga
 first. Every item has a `label` to draw - the collection's name, or "All Games" in the
 player's language - and `showing` is true on the one the frontend is showing now, which
 is where the picker opens. *All Games* has an empty `name` and `image_url`, and its own
-`table_count` and `game_wheel_urls` - `null` and none on a device that reads its library
-from another. `vpin.openCollectionPicker()` returns the list, and
+`table_count` and `game_wheel_urls`. `vpin.openCollectionPicker()` returns the list, and
 its `items` are what to draw; it returns `null`, and opens nothing, when there are no
 collections to offer.
 

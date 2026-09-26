@@ -283,17 +283,20 @@ class SeparationTests(TempTree):
                            img.onerror = () => done(0);
                            img.src = url;
                          });
-                         const rows = items.filter(item => item.name === 'Hub Picks');
-                         return Promise.all(rows.flatMap(item =>
-                           [item.image_url, ...item.game_wheel_urls].map(load)));
+                         const picks = items.find(item => item.name === 'Hub Picks');
+                         const whole = items.find(item => item.name === '');
+                         return Promise.all([picks.image_url, ...picks.game_wheel_urls,
+                                             ...whole.game_wheel_urls].map(load));
                        })()"""))
 
         self.assertEqual([item["name"] for item in items], ["", *offered])
         self.assertIn("Hub Picks", offered)
         picks = next(item for item in items if item["name"] == "Hub Picks")
         self.assertEqual(picks["table_count"], 2)
-        self.assertEqual(drawn, [1, 1, 1],
-                         "the collection's image and both wheels load from the hub")
+        self.assertEqual(items[0]["table_count"], len(TITLES))
+        self.assertEqual(drawn, [1] * (3 + len(TITLES)),
+                         "the collection's image, its two wheels and every one of All "
+                         "Games' load from the hub")
         self.assertEqual(failures, [])
 
     def test_a_device_shows_the_hub_s_collection_in_the_hub_s_order(self) -> None:

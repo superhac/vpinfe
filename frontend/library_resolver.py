@@ -70,6 +70,7 @@ class LibraryResolver:
         self._remote = bool(self._library_url)
         # A library's entries arrive one collection at a time: which one `all_games` is.
         self._held = BUILTIN_ALL
+        self._whole: list[Any] | None = None
         self._orders: dict[str, dict[str, Any]] = {}
 
         # An unreadable library is empty, not fatal: a first run before the scan has
@@ -102,7 +103,10 @@ class LibraryResolver:
         """The library: another install's entries, or the local games. Different kinds of
         thing, which `rebuild_entries` knows."""
         if self._remote:
-            return remote_library.fetch_entries(self._library_url, collection)
+            entries = remote_library.fetch_entries(self._library_url, collection)
+            if not collection:
+                self._whole = entries
+            return entries
         return all_games()
 
     def reload(self) -> list[Any]:
@@ -204,10 +208,13 @@ class LibraryResolver:
     def glance(self, names: list[str]) -> dict[str, dict[str, Any]]:
         """How many entries each collection resolves to here, and the first few wheels."""
         unknown: dict[str, Any] = {"table_count": None, "game_wheel_urls": []}
-        if self._remote:
-            return {name: dict(unknown) for name in names}
-        store = self.collections()
         found: dict[str, dict[str, Any]] = {}
+        if self._remote:
+            found = {name: dict(unknown) for name in names}
+            if BUILTIN_ALL in found and self._whole is not None:
+                found[BUILTIN_ALL] = remote_library.glance(self._library_url, self._whole)
+            return found
+        store = self.collections()
         for name in names:
             try:
                 entries = collection_resolver.resolve(name, store, self.all_games)

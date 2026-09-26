@@ -116,10 +116,11 @@ def _resolved_sizes(name: str) -> tuple[int, int, list[str]]:
         return 0, 0, []
     limit = manager.get_limit(name)
     count = min(len(entries), limit) if limit else len(entries)
-    return count, len(entries), _wheels(entries[:count])
+    return count, len(entries), wheel_paths(entries[:count])
 
 
-def _wheels(entries: list[Any]) -> list[str]:
+def wheel_paths(entries: list[Any]) -> list[str]:
+    """This install's API paths to the wheels of the first few `entries` that have one."""
     found: list[str] = []
     for entry in entries:
         if len(found) == WHEELS_SHOWN:
