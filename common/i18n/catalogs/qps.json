@@ -1361,9 +1361,17 @@
   "console.sections.no_playfield_image": "Ñö þŀàýƒîèŀđ îɱàĝè",
   "console.sections.no_update_endpoint_yet": "ñö ûþđàţè èñđþöîñţ ýèţ",
   "console.sections.no_year_recorded": "Ñö ýèàř řèçöřđèđ",
+  "console.sections.not_in_library": {
+    "one": "1 ĝàɱè îš ñöţ îñ ýöûř ŀîƀřàřý",
+    "other": "{count} ĝàɱèš àřè ñöţ îñ ýöûř ŀîƀřàřý"
+  },
   "console.sections.nothing_installed": "Ñöţĥîñĝ îñšţàŀŀèđ",
   "console.sections.nothing_published_matches_tables": "Ñöţĥîñĝ þûƀŀîšĥèđ ɱàţçĥèš ýöûř ţàƀŀèš ({checked} çĥèçķèđ{running})",
   "console.sections.nothing_resolved_kind_usually": "Ñöţĥîñĝ řèšöŀṽèđ ƒöř àñý ķîñđ. Ûšûàŀŀý à ƒöŀđèř ţĥàţ ŵàš ñèṽèř þöþûŀàţèđ.",
+  "console.sections.older_format": {
+    "one": "1 ĝàɱè îš öñ àñ öŀđèř ƒöřɱàţ",
+    "other": "{count} ĝàɱèš àřè öñ àñ öŀđèř ƒöřɱàţ"
+  },
   "console.sections.open": "Öþèñ",
   "console.sections.put_back_saved_metadata": "Þûţ ƀàçķ ţĥè šàṽèđ ɱèţàđàţà?",
   "console.sections.readable": "Řèàđàƀŀè",

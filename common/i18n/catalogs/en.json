@@ -1361,9 +1361,17 @@
   "console.sections.no_playfield_image": "No playfield image",
   "console.sections.no_update_endpoint_yet": "no update endpoint yet",
   "console.sections.no_year_recorded": "No year recorded",
+  "console.sections.not_in_library": {
+    "one": "1 game is not in your library",
+    "other": "{count} games are not in your library"
+  },
   "console.sections.nothing_installed": "Nothing installed",
   "console.sections.nothing_published_matches_tables": "Nothing published matches your tables ({checked} checked{running})",
   "console.sections.nothing_resolved_kind_usually": "Nothing resolved for any kind. Usually a folder that was never populated.",
+  "console.sections.older_format": {
+    "one": "1 game is on an older format",
+    "other": "{count} games are on an older format"
+  },
   "console.sections.open": "Open",
   "console.sections.put_back_saved_metadata": "Put back the saved metadata?",
   "console.sections.readable": "Readable",

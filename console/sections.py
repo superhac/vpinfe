@@ -20,6 +20,7 @@ from common.games.collection_store import COLLECTIONS_NAME
 from common.i18n import t
 from common.media_specs import media_label_map
 from console import art_fill, offload, panel, verbs
+from console import dialog as frame
 from console.data import Library
 
 # name, one-line description, predicate over (game, media entries).
@@ -189,7 +190,11 @@ def overview(library: Library, registry: list[dict], discovery: dict,
                 panel.action(t("console.sections.show"), lambda: go("games"),
                              icon=verbs.GO, enabled=bool(games))()
 
-    metadata(library.metadata_state(), _metadata_action(library, state, go),
+    def drawn_again() -> None:
+        if state.get("view") == "overview":
+            go("overview")
+
+    metadata(library.metadata_state(), _metadata_action(library, state, drawn_again),
              state.get(_LEFT))
     table_scripts(library)
 
@@ -216,7 +221,7 @@ _LEFT = "metadata_left"
 
 
 def _metadata_action(library: Library, state: dict[str, Any],
-                     go: Callable[[str], None]) -> Callable[[str], Any]:
+                     then: Callable[[], None]) -> Callable[[str], Any]:
     """Ask, start the job, say it is under way, and say what came of it once it ends."""
     from console import confirm
     from console.api import ApiClient
@@ -253,8 +258,7 @@ def _metadata_action(library: Library, state: dict[str, Any],
                           if which == "upgrade" else restore_outcome(result))
             ui.notify(said, type="warning" if left else "positive")
         state.setdefault(_LEFT, {})[which] = left
-        if state.get("view") == "overview":
-            go("overview")
+        then()
 
     return start
 
@@ -361,6 +365,13 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any],
     `left` is each folder the last Upgrade or Restore could not write, with why, by
     which of the two ran.
     """
+    ui.label(t("console.sections.library_metadata")).classes("console-group mt-4")
+    with ui.element("div").classes("console-card w-full"):
+        _metadata_rows(state, on_start, left)
+
+
+def _metadata_rows(state: dict[str, Any], on_start: Callable[[str], Any],
+                   left: Mapping[str, list[tuple[str, str]]] | None = None) -> None:
     pending = int(state.get("pending_upgrade") or 0)
     unreadable = list(state.get("unreadable") or [])
     newer = int(state.get("newer_than_us") or 0)
@@ -368,45 +379,103 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any],
     left = left or {}
     not_restored = list(left.get("restore") or [])
 
-    ui.label(t("console.sections.library_metadata")).classes("console-group mt-4")
-    with ui.element("div").classes("console-card w-full"):
+    _metadata_row(
+        not pending, t("console.sections.format"),
+        t("console.sections.every_game_current_format") if not pending
+        else t("console.sections.written_older_build_can", count=pending),
+        None if not pending else (t("word.upgrade"),
+                lambda: on_start("upgrade")),
+        lines=_folder_lines(list(left.get("upgrade") or [])))
+
+    # No action: the fix is on disk, in a file this cannot repair without guessing
+    # what it was meant to say. Naming the folders, and why, is the whole of the help.
+    _metadata_row(
+        not unreadable, t("console.sections.readable"),
+        t("console.sections.every_folder_s_metadata") if not unreadable
+        else t("console.sections.could_not_read_game") if len(unreadable) == 1
+        else t("console.sections.could_not_read_games", count=len(unreadable)),
+        lines=_folder_lines([(str(row["folder"]), str(row.get("error") or ""))
+                             for row in unreadable]))
+
+    # Only when it is true. A row saying "nothing here was written by a newer build"
+    # is a sentence about a thing that has never happened to most installs.
+    if newer:
         _metadata_row(
-            not pending, t("console.sections.format"),
-            t("console.sections.every_game_current_format") if not pending
-            else t("console.sections.written_older_build_can", count=pending),
-            None if not pending else (t("word.upgrade"),
-                    lambda: on_start("upgrade")),
-            lines=_folder_lines(list(left.get("upgrade") or [])))
+            False, t("console.sections.newer_build"),
+            t("console.sections.written_later_version_vpinfe", newer=(newer)))
 
-        # No action: the fix is on disk, in a file this cannot repair without guessing
-        # what it was meant to say. Naming the folders, and why, is the whole of the help.
+    # A fact with an action rather than a warning: having backups is not a problem,
+    # and a permanent amber row saying so would be one more thing to ignore. A
+    # restore that left something is one.
+    if restorable:
+        when = _stamp(str(state.get("newest_backup") or ""))
         _metadata_row(
-            not unreadable, t("console.sections.readable"),
-            t("console.sections.every_folder_s_metadata") if not unreadable
-            else t("console.sections.could_not_read_game") if len(unreadable) == 1
-            else t("console.sections.could_not_read_games", count=len(unreadable)),
-            lines=_folder_lines([(str(row["folder"]), str(row.get("error") or ""))
-                                 for row in unreadable]))
+            not not_restored, t("console.sections.backups"),
+            (t("console.sections.games_saved_copy_from", restorable=(restorable),
+               when=(when)) if when
+             else t("console.sections.games_saved_copy", restorable=(restorable))),
+            (t("word.restore"), lambda: on_start("restore")),
+            lines=_folder_lines(not_restored))
 
-        # Only when it is true. A row saying "nothing here was written by a newer build"
-        # is a sentence about a thing that has never happened to most installs.
-        if newer:
-            _metadata_row(
-                False, t("console.sections.newer_build"),
-                t("console.sections.written_later_version_vpinfe", newer=(newer)))
 
-        # A fact with an action rather than a warning: having backups is not a problem,
-        # and a permanent amber row saying so would be one more thing to ignore. A
-        # restore that left something is one.
-        if restorable:
-            when = _stamp(str(state.get("newest_backup") or ""))
-            _metadata_row(
-                not not_restored, t("console.sections.backups"),
-                (t("console.sections.games_saved_copy_from", restorable=(restorable),
-                   when=(when)) if when
-                 else t("console.sections.games_saved_copy", restorable=(restorable))),
-                (t("word.restore"), lambda: on_start("restore")),
-                lines=_folder_lines(not_restored))
+def _line_said(state: Mapping[str, Any]) -> str:
+    """What the Games page says about the library's metadata, or "" for nothing."""
+    missing = len(state.get("unreadable") or ())
+    pending = int(state.get("pending_upgrade") or 0)
+    return " · ".join(said for said in (
+        t("console.sections.not_in_library", count=missing) if missing else "",
+        t("console.sections.older_format", count=pending) if pending else "") if said)
+
+
+def metadata_line(library: Library, state: dict[str, Any]) -> None:
+    """The line above the Games grid, drawn only while `_line_said` has something to
+    say, with the metadata card's rows in a dialog behind it."""
+    outer = ui.element("div").classes("w-full shrink-0")
+    with outer:
+        line = ui.element("div").classes("w-full")
+    held: dict[str, Any] = {}
+
+    def draw() -> None:
+        line.clear()
+        said = _line_said(library.metadata_state())
+        if not said:
+            return
+        with line, ui.element("div").classes("console-attention mb-2"):
+            ui.icon("error_outline").classes("console-attention-icon")
+            ui.label(said).classes("console-attention-line grow")
+            panel.action(t("console.sections.show"), show, icon=verbs.GO)()
+
+    def fill() -> None:
+        body = held.get("body")
+        if body is None:
+            return
+        body.clear()
+        with body:
+            _metadata_rows(library.metadata_state(), act, state.get(_LEFT))
+
+    def drawn_again() -> None:
+        if outer.is_deleted:
+            return
+        draw()
+        fill()
+
+    act = _metadata_action(library, state, drawn_again)
+
+    def show() -> None:
+        box = held.get("box")
+        if box is None:
+            # In `outer` rather than beside the button, so a redraw of the line leaves
+            # the dialog open.
+            with outer, frame.opened(t("console.sections.library_metadata"),
+                                     wide=True) as box:
+                held["body"] = ui.column().classes("w-full gap-0 px-3")
+                with frame.footer():
+                    frame.cancel(box.close, t("word.close"))
+            held["box"] = box
+        fill()
+        box.open()
+
+    draw()
 
 
 # --- The scripts the tables run ---------------------------------------------------

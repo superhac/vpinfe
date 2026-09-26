@@ -34,6 +34,7 @@ from console import (
     panel,
     renderers,
     row_drag,
+    sections,
     send_to_device,
     stars,
     table_features,
@@ -469,6 +470,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     selected: list[dict[str, Any]] = []
     context_row: list[dict[str, Any]] = []
 
+    sections.metadata_line(library, state)
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
                                   "console-panel console-grid-bar"):
         bar = panel.grid_bar()
