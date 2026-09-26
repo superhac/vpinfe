@@ -1,10 +1,14 @@
 import unittest
+from unittest import mock
 
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
 import httpapi
+from common.host import metrics as host_metrics
+from common.i18n import t
 from httpapi import capabilities
+from httpapi import metrics as metrics_api
 from httpapi.errors import ApiError, FeatureUnavailableError, NotFoundError
 from tests.support.library import fake_game
 
@@ -384,3 +388,16 @@ class DeclaredIdentityEndpointTests(unittest.TestCase):
         response = self._import(
             {"t.vpx": {"vps_file_id": "f", "host_item_id": "h", "confirmed_by": "declared"}})
         self.assertNotIn("confirmed_by", response.text)
+
+
+class GpuFieldTests(unittest.TestCase):
+    def test_each_reading_is_named_with_its_key_beside_it(self) -> None:
+        none = {"available": False, "reason": "", "gpus": []}
+        with mock.patch.object(host_metrics, "gpu", return_value=none):
+            fields = metrics_api.read_gpu()["fields"]
+        self.assertEqual([one["key"] for one in fields],
+                         [key for key, _label_key in host_metrics.GPU_FIELDS])
+        for one in fields:
+            with self.subTest(key=one["key"]):
+                self.assertEqual(one["label"], t(one["label_key"]))
+                self.assertNotEqual(one["label"], one["label_key"])

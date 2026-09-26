@@ -110,17 +110,17 @@ def read(paths: Iterable[str] = ()) -> dict[str, Any]:
     return sample
 
 
-# What nvtop reports per card, and what to call each on screen. Declared rather than
-# rendered from raw keys: `mem_util` is not a label, and a surface guessing at one is a
-# surface that renames a field the day nvtop does.
+# What nvtop reports per card, and the catalog key that names each on screen. Declared
+# rather than rendered from raw keys: `mem_util` is not a label, and a surface guessing at
+# one is a surface that renames a field the day nvtop does.
 GPU_FIELDS: tuple[tuple[str, str], ...] = (
-    ("gpu_util", "Utilization"),
-    ("mem_util", "Memory"),
-    ("temp", "Temperature"),
-    ("fan_speed", "Fan"),
-    ("power_draw", "Power"),
-    ("gpu_clock", "GPU clock"),
-    ("mem_clock", "Memory clock"),
+    ("gpu_util", "metrics.gpu.gpu_util.label"),
+    ("mem_util", "metrics.gpu.mem_util.label"),
+    ("temp", "metrics.gpu.temp.label"),
+    ("fan_speed", "metrics.gpu.fan_speed.label"),
+    ("power_draw", "metrics.gpu.power_draw.label"),
+    ("gpu_clock", "metrics.gpu.gpu_clock.label"),
+    ("mem_clock", "metrics.gpu.mem_clock.label"),
 )
 
 

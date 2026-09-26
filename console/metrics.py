@@ -173,7 +173,8 @@ def _card(card: dict[str, Any], fields: list[dict[str, Any]]) -> None:
                 continue
             with ui.element("div").classes("console-member-chip console-tier "
                                            "console-tier--off"):
-                ui.label(f"{field['label']} {value}")
+                ui.label(t("console.metrics.gpu_reading", label=field["label"],
+                           value=value))
 
 
 

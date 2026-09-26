@@ -221,7 +221,7 @@ friends). Sub-resources are linked from `links` rather than assembled by the cli
 
 A resource that carries a `label` carries a `label_key` beside it — the filter axes, the
 config schema, media and asset slots, actions (an install's and an extension's), the upload
-plan, and a launcher's fields and settings groups. A label that is a program's own words,
+plan, a launcher's fields and settings groups, and a graphics card's readings. A label that is a program's own words,
 such as a Visual Pinball setting read out of its ini, has an empty `label_key`, because
 there is no key behind it.
 

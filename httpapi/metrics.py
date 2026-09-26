@@ -17,6 +17,7 @@ from typing import Any
 from fastapi import APIRouter, Query
 
 from common.host import metrics
+from common.i18n import t
 
 from . import scopes
 from .auth import requires
@@ -53,8 +54,8 @@ def read_gpu() -> dict[str, Any]:
     answering as though the machine has no cards."""
     found = metrics.gpu()
     return {**found, "supported": metrics.gpu_supported(),
-            "fields": [{"key": key, "label": label}
-                       for key, label in metrics.GPU_FIELDS]}
+            "fields": [{"key": key, "label": t(label_key), "label_key": label_key}
+                       for key, label_key in metrics.GPU_FIELDS]}
 
 
 @router.get("", summary="What this machine is doing now",
