@@ -369,6 +369,16 @@ def _row_focus_handlers() -> dict[str, Any]:
     return _ROW_FOCUS.setdefault(ui.context.client, {})
 
 
+_LANDING: weakref.WeakKeyDictionary[Any, dict[str, list[dict[str, str]]]] = \
+    weakref.WeakKeyDictionary()
+
+
+def land_on(scope: str, *wanted: dict[str, str]) -> None:
+    """Have the next grid built under `scope` on this page open on a row: the first one
+    whose fields equal every value of a `wanted`, trying each in turn."""
+    _LANDING.setdefault(ui.context.client, {})[scope] = list(wanted)
+
+
 def focused_row(event: Any) -> str:
     """The row id out of a focus event, and `focused_column` the column it landed in.
 
@@ -400,6 +410,20 @@ _FOCUS_ROW = """new Promise((done) => {
   };
   look();
 })"""
+
+
+_LAND = """(() => {
+  const kick = (tries) => {
+    const found = getElement(%d);
+    const api = found && found.api;
+    if (!api) {
+      if (tries > 0) setTimeout(() => kick(tries - 1), 50);
+      return;
+    }
+    requestAnimationFrame(() => window.__hubFollowFocus(api, api.getGridOption('context')));
+  };
+  kick(40);
+})()"""
 
 
 async def focus_row(table: Any, row_id: str, column: str) -> bool:
@@ -741,7 +765,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         "rowHeight": base_row_px(columns),
         # Which grid a cell belongs to, for a column drawn by name. The focus follow keeps
         # its state here too, since the grid hands the same object to every callback.
-        "context": {"scope": scope},
+        "context": {"scope": scope, "identifier": marked[0],
+                    "landing": _LANDING.get(ui.context.client, {}).pop(scope, None)},
         "defaultColDef": DEFAULT_COL_DEF,
         "rowSelection": dict(ROW_SELECTION),
         # The ":" prefix marks this as JavaScript. Without it AG Grid calls a string and
@@ -771,6 +796,9 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         ":onBodyScroll": "() => { window.__hubMarkFocus && window.__hubMarkFocus(); }",
         ":onRowDataUpdated": "params => { params.context.changed = true; }",
         ":onModelUpdated":
+            "params => window.__hubFollowFocus && "
+            "window.__hubFollowFocus(params.api, params.context)",
+        ":onFirstDataRendered":
             "params => window.__hubFollowFocus && "
             "window.__hubFollowFocus(params.api, params.context)",
         # AG Grid's own words - the filter menu on every column, "No Rows To Show", the
@@ -806,7 +834,9 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
     window.__hubFollowFocus = (api, c) => {
       const changed = c.changed;
       c.changed = false;
-      if (!c.focusId || window.__hubFocusScope !== c.scope) return;
+      if (window.__hubFocusScope !== c.scope) return;
+      if (c.landing && !c.focusId) return window.__hubLand(api, c);
+      if (!c.focusId) return;
       const node = api.getRowNode(c.focusId);
       const at = node && node.displayed && node.rowIndex != null ? node.rowIndex : null;
       const active = document.activeElement;
@@ -824,7 +854,33 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
       }
       window.__hubMarkFocus();
     };
+    window.__hubLand = (api, c) => {
+      let node = null;
+      for (const wanted of c.landing) {
+        api.forEachNodeAfterFilterAndSort(n => {
+          if (!node && Object.entries(wanted)
+              .every(([key, value]) => String(n.data[key] ?? '') === value)) node = n;
+        });
+        if (node) break;
+      }
+      if (!node) return;
+      c.landing = null;
+      c.focusId = node.id;
+      c.focusCol = c.identifier;
+      window.__hubFocusRow = node.rowIndex;
+      api.ensureNodeVisible(node, 'middle');
+      const active = document.activeElement;
+      if (!active || active === document.body) {
+        c.quiet = node.id;
+        api.setFocusedCell(node.rowIndex, c.identifier);
+      }
+      window.__hubMarkFocus();
+    };
     """)
+    if grid.options["context"]["landing"]:
+        # The grid can draw before the script above arrives, and then nothing
+        # after it would call it.
+        ui.run_javascript(_LAND % grid.id)
     renderers.install()
     _restore(grid, scope, columns, view_of)
     _save_on_change(grid, scope, view_of)

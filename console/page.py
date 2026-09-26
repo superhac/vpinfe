@@ -1288,6 +1288,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     if state["view"] == "assets":
         await run.io_bound(library.load_asset_rows)
     await workbench.build(panel, workbench_title, library, None, state)
+    _land(state)
     render()
     # Once the nav exists to carry it. Read on the way in with everything else, so an
     # install that is misconfigured says so on the first screen rather than on the
@@ -1314,6 +1315,25 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         # first in every view for the same reason.
         await show_device({"id": state.get("device_id")
                            or discovery.get("install_id")})
+
+
+def _land(state: dict[str, Any]) -> None:
+    """Open the grid an address shows on the row it names, the one its panel is about."""
+    view = state["view"]
+    game, table = str(state.get("game") or ""), str(state.get("table") or "")
+    kind = str((state.get("slot") or {}).get("kind") or "")
+    if view == "games" and game:
+        grid.land_on(games.SCOPE, {"id": game})
+    elif view == "tables" and game:
+        grid.land_on(f"{games.SCOPE}.tables", {"id": table} if table else {"game_id": game})
+    elif view in ("media", "assets") and game and kind:
+        grid.land_on(media_page.SCOPE if view == "media" else assets_page.SCOPE,
+                     {"game_id": game, "kind": kind, "table": table},
+                     {"game_id": game, "kind": kind, "table": ""})
+    elif view == "launchers" and state.get("launcher"):
+        grid.land_on(launchers_page.SCOPE, {"id": str(state["launcher"])})
+    elif view == "collections" and state.get("collection"):
+        grid.land_on(collections_page.SCOPE, {"id": str(state["collection"])})
 
 
 def _nav_parent(parent: tuple[str, str, str], state: dict[str, Any],
