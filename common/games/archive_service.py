@@ -9,7 +9,9 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from common import service_errors
 from common.games.export_bundle import bundle_paths, prune_info
+from common.i18n import t
 from common.paths import get_games_path
 
 
@@ -28,10 +30,10 @@ def resolve_game_dir(game_dir_name: str, games_path: str | None = None) -> Path:
     try:
         game_dir.relative_to(root)
     except ValueError as exc:
-        raise ValueError("Invalid table path") from exc
+        raise service_errors.RefusedError(t("error.games.invalid_game_path")) from exc
 
     if not game_dir.is_dir():
-        raise FileNotFoundError("Table not found")
+        raise service_errors.NotFoundError(t("error.games.game_not_found"))
 
     return game_dir
 
@@ -76,15 +78,8 @@ def cleanup_archive(archive: VpxzArchive) -> None:
 def archive_for(game_id: str, *, everything: bool = False,
                 table: str = "") -> VpxzArchive:
     """One game's archive, addressed the way every other game endpoint addresses one."""
-    from common import service_errors
     from common.games import game_lens
-    from common.i18n import t
 
     game = game_lens.game_or_refuse(game_id)
-    try:
-        return create_vpxz_archive(game.game_dir_name,
-                                   everything=everything, table=table or None)
-    except ValueError as exc:
-        raise service_errors.RefusedError(t("error.games.invalid_game_path")) from exc
-    except FileNotFoundError as exc:
-        raise service_errors.NotFoundError(t("error.games.game_not_found")) from exc
+    return create_vpxz_archive(game.game_dir_name,
+                               everything=everything, table=table or None)

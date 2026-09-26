@@ -24,6 +24,7 @@ from common.games.media_service import (
     update_cache_entry,
 )
 from common.online import theme_service
+from common.service_errors import RefusedError
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui.filters import ALL_VALUE, apply_game_filters, build_game_filter_options
 from managerui.pages.collections import paging_labels
@@ -153,7 +154,7 @@ class ManagerUiServiceTests(unittest.TestCase):
                 self.assertEqual(resolve_game_dir("Good Table", str(games_root)),
                                  good_game.resolve())
 
-                with self.assertRaises(ValueError):
+                with self.assertRaises(RefusedError):
                     resolve_game_dir("../outside", str(games_root))
 
     def test_mobile_game_rows_format_display_names(self):
