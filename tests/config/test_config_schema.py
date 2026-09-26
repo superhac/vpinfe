@@ -244,6 +244,12 @@ class DocumentationCoverageTests(unittest.TestCase):
                          "a settable option needs a label - humanizing its key is how "
                          "a person came to read chrome_options_exclude on screen")
 
+    def test_every_choice_of_a_settable_option_has_a_word(self) -> None:
+        missing = sorted(f"{e.keys}.choice.{value}" for e in config_schema.settable()
+                         for value in e.choices if value not in e.choice_labels)
+
+        self.assertEqual(missing, [], "a choice with no word shows its stored value")
+
 
 if __name__ == "__main__":
     unittest.main()

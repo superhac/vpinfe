@@ -1043,7 +1043,8 @@ async def _identity_page(library: Library, reported: str,
     ]
     if language is not None:
         entries.append((language.label or humanize(language.key),
-                        panel.select(list(language.choices),
+                        panel.select({value: language.choice_labels.get(value, value)
+                                      for value in language.choices},
                                      str(held.get("language") or language.default),
                                      relanguage)))
         if language.description:

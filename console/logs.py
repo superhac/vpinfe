@@ -116,7 +116,8 @@ def _draw_bar(bar: Any, held: dict[str, Any], reload: Callable[[], Any],
                     lambda e: remember(
                         "source", "" if e.value == held["sources"][0] else e.value))
 
-        ui.select({one: (one.title() if one else t("console.logs.all_levels")) for one in LEVELS},
+        ui.select({one: (t(f"config.logger.level.choice.{one.lower()}") if one
+                         else t("console.logs.all_levels")) for one in LEVELS},
                   value=held["level"]).props("dense outlined").classes("w-36") \
             .on_value_change(lambda e: remember("level", e.value or ""))
 

@@ -6,6 +6,7 @@ import configparser
 import os
 import tempfile
 import unittest
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -128,7 +129,9 @@ class ChoiceLabels(unittest.TestCase):
         self.assertEqual(6, len(labels))
 
     def test_a_choice_it_does_not_name_carries_none(self) -> None:
-        self.assertEqual({}, self._labels("updates", "download_spreadsheet"))
+        option = config_schema.option("updates", "download_spreadsheet")
+        assert option is not None
+        self.assertEqual({}, replace(option, key="no_such_setting").choice_labels)
 
 
 if __name__ == "__main__":

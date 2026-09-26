@@ -24,10 +24,10 @@ from console import theme
 # neutral ones together, the deliberate one first because it is the default, and the
 # one that defers last.
 NAMES = {
-    "synthwave": "console.settings.theme_synthwave",
-    "dark": "console.settings.theme_dark",
-    "light": "console.settings.theme_light",
-    theme.SYSTEM: "console.settings.theme_system",
+    "synthwave": "config.console.theme.choice.synthwave",
+    "dark": "config.console.theme.choice.dark",
+    "light": "config.console.theme.choice.light",
+    theme.SYSTEM: "config.console.theme.choice.system",
 }
 
 
