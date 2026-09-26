@@ -279,6 +279,9 @@ app can hold, so it adds words and never changes one of core's.
   reads the same on every launcher.
 - A label set in code is shown as written. That is for the program's own words, like the
   ones VPX writes above each setting in its ini, and for a product name.
+- Where the program labels every member of a set alike, such as a display profile's
+  settings, the app's config names the set with `set_word`, and the label reads with
+  that word after it.
 
 `--record` and `--pseudo` write every owner's files, and the invariants hold each app's
 file to what the app declares, both ways.

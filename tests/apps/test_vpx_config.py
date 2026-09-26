@@ -7,9 +7,11 @@ of two spellings exists. They do not stack, and the shadowing that follows is wh
 
 from __future__ import annotations
 
+import re
 import threading
 import time
 import unittest
+from collections import Counter
 from itertools import groupby
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -1239,6 +1241,56 @@ class SchemaTests(_Case):
         self.assertNotIn("Version.VPinball", offered)
         self.assertNotIn("Version.VPinball", self.config.read(
             SCOPE_LAUNCHER, "", self.settings))
+
+
+SETS = ("DMD.Profile", "Alpha.Profile", "Player.Anaglyph", "DefaultCamera.")
+
+
+def _as_the_set_calls_it(key: str) -> str:
+    """A label every other setting in its set shares, as the program writes them."""
+    return re.sub(r"^(?:Profile\d+|Anaglyph\d+|Desktop|FSS)", "", key.split(".", 1)[1])
+
+
+class NumberedSetTests(_Case):
+    def _labels(self, ini: str) -> dict[str, dict[str, str]]:
+        self.app_ini.write_text(ini)
+        return {f.key: apps.field_words("vpx", f)
+                for g in self.config.groups(self.settings) for f in g.settings}
+
+    def test_no_two_settings_of_a_set_read_the_same(self) -> None:
+        sections: dict[str, list[str]] = {}
+        for key in sorted(key for key in TYPES if key.startswith(SETS)):
+            section, name = key.split(".", 1)
+            sections.setdefault(section, []).append(
+                f"; {_as_the_set_calls_it(key)}: What it does [Default: 0]\n{name} = \n")
+        labels = [words["label"] for words in self._labels("".join(
+            f"[{section}]\n{''.join(rows)}\n" for section, rows in sections.items())).values()]
+
+        self.assertGreater(len(labels), 200)
+        self.assertEqual([label for label, seen in Counter(labels).items() if seen > 1], [])
+
+    def test_each_carries_its_set_s_name_as_the_program_gives_it(self) -> None:
+        said = self._labels(
+            "[DMD]\n; DMD Diffuse Glow: Glow of dots [Default: 0.1 in 0.0 .. 10.0]\n"
+            "Profile2DiffuseGlow = \n"
+            "\n[Alpha]\n; Color: Color of lit segments [Default: 0X00FFEF3F]\nProfile2Color = \n"
+            "\n[Player]\n; Anaglyph Filter: Anaglyph filter applied to anaglyph profile #10 "
+            "[Default: 'None', 0='None', 1='Dubois']\nAnaglyph10Filter = \n"
+            "\n[DefaultCamera]\n; Camera X: View point width offset [Default: 0.0]\n"
+            "FSSCamX = \n")
+
+        self.assertEqual({key: (words["label"], words["label_key"])
+                          for key, words in said.items()},
+                         {"DMD.Profile2DiffuseGlow": ("DMD Diffuse Glow (DMD: Neon Plasma)", ""),
+                          "Alpha.Profile2Color": ("Color (Alpha: Blue VFD)", ""),
+                          "Player.Anaglyph10Filter": ("Anaglyph Filter (Anaglyph Custom 4)", ""),
+                          "DefaultCamera.FSSCamX": ("Camera X (Full Single Screen)", "")})
+
+    def test_a_profile_the_program_has_not_named_keeps_its_label(self) -> None:
+        said = self._labels("[DMD]\n; Dot Tint: Color of lit dots [Default: 0]\n"
+                            "Profile8DotTint = \n")
+
+        self.assertEqual(said["DMD.Profile8DotTint"]["label"], "Dot Tint")
 
 
 class TypeTests(_Case):

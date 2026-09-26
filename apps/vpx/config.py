@@ -66,6 +66,25 @@ FROM_THE_TABLE = areas.VIEW_MODES
 NAMED_VALUES = {"Player.MaxFramerate": (("-1", "match_the_display"), ("0", "no_limit"))}
 DISPLAYS = frozenset(f"{section}.{window}Display" for section, window in _WINDOWS)
 
+# The sets whose members the program labels alike, each member's name by its number.
+NUMBERED_SETS = (
+    (re.compile(r"DMD\.Profile(\d+)"),
+     ("dmd_profile.legacy_vpx", "dmd_profile.neon_plasma", "dmd_profile.red_led",
+      "dmd_profile.green_led", "dmd_profile.yellow_led", "dmd_profile.generic_plasma",
+      "dmd_profile.generic_led")),
+    (re.compile(r"Alpha\.Profile(\d+)"),
+     ("alpha_profile.neon_plasma", "alpha_profile.blue_vfd", "alpha_profile.green_vfd",
+      "alpha_profile.red_led", "alpha_profile.green_led", "alpha_profile.yellow_led",
+      "alpha_profile.generic_plasma", "alpha_profile.generic_led")),
+    (re.compile(r"Player\.Anaglyph(\d+)"),
+     ("anaglyph_glasses.red_cyan", "anaglyph_glasses.green_magenta",
+      "anaglyph_glasses.blue_amber", "anaglyph_glasses.cyan_red",
+      "anaglyph_glasses.magenta_green", "anaglyph_glasses.amber_blue",
+      "anaglyph_glasses.custom_1", "anaglyph_glasses.custom_2", "anaglyph_glasses.custom_3",
+      "anaglyph_glasses.custom_4")),
+)
+DEFAULT_CAMERA = {"DefaultCamera.Desktop": "desktop", "DefaultCamera.FSS": "fss"}
+
 # The views a table starts in, by its View Mode. At 0 a flag inside the table picks
 # Full Single Screen or Desktop.
 _VIEWS_AT = {"0": ("DT", "FSS"), "1": ("Cab",), "2": ("DT",)}
@@ -73,8 +92,8 @@ BGSET = "Player.BGSet"
 
 # What the program keeps for all tables only: the pages of its own menu that save
 # globally (input, plunger, nudge and tilt, cabinet, stereo), the table editor's, and the
-# items any page writes straight to the global file. The playfield window is read from the global file
-# alone, whatever its page saves.
+# items any page writes straight to the global file. The playfield window is read from the
+# global file alone, whatever its page saves.
 ALL_TABLES_ONLY_SECTIONS = frozenset({"Input", "Editor"})
 ALL_TABLES_ONLY_PREFIXES = ("Player.Stereo3D", "Player.Anaglyph", "Controller.DOF",
                             "Plugin.DMDUtil.")
@@ -547,6 +566,16 @@ class VPXConfig:
         """The word in this app's catalog that names a setting with no words of its own,
         or "" for one that has them."""
         return "enable" if areas.is_plugin_switch(key) else ""
+
+    def set_word(self, key: str) -> str:
+        """The word in this app's catalog naming the set a setting is one of, where the
+        program labels every member alike, or "" for one it tells apart itself."""
+        for pattern, names in NUMBERED_SETS:
+            if (found := pattern.match(key)) and 0 < int(found[1]) <= len(names):
+                return names[int(found[1]) - 1]
+        view = next((view for prefix, view in DEFAULT_CAMERA.items()
+                     if key.startswith(prefix)), "")
+        return f"group.{areas.POINT_OF_VIEW}.heading.{view}.label" if view else ""
 
     def named_values(self) -> dict[str, tuple[tuple[str, str], ...]]:
         """By key, the values the program gives a meaning of their own, each with the word
