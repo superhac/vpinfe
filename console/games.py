@@ -48,6 +48,7 @@ from console import (
 from console import dialog as frame
 from console import settings as settings_page
 from console.api import ApiClient
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.games")
 
@@ -392,6 +393,7 @@ async def _rate(games: list[dict[str, Any]]) -> None:
     if not games:
         return
 
+    @on_page
     async def apply(value: int) -> None:
         client = ApiClient()
         for game in games:
@@ -408,6 +410,7 @@ async def _rate(games: list[dict[str, Any]]) -> None:
     box.open()
 
 
+@on_page
 async def _launch(games: list[dict[str, Any]]) -> None:
     """Launch one game. Deliberately refuses a multi-row selection.
 
@@ -589,6 +592,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             then=partial(refresh_games, [str(one["id"]) for one in games]),
             narrowed=narrowed_to())
 
+    @on_page
     async def auto_match(games: list[dict[str, Any]]) -> None:
         ids = [str(one["id"]) for one in games]
         try:
@@ -608,6 +612,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     async def get_missing_art(games: list[dict[str, Any]]) -> None:
         ids = [str(one["id"]) for one in games]
 
+        @on_page
         async def placed() -> None:
             await run.io_bound(library.reread_media, ids)
             await refresh_games(ids)
@@ -707,6 +712,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                                       on_header_context, view_of=showing)
         context_menu: ui.context_menu = ui.context_menu()
 
+    @on_page
     async def rows_again(ids: set[str]) -> list[dict[str, Any]]:
         """These games' rows, read as a full draw reads them."""
         await run.io_bound(library.load_games_grid, True)
@@ -745,6 +751,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         shown["rows"] = seen if isinstance(seen, int) else len(rows)
         count.text = said()
 
+    @on_page
     async def follow_the_filter() -> None:
         """The address names the collection the grid is narrowed to, while it is one."""
         try:
@@ -1403,6 +1410,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     state["refresh_game"] = refresh_game
     state["open_table"] = open_table
 
+    @on_page
     async def drop_script(row: dict[str, Any]) -> None:
         """Asked, because a patched table quietly becomes an unpatched one."""
         every = game_tables.shares_its_script(row)
@@ -1432,6 +1440,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         await act(library.set_table_hidden, row["game_id"], row["id"], hidden,
                   said=said, row=row)
 
+    @on_page
     async def act(what: Callable, *args: Any, said: str | Callable[[Any], str] = "",
                   row: dict[str, Any] | None = None) -> None:
         """Run one row-menu act, then put only what changed back on screen.
@@ -1654,6 +1663,7 @@ def view_control(library: Any, scope: str,
                 f"'--ag-row-height', '{height}px')")
             table.run_grid_method("redrawRows")
 
+        @on_page
         async def apply(view: Any, over: dict[str, Any] | None = None) -> None:
             """Put a view on the grid: which columns, sorted how, filtered to what -
             and then this view's own widths, which the grid does not carry across a
@@ -1729,11 +1739,13 @@ def view_control(library: Any, scope: str,
             client refuses one made from a page's own handler."""
             await run.io_bound(views.remember, library, scope, held["custom"], active)
 
+        @on_page
         async def pick(view_id: str) -> None:
             held["active"] = view_id
             await keep_views(view_id)
             await apply(current())
 
+        @on_page
         async def save(name: str, said: str = "") -> None:
             shown, sort, model = await _seen()
             # Saving over a name replaces that view and keeps its id, so anything
@@ -1769,6 +1781,7 @@ def view_control(library: Any, scope: str,
             _reoption(held["active"])
             _show_purpose()
 
+        @on_page
         async def delete() -> None:
             view = current()
             if view.builtin:
@@ -1858,6 +1871,7 @@ def view_control(library: Any, scope: str,
                           redraw(f, n, str(event.value))) \
                     .props("dense no-caps unelevated").classes("q-mx-sm q-mb-xs")
 
+        @on_page
         async def redraw(fields: list[str], names: tuple[str, ...], chosen: str) -> None:
             for one in fields:
                 if chosen == names[0]:

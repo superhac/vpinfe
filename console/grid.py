@@ -20,6 +20,7 @@ from nicegui import run, ui
 from common import i18n
 from common.i18n import t
 from console import offload, renderers
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.grid")
 
@@ -477,6 +478,7 @@ _LAND = """(() => {
 })()"""
 
 
+@on_page
 async def focus_row(table: Any, row_id: str, column: str) -> bool:
     """Scroll to a row and focus it, which fires the grid's row focus as a click would.
 

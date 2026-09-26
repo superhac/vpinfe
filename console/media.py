@@ -20,6 +20,7 @@ from common.i18n import t
 from common.media_specs import media_label_map
 from console import art_fill, grid, media_ownership, offload, panel, verbs, views
 from console.games import view_control
+from console.on_page import on_page
 
 SCOPE = "console.media.columns"
 
@@ -197,6 +198,7 @@ def build(found: list[dict[str, Any]], library: Any,
             if rescan is not None:
                 panel.refresh(rescan, t("console.media.read_library_disk_pick"))
 
+        @on_page
         async def get_missing_art() -> None:
             picked = grid.selection(table)
             ids = list(dict.fromkeys(str(row["game_id"]) for row in picked))
