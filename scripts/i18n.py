@@ -31,6 +31,12 @@ KEY_TEXT = re.compile(r"""["']([a-z][a-z0-9_]*(?:\.[a-z0-9_{}]+)+)["']""")
 KEY_FSTRING = re.compile(r"""f["']([a-z][a-z0-9_]*(?:\.[a-z0-9_]*)+)\{""")
 # `i18n.under("grid")` asks for a whole namespace at once and names no key in it.
 KEY_UNDER = re.compile(r"""under\(\s*["']([a-z][a-z0-9_.]*)["']""")
+# The frontend's own pages, in markup and in script.
+PAGES = ROOT / "frontend" / "static"
+KEY_MARKUP = re.compile(r'data-i18n="([^"]+)"')
+# A theme asks from its own repository, so the doc offering it the keys is what names them.
+THEME_DOC = ROOT / "docs" / "theme.md"
+KEY_DOC = re.compile(r"`([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+)`")
 
 
 def owners():
@@ -77,6 +83,11 @@ def referenced():
         exact.update(KEY_TEXT.findall(text))
         prefixes.update(KEY_FSTRING.findall(text))
         prefixes.update(f"{name.rstrip('.')}." for name in KEY_UNDER.findall(text))
+    for path in PAGES.rglob("*"):
+        if path.suffix in (".html", ".js") and path.is_file():
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            exact.update(KEY_MARKUP.findall(text), KEY_TEXT.findall(text))
+    exact.update(KEY_DOC.findall(THEME_DOC.read_text(encoding="utf-8")))
     return exact, {p for p in prefixes if p}
 
 

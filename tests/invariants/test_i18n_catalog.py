@@ -23,6 +23,7 @@ from common.games.launchers import OWN_FIELDS
 from common.input_registry import InputAction, actions
 from common.media_specs import MEDIA_SPECS, MediaSpec
 from common.tokens import Token
+from frontend.custom_http_server import CORE_WORDS
 from tests.support.catalogs import served
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -1131,10 +1132,9 @@ class TestFrontendChrome(unittest.TestCase):
         """A key with no entry renders as whatever English is between the tags, which
         looks right until the day somebody translates the catalog and that one does not
         move."""
-        # What `_serve_core_words` actually sends: the frontend's own namespace and the
-        # shared vocabulary. A key outside both would reach a page that was never given
-        # it, however present it is in the catalog.
-        served = {k for k in SOURCE if k.startswith(("frontend.", "word."))}
+        # A key outside what `_serve_core_words` sends would reach a page that was never
+        # given it, however present it is in the catalog.
+        served = {k for k in SOURCE if k.split(".", 1)[0] in CORE_WORDS}
         missing = []
         for path in sorted(STATIC.rglob("*.html")):
             for key in re.findall(r'data-i18n="([^"]+)"', path.read_text(encoding="utf-8")):
@@ -1205,7 +1205,7 @@ class TestEveryKeyIsServed(unittest.TestCase):
 
 
 def _scan() -> tuple[set[str], set[str]]:
-    """Every key the Python asks for, exact and by prefix.
+    """Every key the tree asks for, exact and by prefix.
 
     Imported from `scripts/i18n.py` rather than restated here, so the translator's
     `--unused` report and this gate cannot come to different answers.
@@ -1218,19 +1218,6 @@ def _scan() -> tuple[set[str], set[str]]:
     return module.referenced()
 
 
-def _markup_keys() -> set[str]:
-    """Keys the frontend's own pages name, which no scan of the Python sees."""
-    found: set[str] = set()
-    for path in sorted(STATIC.rglob("*")):
-        if path.suffix not in (".html", ".js") or not path.is_file():
-            continue
-        text = path.read_text(encoding="utf-8")
-        found.update(re.findall(r'data-i18n="([^"]+)"', text))
-        found.update(m[0] for m in re.findall(
-            r"""["']([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+)["']""", text))
-    return found
-
-
 class TestTheCatalogHoldsNothingSpare(unittest.TestCase):
     """The other direction: an entry nothing asks for.
 
@@ -1238,9 +1225,13 @@ class TestTheCatalogHoldsNothingSpare(unittest.TestCase):
     say about it. The translator is handed it to translate along with the rest.
     """
 
+    def test_a_page_script_and_the_theme_doc_ask_too(self) -> None:
+        exact, _ = _scan()
+        self.assertLessEqual({"frontend.collectionmenu.ascending",
+                              "frontend.theme.launching"}, exact)
+
     def test_no_entry_is_asked_for_by_nothing(self) -> None:
-        exact, derived = _scan()
-        asks = exact | _markup_keys()
+        asks, derived = _scan()
         # A key reaching a surface inside a block is asked for as much as one written
         # out: AG Grid takes `grid.*` as a single dictionary, so no search for one of
         # those keys finds anything. `referenced()` reports those namespaces among its

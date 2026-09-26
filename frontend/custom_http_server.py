@@ -31,6 +31,9 @@ LOOPBACK = "127.0.0.1"
 # Where a request that matched no mount is sent. It does not exist, and must not.
 NOTHING_HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__unmounted__")
 
+# The catalog namespaces a core page is sent.
+CORE_WORDS = ("frontend", "word")
+
 class CustomHTTPServer:
     """The loopback server that hands theme assets to the frontend windows."""
 
@@ -419,16 +422,13 @@ class CustomHTTPServer:
         def _serve_core_words(self) -> None:
             """Core's own chrome, for the pages core serves.
 
-            Only the `frontend.` namespace: a theme page has no business with the
-            Console's words, and shipping them would put the whole catalog on a cabinet
-            to render six menu items.
+            Only `CORE_WORDS`: a theme page has no business with the Console's words,
+            and shipping them would put the whole catalog on the frontend to render six
+            menu items.
             """
             from common import i18n
-            words = {f"frontend.{k}": v for k, v in i18n.under("frontend").items()}
-            # `word.` is the shared vocabulary - Cancel, Save, Close - which the menus
-            # use as much as the Console does. Without it they would ask for a key the
-            # page was never sent.
-            words.update({f"word.{k}": v for k, v in i18n.under("word").items()})
+            words = {f"{space}.{k}": v
+                     for space in CORE_WORDS for k, v in i18n.under(space).items()}
             body = json.dumps(words).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
