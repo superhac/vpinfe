@@ -5,6 +5,7 @@ standing next to, which is where a wrong answer is hardest to notice.
 """
 
 import unittest
+from unittest import mock
 
 import requests
 
@@ -138,6 +139,38 @@ class SectionsItServesTests(unittest.TestCase):
                             local={"logs", "actions"})
 
         self.assertLessEqual(self.SERVED, shown)
+
+
+class ThisInstallsCapabilitiesTests(unittest.TestCase):
+    """This install's own entry reads its capabilities the way a probe of it would."""
+
+    LISTING = [
+        {"name": "logs", "feature": None, "available": True, "reason": None},
+        {"name": "actions", "feature": None, "available": False,
+         "reason": "Nothing performs these"},
+        {"name": "peripherals", "feature": "frontend", "available": False,
+         "reason": "No peripherals are turned on in configuration"},
+    ]
+
+    def _local(self) -> set[str]:
+        from console import page
+
+        client = mock.Mock()
+        client.capabilities.return_value = self.LISTING
+        with mock.patch.object(page, "ApiClient", return_value=client), \
+                mock.patch.object(page, "Library"), \
+                mock.patch.object(page.settings_page, "local_trouble", return_value=[]):
+            return page._read_hub()["local_capabilities"]
+
+    def test_one_it_declares_and_does_not_serve_is_not_counted(self) -> None:
+        self.assertEqual(self._local(), {"logs"})
+
+    def test_it_agrees_with_what_a_probe_of_this_install_hears(self) -> None:
+        with mock.patch("common.http_client.get_json",
+                        return_value={"capabilities": self.LISTING}):
+            probed = device_client.RemoteDevice("http://192.168.1.50:8001").probe()
+
+        self.assertEqual(self._local(), set(probed["capabilities"]))
 
 
 class SettingsDoorTests(unittest.TestCase):

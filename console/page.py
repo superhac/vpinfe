@@ -320,7 +320,7 @@ def _read_hub() -> dict[str, Any]:
         # so it is not offered as a per-device row.
         "device_capabilities": [entry["name"] for entry in capabilities
                                 if entry.get("feature") == install_identity.FRONTEND],
-        "local_capabilities": {entry["name"] for entry in capabilities},
+        "local_capabilities": set(device_client.served(capabilities)),
     }
 
 

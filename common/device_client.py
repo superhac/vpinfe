@@ -176,6 +176,11 @@ def _not_answering(state: str, key: str) -> dict[str, Any]:
     return {"state": state, "what": "", "reason": t(key), "reason_key": key}
 
 
+def served(listing: list[dict[str, Any]]) -> list[str]:
+    """The names in a capability listing that the install serves."""
+    return [str(entry.get("name") or "") for entry in listing if entry.get("available")]
+
+
 def probe(client: LocalDevice | RemoteDevice | MobileDevice | None) -> dict[str, Any]:
     """Whether a device answers, and what is on the other end.
 
@@ -362,9 +367,7 @@ class RemoteDevice:
                 # Already in this response, so asking again would be a second call for
                 # something we are holding. Names only: the descriptions are the biggest
                 # part of the payload and the caller has its own copy of them.
-                "capabilities": [str(entry.get("name") or "")
-                                 for entry in (said.get("capabilities") or [])
-                                 if entry.get("available")],
+                "capabilities": served(said.get("capabilities") or []),
                 "install_id": str(said.get("install_id") or ""),
                 "display_name": str(said.get("display_name") or ""),
                 "reason": ""}
