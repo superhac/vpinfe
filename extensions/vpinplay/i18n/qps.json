@@ -35,5 +35,5 @@
   "community.tables.view.last_played.help": "Ŵĥàţ ŵàš þŀàýèđ ŀàšţ, àñýŵĥèřè",
   "community.tables.view.players.name": "Ḿöšţ Îñšţàŀŀèđ",
   "community.tables.view.players.help": "Ŵĥàţ ţĥè ɱöšţ þŀàýèřš ĥàṽè",
-  "error.no_answer": "{endpoint} đîđ ñöţ àñšŵèř"
+  "error.unreadable": "{host} šèñţ šöɱèţĥîñĝ ṼÞîñƑÈ çàññöţ řèàđ"
 }

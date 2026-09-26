@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -12,7 +11,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from common.extensions.contract import words
+from common.extensions.contract import why, words
 
 logger = logging.getLogger(__name__)
 t = words("vpinplay")
@@ -100,6 +99,13 @@ def tables(endpoint: str) -> list[dict[str, Any]]:
     return rows
 
 
+def _host(endpoint: str) -> str:
+    try:
+        return urllib.parse.urlsplit(endpoint).hostname or endpoint
+    except ValueError:
+        return endpoint
+
+
 def router(endpoint_of: Any) -> APIRouter:
     reading = APIRouter()
 
@@ -108,9 +114,12 @@ def router(endpoint_of: Any) -> APIRouter:
         endpoint = endpoint_of()
         try:
             return {"rows": tables(endpoint)}
-        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        except OSError as exc:
             logger.warning("VPinPlay did not answer at %s: %s", endpoint, exc)
+            raise HTTPException(status_code=502, detail=why(exc, at=endpoint)) from exc
+        except ValueError as exc:
+            logger.warning("VPinPlay's answer at %s could not be read: %s", endpoint, exc)
             raise HTTPException(status_code=502,
-                                detail=t("error.no_answer", endpoint=endpoint)) from exc
+                                detail=t("error.unreadable", host=_host(endpoint))) from exc
 
     return reading
