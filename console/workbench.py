@@ -3942,16 +3942,16 @@ async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
     scorer over this question is no better than chance.
     """
     library = context["library"]
-    vps_id = str(context["game"].get("vps_id") or "")
-    records = await offload.io(_records_of, context, vps_id, listed_as)
+    records, empty = await _listed_by_vps(
+        context, t("console.workbench.vps_lists_none_for_game", lower=(label.lower())),
+        listed_as)
 
     with frame.opened(t("console.workbench.published", lower=(label.lower())), wide=True,
                       persistent=True) as box:
         ui.label(path).classes("console-help px-3")
         with ui.column().classes("w-full gap-0 console-source-list console-pick-list px-3"):
-            if not records:
-                ui.label(t("console.workbench.vps_lists_none_for_game", lower=(label.lower()))) \
-                    .classes("console-help")
+            if empty:
+                ui.label(empty).classes("console-help")
             for item in records:
                 _record_row(item, box, bound)
         with frame.footer():
@@ -3984,17 +3984,23 @@ def _record_row(record: dict[str, Any], dialog: Any, bound: str) -> None:
                       glyph="inventory_2")
 
 
-def _records_of(context: dict[str, Any], vps_id: str,
-                listed_as: str) -> list[dict[str, Any]]:
-    """One kind's records for an entry. Blocks, so it belongs on a worker thread."""
-    if not vps_id:
-        return []
+async def _listed_by_vps(context: dict[str, Any], none_listed: str,
+                         *listed_as: str) -> tuple[list[dict[str, Any]], str]:
+    """What VPS lists for the game, read off the loop, and the line a picker shows in
+    place of the list: `none_listed`, or why there is no list to show. Empty while there
+    is one."""
+    library = context["library"]
+    vps_id = str(context["game"].get("vps_id") or "")
     try:
-        return list(context["library"].vps_releases(vps_id, listed_as))
-    except Exception:
-        logger.warning("console: could not read %s for %s", listed_as, vps_id,
-                       exc_info=True)
-        return []
+        found = (list(await offload.io(library.vps_releases, vps_id, *listed_as))
+                 if vps_id else [])
+        held = bool(found) or await offload.io(library.vps_catalog_held)
+    except Exception as exc:
+        logger.warning("console: could not read VPS for %s", vps_id, exc_info=True)
+        return [], t("console.workbench.could_not_read_vps", exc=(exc))
+    if found:
+        return found, ""
+    return [], none_listed if held else t("console.workbench.vps_not_downloaded")
 
 
 async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -4006,20 +4012,17 @@ async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> Non
     they can compare it against the list rather than remembering it.
     """
     library = context["library"]
-    entry = str(context["game"].get("vps_id") or "")
     bound = str((table.get("source") or {}).get("vps_file_id") or "")
-    releases = await offload.io(_releases_of, context, entry)
-    held = bool(releases) or await offload.io(library.vps_catalog_held)
+    releases, empty = await _listed_by_vps(context,
+                                           t("console.workbench.vps_lists_no_tables"))
 
     with frame.opened(t("console.workbench.release_table"), wide=True,
                       persistent=True) as box:
         with ui.element("div").classes("px-3"):
             _yours(table)
         with ui.column().classes("w-full gap-0 console-source-list console-pick-list px-3"):
-            if not releases:
-                ui.label(t("console.workbench.vps_lists_no_tables") if held
-                         else t("console.workbench.vps_not_downloaded")) \
-                    .classes("console-help")
+            if empty:
+                ui.label(empty).classes("console-help")
             for item, under in in_lineage(releases):
                 _release_row(item, box, bound, under)
         with frame.footer():
