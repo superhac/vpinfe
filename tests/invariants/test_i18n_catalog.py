@@ -225,6 +225,7 @@ SPEAKS_TO_A_SURFACE = {**{name: EVERY_WAY for name in _modules_under(READ_WHOLE)
 SAID_TO_THE_LOG = {
     "common/online/themes.py": frozenset({"_validate_manifest"}),
     "common/online/theme_registry_client.py": frozenset({"fetch_json"}),
+    "common/online/theme_releases.py": frozenset({"bare_ref"}),
     "common/device_client.py": frozenset({"perform_action"}),
     "common/games/info_maintenance.py": frozenset({"_upgrade_summary", "_restore_summary",
                                                    "_games", "_files"}),
@@ -232,8 +233,10 @@ SAID_TO_THE_LOG = {
     "httpapi/events.py": frozenset({"_frame"}),
 }
 
-# Names a person reads the same in every language: products, and the systems they run on.
-NAMES = frozenset({"VPinFE", "Python", "macOS", "Windows", "Quartz", "Wayland", "X11"})
+# Names a person reads the same in every language: products, the systems they run on, and
+# file formats.
+NAMES = frozenset({"VPinFE", "Python", "macOS", "Windows", "Quartz", "Wayland", "X11",
+                   "OGG"})
 
 
 def _logged_lines(name: str) -> set[int]:
@@ -377,9 +380,11 @@ def _built_not_said(glued: str) -> bool:
 
 def _one_token(said: str) -> bool:
     """`pinmame/altsound`, `7z`, `MP4`: a path or key, or one case throughout. A word said
-    alone, `Unknown`, is neither."""
+    alone, `Unknown`, is neither, and nor is one in capitals, `OK` or `N/A`."""
     body = said.strip()
     if not body or any(c.isspace() for c in body):
+        return False
+    if body.isupper() and not any(c.isdigit() for c in body):
         return False
     return bool(re.search(r"\w[/.:=?&#]\w", body)) or body in (body.upper(), body.lower())
 
@@ -487,12 +492,12 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
         source = ("def built(prefix, name, count, n):\n"
                   '    return [f"{prefix}/media", f"{name} {count}", f"E{n}", f"Key{name}",\n'
                   '            "pinmame/altsound", "7z", "MP4",\n'
-                  '            f"{name} was copied", "Copied"]\n')
+                  '            f"{name} was copied", "Copied", "OK", "N/A"]\n')
 
         said = [ast.unparse(one) for kind, one in _handed_back(source)
                 if _not_looked_up(kind, one)]
 
-        self.assertEqual(said, ["f'{name} was copied'", "'Copied'"])
+        self.assertEqual(said, ["f'{name} was copied'", "'Copied'", "'OK'", "'N/A'"])
 
     def test_every_module_is_read_or_named(self) -> None:
         for name in _modules_under(READ_WHOLE):
