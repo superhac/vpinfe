@@ -44,7 +44,7 @@ def perform_action(background: BackgroundTasks,
     scope, action = action_ops.check(payload.scope, payload.action)
     reason = payload.reason.strip() or "asked over the API"
     body = {"scope": scope, "action": action,
-            "what": lifecycle.describe(scope, action)}
+            "what": lifecycle.label(scope, action)}
     if (scope, action) in action_ops.GOES_AWAY:
         background.add_task(action_ops.perform, scope, action, reason)
         return models.ActionResult.model_validate({**body, "performed": True})
