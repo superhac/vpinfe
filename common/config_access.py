@@ -402,11 +402,6 @@ class DisplayConfig:
             "backglassscreenid": self.bg_screen_id,
             "scoreviewscreenid": self.dmd_screen_id,
             "playfieldscreenid": self.playfield_screen_id_raw,
-            # The contract 1 spellings, which screen_key still produces for a
-            # contract 1 theme.
-            "bgscreenid": self.bg_screen_id,
-            "dmdscreenid": self.dmd_screen_id,
-            "tablescreenid": self.playfield_screen_id_raw,
         }
         if config_key in known:
             return known[config_key]

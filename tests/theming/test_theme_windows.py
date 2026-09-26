@@ -11,8 +11,10 @@ import json
 import unittest
 from configparser import ConfigParser
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from common.config_access import DisplayConfig
+from common.config_store import ConfigStore
 from frontend import theme_api, theme_windows
 from tests.support.library import TempTree
 
@@ -156,6 +158,23 @@ class ScreenKeyTests(unittest.TestCase):
         self.assertEqual(displays.window_screen_id("topperscreenid"), "2")
         self.assertEqual(displays.window_screen_id("nosuchscreenid"), "",
                          "a window with no monitor set is simply not launched")
+
+    def test_a_2x_file_s_monitors_reach_each_window_under_a_key_screen_key_makes(
+            self) -> None:
+        ini = Path(self.enterContext(TemporaryDirectory())) / "vpinfe.ini"
+        ini.write_text("[Displays]\ntablescreenid = 2\nbgscreenid = 0\ndmdscreenid = 1\n",
+                       encoding="utf-8")
+        displays = DisplayConfig.from_config(ConfigStore(str(ini)))
+        monitors = {"playfield": "2", "backglass": "0", "scoreview": "1"}
+        names = [name for names in theme_windows.DEFAULT_WINDOWS.values() for name in names]
+
+        for name in [*names, *(f" {name} " for name in names)]:
+            with self.subTest(window=name):
+                key = theme_windows.screen_key(name)
+                self.assertNotIn(key, {"tablescreenid", "bgscreenid", "dmdscreenid"})
+                self.assertEqual(displays.window_screen_id(key),
+                                 monitors[theme_windows.canonical(name)])
+
 
 class ForeignWindowNameTests(TempTree):
     """A theme that declares one contract and names windows from another.
