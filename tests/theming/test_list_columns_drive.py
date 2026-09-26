@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import unittest
+from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -115,6 +116,8 @@ class ListColumnDrive(unittest.TestCase):
             await browser.wait_for(API + ".getDisplayedRowCount() === 2", timeout=60.0)
             seen["address"] = await browser.evaluate("location.search")
             seen["narrowed"] = await browser.evaluate(SHOWN)
+            with suppress(TimeoutError):
+                await browser.wait_for(f"({COUNT} || '').includes(' of ')", timeout=30.0)
             seen["count"] = await browser.evaluate(COUNT)
         return seen
 
