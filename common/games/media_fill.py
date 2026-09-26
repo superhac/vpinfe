@@ -15,6 +15,7 @@ from typing import Any
 
 from common import jobs, shutdown
 from common.config_access import MediaConfig, cfg_bool
+from common.config_store import ConfigStore
 from common.games.game_metadata import effective_vps_id, normalize_meta
 from common.i18n import t
 from common.jobs import JobReporter
@@ -332,8 +333,8 @@ def update_enabled() -> bool:
     return cfg_bool(get_ini_config(), "updates", "update_downloaded_art", True)
 
 
-def _update_game(game_id: str, game: Any, wanted: set[str], live: tuple[str, ...],
-                 media: MediaConfig) -> tuple[int, int]:
+def _update_game(game_id: str, game: Any, vps_id: str, wanted: set[str],
+                 live: tuple[str, ...], media: MediaConfig) -> tuple[int, int]:
     """Replace this game's stale art. Answers (updated, failed).
 
     Files are hashed only where the recorded hash is gone from the catalog.
@@ -342,11 +343,11 @@ def _update_game(game_id: str, game: Any, wanted: set[str], live: tuple[str, ...
     from common.online import asset_sources
     from common.online.vpsdb_media import file_md5, replace_file
 
-    vps_id = effective_vps_id(normalize_meta(game.meta_config or {}))
     game_dir = Path(str(game.full_path_game))
     recorded = {path: source for path, source in asset_origin.sources(game_dir).items()
                 if source.get("hash") and source.get("host") in live}
-    if not vps_id or not recorded:
+    # An empty id would list every game's rows against this folder's ledger.
+    if not vps_id or not game_id or not recorded:
         return 0, 0
     hosts = tuple({str(source["host"]) for source in recorded.values()})
     published = {offer.md5 for kind in _SPECS
@@ -380,6 +381,24 @@ def _update_game(game_id: str, game: Any, wanted: set[str], live: tuple[str, ...
     return updated, failed
 
 
+def art_updater(config: ConfigStore) -> Callable[[str, Any, str], tuple[int, int]] | None:
+    """`_update_game` for one game at a time, as (game_id, game, vps_id), with the catalog
+    read again and each source asked once. None when nothing can be asked."""
+    from common.online import asset_sources
+
+    asset_sources.refresh()
+    live = _reachable()
+    wanted = kept_kinds()
+    if not live or not wanted:
+        return None
+    media = MediaConfig.from_config(config)
+
+    def update(game_id: str, game: Any, vps_id: str) -> tuple[int, int]:
+        return _update_game(game_id, game, vps_id, wanted, live, media)
+
+    return update
+
+
 def update_downloaded(reporter: JobReporter | None = None,
                       proceed: Callable[[], bool] = lambda: True) -> dict[str, int]:
     """Replace art we downloaded that the catalog has since replaced.
@@ -388,15 +407,11 @@ def update_downloaded(reporter: JobReporter | None = None,
     a source that is on. `updated` and `failed` count files.
     """
     from common.games import game_repository, media_service
-    from common.online import asset_sources
 
     counts = {"games": 0, "updated": 0, "failed": 0}
-    asset_sources.refresh()
-    live = _reachable()
-    wanted = kept_kinds()
-    if not live or not wanted:
+    update = art_updater(get_ini_config())
+    if update is None:
         return counts
-    media = MediaConfig.from_config(get_ini_config())
     games = list(game_repository.catalog().items())
     for index, (game_id, game) in enumerate(games):
         if not proceed():
@@ -405,7 +420,8 @@ def update_downloaded(reporter: JobReporter | None = None,
         if reporter:
             reporter.progress(index, len(games), t("said.updating_art_for", game=name))
         try:
-            updated, failed = _update_game(game_id, game, wanted, live, media)
+            updated, failed = update(game_id, game,
+                                     effective_vps_id(normalize_meta(game.meta_config or {})))
         except Exception:
             logger.exception("Updating art: could not read what %s has", name)
             continue

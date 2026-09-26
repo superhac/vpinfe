@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import os
 
-from common.config_access import SettingsConfig
+from common.config_access import SettingsConfig, cfg_bool
 from common.config_store import ConfigStore
+from common.games import game_identity, media_fill
 from common.games.game_metadata import effective_vps_id, record_vps_match, vps_matched_by
 from common.games.game_repository import games_under
 from common.games.info_file import MetaConfig
@@ -55,6 +56,11 @@ def build_metadata(
 
     vps = VPSdb(settings.game_root_dir, config)
     log(f"Found {len(vps)} tables in VPSdb")
+
+    refresh_art = None
+    if (download_media and update_all and not user_media
+            and cfg_bool(config, "updates", "update_downloaded_art", True)):
+        refresh_art = media_fill.art_updater(config)
 
     if progress_cb:
         reporter.progress(0, total, "Starting")
@@ -120,6 +126,15 @@ def build_metadata(
                 log("Downloaded media")
             except KeyError:
                 log("No media found")
+            if refresh_art:
+                try:
+                    updated, _failed = refresh_art(game_identity.game_id(game), game, art_for)
+                except Exception:
+                    logger.exception("Updating art: could not read what %s has",
+                                     game.game_dir_name)
+                else:
+                    if updated:
+                        log("Updated downloaded media")
 
     if progress_cb:
         reporter.progress(total, total, "Complete")

@@ -10,8 +10,17 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from common import i18n, jobs, service_errors, timestamps
-from common.games import asset_origin, library_policy, media_fill, media_placement
+from common.games import (
+    asset_origin,
+    library_policy,
+    media_fill,
+    media_placement,
+    metadata_service,
+)
+from common.games.game import Game
 from common.online import asset_sources, vpsdb_sync
+from common.online.vpsdb import VPSdb
+from common.online.vpsdb_media import VPSMediaDownloader
 from tests.support.library import TempTree, fake_game, game_info, write_game
 
 FOLDER = "Fathom (Bally 1981)"
@@ -41,9 +50,11 @@ def _downloaded(url: str, path: Path) -> None:
 
 
 class _Library(TempTree):
+    launched_as = ""
+
     def setUp(self) -> None:
         super().setUp()
-        self.games: dict[str, object] = {}
+        self.games: dict[str, Game] = {}
         self.sets: dict[str, str] = {}
         self.folder = self.game(FOLDER, "fathom")
         self.downloads = MagicMock(side_effect=_downloaded)
@@ -65,11 +76,13 @@ class _Library(TempTree):
 
     def game(self, name: str, vps_id: str, **medias: bytes) -> Path:
         game_id = f"id{len(self.games):09d}"
+        launched = f"{self.launched_as or name}.vpx"
         info = game_info(name, vps_id=vps_id, game_id=game_id,
-                         tables={"tbl0000001": {"id": "tbl0000001",
-                                                "filename": f"{name}.vpx"}})
-        folder = write_game(self.root, name, info=info, medias=medias)
-        self.games[game_id] = fake_game(folder, name, meta=info)
+                         tables={"tbl0000001": {"id": "tbl0000001", "filename": launched}})
+        folder = write_game(self.root, name, info=info, medias=medias, vpx=False,
+                            files={launched: b"not really a vpx"})
+        self.games[game_id] = fake_game(folder, name, meta=info,
+                                        full_path_vpx_file=str(folder / launched))
         return folder
 
     def variant(self) -> str:
@@ -336,7 +349,7 @@ REPLACED = {"fathom": {
 }}
 
 
-class UpdateTests(_Library):
+class _Replaced(_Library):
     def setUp(self) -> None:
         super().setUp()
         loaded = patch("common.online.vpsdb_cache.VPinMediaDatabase.load",
@@ -358,6 +371,8 @@ class UpdateTests(_Library):
     def recorded(self, name: str) -> str:
         return str(asset_origin.sources(self.folder)[f"medias/{name}"]["hash"])
 
+
+class UpdateTests(_Replaced):
     def test_ours_and_stale_is_replaced_at_the_configured_size(self) -> None:
         self.ours(WHEEL, OLD_WHEEL)
         self.ours(PLAYFIELD, OLD_TABLE)
@@ -453,6 +468,58 @@ class UpdateTests(_Library):
 
         self.assertEqual(reporter.progress.call_args.args[2],
                          i18n.t("said.updating_art_for", game=FOLDER))
+
+
+RENAMED = "Fathom VPW"
+OWN_WHEEL = b"the renamed table's own wheel"
+
+
+class BuildMetadataTests(_Replaced):
+    """The wheel this game launches with is its table's own; the folder-named one is
+    unused and ours."""
+
+    launched_as = RENAMED
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.ours(WHEEL, OLD_WHEEL)
+        self.own = self.folder / "medias" / f"(Wheel) {RENAMED}.png"
+        self.own.write_bytes(OWN_WHEEL)
+
+    def build(self, update_downloaded_art: bool = True) -> None:
+        self.config["Settings"] = {"gamerootdir": str(self.root)}
+        self.config["updates"] = {"update_downloaded_art": str(update_downloaded_art)}
+        game = next(iter(self.games.values()))
+        game.wheel_image_path = str(self.own)
+        vps = VPSdb.__new__(VPSdb)
+        vps.data = [{"id": "fathom", "name": "Fathom", "manufacturer": "Bally",
+                     "year": 1981}]
+        vps._media_downloader = VPSMediaDownloader(
+            REPLACED, playfieldvariant="table", playfieldresolution="4k",
+            playfieldvideoresolution="4k", update_downloaded=update_downloaded_art)
+        parser = MagicMock()
+        parser.single_file_extract.return_value = {"filename": f"{RENAMED}.vpx"}
+        with patch.object(metadata_service, "games_under", return_value=[game]), \
+                patch.object(metadata_service, "VPSdb", return_value=vps), \
+                patch.object(metadata_service, "VPXParser", return_value=parser):
+            metadata_service.build_metadata(update_all=True, iniconfig=self.config)
+
+    def test_stale_art_named_as_the_folder_is_replaced(self) -> None:
+        self.build()
+
+        self.assertEqual(self.placed()[WHEEL], _url("wheel-new.png"))
+        self.assertEqual(self.recorded(WHEEL), "wheel-new-md5")
+
+    def test_the_tables_own_wheel_is_left_byte_for_byte(self) -> None:
+        self.build()
+
+        self.assertEqual(self.own.read_bytes(), OWN_WHEEL)
+        self.assertNotIn(f"medias/{self.own.name}", asset_origin.sources(self.folder))
+
+    def test_with_updates_off_stale_art_is_left(self) -> None:
+        self.build(update_downloaded_art=False)
+
+        self.assertEqual(self.placed()[WHEEL], OLD_WHEEL.decode())
 
 
 class ArtDueTests(unittest.TestCase):
