@@ -477,8 +477,10 @@ def column(field: str, header: str, width: int = 0, help: str = "",
     # column is, and what its values mean - a line that restates the header is a
     # tooltip charged for nothing.
     tip = {"headerTooltip": help} if help else {}
+    shown = extra.get(":valueFormatter")
+    search = {":getQuickFilterText": shown} if shown else {}
     return {"field": field, "headerName": header,
-            "width": max(width, header_width(header))} | tip | extra
+            "width": max(width, header_width(header))} | tip | search | extra
 
 
 # `console-base.css` colors this class.
