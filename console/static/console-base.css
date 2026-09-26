@@ -947,6 +947,13 @@ body::before {
    scope sets. Amber where the choice is not the one in force. */
 .console-named-mark { color: var(--accent); margin-right: 4px; }
 .console-named-mark--off { color: var(--warm); }
+/* A setting's dot hangs in the gutter before its value. The gap is 8px, the dot's 11px
+   and 8px again, and `left` is the last two: change one and change the other. */
+.console-facts:has(.console-field-row > .console-named-mark) { column-gap: 27px; }
+.console-facts .console-field-row { position: relative; }
+.console-facts .console-field-row > .console-named-mark {
+  position: absolute; left: -19px; top: calc(50% - 5.5px); margin: 0;
+}
 
 /* The table line doubles as the control that changes which table this member names.
    The caret is the only added ink and it waits for a hover, so a list of forty rows

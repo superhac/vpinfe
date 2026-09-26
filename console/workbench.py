@@ -4413,6 +4413,7 @@ def _marked(parts: Sequence[Part], app_name: str,
                 else:
                     _pair(parts, joiner)
                 whose = ui.tooltip("")
+                whose.props('anchor="bottom left" self="top left"')
             end = ui.element("div").classes("console-row-action")
         if on_leave is not None:
             row.on("focusout", on_leave)
