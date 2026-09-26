@@ -257,14 +257,26 @@ def _first_of(names: list[str], most: int) -> str:
     return t("console.sections.more", names=listed) if len(names) > most else listed
 
 
+def _unreadable_lines(rows: list[dict[str, Any]], most: int = 4) -> list[tuple[str, str]]:
+    lines = [(str(row["folder"]), str(row.get("error") or "")) for row in rows[:most]]
+    if len(rows) > most:
+        lines.append((t("said.and_more", count=len(rows) - most), ""))
+    return lines
+
+
 def _metadata_row(good: bool, name: str, said: str,
-                  action: tuple[str, Callable[[], Any]] | None = None) -> None:
+                  action: tuple[str, Callable[[], Any]] | None = None,
+                  lines: list[tuple[str, str]] | None = None) -> None:
     with ui.row().classes("items-center gap-3 w-full no-wrap py-1"):
         ui.icon("check_circle" if good else "error", size="18px") \
             .classes("text-positive" if good else "text-warning")
         with ui.column().classes("gap-0 grow min-w-0"):
             ui.label(name).classes("console-setting")
             ui.label(said).classes("console-help")
+            for text, hover in lines or []:
+                line = ui.label(text).classes("console-help")
+                if hover:
+                    line.tooltip(hover)
         if action is not None:
             label, run = action
             ui.button(label, icon=verbs.GO, on_click=run) \
@@ -293,12 +305,13 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
                     lambda: on_start("upgrade")))
 
         # No action: the fix is on disk, in a file this cannot repair without guessing
-        # what it was meant to say. Naming the folders is the whole of the help.
+        # what it was meant to say. Naming the folders, and why, is the whole of the help.
         _metadata_row(
             not unreadable, t("console.sections.readable"),
             t("console.sections.every_folder_s_metadata") if not unreadable
-            else t("console.sections.could_not_read_games", count=len(unreadable),
-                    names=_first_of([str(one.get("name") or "?") for one in unreadable], 4)))
+            else t("console.sections.could_not_read_game") if len(unreadable) == 1
+            else t("console.sections.could_not_read_games", count=len(unreadable)),
+            lines=_unreadable_lines(unreadable))
 
         # Only when it is true. A row saying "nothing here was written by a newer build"
         # is a sentence about a thing that has never happened to most installs.

@@ -8,11 +8,17 @@ caller is handed something to watch.
 from __future__ import annotations
 
 import unittest
+from tempfile import TemporaryDirectory
 from unittest import mock
+
+from nicegui import ui
 
 import httpapi
 from common import jobs as job_registry
+from common.games.game_parser import GameParser
+from common.i18n import t
 from console import sections
+from tests.support.library import write_game
 
 try:
     from starlette.testclient import TestClient
@@ -35,7 +41,8 @@ class InfoRouteTests(unittest.TestCase):
                         return_value={"pending_upgrade": 3, "restorable": 9,
                                       "newer_than_us": 1}), \
                 mock.patch("common.games.game_repository.unreadable_games",
-                           return_value=[{"name": "Bad One", "reason": "empty"}]), \
+                           return_value=[{"folder": "Bad One", "path": "/games/Bad One",
+                                          "error": "Its .info file is empty"}]), \
                 mock.patch("common.games.game_service.newest_backup_stamp",
                            return_value="20260909T110917Z"), \
                 mock.patch("common.games.game_service.pending_upgrade_game_names",
@@ -47,7 +54,7 @@ class InfoRouteTests(unittest.TestCase):
         self.assertEqual(body["pending_upgrade"], 3)
         self.assertEqual(body["newer_than_us"], 1)
         self.assertEqual(body["restorable"], 9)
-        self.assertEqual([one["name"] for one in body["unreadable"]], ["Bad One"])
+        self.assertEqual([one["folder"] for one in body["unreadable"]], ["Bad One"])
 
     def _start(self, which: str, done: list):
         return mock.patch(f"common.games.game_service.{which}",
@@ -104,6 +111,38 @@ class MetadataCardTests(unittest.TestCase):
     def test_no_stamp_says_nothing_rather_than_guessing(self) -> None:
         self.assertEqual(sections._stamp(""), "")
         self.assertEqual(sections._stamp("2026"), "")
+
+    def _unreadable(self, *names: str) -> list[dict]:
+        """The rows the scan writes for folders whose `.info` is not valid metadata."""
+        with TemporaryDirectory() as tmp:
+            for name in names:
+                (write_game(tmp, name) / f"{name}.info").write_text(
+                    '{"Info": {"Title": "broken",,,}', encoding="utf-8")
+            return GameParser(tmp).get_unreadable_games()
+
+    def _drawn(self, unreadable: list[dict]) -> dict[str, str]:
+        """Each line the card draws, with what hovering it shows."""
+        with ui.column() as body:
+            sections.metadata({"unreadable": unreadable}, lambda _which: None)
+        tips = {one.props["target"]: one.text
+                for one in body.descendants() if isinstance(one, ui.tooltip)}
+        return {one.text: tips.get(f"#{one.html_id}", "")
+                for one in body.descendants() if isinstance(one, ui.label)}
+
+    def test_a_folder_it_could_not_read_is_named_with_why_on_hover(self) -> None:
+        drawn = self._drawn(self._unreadable("Malformed Info (Original 2024)"))
+
+        self.assertEqual(t("error.games.info_wrong_at_line", line=1),
+                         drawn.get("Malformed Info (Original 2024)"), list(drawn))
+        self.assertIn(t("console.sections.could_not_read_game"), drawn)
+
+    def test_four_are_named_and_the_rest_counted(self) -> None:
+        names = [f"Broken {i} (Original 2024)" for i in range(6)]
+
+        drawn = self._drawn(self._unreadable(*names))
+
+        self.assertEqual([True] * 4 + [False] * 2, [name in drawn for name in names])
+        self.assertIn(t("said.and_more", count=2), drawn)
 
 
 def _never_finishes() -> None:
