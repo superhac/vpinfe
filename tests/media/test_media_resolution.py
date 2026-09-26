@@ -487,6 +487,15 @@ class ReportedTierTests(unittest.TestCase):
 
         self.assertEqual(hit.tier, "game")
 
+    def test_a_table_named_as_its_folder_is_served_the_game_s_file(self) -> None:
+        for stem in (FOLDER, FOLDER.lower()):
+            with self.subTest(stem=stem):
+                hit = self._entries([f"(Wheel) {FOLDER}.png", "wheel.png"],
+                                    stem=stem)["wheel"]
+
+                self.assertEqual((hit.path.name, hit.tier),
+                                 (f"(Wheel) {FOLDER}.png", "game"))
+
     def test_the_fixed_name_reports_default(self) -> None:
         hit = self._entries(["wheel.png"])["wheel"]
 

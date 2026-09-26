@@ -123,14 +123,6 @@ def overrides(game_id: str) -> dict:
     files, medias = media_service.media_contents(game_dir)
     variant, active_sets = media_service.media_settings()
 
-    # What the game itself resolves, to compare against. A .vpx named after its folder
-    # makes its own tier and the game's the same filename, and then the same file - so
-    # without this it is reported as overriding itself, which is most single-table folders
-    # and the commonest shape there is.
-    shared = {spec.kind: next((item.path for item in media_candidates(
-        game_dir, files, medias, spec.kind, variant, None, active_sets)), None)
-        for spec in MEDIA_SPECS}
-
     found: dict[str, list[dict]] = {}
     for table in table_lens.table_rows(game, game_to_row(game)):
         stem = Path(str(table.get("filename") or "")).stem
@@ -140,7 +132,7 @@ def overrides(game_id: str) -> dict:
             own = next((item for item in media_candidates(
                 game_dir, files, medias, spec.kind, variant, stem, active_sets)
                 if item.tier == "table"), None)
-            if own is not None and own.path != shared.get(spec.kind):
+            if own is not None:
                 found.setdefault(spec.kind, []).append({
                     "table": table["id"],
                     "filename": table.get("filename") or "",
@@ -248,10 +240,10 @@ def placements(game_id: str, kind: str) -> dict:
     for table in table_lens.table_rows(game, game_to_row(game)):
         stem = Path(table["filename"]).stem
         option = _placement(game_dir, kind, spec, table["id"], stem, table["filename"])
-        # A .vpx named after its folder makes the two tiers the same filename, and they are
-        # then the same file - the resolver finds it looking for either. Most single-table
-        # folders are like that, so this is the common case rather than a corner, and
-        # offering both would be two choices that do one thing.
+        # A .vpx named after its folder makes the two tiers the same filename, and that
+        # file is the game's. Most single-table folders are like that, so this is the
+        # common case rather than a corner, and offering both would be two choices that
+        # do one thing.
         if table.get("id") and option["base"] not in {item["base"] for item in found}:
             found.append(option)
     return {"placements": found, "extensions": list(spec.family)}

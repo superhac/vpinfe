@@ -439,12 +439,16 @@ def _tier_names(spec: MediaSpec, folder_name: str, playfield_variant: str,
 
     One builder for the resolver and for the candidate listing both, so the panel can
     never name a tier the resolver does not look in.
+
+    A table whose stem is the folder's name has no tier of its own: its name is the
+    game's, and a file under it serves every table in the folder.
     """
     # Tier outranks token preference: a table-specific alias still beats a
     # folder-level preferred token, or "most specific wins" would not hold.
     tokens = ((spec.token,) + spec.alt_tokens) if spec.token else ()
-    table_names = ([f"{token} {table_stem}{ext}"
-                    for token in tokens for ext in spec.family] if table_stem else [])
+    own = table_stem if table_stem and table_stem.lower() != folder_name.lower() else None
+    table_names = ([f"{token} {own}{ext}"
+                    for token in tokens for ext in spec.family] if own else [])
     folder_names = [f"{token} {folder_name}{ext}"
                     for token in tokens for ext in spec.family]
     fixed_names = [f"{spec.stem(playfield_variant)}{ext}" for ext in spec.family]

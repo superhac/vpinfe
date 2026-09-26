@@ -148,12 +148,15 @@ class DetailTests(PlacementTests):
         return [(item["tier"], item["file"], item["wins"])
                 for item in response.json()["tiers"]]
 
-    def test_a_table_file_named_as_its_folder_is_listed_once(self) -> None:
+    def test_a_table_named_as_its_folder_is_served_the_game_s_file(self) -> None:
+        """Its sibling is served the same file, so the two can only be told the same."""
         (self.folder / "medias" / f"(Playfield) {FOLDER}.png").write_bytes(b"\x89PNG")
 
-        self.assertEqual(self._tiers("tbl0000001"),
-                         [("table", f"(Playfield) {FOLDER}.png", True),
-                          ("default", "table.png", False)])
+        for table in ("tbl0000001", "tbl0000002"):
+            with self.subTest(table=table):
+                self.assertEqual(self._tiers(table),
+                                 [("game", f"(Playfield) {FOLDER}.png", True),
+                                  ("default", "table.png", False)])
 
     def test_a_table_with_a_name_of_its_own_lists_both_files(self) -> None:
         (self.folder / "medias" / f"(Playfield) {FOLDER}.png").write_bytes(b"\x89PNG")
@@ -161,6 +164,18 @@ class DetailTests(PlacementTests):
 
         self.assertEqual([tier for tier, _, _ in self._tiers("tbl0000002")],
                          ["table", "game", "default"])
+
+
+class ListingTests(PlacementTests):
+    def test_a_file_named_as_the_folder_is_one_row_serving_every_table(self) -> None:
+        (self.folder / "medias" / f"(Playfield) {FOLDER}.png").write_bytes(b"\x89PNG")
+        response = self.client.get("/media", params={"game": GAME_ID, "kind": "playfield"})
+        self.assertEqual(response.status_code, 200, response.text)
+
+        self.assertEqual([(row["table"], row["file"], row["via"], row["serves"])
+                          for row in response.json()["media"]],
+                         [("", f"(Playfield) {FOLDER}.png", "game", 2),
+                          ("", "table.png", "unused", 0)])
 
 
 if __name__ == "__main__":
