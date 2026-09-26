@@ -656,6 +656,10 @@ def _literals_in(node) -> list[str]:
         return _literals_in(node.body) + _literals_in(node.orelse)
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
         return _literals_in(node.left) + _literals_in(node.right)
+    if isinstance(node, ast.BoolOp):
+        return [said for one in node.values for said in _literals_in(one)]
+    if isinstance(node, ast.Call) and _named(node.func) == "str" and len(node.args) == 1:
+        return _literals_in(node.args[0])
     if isinstance(node, ast.JoinedStr):
         return ["".join(v.value for v in node.values
                         if isinstance(v, ast.Constant) and isinstance(v.value, str))]
@@ -679,6 +683,10 @@ def _fault(path, call, kwarg, node) -> list[str]:
         return _fault(path, call, kwarg, node.body) + _fault(path, call, kwarg, node.orelse)
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
         return _fault(path, call, kwarg, node.left) + _fault(path, call, kwarg, node.right)
+    if isinstance(node, ast.BoolOp):
+        return [fault for one in node.values for fault in _fault(path, call, kwarg, one)]
+    if isinstance(node, ast.Call) and _named(node.func) == "str" and len(node.args) == 1:
+        return _fault(path, call, kwarg, node.args[0])
     if isinstance(node, ast.Constant) and _is_text(node.value):
         return [f"{where} {shown}{node.value!r})"]
     if isinstance(node, ast.JoinedStr):
@@ -727,6 +735,14 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
     def test_two_values_joined_by_a_space_are_read(self) -> None:
         joined = ast.parse('f"{label} {value}"', mode="eval").body
         self.assertEqual(len(_fault(ROOT / "console" / "metrics.py", "label", "", joined)), 1)
+
+    def test_a_fallback_is_read_through_str(self) -> None:
+        shown = ast.parse('str(card.get("name") or "GPU")', mode="eval").body
+        returned = ast.parse('str(found and "Only this table uses it")', mode="eval").body
+
+        self.assertEqual(_fault(ROOT / "console" / "metrics.py", "label", "", shown),
+                         ["console/metrics.py:1 label('GPU')"])
+        self.assertEqual(_literals_in(returned), ["Only this table uses it"])
 
     def test_a_constant_is_not_a_hiding_place(self) -> None:
         """`INTRO = "Each one is a way of..."` then `ui.label(INTRO)` reads as clean.
