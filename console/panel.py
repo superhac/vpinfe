@@ -652,7 +652,8 @@ def path_field(placeholder: str = "", *, wants: str, value: str = "",
 
 def select(options: Any, value: str, on_change: Callable[[Any], Any], *,
            disabled: bool = False,
-           describes: dict[str, str] | None = None) -> Callable[[], None]:
+           describes: dict[str, str] | None = None,
+           status: Callable[[Any], Any] | None = None) -> Callable[[], None]:
     """A list to pick from, where the reader already knows what the names mean, or
     `describes` says, by label, on each option.
 
@@ -668,6 +669,9 @@ def select(options: Any, value: str, on_change: Callable[[Any], Any], *,
                        ui.select(options, value=value, on_change=on_change)) \
                 .props("dense borderless options-dense") \
                 .classes("console-edit-field console-edit-select")
+            if status is not None:
+                with control.add_slot("append"):
+                    status(control)
             if disabled:
                 control.disable()
 

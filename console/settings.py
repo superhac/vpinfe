@@ -27,7 +27,17 @@ from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.i18n import t
 from common.labels import humanize
 from common.media_specs import media_label_map
-from console import binding_editor, deeplink, input_watch, offload, panel, theme_picker, verbs, when
+from console import (
+    binding_editor,
+    deeplink,
+    input_watch,
+    offload,
+    panel,
+    screens,
+    theme_picker,
+    verbs,
+    when,
+)
 from console import commands as commands_help
 from console.data import Library
 
@@ -161,7 +171,11 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
     state = panel.value_state(str(found.get("state") or ""),
                               str(found.get("reason") or ""))
 
-    if option.get("suggest"):
+    if option.get("suggest") == config_schema.SUGGEST_SCREENS:
+        if found_screens := (suggestions or {}).get(config_schema.SUGGEST_SCREENS):
+            return screens.picker(found_screens, value, save, disabled=off,
+                                  blank=not str(option.get("default") or ""))
+    elif option.get("suggest"):
         # Offered and not imposed: what produced the list can be wrong - a network that
         # filters multicast has nothing on it - so anything may still be typed.
         offered = (suggestions or {}).get(option["suggest"]) or {}
@@ -981,6 +995,9 @@ async def _suggestions(library: Library, schema: list[dict],
         offered[config_schema.SUGGEST_COLLECTIONS] = {
             str(row.get("name") or ""): str(row.get("name") or "")
             for row in held if row.get("name")}
+
+    if config_schema.SUGGEST_SCREENS in wanted:
+        offered[config_schema.SUGGEST_SCREENS] = await offload.io(screens.connected)
 
     return offered
 

@@ -124,7 +124,8 @@ class ConfigOption:
     # until the install is running - which installs are on the network, say. Declared
     # here rather than matched on the key by a surface, so the same rename that moves the
     # setting moves the control with it. Suggestions, not choices: the list is offered
-    # and anything may still be typed, because the thing that produces it can be wrong.
+    # and anything may still be typed, because the thing that produces it can be wrong -
+    # all but `SUGGEST_SCREENS`, which only offers what can be picked.
     suggest: str = ""
     # A named tool this setting is edited with, where a control cannot do the job. The
     # type still says what the value *is*, so anything that only reads the setting is
@@ -190,7 +191,8 @@ EDITORS = (EDITOR_BINDING, EDITOR_CONSOLE_THEME, EDITOR_FRONTEND_THEME)
 SUGGEST_LIBRARIES = "libraries"
 SUGGEST_THEMES = "themes"
 SUGGEST_COLLECTIONS = "collections"
-SUGGESTIONS = (SUGGEST_LIBRARIES, SUGGEST_THEMES, SUGGEST_COLLECTIONS)
+SUGGEST_SCREENS = "screens"
+SUGGESTIONS = (SUGGEST_LIBRARIES, SUGGEST_THEMES, SUGGEST_COLLECTIONS, SUGGEST_SCREENS)
 
 
 def in_section(section: str, *options: ConfigOption) -> tuple[ConfigOption, ...]:
@@ -211,6 +213,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="int",
             default="0",
             legacy=(("Displays", "playfieldscreenid"),),
+            suggest=SUGGEST_SCREENS,
         ),
         ConfigOption(
             "orientation",
@@ -234,6 +237,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="int",
             default="",
             legacy=(("Displays", "bgscreenid"),),
+            suggest=SUGGEST_SCREENS,
         ),
         ConfigOption(
             "override",
@@ -249,6 +253,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="int",
             default="",
             legacy=(("Displays", "dmdscreenid"),),
+            suggest=SUGGEST_SCREENS,
         ),
         ConfigOption(
             "override",
