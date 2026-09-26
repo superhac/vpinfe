@@ -228,7 +228,8 @@ SAID_TO_THE_LOG = {
     "common/online/theme_releases.py": frozenset({"bare_ref"}),
     "common/device_client.py": frozenset({"perform_action"}),
     "common/games/info_maintenance.py": frozenset({"_upgrade_summary", "_restore_summary",
-                                                   "_games", "_files"}),
+                                                   "_games", "_files", "upgrade_library",
+                                                   "restore_library"}),
     "httpapi/actions.py": frozenset({"perform_action"}),
     "httpapi/events.py": frozenset({"_frame"}),
 }
@@ -236,7 +237,7 @@ SAID_TO_THE_LOG = {
 # Names a person reads the same in every language: products, the systems they run on, and
 # file formats.
 NAMES = frozenset({"VPinFE", "Python", "macOS", "Windows", "Quartz", "Wayland", "X11",
-                   "OGG"})
+                   "OGG", "PDF"})
 
 
 def _logged_lines(name: str) -> set[int]:
@@ -303,14 +304,17 @@ def _reason_at(tree: ast.Module) -> dict[str, int]:
 
 
 def _handed_back(source: str) -> list[tuple[str, ast.expr]]:
-    """Each value a module returns, gives as a `reason` or raises with, and which."""
+    """Each value a module returns, gives as a `reason` or raises with, and which. A
+    caught exception's own text, returned, is a reason."""
     tree = ast.parse(source)
     held = _constants(tree)
     reason_at = _reason_at(tree)
+    caught = _what_was_caught_as_text(tree)
     found: list[tuple[str, ast.expr]] = []
 
     def add(kind: str, value: ast.expr) -> None:
-        found.extend((kind, one) for one in _pieces(value, held))
+        found.extend(("reason" if kind == "return" and id(one) in caught else kind, one)
+                     for one in _pieces(value, held))
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Return) and node.value is not None:
@@ -343,9 +347,16 @@ def _handed_back(source: str) -> list[tuple[str, ast.expr]]:
     return found
 
 
+def _root(target: ast.expr) -> str | None:
+    """`result` for `result["failures"]` or `found.notes`: the name a field belongs to."""
+    while isinstance(target, (ast.Subscript, ast.Attribute)):
+        target = target.value
+    return getattr(target, "id", None)
+
+
 def _built_into_what_is_returned(tree: ast.Module) -> list[ast.expr]:
-    """Each value a function puts into a name it returns, bare or inside what it returns:
-    assigned, added or appended."""
+    """Each value a function puts into a name it returns, bare or inside what it returns,
+    or into one of that name's fields: assigned, added or appended."""
     values: dict[int, ast.expr] = {}
     for function in ast.walk(tree):
         if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -356,15 +367,24 @@ def _built_into_what_is_returned(tree: ast.Module) -> list[ast.expr]:
         for node in ast.walk(function):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
                     and node.func.attr in ("append", "extend", "insert") and node.args \
-                    and getattr(node.func.value, "id", None) in returned:
+                    and _root(node.func.value) in returned:
                 values[id(node)] = node.args[-1]
             elif isinstance(node, ast.Assign) and any(
-                    getattr(target, "id", None) in returned for target in node.targets):
+                    _root(target) in returned for target in node.targets):
                 values[id(node)] = node.value
             elif isinstance(node, (ast.AugAssign, ast.AnnAssign)) and node.value \
-                    and getattr(node.target, "id", None) in returned:
+                    and _root(node.target) in returned:
                 values[id(node)] = node.value
     return list(values.values())
+
+
+def _what_was_caught_as_text(tree: ast.AST) -> set[int]:
+    """Each `str(exc)` of the exception its own handler caught."""
+    return {id(node) for handler in ast.walk(tree)
+            if isinstance(handler, ast.ExceptHandler) and handler.name
+            for line in handler.body for node in ast.walk(line)
+            if isinstance(node, ast.Call) and _named(node.func) == "str"
+            and [getattr(one, "id", None) for one in node.args] == [handler.name]}
 
 
 def _only_names(said: str) -> bool:
@@ -487,6 +507,25 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                                 "return 'Unknown'",
                                 "return f'GPU {at}'",
                                 "return f'{basis} says how nothing is known'"])
+
+    def test_a_value_put_into_a_returned_field_is_read(self) -> None:
+        source = ("def upgrade(folders, found):\n"
+                  '    result = {"failures": [], "skipped": []}\n'
+                  "    for folder in folders:\n"
+                  "        try:\n"
+                  "            write(folder)\n"
+                  "        except OSError as exc:\n"
+                  '            result["failures"].append((folder, str(exc)))\n'
+                  '            result["skipped"] += [(folder, "Left alone")]\n'
+                  '            found.notes.append(f"Could not write {folder}")\n'
+                  "            continue\n"
+                  "    return result, found\n")
+
+        said = sorted(f"{kind} {ast.unparse(one)}" for kind, one in _handed_back(source)
+                      if _not_looked_up(kind, one))
+
+        self.assertEqual(said, ["reason str(exc)", "return 'Left alone'",
+                                "return f'Could not write {folder}'"])
 
     def test_a_value_built_rather_than_said_passes_by_its_shape(self) -> None:
         source = ("def built(prefix, name, count, n):\n"
