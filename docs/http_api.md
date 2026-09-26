@@ -273,9 +273,9 @@ tell a fallback from the real thing. An unknown kind is an
 
 **Draw art at the size you draw it.** `?size=256` or `?size=1024` sends a picture no
 longer than that on its longest edge, as WebP, made once and kept until the file behind the
-slot changes. A picture is never made larger. An animated one, or one that cannot be read,
-is sent as it is. Any other size is an `invalid_request` naming the two, and so is a size
-on a video or a sound.
+slot changes. A picture is never made larger. An animated one is its first frame, still, at
+256, and sent as it is at 1024; one that cannot be read is sent as it is. Any other size is
+an `invalid_request` naming the two, and so is a size on a video or a sound.
 
 **Keep art for good by naming its version.** Each present entry, each row of
 `GET /media`, a table row's `art_version` and a collection's `image_version` carry a

@@ -15,7 +15,8 @@ from common.paths import CONFIG_DIR
 logger = logging.getLogger("vpinfe.common.games.sized_media")
 
 # The longest edge in pixels. Each one is another copy of every picture on disk.
-SIZES = (256, 1024)
+THUMBNAIL = 256
+SIZES = (THUMBNAIL, 1024)
 
 ROOT = CONFIG_DIR / "cache" / "media_sized"
 
@@ -58,7 +59,8 @@ def size_or_refuse(size: int | None, family: str) -> int | None:
 
 
 def served(source: Path, size: int | None) -> Served:
-    """The source itself, or its copy at `size`."""
+    """The source itself, or its copy at `size`. An animated source is its first frame,
+    still, at THUMBNAIL, and sent whole above it."""
     current = version(source) or ""
     if size is None:
         return Served(source, current)
@@ -77,7 +79,7 @@ def _copy(source: Path, size: int, current: str) -> Path | None:
         from PIL import Image, ImageOps
 
         with Image.open(source) as opened:
-            if getattr(opened, "is_animated", False):
+            if getattr(opened, "is_animated", False) and size > THUMBNAIL:
                 return None
             opened.draft(None, (size, size))
             picture = ImageOps.exif_transpose(opened)

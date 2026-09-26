@@ -12,6 +12,7 @@ from starlette.testclient import TestClient
 import httpapi
 from common.games import sized_media
 from common.games.collection_store import CollectionStore
+from console import art
 from httpapi.responses import FOREVER
 from tests.support.library import TempTree, fake_game, write_game
 
@@ -38,16 +39,30 @@ def _picture(width: int, height: int, *, mode: str = "RGB",
     return out.getvalue()
 
 
-def _animation() -> bytes:
-    frames = [Image.new("RGB", (600, 300), color) for color in ((255, 0, 0), (0, 0, 255))]
+def _animation(fmt: str) -> bytes:
+    """Red then blue, each frame with a see-through corner, as a wheel would have."""
+    frames = []
+    for color in ((255, 0, 0, 255), (0, 0, 255, 255)):
+        frame = Image.new("RGBA", (600, 300), color)
+        frame.paste((0, 0, 0, 0), (0, 0, 60, 60))
+        frames.append(frame)
     out = io.BytesIO()
-    frames[0].save(out, format="GIF", save_all=True, append_images=frames[1:],
+    frames[0].save(out, format=fmt, save_all=True, append_images=frames[1:],
                    duration=100, loop=0)
     return out.getvalue()
 
 
+ANIMATED = {"flyer": "flyer.gif", "scoreview": "dmd.webp"}
+
+
 def _opened(response) -> Image.Image:
     return Image.open(io.BytesIO(response.content))
+
+
+def _rgba(picture: Image.Image, at: tuple[int, int]) -> tuple[int, ...]:
+    pixel = picture.convert("RGBA").getpixel(at)
+    assert isinstance(pixel, tuple)
+    return pixel
 
 
 class _Sized(TempTree):
@@ -69,7 +84,8 @@ class MediaSizeTests(_Sized):
                     f"(Playfield) {FOLDER} - VR.png": _picture(1200, 600),
                     "wheel.png": _picture(600, 600, mode="RGBA"),
                     "bg.png": _picture(100, 50),
-                    "flyer.gif": _animation(),
+                    "flyer.gif": _animation("GIF"),
+                    "dmd.webp": _animation("WEBP"),
                     "cab.png": b"\x89PNGnot a picture",
                     "table.mp4": b"not really a video"})
         game = fake_game(self.folder, FOLDER, meta=INFO)
@@ -104,11 +120,33 @@ class MediaSizeTests(_Sized):
     def test_a_small_picture_is_never_made_larger(self) -> None:
         self.assertEqual(_opened(self._get("backglass", "?size=1024")).size, (100, 50))
 
-    def test_an_animated_picture_is_sent_as_it_is(self) -> None:
-        response = self._get("flyer", "?size=256")
+    def test_an_animated_picture_in_a_cell_is_its_first_frame_still(self) -> None:
+        for kind, name in ANIMATED.items():
+            with self.subTest(file=name):
+                with Image.open(self.folder / "medias" / name) as source:
+                    self.assertEqual(getattr(source, "n_frames", 1), 2)
 
-        self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.content, (self.folder / "medias/flyer.gif").read_bytes())
+                response = self._get(kind, f"?size={art.CELL}")
+
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertEqual(response.headers["content-type"], "image/webp")
+                still = _opened(response)
+                self.assertEqual(getattr(still, "n_frames", 1), 1)
+                self.assertEqual(still.size, (256, 128))
+                red, _, blue, _ = _rgba(still, (255, 127))
+                self.assertGreater(red, 200, "the first frame")
+                self.assertLess(blue, 50, "the first frame")
+                self.assertEqual(_rgba(still, (0, 0))[3], 0)
+
+    def test_an_animated_picture_looked_at_is_sent_as_it_is(self) -> None:
+        for kind, name in ANIMATED.items():
+            for query in ("", f"?size={art.PANEL}"):
+                with self.subTest(file=name, query=query):
+                    response = self._get(kind, query)
+
+                    self.assertEqual(response.status_code, 200, response.text)
+                    self.assertEqual(response.content,
+                                     (self.folder / "medias" / name).read_bytes())
 
     def test_a_picture_that_cannot_be_read_is_sent_as_it_is(self) -> None:
         with self.assertLogs(sized_media.logger, "WARNING") as logged:
