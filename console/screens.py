@@ -50,14 +50,16 @@ def mark(screens: Sequence[Any], value: str) -> dict[str, str]:
 
 
 def picker(screens: Sequence[Any], value: Any, save: Callable[[Any], Any], *,
-           blank: bool, disabled: bool = False) -> Callable[[], None]:
+           blank: bool, disabled: bool = False,
+           rerender: Callable[[], None] | None = None) -> Callable[[], None]:
     """Stores the number, or "" for no window."""
     said = "" if value is None else str(value).strip()
     found = mark(screens, said)
 
-    def pick(event: Any) -> Any:
+    async def pick(event: Any) -> None:
         chosen = str(event.value or "")
-        return save(int(chosen) if chosen else "")
+        if await save(int(chosen) if chosen else "") and found and rerender is not None:
+            rerender()
 
     return panel.select(choices(screens, said, blank=blank), said, pick, disabled=disabled,
                         status=panel.value_state(found.get("state", ""),

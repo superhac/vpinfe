@@ -173,7 +173,7 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
 
     if option.get("suggest") == config_schema.SUGGEST_SCREENS:
         if found_screens := (suggestions or {}).get(config_schema.SUGGEST_SCREENS):
-            return screens.picker(found_screens, value, save, disabled=off,
+            return screens.picker(found_screens, value, save, disabled=off, rerender=rerender,
                                   blank=not str(option.get("default") or ""))
     elif option.get("suggest"):
         # Offered and not imposed: what produced the list can be wrong - a network that

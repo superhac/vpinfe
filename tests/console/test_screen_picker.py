@@ -32,11 +32,12 @@ def _option(section: str) -> dict[str, Any]:
                 for option in block["options"] if option["key"] == "screen_id")
 
 
-class PickedFromTheScreensTests(unittest.TestCase):
+class PickedFromTheScreensTests(unittest.IsolatedAsyncioTestCase):
     def _drawn(self, section: str, value: Any, found: list[Any]) -> tuple[Mock, Mock, Mock]:
-        save = Mock()
+        save = AsyncMock(return_value=True)
+        self.rerender = Mock()
         with patch.object(panel, "select") as select, patch.object(panel, "number") as number:
-            settings.control_for(_option(section), value, save,
+            settings.control_for(_option(section), value, save, rerender=self.rerender,
                                  suggestions={config_schema.SUGGEST_SCREENS: found})
         return select, number, save
 
@@ -66,14 +67,28 @@ class PickedFromTheScreensTests(unittest.TestCase):
         self.assertEqual(backglass.call_args.args[0][""], t("word.none"))
         self.assertEqual(backglass.call_args.args[1], "")
 
-    def test_a_pick_stores_the_screen_s_number(self) -> None:
+    async def test_a_pick_stores_the_screen_s_number(self) -> None:
         select, _, save = self._drawn("windows.backglass", "", [WIDE, TALL])
         pick = select.call_args.args[2]
 
-        pick(SimpleNamespace(value="1"))
-        pick(SimpleNamespace(value=""))
+        await pick(SimpleNamespace(value="1"))
+        await pick(SimpleNamespace(value=""))
 
-        self.assertEqual([one.args for one in save.call_args_list], [(1,), ("",)])
+        self.assertEqual([one.args for one in save.await_args_list], [(1,), ("",)])
+
+    async def test_a_pick_away_from_a_screen_that_is_not_connected_draws_it_again(self) -> None:
+        select, _, _ = self._drawn("windows.backglass", 2, [WIDE])
+
+        await select.call_args.args[2](SimpleNamespace(value="0"))
+
+        self.rerender.assert_called_once_with()
+
+    async def test_a_pick_between_connected_screens_leaves_the_page_where_it_is(self) -> None:
+        select, _, _ = self._drawn("windows.backglass", 1, [WIDE, TALL])
+
+        await select.call_args.args[2](SimpleNamespace(value="0"))
+
+        self.rerender.assert_not_called()
 
     def test_a_stored_screen_that_is_not_connected_stays_chosen_and_is_marked(self) -> None:
         with patch.object(panel, "value_state") as value_state:
