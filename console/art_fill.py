@@ -43,6 +43,12 @@ def remember(held: dict[str, bool], chosen: dict[str, bool],
 def outcome(result: dict[str, Any]) -> tuple[str, Literal["positive", "warning", "info"]]:
     """What the fill says when it ends, and the notice type to say it with."""
     got, failed = int(result.get("filled") or 0), int(result.get("failed") or 0)
+    unreachable = ", ".join(str(name) for name in result.get("unreachable") or ())
+    if unreachable and not (got or failed):
+        return t("console.art_fill.unreachable", sources=unreachable), "warning"
+    if unreachable:
+        said, _ = outcome({"filled": got, "failed": failed})
+        return t("console.art_fill.also_unreachable", said=said, sources=unreachable), "warning"
     if got and failed:
         return t("console.art_fill.got_failed", got=t("console.art_fill.got", count=got),
                  failed=failed), "warning"

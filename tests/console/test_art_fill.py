@@ -48,6 +48,16 @@ class OutcomeTests(unittest.TestCase):
     def test_nothing_found_is_not_a_failure(self) -> None:
         self.assertEqual(outcome({"games": 3, "filled": 0}), ("No art found", "info"))
 
+    def test_a_source_that_did_not_answer_is_not_nothing_found(self) -> None:
+        self.assertEqual(outcome({"games": 3, "filled": 0, "unreachable": ["VPinMediaDB"]}),
+                         ("VPinMediaDB could not be reached", "warning"))
+
+    def test_a_source_that_did_not_answer_is_named_after_what_it_got(self) -> None:
+        self.assertEqual(outcome({"filled": 5, "failed": 2, "unreachable": ["Elsewhere"]}),
+                         ("Got 5 files, 2 failed, Elsewhere could not be reached", "warning"))
+        self.assertEqual(outcome({"filled": 1, "unreachable": ["Elsewhere"]}),
+                         ("Got 1 file, Elsewhere could not be reached", "warning"))
+
 
 def _row(game: str, kind: str, *, present: bool = False, table: str = "",
          standing_in: str = "", vps_id: str = "vps1") -> dict:

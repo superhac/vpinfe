@@ -320,6 +320,7 @@
   "console.app_settings.the_tables_own": "The table's own",
   "console.app_settings.unused": "Ignored",
   "console.app_settings.window_row": "{window} {label}",
+  "console.art_fill.also_unreachable": "{said}, {sources} could not be reached",
   "console.art_fill.ask_kind": {
     "one": "Get {kind} art for 1 game?",
     "other": "Get {kind} art for {count} games?"

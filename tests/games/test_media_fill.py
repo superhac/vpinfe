@@ -241,6 +241,19 @@ class AskedTests(_Library):
         self.assertEqual(self.rows(found)["wheel"], (3, 0))
         self.assertEqual(load.call_count, 1)
 
+    def test_a_fill_names_the_source_it_could_not_reach(self) -> None:
+        with patch.object(asset_sources, "_MANIFEST", None), \
+                patch("common.online.vpsdb_cache.VPinMediaDatabase.load", return_value=None):
+            result = self.ran(media_fill.start(kinds=["wheel"]))
+
+        self.assertEqual((result["filled"], result["unreachable"]), (0, ["VPinMediaDB"]))
+        self.downloads.assert_not_called()
+
+    def test_a_fill_that_reached_every_source_names_none(self) -> None:
+        result = self.ran(media_fill.start([self.id_of(self.folder)], ["wheel"]))
+
+        self.assertEqual(result["unreachable"], [])
+
     def test_the_plan_leaves_out_a_hidden_kind_and_a_slot_with_a_file(self) -> None:
         self.policy.set("hidden_media_kinds", ["backglass"])
         held = self.game("Held", "fathom", **{"wheel.png": b"mine"})

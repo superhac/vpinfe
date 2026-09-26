@@ -61,6 +61,13 @@ def _reachable() -> tuple[str, ...]:
     return tuple(live)
 
 
+def _unanswered(live: tuple[str, ...]) -> list[str]:
+    from common.online import asset_sources
+
+    return [source.name for source in asset_sources.sources(asset_sources.enabled_ids())
+            if source.id not in live]
+
+
 def _asked_as(kind: str, variant: str) -> str | None:
     """The kind to ask a source for to fill `kind`'s slot, or None to leave it.
 
@@ -230,7 +237,7 @@ def plan(game_ids: Iterable[str] | None = None) -> dict[str, Any]:
                 available[kind] += 1
     return {"games": len(scope), "unmatched": unmatched,
             "sources": [source.name for source in enabled],
-            "unreachable": [source.name for source in enabled if source.id not in live],
+            "unreachable": _unanswered(live),
             "kinds": [{"kind": kind, "missing": missing[kind],
                        "available": available[kind]} for kind in kinds]}
 
@@ -255,9 +262,10 @@ def start(game_ids: Iterable[str] | None = None, kinds: Iterable[str] | None = N
         chosen = kept if kinds is None else kept & set(kinds)
         targets = [(game_id, game, chosen) for game_id, game in _scope(game_ids).items()]
 
-    def work(job: jobs.Job) -> dict[str, int]:
-        return _fill_games(targets, _reachable(), job.reporter(),
-                           lambda: not shutdown.requested())
+    def work(job: jobs.Job) -> dict[str, Any]:
+        live = _reachable()
+        return {**_fill_games(targets, live, job.reporter(), lambda: not shutdown.requested()),
+                "unreachable": _unanswered(live)}
 
     try:
         return jobs.submit(jobs.KIND_MEDIA_FILL, work)

@@ -320,6 +320,7 @@
   "console.app_settings.the_tables_own": "Ţĥè ţàƀŀè'š öŵñ",
   "console.app_settings.unused": "Îĝñöřèđ",
   "console.app_settings.window_row": "{window} {label}",
+  "console.art_fill.also_unreachable": "{said}, {sources} çöûŀđ ñöţ ƀè řèàçĥèđ",
   "console.art_fill.ask_kind": {
     "one": "Ĝèţ {kind} àřţ ƒöř 1 ĝàɱè?",
     "other": "Ĝèţ {kind} àřţ ƒöř {count} ĝàɱèš?"
