@@ -1223,6 +1223,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     table_columns = TABLE_COLUMNS + table_asset_columns(list(TABLE_ASSET_KEYS))
     fields = [definition["field"] for definition in table_columns]
 
+    sections.metadata_line(library, state)
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
                                   "console-panel console-grid-bar"):
         bar = panel.grid_bar()

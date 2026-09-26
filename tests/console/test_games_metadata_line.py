@@ -1,4 +1,5 @@
-"""The line above the Games grid, over a library written to disk and read by the scan."""
+"""The line above the Games and Tables grids, over a library written to disk and read by
+the scan."""
 
 from __future__ import annotations
 
@@ -78,9 +79,13 @@ class TheLineAboveTheGrid(unittest.TestCase):
         (write_game(self.root, BROKEN) / f"{BROKEN}.info").write_text(
             '{"Info": {"Title": "broken",,,}', encoding="utf-8")
 
+    def _build(self) -> None:
+        games.build(self.library.game_rows(), self.library.kinds_present(),
+                    self.library, lambda _row: None, {"view": "games"})
+
     def _drawn(self, then: Callable[[ui.element], Awaitable[None]] | None = None
                ) -> ui.element:
-        """The Games page as the Console draws it, after the library is read."""
+        """The page as the Console draws it, after the library is read."""
         self.library.read_metadata_state()
         holder = ui.card()
 
@@ -89,8 +94,7 @@ class TheLineAboveTheGrid(unittest.TestCase):
             core.loop = asyncio.get_running_loop()
             try:
                 with holder:
-                    games.build(self.library.game_rows(), self.library.kinds_present(),
-                                self.library, lambda _row: None, {"view": "games"})
+                    self._build()
                 if then is not None:
                     await then(holder)
             finally:
@@ -164,6 +168,12 @@ class TheLineAboveTheGrid(unittest.TestCase):
             self._drawn(upgrade)
 
         self.assertEqual([[t("console.sections.older_format", count=1)], []], seen)
+
+
+class TheLineAboveTheTablesGrid(TheLineAboveTheGrid):
+    def _build(self) -> None:
+        games.build_tables(self.library.table_rows(), self.library, lambda _row: None,
+                           {"view": "tables"})
 
 
 if __name__ == "__main__":
