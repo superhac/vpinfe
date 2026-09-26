@@ -80,6 +80,9 @@ the documented entry point is a plain 200. Both spellings work.
 | PUT | `/api/v1/library/tags/{tag}` | Describe a tag and pick its color, writing it down if nothing has. `color` is one of `red orange amber green teal blue purple pink gray`; empty goes back to the one derived from its name |
 | POST | `/api/v1/library/owned` | Which of `{"ids": [...]}` - VPS entry or release ids - this library holds: an entry with its game, a release with its table. A release this library holds another version of comes back under `other_versions`, with that table's `version` and the release's `url` |
 | POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
+| GET | `/api/v1/library/info` | What the library's `.info` files need - see [Schema version](#schema-version) |
+| POST | `/api/v1/library/info/upgrade` | Bring every `.info` onto the current schema. Returns `202` and a job |
+| POST | `/api/v1/library/info/restore` | Put back the copy each `.info` was saved as before it was brought forward. Returns `202` and a job |
 | POST | `/api/v1/library/auto_match` | Match `{"game_ids": [...]}` again from their folder names, off the catalog on disk. A match a person made or cleared stays. Answers `games`, `changed`, `unmatched` and `yours`; `409` while a scan runs |
 | POST | `/api/v1/library/media/missing` | What getting missing art for `{"game_ids": [...]}` would fetch, fetching nothing; leaving `game_ids` out asks about the whole library. Per kind the library keeps and an enabled source publishes: `missing` games with no file for it, and `available` those of them a source has one for. `unmatched` counts the games with no VPS match. `sources` names the enabled sources, and `unreachable` those of them that could not be reached, which count nothing available |
 | POST | `/api/v1/library/media/fill` | Get missing art. Returns `202` and a job. `{"game_ids": [...], "kinds": [...]}`, either left out meaning all of them, or `{"slots": [{"game_id", "kind"}]}` for exact slots. Fills gaps only, never replaces a file, and never fetches a kind the library does not keep. The job's result counts `games`, `filled`, `unmatched` and `failed`; `409` while another fill or the downloaded-art update runs |
@@ -1082,6 +1085,17 @@ Migration runs on read, in memory, and never writes — the stamp reaches disk o
 write. A section written by a *newer* VPinFE is left exactly as it is: downgrading someone's
 data because they ran an older build once is worse than not understanding it. A version we
 don't recognize is never a reason to refuse to read a file.
+
+`GET /library/info` says where the library's files stand:
+
+| Field | What it holds |
+|---|---|
+| `pending_upgrade`, `pending_games` | How many games are on an older schema that Upgrade can bring forward, and their folders. A game under `unwritten` is not among them: Upgrade cannot write it either |
+| `restorable`, `restorable_games` | How many games have a copy saved before they were brought forward that this build can put back, and their folders |
+| `newest_backup` | The newest of those copies' stamps, as `20260909T110917Z`, or `""` for none |
+| `newer_than_us` | How many `.info` files a newer VPinFE wrote. This build does not upgrade them |
+| `unreadable` | Each folder whose `.info` could not be read, as `folder`, `path` and `error`. Those games are left out of the library |
+| `unwritten` | Each game whose `.info` could not take what VPinFE wrote to it, as `folder` and `error`. It reads as what VPinFE meant to write until a write succeeds, the file changes or VPinFE restarts |
 
 ## Which release a table is
 

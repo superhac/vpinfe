@@ -14,7 +14,7 @@ from unittest.mock import Mock
 
 from nicegui import core, ui
 
-from common.games import game_identity, game_repository, unwritten
+from common.games import game_identity, game_repository, library_ops, unwritten
 from common.games.game_parser import GameParser
 from common.games.info_maintenance import upgrade_library
 from common.i18n import t
@@ -81,12 +81,10 @@ class TheLineAboveTheGrid(unittest.TestCase):
         # Only the locked ones: an id written to a writable 2.x `.info` upgrades it.
         game_identity.ensure_unique_ids(
             [one for one in parsed if one.game_dir_name in self.locked], order=[])
-        with mock.patch.object(game_repository, "all_games", return_value=parsed):
-            unwritten = game_repository.unwritten_games()
-        pending = [one.game_dir_name for one in parsed if one.info_pending_upgrade]
-        return {"pending_upgrade": len(pending), "pending_games": pending,
-                "unreadable": parser.get_unreadable_games(),
-                "unwritten": unwritten}
+        with mock.patch.object(game_repository, "all_games", return_value=parsed), \
+                mock.patch.object(game_repository, "unreadable_games",
+                                  return_value=parser.get_unreadable_games()):
+            return library_ops.info_maintenance()
 
     def _lock(self, name: str, info: dict[str, Any]) -> Path:
         folder = write_game(self.root, name, info=info)
@@ -130,6 +128,12 @@ class TheLineAboveTheGrid(unittest.TestCase):
         before = set(_dialogs(holder))
         _press(holder, t("console.sections.show"))
         return next(one for one in _dialogs(holder) if one not in before and one.value)
+
+    def _rows(self, box: ui.dialog) -> dict[str, str]:
+        """Each of the card's rows, by name, and what it says."""
+        labels = [one for one in box.descendants() if isinstance(one, ui.label)]
+        return {one.text: after.text for one, after in zip(labels, labels[1:], strict=False)
+                if "console-setting" in one.classes}
 
     def test_a_folder_it_could_not_read_is_said_above_the_grid(self) -> None:
         self._plant_broken()
@@ -214,15 +218,34 @@ class TheLineAboveTheGrid(unittest.TestCase):
                          opened.get(LOCKED), list(opened))
 
     @needs_posix_permissions
-    def test_a_folder_upgrade_could_not_write_is_named_once(self) -> None:
+    def test_a_locked_game_on_an_older_format_is_counted_once_as_not_written(self) -> None:
         self._lock(OLDER, LEGACY)
+        seen: dict[str, Any] = {}
+
+        async def show(holder: ui.element) -> None:
+            seen["line"] = self._line(holder)
+            box = self._show(holder)
+            seen["format"] = self._rows(box)[t("console.sections.format")]
+            seen["upgrade"] = any(isinstance(one, ui.button) and one.text == t("word.upgrade")
+                                  for one in box.descendants())
+
+        self._drawn(show)
+
+        self.assertEqual({"line": [t("console.sections.not_written", count=1)],
+                          "format": t("console.sections.could_not_write", count=1),
+                          "upgrade": False}, seen)
+
+    @needs_posix_permissions
+    def test_a_folder_upgrade_could_not_write_is_named_once(self) -> None:
+        write_game(self.root, OLDER, info=LEGACY)
+        self._lock(LOCKED, LEGACY)
         api = Mock()
         api.upgrade_info.return_value = {"id": "u-1"}
         seen: list[int] = []
 
         def named(box: ui.dialog) -> int:
             return sum(1 for one in box.descendants()
-                       if isinstance(one, ui.label) and one.text == OLDER)
+                       if isinstance(one, ui.label) and one.text == LOCKED)
 
         async def ended(_client: Any, _job_id: str) -> dict[str, Any]:
             return {"state": "done", "result": upgrade_library(self.root)}

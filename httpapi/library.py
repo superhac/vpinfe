@@ -204,8 +204,8 @@ def info_maintenance() -> models.InfoMaintenance:
 @router.post("/info/upgrade", summary="Bring every .info onto the current format",
              status_code=202, dependencies=[requires(scopes.GAMES_WRITE)])
 def upgrade_info(response: Response) -> models.JobResource:
-    """Accepted, not done. Each file is copied to `<name>.info.bak` before it is
-    rewritten, which is what `/info/restore` puts back."""
+    """Accepted, not done. Each file is copied to `<name>.info.vpinfe-<stamp>` before it
+    is rewritten, which is what `/info/restore` puts back."""
     return _accepted(response, library_ops.one_info_pass(game_service.upgrade_info))
 
 

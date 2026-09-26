@@ -148,6 +148,13 @@ def refresh_games() -> list[Any]:
     return all_games(reload=True)
 
 
+def _upgradable(games: list[Any]) -> list[Any]:
+    """The games on an older format, but for those whose .info could not be written."""
+    held = unwritten.reasons(str(game.full_path_game or "") for game in games)
+    return [game for game in games if getattr(game, "info_pending_upgrade", False)
+            and str(game.full_path_game or "") not in held]
+
+
 def info_maintenance_counts(reload: bool = False) -> dict[str, int]:
     """How many games could be upgraded, and how many have something to restore.
 
@@ -155,7 +162,7 @@ def info_maintenance_counts(reload: bool = False) -> dict[str, int]:
     """
     games = all_games(reload=reload)
     return {
-        "pending_upgrade": sum(1 for t in games if getattr(t, "info_pending_upgrade", False)),
+        "pending_upgrade": len(_upgradable(games)),
         "restorable": sum(1 for t in games if getattr(t, "info_restorable", False)),
         # Written by a build newer than this one. Without this the page cannot tell "I
         # upgraded these" from "something newer did, and I cannot fully read them" - and
@@ -184,11 +191,7 @@ def unwritten_games() -> list[dict[str, str]]:
 
 def pending_upgrade_game_names() -> list[str]:
     """Folders whose .info the upgrade did not reach, for the list its dialog shows."""
-    return sorted(
-        (t.game_dir_name for t in all_games()
-         if getattr(t, "info_pending_upgrade", False)),
-        key=str.lower,
-    )
+    return sorted((game.game_dir_name for game in _upgradable(all_games())), key=str.lower)
 
 
 def newest_backup_stamp() -> str:

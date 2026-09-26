@@ -180,8 +180,8 @@ class InfoMaintenance(ApiModel):
     absent from the library entirely, which is the failure most worth saying out loud -
     nothing else on any screen would show them.
 
-    `unwritten` names games whose `.info` could not take the id they were given, each
-    with why. They are in the library under that id until VPinFE restarts.
+    `unwritten` names games whose `.info` could not take what VPinFE wrote to it, each
+    with why. They are not counted in `pending_upgrade`: Upgrade cannot write them either.
     """
 
     pending_upgrade: int

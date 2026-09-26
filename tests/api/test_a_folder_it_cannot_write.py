@@ -101,10 +101,10 @@ class LockedFolderTests(TempTree):
         self.assertEqual(self._listed()[LOCKED], first)
         self.assertEqual(self._on_disk(LOCKED), first)
 
-    def test_it_counts_among_those_written_by_an_older_build(self) -> None:
+    def test_it_counts_as_not_written_and_not_as_one_to_upgrade(self) -> None:
         self._listed()
 
         info = self.client.get("/library/info").json()
 
-        self.assertEqual(info["pending_upgrade"], 1)
-        self.assertEqual(info["pending_games"], [LOCKED])
+        self.assertEqual((info["pending_upgrade"], info["pending_games"]), (0, []))
+        self.assertEqual([one["folder"] for one in info["unwritten"]], [LOCKED])
