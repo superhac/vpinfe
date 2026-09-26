@@ -2323,8 +2323,6 @@
   "error.uploads.rar_tool.windows": "Install WinRAR or 7-Zip for UnRAR.exe, or set {setting} in {section}.",
   "error.uploads.reads_folder_here": "This upload reads a folder on this device and takes no files.",
   "error.uploads.slot_import_needs_game": "A slot import needs the game it belongs to.",
-  "error.uploads.slot_takes_image": "This slot takes an image",
-  "error.uploads.slot_takes_type": "This slot takes {suffix} files",
   "error.uploads.unknown_vps_id": "Unknown vps_id: {vps_id}",
   "error.uploads.unsafe_path": "{path} would land outside the game's folder.",
   "error.uploads.unsafe_upload_path": "{path} would land outside the upload.",

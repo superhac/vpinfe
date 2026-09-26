@@ -207,9 +207,15 @@ class MediaSlotPlanTests(unittest.TestCase):
                 ("art.jpg", "backglass", True),
                 ("clip.mp4", "scoreview_video", True),
                 ("song.mp3", "audio", True),
+                ("song.ogg", "audio", True),
+                ("song.ogg", "audio_launch", True),
+                ("rules.pdf", "rule_sheet", True),
+                ("rules.txt", "rule_sheet", True),
                 ("art.png", "scoreview_video", False),   # image into a video slot
                 ("clip.mp4", "wheel", False),      # video into an image slot
                 ("song.mp3", "backglass", False),
+                ("art.png", "rule_sheet", False),
+                ("rules.pdf", "wheel", False),
             ]:
                 with self.subTest(filename=filename, media_kind=media_kind):
                     src = Path(tmp) / filename
@@ -222,6 +228,26 @@ class MediaSlotPlanTests(unittest.TestCase):
                     else:
                         self.assertEqual(plan.items, ())
                         self.assertTrue(plan.blocked)
+
+    def test_a_refusal_names_the_slot_and_every_type_it_takes(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        from common.media_specs import MEDIA_SPECS
+        spec_for_kind = {spec.kind: spec for spec in MEDIA_SPECS}.__getitem__
+        with TemporaryDirectory() as tmp:
+            for filename, media_kind in (("art.png", "rule_sheet"), ("song.mp3", "wheel"),
+                                         ("clip.webp", "audio")):
+                with self.subTest(media_kind=media_kind):
+                    src = Path(tmp) / filename
+                    src.write_bytes(b"x")
+                    plan = build_media_slot_plan(src, game_dir=Path(tmp), media_kind=media_kind)
+                    reason = plan.blocked[0].reason
+                    spec = spec_for_kind(media_kind)
+                    self.assertIn(spec.label, reason)
+                    self.assertIn(src.suffix, reason)
+                    for suffix in spec.family:
+                        self.assertIn(suffix, reason)
 
     def test_archive_and_unknown_slot_rejected(self):
         from pathlib import Path

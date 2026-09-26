@@ -15,6 +15,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 
+from common.failures import why
 from common.games import media_placement
 from common.games.asset_registry import ARCHIVE_EXTENSIONS, lens_kind, spec_for
 from common.games.game_repository import refresh_game
@@ -30,7 +31,6 @@ from common.games.game_service import (
 from common.games.identity_claims import DeclaredIdentity
 from common.games.ids import new_id
 from common.games.info_file import VPINFE_SECTION, MetaConfig
-from common.games.media_service import IMAGE_EXTENSIONS
 from common.games.vpx_parser import VPXParser
 from common.i18n import t
 from common.media_specs import media_filename_map
@@ -345,11 +345,10 @@ def build_media_slot_plan(source_path: Path, *, game_dir: Path, media_kind: str)
     """Plan a targeted media-slot import from a single dropped file.
 
     The slot dictates the media key (no filename inference); the file only has to
-    belong to the slot's family (image slots take images, video slots .mp4, audio .mp3).
-    Unsuitable drops come back as a blocked item with the reason.
+    belong to the kind's family. Unsuitable drops come back as a blocked item with the
+    reason.
     """
-    canonical = _MEDIA_FILENAMES.get(media_kind)
-    if canonical is None:
+    if media_kind not in _MEDIA_FILENAMES:
         raise ValueError(t("error.uploads.no_slot_called", media_kind=media_kind))
     src = Path(source_path)
     try:
@@ -364,18 +363,11 @@ def build_media_slot_plan(source_path: Path, *, game_dir: Path, media_kind: str)
         blocked = BlockedItem(asset, t("error.uploads.drop_single_file_slot"))
         return ImportPlan(str(game_dir), "", "", (), (blocked,))
 
-    slot_suffix = Path(canonical).suffix.lower()
-    suffix = src.suffix.lower()
-    if slot_suffix in {".mp4", ".mp3"}:
-        suitable = suffix == slot_suffix
-        why = t("error.uploads.slot_takes_type", suffix=slot_suffix)
-    else:
-        suitable = suffix in IMAGE_EXTENSIONS
-        why = t("error.uploads.slot_takes_image")
-    if not suitable:
-        return ImportPlan(str(game_dir), "", "", (), (BlockedItem(asset, why),))
-
-    return ImportPlan(str(game_dir), "", "", (_plan_media(asset, game_dir),), ())
+    try:
+        item = _plan_media(asset, game_dir)
+    except media_placement.UnplaceableError as exc:
+        return ImportPlan(str(game_dir), "", "", (), (BlockedItem(asset, why(exc)),))
+    return ImportPlan(str(game_dir), "", "", (item,), ())
 
 
 def build_readme_plan(source_path: Path, *, game_dir: Path) -> ImportPlan:

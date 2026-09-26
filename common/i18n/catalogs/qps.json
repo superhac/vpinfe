@@ -2323,8 +2323,6 @@
   "error.uploads.rar_tool.windows": "Îñšţàŀŀ ŴîñŘÀŘ öř 7-Žîþ ƒöř ÛñŘÀŘ.èẋè, öř šèţ {setting} îñ {section}.",
   "error.uploads.reads_folder_here": "Ţĥîš ûþŀöàđ řèàđš à ƒöŀđèř öñ ţĥîš đèṽîçè àñđ ţàķèš ñö ƒîŀèš.",
   "error.uploads.slot_import_needs_game": "À šŀöţ îɱþöřţ ñèèđš ţĥè ĝàɱè îţ ƀèŀöñĝš ţö.",
-  "error.uploads.slot_takes_image": "Ţĥîš šŀöţ ţàķèš àñ îɱàĝè",
-  "error.uploads.slot_takes_type": "Ţĥîš šŀöţ ţàķèš {suffix} ƒîŀèš",
   "error.uploads.unknown_vps_id": "Ûñķñöŵñ ṽþš_îđ: {vps_id}",
   "error.uploads.unsafe_path": "{path} ŵöûŀđ ŀàñđ öûţšîđè ţĥè ĝàɱè'š ƒöŀđèř.",
   "error.uploads.unsafe_upload_path": "{path} ŵöûŀđ ŀàñđ öûţšîđè ţĥè ûþŀöàđ.",
