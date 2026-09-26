@@ -655,7 +655,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             if entry.get("device_id") == discovery.get("install_id"):
                 # Kept so the device's own page does not ask a second time on arrival.
                 state["update"] = found
-            if found.get("update_available"):
+            if found.get("update_available") and not found.get("error"):
                 waiting.append(devices_page.device_label(entry))
 
         # Which of them answered, on the same pass. The rail draws a dot per device from

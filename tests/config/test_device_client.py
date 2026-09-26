@@ -51,6 +51,20 @@ class ResolverTests(unittest.TestCase):
         self.assertEqual(device_client.RemoteDevice("http://x:1/")._url("/update"),
                          "http://x:1/api/v1/update")
 
+    def test_check_now_asks_the_device_to_ask_now(self) -> None:
+        asked: list[str] = []
+
+        def get_json(url: str) -> dict:
+            asked.append(url)
+            return {}
+
+        with patch.object(http_client, "get_json", get_json):
+            device_client.RemoteDevice("http://x:1").update_check()
+            device_client.RemoteDevice("http://x:1").update_check(refresh=True)
+
+        self.assertEqual(asked, ["http://x:1/api/v1/update",
+                                 "http://x:1/api/v1/update?refresh=true"])
+
 
 class RemoteRefusalTests(unittest.TestCase):
     """What cannot be learned by asking. Raising beats an empty list: "no screens" and

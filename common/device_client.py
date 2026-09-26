@@ -286,10 +286,11 @@ class RemoteDevice:
                 raise TooOldError(t(TOO_OLD)) from exc
             raise
 
-    def update_check(self) -> dict[str, Any]:
+    def update_check(self, refresh: bool = False) -> dict[str, Any]:
         from common import http_client
 
-        return dict(http_client.get_json(self._url("/update")) or {})
+        asked = self._url("/update") + ("?refresh=true" if refresh else "")
+        return dict(http_client.get_json(asked) or {})
 
     def play_state(self) -> dict[str, Any]:
         from common import http_client

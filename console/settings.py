@@ -373,10 +373,10 @@ async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tupl
 
     # No heading of its own: Download Spreadsheet, the row above, already names the
     # catalog, and a heading here reads as a separate subject.
-    return [_last_checked(str(state.get("checked") or ""), now)]
+    return [last_checked(str(state.get("checked") or ""), now)]
 
 
-def _last_checked(checked_at: str, now: Callable[[], Any]) -> tuple[Any, Any]:
+def last_checked(checked_at: str, now: Callable[[], Any]) -> tuple[Any, Any]:
     """When something kept was last read, and the act that reads it now."""
     def checked() -> None:
         with ui.element("div").classes("console-fact-edit"):
@@ -407,7 +407,7 @@ async def _themes_foot(library: Library, rerender: Callable[[], None]) -> list[t
             checking.dismiss()
         rerender()
 
-    return [_last_checked(str(held.get("checked") or ""), now)]
+    return [last_checked(str(held.get("checked") or ""), now)]
 
 
 async def _input_foot(library: Library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:

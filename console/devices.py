@@ -194,12 +194,13 @@ async def _confirm_forget(library: Any, device: dict[str, Any],
 
 
 def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
-                   update: dict[str, Any] | None) -> list[tuple[Any, Any]]:
+                   update: dict[str, Any] | None,
+                   check: Callable[[], Any] | None = None) -> list[tuple[Any, Any]]:
     """What this device is running, and whether it can take what is published.
 
     A device with no answer gets an unknown - one that announced itself before ports were
     recorded cannot be reached, and one that is not answering has not said. Either way
-    "up to date" would be a guess wearing a fact.
+    "up to date" would be a guess wearing a fact. `check` is Check now.
     """
     rows: list[tuple[Any, Any]] = []
     if not update:
@@ -210,22 +211,31 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
         return rows
 
     current = str(update.get("current_version") or "unknown")
-    if not update.get("update_available"):
+    checked = str(update.get("checked_at") or "")
+    if update.get("error"):
+        rows.append((t("word.version"), panel.state(
+            t("console.devices.could_not_check"), "unknown", beside=current,
+            hint=(t("console.devices.last_checked", when=when.ago(checked, inline=True))
+                  if checked else t("console.devices.never_checked")))))
+    elif not update.get("update_available"):
         rows.append((t("word.version"), panel.state(current, "on")))
-        return rows
+    else:
+        rows += _available_rows(device, client, update, current)
+    if check is not None:
+        rows.append(settings_page.last_checked(checked, check))
+    return rows
 
+
+def _available_rows(device: dict[str, Any], client: Any, update: dict[str, Any],
+                    current: str) -> list[tuple[Any, Any]]:
     latest = str(update.get("latest_version") or t("console.devices.newer_build"))
+    rows: list[tuple[Any, Any]] = [(t("word.version"), panel.state(
+        t("console.devices.available", latest=(latest)), "warn", beside=current))]
     if not update.get("update_supported"):
-        reason = t(WHY_NOT.get(str(update.get("support_reason") or ""),
-                               "console.devices.device_cannot_update_itself"))
-        rows.append((t("word.version"), panel.state(t("console.devices.available",
-                latest=(latest)), "warn",
-                                            beside=current)))
-        rows.append(panel.note(reason))
+        rows.append(panel.note(t(WHY_NOT.get(str(update.get("support_reason") or ""),
+                                             "console.devices.device_cannot_update_itself"))))
         return rows
 
-    rows.append((t("word.version"),
-            panel.state(t("console.devices.available", latest=(latest)), "warn", beside=current)))
     def update_action() -> None:
         with ui.element("div").classes("console-fact-edit"):
             panel.action(t("console.devices.update_3", latest=(latest)),
@@ -748,7 +758,28 @@ async def software_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
                         device_label(device), exc_info=True)
             update = None
         context["update"] = update
-    return _software_rows(device, is_local(context), client, update)
+    return _software_rows(device, is_local(context), client, update,
+                          _check_now(context, ask) if ask is not None else None)
+
+
+def _check_now(context: dict[str, Any], ask: Callable[..., Any]) -> Callable[[], Any]:
+    async def now() -> None:
+        checking = ui.notification(t("console.devices.checking_updates"), spinner=True,
+                                   timeout=None)
+        try:
+            await offload.io(ask, True)
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
+            ui.notify(t("console.devices.could_not_ask",
+                        device_label=device_label(_of(context)), reason=_why(exc)),
+                      type="negative")
+            return
+        finally:
+            checking.dismiss()
+        rebuild = context.get("rebuild")
+        if rebuild is not None:
+            await rebuild()
+
+    return now
 
 
 def capability_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:

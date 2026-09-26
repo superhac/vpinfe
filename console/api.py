@@ -1034,9 +1034,10 @@ class ApiClient:
                            "source": source})
         return self._get(f"/logs?{query}")
 
-    def update_check(self) -> dict:
-        """Whether a newer build is published. Reaches the network on the server's side."""
-        return self._get("/update")
+    def update_check(self, refresh: bool = False) -> dict:
+        """Whether a newer build is published. `refresh` asks GitHub on the server's side
+        rather than reading the last answer."""
+        return self._get(f"/update?refresh={'true' if refresh else 'false'}")
 
     def forget_device(self, device_id: str) -> None:
         """Drop a device from the registry. It answers 204, so nothing is read."""
