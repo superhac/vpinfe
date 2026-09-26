@@ -1,0 +1,116 @@
+"""A host that says wait is not asked again until the time it gave."""
+
+from __future__ import annotations
+
+import unittest
+from email.utils import formatdate
+from typing import Any
+from unittest import mock
+
+import requests
+
+from common import http_client
+
+NOW = 1_800_000_000.0
+URL = "https://api.github.com/repos/o/r/releases/latest"
+
+
+def _answer(status: int, headers: dict[str, str] | None = None) -> requests.Response:
+    response = requests.Response()
+    response.status_code = status
+    response.headers.update(headers or {})
+    response._content = b"{}"
+    response._content_consumed = True
+    response.url = URL
+    return response
+
+
+class GateTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.now = NOW
+        self.asked: list[str] = []
+        patches: list[Any] = [
+            mock.patch.dict(http_client._quiet, clear=True),
+            mock.patch.object(http_client.time, "time", side_effect=lambda: self.now),
+        ]
+        for one in patches:
+            one.start()
+            self.addCleanup(one.stop)
+
+    def _transport(self, *answers: requests.Response) -> Any:
+        queue = list(answers)
+
+        def get(url: str, **_: object) -> requests.Response:
+            self.asked.append(url)
+            return queue.pop(0)
+        return mock.patch.object(http_client.requests, "get", side_effect=get)
+
+    def _closed_until(self, answer: requests.Response) -> float:
+        with self._transport(answer), self.assertLogs(http_client.logger, "WARNING") as said:
+            with self.assertRaises(http_client.HostQuietError) as raised:
+                http_client.get_json(URL)
+        self.assertEqual(len(said.records), 1)
+        self.assertIn("api.github.com", said.output[0])
+        self.assertIs(raised.exception.response, answer)
+        return raised.exception.until
+
+    def test_a_spent_limit_waits_for_its_reset(self) -> None:
+        until = self._closed_until(_answer(403, {"x-ratelimit-remaining": "0",
+                                                 "x-ratelimit-reset": str(int(NOW) + 900)}))
+        self.assertEqual(until, NOW + 900)
+
+    def test_retry_after_in_seconds_waits_that_long(self) -> None:
+        self.assertEqual(self._closed_until(_answer(429, {"retry-after": "120"})), NOW + 120)
+
+    def test_retry_after_as_a_date_waits_until_it(self) -> None:
+        stamp = formatdate(NOW + 300, usegmt=True)
+        self.assertEqual(self._closed_until(_answer(403, {"retry-after": stamp})), NOW + 300)
+
+    def test_retry_after_wins_over_the_reset(self) -> None:
+        until = self._closed_until(_answer(429, {"retry-after": "30",
+                                                 "x-ratelimit-remaining": "0",
+                                                 "x-ratelimit-reset": str(int(NOW) + 900)}))
+        self.assertEqual(until, NOW + 30)
+
+    def test_a_429_carrying_neither_waits_a_minute(self) -> None:
+        self.assertEqual(self._closed_until(_answer(429)), NOW + 60)
+
+    def test_a_rate_limited_403_carrying_neither_time_waits_a_minute(self) -> None:
+        until = self._closed_until(_answer(403, {"x-ratelimit-remaining": "12"}))
+        self.assertEqual(until, NOW + 60)
+
+    def test_a_reset_already_past_waits_a_minute(self) -> None:
+        until = self._closed_until(_answer(403, {"x-ratelimit-remaining": "0",
+                                                 "x-ratelimit-reset": str(int(NOW) - 5)}))
+        self.assertEqual(until, NOW + 60)
+
+    def test_a_bare_403_is_a_refusal_not_a_wait(self) -> None:
+        with self._transport(_answer(403), _answer(200)):
+            with self.assertRaises(requests.HTTPError) as raised:
+                http_client.get_json(URL)
+            self.assertNotIsInstance(raised.exception, http_client.HostQuietError)
+            self.assertEqual(http_client.get_json(URL), {})
+        self.assertEqual(len(self.asked), 2)
+
+    def test_quiet_then_open(self) -> None:
+        self._closed_until(_answer(429, {"retry-after": "120"}))
+        with self._transport(_answer(200)):
+            self.now = NOW + 119
+            with self.assertNoLogs(http_client.logger, "WARNING"):
+                with self.assertRaises(http_client.HostQuietError):
+                    http_client.get_json(URL)
+                with self.assertRaises(http_client.HostQuietError):
+                    http_client.download_file(URL, mock.MagicMock())
+            self.assertEqual(len(self.asked), 1)
+            self.now = NOW + 120
+            self.assertEqual(http_client.get_json(URL), {})
+        self.assertEqual(len(self.asked), 2)
+
+    def test_another_host_is_still_asked(self) -> None:
+        self._closed_until(_answer(429))
+        with self._transport(_answer(200)):
+            self.assertEqual(http_client.get_json("https://raw.githubusercontent.com/x"), {})
+
+
+if __name__ == "__main__":
+    unittest.main()
