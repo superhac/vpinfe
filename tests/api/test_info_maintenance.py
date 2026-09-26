@@ -236,21 +236,37 @@ class MetadataOutcomeTests(unittest.TestCase):
                 "restorable": sum(1 for one in games if one.info_restorable),
                 "unreadable": parser.get_unreadable_games()}
 
-    def _press(self, which: str, work) -> tuple[list[tuple[str, str, str]], dict[str, str]]:
-        """Press Upgrade or Restore over what `work` did. Hand back each thing the Console
+    def _press(self, which: str, work, *, leave: bool = False
+               ) -> tuple[list[tuple[str, str, str]], dict[str, str]]:
+        """Press Upgrade or Restore over what `work` did, from inside a row of the card;
+        `leave` deletes that row while the job runs. Hand back each thing the Console
         said, as lead, caption and type, and the card as it is drawn afterwards."""
+        job = self._job(work)
+        with ui.column() as card:
+            row = ui.row().default_slot
+
+        def asked(_job_id: str) -> dict:
+            if leave:
+                card.clear()
+            return job
+
         client = mock.Mock()
         client.upgrade_info.return_value = client.restore_info.return_value = {"id": which}
-        client.job.return_value = self._job(work)
+        client.job.side_effect = asked
         client.info_maintenance.side_effect = self._metadata
         library = Library(client)
         page = {"view": "overview"}
+
+        async def pressed() -> None:
+            with row:
+                await sections._metadata_action(library, page, mock.Mock())(which)
+
         with mock.patch("console.confirm.ask", mock.AsyncMock(return_value=True)), \
                 mock.patch("console.api.ApiClient", return_value=client), \
                 mock.patch("nicegui.run.io_bound", new=_now), \
                 mock.patch.object(sections, "_POLL_S", 0), \
-                mock.patch.object(sections.ui, "notify") as notify:
-            asyncio.run(sections._metadata_action(library, page, mock.Mock())(which))
+                mock.patch.object(sections.ui, "notify", wraps=ui.notify) as notify:
+            asyncio.run(pressed())
         said = [(one.args[0], one.kwargs.get("caption", ""), one.kwargs.get("type", ""))
                 for one in notify.call_args_list]
         return said, _card(library.metadata_state(), page.get(sections._LEFT))
@@ -290,6 +306,11 @@ class MetadataOutcomeTests(unittest.TestCase):
         lead, caption, kind = said[-1]
         self.assertEqual((lead, kind), (t("console.sections.upgrade_failed"), "negative"))
         self.assertTrue(caption.startswith(t("said.why.no_permission")), caption)
+
+    def test_how_it_went_is_said_after_the_page_is_left(self) -> None:
+        said, _ = self._press("upgrade", upgrade_library, leave=True)
+
+        self.assertIn((t("console.sections.upgraded", count=2), "", "positive"), said)
 
 
 def _never_finishes() -> None:

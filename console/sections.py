@@ -226,7 +226,7 @@ def _metadata_action(library: Library, state: dict[str, Any],
     from console import confirm
     from console.api import ApiClient
 
-    async def start(which: str) -> None:
+    async def ask_and_run(which: str) -> None:
         title, detail, word, icon, danger = _ASKS[which]
         if not await confirm.ask(title, detail=detail, confirm=word, icon=icon, danger=danger):
             return
@@ -259,6 +259,10 @@ def _metadata_action(library: Library, state: dict[str, Any],
             ui.notify(said, type="warning" if left else "positive")
         state.setdefault(_LEFT, {})[which] = left
         then()
+
+    async def start(which: str) -> None:
+        with ui.context.client:
+            await ask_and_run(which)
 
     return start
 

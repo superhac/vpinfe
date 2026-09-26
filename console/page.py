@@ -1285,12 +1285,15 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     await run.io_bound(library.warm, games.SCOPE + views.VIEWS_SUFFIX,
                        f"{games.SCOPE}.tables" + views.VIEWS_SUFFIX)
 
+    client = ui.context.client
+
     def go(view: str) -> None:
         leave_for(state, view)
         # redraw, not render: a destination whose data is read on demand has to read it
         # before it draws, and arriving is exactly when that is first true.
         redraw()
-        deeplink.sync(state)
+        with client:
+            deeplink.sync(state)
 
     # An address naming a game means the pane it opens, not just the section. Restored
     # after the shell exists, because that is what show_game builds into - and through
