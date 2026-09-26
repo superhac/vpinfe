@@ -26,6 +26,7 @@ from typing import Any
 from common import apps, events
 from common.config_store import ConfigStore
 from common.extensions import services as ext_services
+from common.failures import why
 from common.games import game_play_service, info_file, launchers, tables
 from common.games.game import Game
 from common.games.tables import (
@@ -310,7 +311,7 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
         try:
             around = table_commands.before(game, playing, launcher, ini_config)
         except commands.CommandRefusedError as exc:
-            raise LaunchUnavailableError(str(exc)) from exc
+            raise LaunchUnavailableError(why(exc)) from exc
 
         # Hooks run next and can still stop this - releasing the peripherals is one.
         # Nothing below has happened yet, so a refusal here leaves nothing to undo.

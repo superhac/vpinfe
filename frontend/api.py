@@ -20,6 +20,7 @@ from common import events, lifecycle
 from common.config_access import cfg_get
 from common.deprecations import announce
 from common.extensions import services as ext_services
+from common.failures import why
 from common.games import game_identity
 from common.games.collection_store import BUILTIN_ALL, normalize_direction, public_name
 from common.games.game_metadata import game_rating, normalize_meta, set_game_rating
@@ -494,7 +495,7 @@ class API:
                 rating, rating_or_higher, direction,
             )
         except (ValueError, ServiceError) as e:
-            return {"success": False, "message": str(e)}
+            return {"success": False, "message": why(e)}
 
     def get_current_filter_state(self) -> dict[str, Any]:
         """Return current filter state for UI synchronization."""
@@ -673,7 +674,7 @@ class API:
                                table=entry.filename)
         except launch.LaunchUnavailableError as exc:
             logger.warning("Cannot launch %s: %s", game.game_dir_name, exc)
-            return {"success": False, "reason": str(exc)}
+            return {"success": False, "reason": why(exc)}
         return {"success": True}
 
     def notify_table_selected(self, index: Any) -> dict[str, Any]:

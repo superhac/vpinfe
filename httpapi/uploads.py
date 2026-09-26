@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, File, Form, Query, UploadFile
 from starlette.concurrency import run_in_threadpool
 
+from common.failures import why
 from common.online import vps_lens
 from common.uploads import upload_ops
 
@@ -55,7 +56,7 @@ async def add_upload_file(upload_id: str, relpath: str = Form(...),
         stored = await run_in_threadpool(upload_ops.add_file, upload_id, relpath,
                                          file.file)
     except upload_ops.UploadTooLargeError as exc:
-        raise ApiError("payload_too_large", str(exc), status_code=413) from exc
+        raise ApiError("payload_too_large", why(exc), status_code=413) from exc
     return models.FileStored(**stored)
 
 
@@ -75,7 +76,7 @@ def plan_upload(upload_id: str,
         return models.ImportPlanResource(
             **upload_ops.plan_for(upload_id, payload.model_dump()))
     except upload_ops.UnprocessableUploadError as exc:
-        raise ApiError("unprocessable_upload", str(exc), status_code=422) from exc
+        raise ApiError("unprocessable_upload", why(exc), status_code=422) from exc
 
 
 @router.post("/{upload_id}/import", summary="Execute an import plan",
@@ -87,9 +88,9 @@ def import_upload(upload_id: str,
         report = upload_ops.execute(upload_id, payload.model_dump(exclude={"declared"}),
                                     payload.declared)
     except upload_ops.UnprocessableUploadError as exc:
-        raise ApiError("unprocessable_upload", str(exc), status_code=422) from exc
+        raise ApiError("unprocessable_upload", why(exc), status_code=422) from exc
     except upload_ops.NothingImportableError as exc:
-        raise ApiError("no_importable_assets", str(exc), status_code=422,
+        raise ApiError("no_importable_assets", why(exc), status_code=422,
                        details=exc.details) from exc
     return models.ImportReport(**report)
 

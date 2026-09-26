@@ -6,7 +6,7 @@ import ast
 import re
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 from tests.support.catalogs import served
 
@@ -23,6 +23,23 @@ TEXT = {"args", "msg", "message", "strerror", "reason"}
 
 SLOT = re.compile(r"\{exc(?:[.!:\[][^}]*)?\}")
 REPR = re.compile(r"\{[^{}]*![rsa]\}")
+
+LOGGED = {"debug", "info", "warning", "warn", "error", "exception", "critical", "log"}
+# Functions that hand on a caught exception's own text as it is, and who reads it there.
+HANDED_ON = {
+    "common/extensions/context.py": {
+        "contribute": "an extension's author, as the extension registers",
+        "offer": "an extension's author, as the extension registers"},
+    "common/games/revert_3x.py": {"_keep_aside": "a command-line tool",
+                                  "_remove": "a command-line tool"},
+    "common/host/commands.py": {
+        "planned": "the log: a launch refused says so again in the catalog's words",
+        "run": "the log: a launch refused says so again in the catalog's words",
+        "_one": "the log: a launch refused says so again in the catalog's words"},
+    "common/host/dof_service_worker.py": {"handle": "the DOF service, which logs it",
+                                          "main": "the DOF service, which logs it"},
+    "common/host/pinmame_worker.py": {"main": "the PinMAME lookup, which logs it"},
+}
 
 
 def _named(node: ast.expr) -> str:
@@ -84,6 +101,61 @@ def offenders(source: str) -> list[tuple[int, str]]:
                     if id(one) not in seen:
                         seen.add(id(one))
                         found.append((one.lineno, ast.unparse(value)))
+    return sorted(found)
+
+
+def _its_text(node: ast.AST, name: str) -> TypeGuard[ast.expr]:
+    """`str(exc)`, `{exc}` in an f-string, `exc.msg`: the exception's own words."""
+    def caught(value: ast.AST) -> bool:
+        return isinstance(value, ast.Name) and value.id == name
+
+    if isinstance(node, ast.Call) and _named(node.func) in ("str", "repr", "format"):
+        return bool(node.args) and caught(node.args[0])
+    if isinstance(node, ast.FormattedValue):
+        return caught(node.value) or _its_text(node.value, name)
+    return isinstance(node, ast.Attribute) and node.attr in TEXT and caught(node.value)
+
+
+def _not_handed_on(chain: list[ast.AST]) -> bool:
+    """Written to the log, worded by why(), a test, or data under `details=`."""
+    for child, parent in zip(chain, chain[1:], strict=False):
+        if isinstance(parent, ast.Call) and ("why" in _named(parent.func) or (
+                isinstance(parent.func, ast.Attribute) and parent.func.attr in LOGGED)):
+            return True
+        if isinstance(parent, ast.keyword) and parent.arg == "details":
+            return True
+        if isinstance(parent, (ast.If, ast.While, ast.IfExp, ast.Assert)) \
+                and child is parent.test:
+            return True
+    return False
+
+
+def handed_on(source: str) -> list[tuple[int, str, str]]:
+    """(line, function, text) for each caught exception's own text a handler hands on."""
+    tree = ast.parse(source)
+    parent: dict[int, ast.AST] = {id(child): node for node in ast.walk(tree)
+                                  for child in ast.iter_child_nodes(node)}
+    within: dict[int, str] = {}
+    for function in ast.walk(tree):
+        if isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            within.update({id(node): function.name for node in ast.walk(function)
+                           if isinstance(node, ast.ExceptHandler)})
+    found: list[tuple[int, str, str]] = []
+    seen: set[int] = set()
+    for handler in ast.walk(tree):
+        if not isinstance(handler, ast.ExceptHandler) or not handler.name:
+            continue
+        for node in (one for line in handler.body for one in ast.walk(line)):
+            if id(node) in seen or not _its_text(node, handler.name):
+                continue
+            chain: list[ast.AST] = [node]
+            while chain[-1] is not handler:
+                chain.append(parent[id(chain[-1])])
+            seen |= {id(one) for one in ast.walk(node)}
+            if not _not_handed_on(chain):
+                shown = chain[1] if isinstance(node, ast.FormattedValue) else node
+                found.append((node.lineno, within.get(id(handler), ""),
+                              ast.unparse(shown)))
     return sorted(found)
 
 
@@ -149,6 +221,49 @@ class TheExceptionGoesUnderTheWords(unittest.TestCase):
                           ("Could not: {exc}", "{exc!r}", {"one": "{exc.args}"},
                            "{excuse}", "{count}")],
                          [True, True, True, False, False])
+
+
+class ACaughtExceptionIsSaidThroughWhy(unittest.TestCase):
+
+    def test_nothing_hands_on_its_text_as_it_is(self) -> None:
+        found = []
+        for path in _sources():
+            name = path.relative_to(ROOT).as_posix()
+            excused = HANDED_ON.get(name, {})
+            found += [f"{name}:{line} {said}"
+                      for line, function, said in handed_on(path.read_text(encoding="utf-8"))
+                      if function not in excused]
+        self.assertEqual(found, [], "why(exc) says it in words where it can")
+
+    def test_each_way_is_read(self) -> None:
+        source = ("def plan(said, url):\n"
+                  "    try:\n"
+                  "        go()\n"
+                  "    except ValueError as exc:\n"
+                  "        raise Refused(str(exc)) from exc\n"
+                  "    except KeyError as exc:\n"
+                  "        raise Refused(f'{said}: {exc}') from exc\n"
+                  "    except OSError as exc:\n"
+                  "        return Result(said, False, exc.strerror or why(exc))\n"
+                  "    except TimeoutError as exc:\n"
+                  "        logger.warning('Could not: %s', str(exc))\n"
+                  "        if 'busy' in str(exc) and exc.args:\n"
+                  "            raise Refused(why(exc, url), details={'path': str(exc)})\n"
+                  "        raise Refused(f'line {exc.lineno}: {exc.msg}') from exc\n")
+
+        said = [f"{line} {function} {text}" for line, function, text in handed_on(source)]
+
+        self.assertEqual(said, ["5 plan str(exc)", "7 plan f'{said}: {exc}'",
+                                "9 plan exc.strerror", "14 plan f'line {exc.lineno}: {exc.msg}'"])
+
+    def test_each_function_excused_is_there_with_its_reason(self) -> None:
+        for name, excused in HANDED_ON.items():
+            with self.subTest(name):
+                tree = ast.parse((ROOT / name).read_text(encoding="utf-8"))
+                defined = {node.name for node in ast.walk(tree)
+                           if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+                self.assertEqual(excused.keys() - defined, set())
+                self.assertTrue(all(reason.strip() for reason in excused.values()))
 
 
 if __name__ == "__main__":

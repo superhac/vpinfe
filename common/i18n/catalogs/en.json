@@ -1013,7 +1013,7 @@
   "console.locations.where_game_add_import.help": "Where a game you add is created",
   "console.locations.whole_path_telling_two.help": "The whole path, for telling two similar folders apart",
   "console.logs.all_levels": "All levels",
-  "console.logs.could_not_read_log": "Could not read the log: {value}",
+  "console.logs.could_not_read_log": "Could not read the log",
   "console.logs.current": "Current",
   "console.logs.digest": "Digest",
   "console.logs.distinct_records": "{count} distinct in {records} records",

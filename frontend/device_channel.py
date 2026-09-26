@@ -25,6 +25,7 @@ from urllib.parse import parse_qs, urlparse
 import websockets
 from websockets.asyncio.server import ServerConnection
 
+from common.failures import why
 from common.i18n import t
 from common.service_errors import ServiceError
 from frontend.api import API, API_ALLOWED_METHODS
@@ -254,7 +255,7 @@ class DeviceChannel:
             pass  # Client disconnected before response (e.g. close_app)
         except Exception as e:
             if isinstance(e, ServiceError) and str(e):
-                said = str(e)
+                said = why(e)
             else:
                 logger.exception("API call error: %s(%s)", method, args)
                 said = t("error.frontend.call_failed", method=method)

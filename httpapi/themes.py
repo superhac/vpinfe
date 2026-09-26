@@ -15,6 +15,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
+from common.failures import why
 from common.online import theme_ops
 
 from . import scopes
@@ -29,7 +30,7 @@ def _sources_read() -> Iterator[None]:
     try:
         yield
     except theme_ops.SourceUnavailableError as exc:
-        raise ApiError("theme_source_unavailable", str(exc), status_code=503) from exc
+        raise ApiError("theme_source_unavailable", why(exc), status_code=503) from exc
 
 
 @router.get("", summary="Every theme this install knows",
@@ -53,7 +54,7 @@ def install(key: str) -> dict[str, Any]:
         with _sources_read():
             return theme_ops.install(key)
     except theme_ops.InstallFailedError as exc:
-        raise ApiError("theme_install_failed", str(exc), status_code=502) from exc
+        raise ApiError("theme_install_failed", why(exc), status_code=502) from exc
 
 
 @router.delete("/{key}", summary="Remove an installed theme",
@@ -63,7 +64,7 @@ def remove(key: str) -> dict[str, Any]:
         with _sources_read():
             return theme_ops.remove(key)
     except theme_ops.RemoveFailedError as exc:
-        raise ApiError("theme_remove_failed", str(exc), status_code=502) from exc
+        raise ApiError("theme_remove_failed", why(exc), status_code=502) from exc
 
 
 @router.put("/active", summary="Choose which theme the frontend plays",

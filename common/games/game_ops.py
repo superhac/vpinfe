@@ -63,7 +63,7 @@ def create(name: str, location_id: str = "") -> dict:
                                           details={"path": str(exc)}) from exc
     except ValueError as exc:
         raise service_errors.RefusedError(
-            str(exc), details=_where_else(location_id)) from exc
+            why(exc), details=_where_else(location_id)) from exc
     except OSError as exc:
         raise service_errors.BlockedError(why(exc)) from exc
 
@@ -256,7 +256,7 @@ def set_file_source(game_id: str, path: str, vps_file_id: str) -> dict:
     try:
         bound = set_asset_source(game, path, vps_file_id)
     except ValueError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     reread_game(game)
     return bound
 

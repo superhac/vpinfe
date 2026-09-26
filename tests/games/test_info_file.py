@@ -220,7 +220,7 @@ class TestMetaConfig(unittest.TestCase):
 
             self.assertEqual(ctx.exception.path, str(info_path))
             self.assertIn(str(info_path), str(ctx.exception))
-            self.assertIn("invalid JSON at line 1 column 2", str(ctx.exception))
+            self.assertIn("line 1 column 2", str(ctx.exception))
 
 
 class VPinFESchemaTests(TempTree):

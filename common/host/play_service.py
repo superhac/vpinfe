@@ -11,6 +11,7 @@ import threading
 from pathlib import Path
 
 from common import device_client, lifecycle, service_errors
+from common.failures import why
 from common.games import game_lens
 from common.host import launch, launch_state
 from common.paths import get_ini_config
@@ -51,11 +52,11 @@ def start(game_id: str, table: str | None = None) -> dict:
     try:
         resolved = launch.check_launchable(game, ini_config, table)
     except launch.LaunchBusyError as exc:
-        raise service_errors.BlockedError(str(exc)) from exc
+        raise service_errors.BlockedError(why(exc)) from exc
     except launch.UnknownTableError as exc:
-        raise service_errors.RefusedError(str(exc), details={"file": table}) from exc
+        raise service_errors.RefusedError(why(exc), details={"file": table}) from exc
     except launch.LaunchUnavailableError as exc:
-        raise service_errors.UnavailableError(str(exc)) from exc
+        raise service_errors.UnavailableError(why(exc)) from exc
 
     def run() -> None:
         try:

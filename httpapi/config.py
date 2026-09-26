@@ -12,6 +12,7 @@ from typing import Any
 from fastapi import APIRouter, Body
 
 from common import config_service
+from common.failures import why
 from common.i18n import t
 
 from . import models, scopes
@@ -61,4 +62,4 @@ def put_values(values: dict[str, dict[str, Any]] = Body(...)) -> models.ConfigVa
             t("error.config.read_http_theme_sources",
               keys=", ".join(exc.keys))) from exc
     except config_service.SettingsWriteError as exc:
-        raise ConflictError(str(exc)) from exc
+        raise ConflictError(why(exc)) from exc

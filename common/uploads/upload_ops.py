@@ -177,7 +177,7 @@ def _session_dir(upload_id: str) -> Path:
     try:
         return upload_session_service.get_session_dir(upload_id)
     except UnknownSessionError as exc:
-        raise service_errors.NotFoundError(str(exc)) from exc
+        raise service_errors.NotFoundError(why(exc)) from exc
 
 
 def _analysis_for(upload_id: str) -> tuple[AnalysisResult, Path]:
@@ -216,7 +216,7 @@ def summary(upload_id: str) -> dict[str, Any]:
     try:
         return upload_session_service.finish_session(upload_id)
     except UnknownSessionError as exc:
-        raise service_errors.NotFoundError(str(exc)) from exc
+        raise service_errors.NotFoundError(why(exc)) from exc
 
 
 def abort(upload_id: str) -> None:
@@ -227,16 +227,16 @@ def add_file(upload_id: str, relpath: str, stream: IO[bytes]) -> dict[str, Any]:
     try:
         return {"bytes": upload_session_service.store_file(upload_id, relpath, stream)}
     except UnknownSessionError as exc:
-        raise service_errors.NotFoundError(str(exc)) from exc
+        raise service_errors.NotFoundError(why(exc)) from exc
     except UnsafePathError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
 
 
 def _source_of(upload_id: str) -> Path | None:
     try:
         return upload_session_service.get_session_source(upload_id)
     except UnknownSessionError as exc:
-        raise service_errors.NotFoundError(str(exc)) from exc
+        raise service_errors.NotFoundError(why(exc)) from exc
 
 
 def _analyzed(upload_id: str) -> tuple[AnalysisResult, Path]:
@@ -281,7 +281,7 @@ def _slot_plan(upload_id: str, game_dir: str, media_kind: str) -> ImportPlan:
         return build_media_slot_plan(_single_file(upload_id), game_dir=Path(game_dir),
                                      media_kind=media_kind)
     except ValueError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
 
 
 def _named_plan(upload_id: str, request: dict[str, Any]) -> ImportPlan | None:
@@ -310,7 +310,7 @@ def _built_plan(analysis: AnalysisResult, request: dict[str, Any]) -> ImportPlan
     except ValueError as exc:
         # Nowhere to put it. Something a person fixes - a share to mount, a location to
         # pick - so it is blocked rather than a fault.
-        raise service_errors.BlockedError(str(exc)) from exc
+        raise service_errors.BlockedError(why(exc)) from exc
     return only_kind(plan, request.get("asset_kind") or "")
 
 
@@ -335,7 +335,7 @@ def _as_asked(plan: ImportPlan, request: dict[str, Any], vps_entry: dict | None,
     try:
         return select_plan_items(plan, selected, new_name)
     except ValueError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
 
 
 def _declared_identities(declared: Mapping[str, Any] | None) -> dict:
@@ -372,7 +372,7 @@ def _run(plan: ImportPlan, source: Path, declared: dict,
     try:
         report = execute_import_plan(plan, source, declared=declared)
     except (ValueError, FileNotFoundError) as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     upload_session_service.cleanup_session(upload_id)
     report["blocked"] = blocked
     return report

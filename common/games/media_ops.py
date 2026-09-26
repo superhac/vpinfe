@@ -298,7 +298,7 @@ def displaced(game_id: str, kind: str, filename: str, table_id: str = "") -> dic
     try:
         going = media_placement.displaced(game_dir, kind, stem, Path(filename).suffix)
     except media_placement.UnplaceableError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     # Forward-slashed on the wire whatever host built it - see `_placement`.
     return {"displaced": sorted(path.relative_to(game_dir).as_posix()
                                 for path in going)}
@@ -328,7 +328,7 @@ def place_file(game_id: str, kind: str, table_id: str, source: Path,
     try:
         written = media_placement.place(game_dir, kind, table_stem, source)
     except media_placement.UnplaceableError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     # Recorded with who placed it, which is what lets a later media refresh tell its own
     # art from something hand-placed and leave the latter alone.
     media_placement.record_origin(game_dir, written, origin, md5)
@@ -349,7 +349,7 @@ def place_upload(game_id: str, kind: str, table_id: str, staged: Path,
     try:
         written = media_placement.place(game_dir, kind, stem, str(staged))
     except media_placement.UnplaceableError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     media_placement.record_origin(game_dir, written)
     return _wrote(game_dir, kind, written, game_id, table_id,
                   stem if table_id else None)
@@ -400,7 +400,7 @@ def retier(game_id: str, kind: str, from_table: str, to_table: str) -> dict:
     try:
         written = media_placement.retier(game_dir, kind, from_stem, to_stem)
     except media_placement.UnplaceableError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     return _wrote(game_dir, kind, written, game_id, to_table,
                   to_stem if to_table else None)
 
@@ -414,7 +414,7 @@ def remove(game_id: str, kind: str, table_id: str = "") -> dict:
     try:
         return {"removed": media_placement.remove(game_dir, kind, stem)}
     except media_placement.UnplaceableError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     except OSError as exc:
         raise service_errors.BlockedError(why(exc)) from exc
 

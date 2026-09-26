@@ -5,9 +5,11 @@ from __future__ import annotations
 import logging
 import time
 from io import BytesIO
+from urllib.parse import urlsplit
 
 import requests
 
+from common.failures import why
 from common.http_client import get_json
 from common.i18n import t
 
@@ -28,12 +30,13 @@ class ThemeRegistryClient:
         try:
             payload = get_json(url, timeout=self.timeout)
         except requests.RequestException as exc:
-            raise ThemeRegistryError(f"Failed to fetch JSON from {url}: {exc}") from exc
+            raise ThemeRegistryError(why(exc, url)) from exc
         except ValueError as exc:
-            raise ThemeRegistryError(str(exc)) from exc
+            raise ThemeRegistryError(why(exc)) from exc
 
         if not isinstance(payload, dict):
-            raise ThemeRegistryError(f"Invalid JSON returned from {url}")
+            raise ThemeRegistryError(t("said.why.unreadable_at",
+                                       host=urlsplit(url).hostname or url))
         return payload
 
     def download_zip(self, url: str, max_retries: int = 3) -> BytesIO:

@@ -14,6 +14,7 @@ from time import perf_counter
 
 from common.config_access import MediaConfig
 from common.config_store import ConfigStore
+from common.failures import why
 from common.games.game import Game
 from common.games.game_metadata import vpinfe_section
 from common.games.info_file import InvalidMetaConfigError, MetaConfig
@@ -218,7 +219,7 @@ class GameParser:
             (self.unreadable_games if unreadable is None else unreadable).append({
                 'folder': game.game_dir_name,
                 'path': str(game_dir),
-                'error': str(exc),
+                'error': why(exc),
             })
             logger.error("Skipping game with unreadable metadata: %s", exc)
             return None

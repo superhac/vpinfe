@@ -224,7 +224,6 @@ SPEAKS_TO_A_SURFACE = {**{name: EVERY_WAY for name in _modules_under(READ_WHOLE)
 # or the Manager UI.
 SAID_TO_THE_LOG = {
     "common/online/themes.py": frozenset({"_validate_manifest"}),
-    "common/online/theme_registry_client.py": frozenset({"fetch_json"}),
     "common/online/theme_releases.py": frozenset({"bare_ref"}),
     "common/device_client.py": frozenset({"perform_action"}),
     "common/games/info_maintenance.py": frozenset({"_upgrade_summary", "_restore_summary",

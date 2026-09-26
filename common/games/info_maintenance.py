@@ -10,6 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TypedDict
 
+from common.failures import why
 from common.games.collection_store import (
     COLLECTIONS_NAME,
     restorable_collections_backup,
@@ -124,7 +125,7 @@ def upgrade_library(
             meta.write_config()
         except (InvalidMetaConfigError, OSError) as exc:
             result["failed"] += 1
-            result["failures"].append((game_dir.name, str(exc)))
+            result["failures"].append((game_dir.name, why(exc)))
             log(f"Left alone, could not be read: {game_dir.name}")
             continue
         result["upgraded"] += 1
@@ -169,7 +170,7 @@ def restore_library(
             _restore_file(info_path, chosen)
         except OSError as exc:
             result["failed"] += 1
-            result["failures"].append((game_dir.name, str(exc)))
+            result["failures"].append((game_dir.name, why(exc)))
             log(f"Left as it is, could not be restored: {game_dir.name}")
             continue
         result["restored"] += 1
@@ -186,7 +187,7 @@ def restore_library(
                 log("Restored your collections.")
             except OSError as exc:
                 result["failed"] += 1
-                result["failures"].append((COLLECTIONS_NAME, str(exc)))
+                result["failures"].append((COLLECTIONS_NAME, why(exc)))
                 log("Left as it is, could not be restored: your collections")
 
     log(_restore_summary(result))

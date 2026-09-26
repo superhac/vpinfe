@@ -21,6 +21,7 @@ from typing import Any
 from urllib.parse import quote
 
 from common import service_errors
+from common.failures import why
 from common.games import (
     entry_lens,
     game_identity,
@@ -277,7 +278,7 @@ def _resolved(name: str) -> list[Entry]:
                        list(game_repository.catalog().values()))
     except UnresolvableCollectionError as exc:
         raise service_errors.BlockedError(
-            str(exc), details={"unknown_filters": exc.axes}) from exc
+            why(exc), details={"unknown_filters": exc.axes}) from exc
 
 
 def _resolved_games(name: str, manager: CollectionStore | None = None) -> list[Any]:
@@ -290,7 +291,7 @@ def _holding_or_refuse(name: str, manager: CollectionStore | None = None) -> Hol
                        list(game_repository.catalog().values()))
     except UnresolvableCollectionError as exc:
         raise service_errors.BlockedError(
-            str(exc), details={"unknown_filters": exc.axes}) from exc
+            why(exc), details={"unknown_filters": exc.axes}) from exc
 
 
 # -- reads ------------------------------------------------------------------------
@@ -423,7 +424,7 @@ def _members(name: str, store: CollectionStore) -> dict:
         handed_out = resolve(name, store, list(catalog.values()), capped=False)
     except UnresolvableCollectionError as exc:
         raise service_errors.BlockedError(
-            str(exc), details={"unknown_filters": exc.axes}) from exc
+            why(exc), details={"unknown_filters": exc.axes}) from exc
     if store.get_order(name)["by"] == MANUAL_ORDER:
         members = named + _as_handed_out(ruled, handed_out)
     else:
@@ -655,9 +656,9 @@ def set_member_table(name: str, game_id: str, table_id: str, was: str | None) ->
             # A conflict, not a miss: the collection already holds that pairing and is
             # allowed it once. Refused rather than merged, because merging drops a row and
             # nothing could say which one went.
-            raise service_errors.BlockedError(str(exc)) from exc
+            raise service_errors.BlockedError(why(exc)) from exc
         except ValueError as exc:
-            raise service_errors.NotFoundError(str(exc)) from exc
+            raise service_errors.NotFoundError(why(exc)) from exc
 
 
 def remove_member(name: str, game_id: str, table: str | None = None) -> None:
@@ -711,7 +712,7 @@ def set_image(name: str, filename: str, content: bytes) -> dict:
     try:
         stored = save_collection_icon(filename or "", content)
     except ValueError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     with get_collections_manager().mutate() as manager:
         manager.set_image(name, stored)
     return resource(name)

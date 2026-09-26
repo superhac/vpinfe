@@ -26,6 +26,7 @@ from typing import Any
 
 from nicegui import ui
 
+from common.failures import why
 from common.i18n import t
 from console import devices as devices_page
 from console import offload, panel, verbs
@@ -73,7 +74,7 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
             found = await offload.io(library.logs, RECORDS, held["level"],
                                        held["contains"], held["source"])
         except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
-            held["records"], held["error"] = [], str(exc)
+            held["records"], held["error"] = [], why(exc)
         else:
             held["error"] = ""
             held["records"] = list(found.get("records") or [])
@@ -168,7 +169,7 @@ async def _draw(viewport: Any, held: dict[str, Any]) -> None:
     with viewport:
         if held.get("error"):
             panel.facts(ui,
-                    [panel.intro(t("console.logs.could_not_read_log", value=(held['error'])))])
+                    [panel.intro(t("console.logs.could_not_read_log"), hint=held["error"])])
             return
         if not held["records"]:
             panel.facts(ui, [panel.intro(

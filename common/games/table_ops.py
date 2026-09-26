@@ -202,7 +202,7 @@ def set_default(game_id: str, table_id: str) -> dict:
     try:
         MetaConfig(str(meta_file_path(game))).set_default_table(table_id)
     except ValueError as exc:
-        raise service_errors.RefusedError(str(exc),
+        raise service_errors.RefusedError(why(exc),
                                           details={"table": table_id}) from exc
     game = reread_game(game)
     return {"tables": _game_tables(game)}

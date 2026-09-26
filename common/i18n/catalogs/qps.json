@@ -1013,7 +1013,7 @@
   "console.locations.where_game_add_import.help": "Ŵĥèřè à ĝàɱè ýöû àđđ îš çřèàţèđ",
   "console.locations.whole_path_telling_two.help": "Ţĥè ŵĥöŀè þàţĥ, ƒöř ţèŀŀîñĝ ţŵö šîɱîŀàř ƒöŀđèřš àþàřţ",
   "console.logs.all_levels": "Àŀŀ ŀèṽèŀš",
-  "console.logs.could_not_read_log": "Çöûŀđ ñöţ řèàđ ţĥè ŀöĝ: {value}",
+  "console.logs.could_not_read_log": "Çöûŀđ ñöţ řèàđ ţĥè ŀöĝ",
   "console.logs.current": "Çûřřèñţ",
   "console.logs.digest": "Đîĝèšţ",
   "console.logs.distinct_records": "{count} đîšţîñçţ îñ {records} řèçöřđš",

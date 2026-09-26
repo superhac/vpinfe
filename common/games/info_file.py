@@ -13,6 +13,7 @@ import os
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from common.failures import why
 from common.games import identity_claims
 from common.games.ids import new_id
 from common.games.info_migration import (
@@ -214,8 +215,7 @@ class MetaConfig:
                     original = f.read()
                 self.data = json.loads(original)
             except json.JSONDecodeError as exc:
-                reason = f"invalid JSON at line {exc.lineno} column {exc.colno}: {exc.msg}"
-                raise InvalidMetaConfigError(configfilepath, reason) from exc
+                raise InvalidMetaConfigError(configfilepath, why(exc)) from exc
             if needs_migration(self.data):
                 self._pre_migration = original
                 self.data = migrate(self.data)

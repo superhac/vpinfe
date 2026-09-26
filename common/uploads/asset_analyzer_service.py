@@ -17,6 +17,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 
+from common.failures import why
 from common.games.asset_registry import (
     ARCHIVE_EXTENSIONS,
     is_readme,
@@ -690,7 +691,7 @@ def analyze_path(path: Path) -> AnalysisResult:
     try:
         source = open_source(path)
     except _MissingBackendError as exc:
-        return AnalysisResult(_source_kind(path), path.name, (), False, error=str(exc))
+        return AnalysisResult(_source_kind(path), path.name, (), False, error=why(exc))
     except Exception:
         logger.exception("Failed to open source: %s", path)
         return AnalysisResult(

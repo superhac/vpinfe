@@ -197,7 +197,7 @@ def _readable(refresh: bool = False) -> ThemeRegistry:
     try:
         return _loaded(refresh)
     except ThemeRegistryError as exc:
-        raise SourceUnavailableError(str(exc)) from exc
+        raise SourceUnavailableError(why(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - a source that will not load is news
         raise SourceUnavailableError(why(exc)) from exc
 
@@ -221,7 +221,7 @@ def install(key: str) -> dict[str, Any]:
     try:
         theme_service.install_theme(registry, key)
     except ThemeRegistryError as exc:
-        raise InstallFailedError(str(exc)) from exc
+        raise InstallFailedError(why(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise InstallFailedError(why(exc)) from exc
     return {"key": key, "installed": registry.is_installed(key)}
@@ -239,7 +239,7 @@ def remove(key: str) -> dict[str, Any]:
     try:
         theme_service.delete_theme(registry, key)
     except ThemeRegistryError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise RemoveFailedError(why(exc)) from exc
     return {"key": key, "installed": False}
@@ -290,7 +290,7 @@ def save_options(key: str, values: dict[str, Any]) -> dict[str, Any]:
     try:
         theme_service.save_theme_option_values(key, dict(values or {}), registry)
     except ValueError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise service_errors.RefusedError(why(exc)) from exc
     return {"key": key, "values": theme_service.get_theme_option_values(key, registry)}

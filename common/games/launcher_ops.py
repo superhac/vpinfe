@@ -19,6 +19,7 @@ from typing import Any
 
 from common import apps, i18n, path_checks, service_errors
 from common.apps.contract import SCOPE_ENTRY, SCOPE_FOLDER, SCOPE_LAUNCHER
+from common.failures import why
 from common.games import config_backups, game_repository, launchers, tables
 from common.games.config_backups import Backup
 from common.games.table_identity import find_table_by_id
@@ -444,9 +445,9 @@ def restore_backup(launcher_id: str, name: str) -> dict[str, Any]:
         safety = config_backups.restore(launcher_id, name, _config_files(found),
                                         named=found.display_name)
     except FileNotFoundError as exc:
-        raise service_errors.NotFoundError(str(exc)) from exc
+        raise service_errors.NotFoundError(why(exc)) from exc
     except ValueError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     return {"restored": name,
             "safety_copy": _as_backup(safety) if safety else None}
 
