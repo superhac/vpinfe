@@ -163,6 +163,42 @@ def _said(job: dict, under: str = "ext.sample.action.run") -> list[str]:
     return [one.text for one in body.descendants() if isinstance(one, ui.label)]
 
 
+def _hovers(body: ui.element) -> dict[str, str]:
+    """Each line drawn, with what hovering it shows."""
+    tips = {one.props["target"]: one.text
+            for one in body.descendants() if isinstance(one, ui.tooltip)}
+    return {one.text: tips.get(f"#{one.html_id}", "")
+            for one in body.descendants() if isinstance(one, ui.label)}
+
+
+def _reported(job: dict) -> dict[str, str]:
+    with ui.column() as body:
+        ext_action._report(body, job, "ext.sample.action.run")
+    return _hovers(body)
+
+
+def _noted(notes: list) -> dict[str, str]:
+    with ui.column() as body:
+        ext_action._lines(notes, "")
+    return _hovers(body)
+
+
+class NoteTests(unittest.TestCase):
+    def test_a_plain_note_hovers_nothing(self) -> None:
+        self.assertEqual({"Kiss.pov was left behind": ""},
+                         _noted(["Kiss.pov was left behind"]))
+
+    def test_a_note_with_a_detail_hovers_it(self) -> None:
+        self.assertEqual(
+            {"Settings.xml could not be read": "Nothing is at /pbx/Config/Settings.xml"},
+            _noted([{"text": "Settings.xml could not be read",
+                     "detail": "Nothing is at /pbx/Config/Settings.xml"}]))
+
+    def test_a_note_with_only_a_detail_says_the_detail(self) -> None:
+        self.assertEqual({"Nothing answers at example.org": ""},
+                         _noted([{"detail": "Nothing answers at example.org"}]))
+
+
 class ReportTests(unittest.TestCase):
     def setUp(self) -> None:
         folder = tempfile.TemporaryDirectory()
@@ -192,6 +228,20 @@ class ReportTests(unittest.TestCase):
                           "result": {"rows": [{"name": "Kiss", "error": "no table"}]}})
 
         self.assertIn("console.ext_action.missed", said)
+
+    def test_a_row_error_with_a_detail_hovers_it(self) -> None:
+        drawn = _reported({"state": "done", "result": {"rows": [
+            {"name": "Kiss", "error": {"text": "the game file did not come across",
+                                       "detail": "Something is already at Kiss.vpx"}}]}})
+
+        self.assertEqual("Something is already at Kiss.vpx",
+                         drawn["Kiss - the game file did not come across"])
+
+    def test_a_row_error_as_a_string_hovers_nothing(self) -> None:
+        drawn = _reported({"state": "done", "result": {"rows": [
+            {"name": "Kiss", "error": "the game file did not come across"}]}})
+
+        self.assertEqual("", drawn["Kiss - the game file did not come across"])
 
 
 if __name__ == "__main__":

@@ -214,13 +214,27 @@ def _summary(rows: list[Sequence[Any]]) -> None:
                      for row in rows])
 
 
-def _lines(lines: list[str], title: str) -> None:
+def _worded(said: Any) -> tuple[str, str]:
+    if isinstance(said, dict):
+        detail = str(said.get("detail") or "")
+        text = str(said.get("text") or "")
+        return (text, detail) if text else (detail, "")
+    return str(said), ""
+
+
+def _line(text: str, detail: str) -> None:
+    label = ui.label(text).classes("console-help px-3")
+    if detail:
+        label.tooltip(detail)
+
+
+def _lines(lines: list[Any], title: str) -> None:
     if not lines:
         return
     if title:
         panel.facts(ui, [(panel.HEADING, title)])
     for line in lines:
-        ui.label(str(line)).classes("console-help px-3")
+        _line(*_worded(line))
 
 
 def _finished(body: Any, buttons: Any, dialog: Any, answer: dict) -> None:
@@ -306,8 +320,9 @@ def _report(body: Any, job: dict, under: str) -> None:
             panel.facts(ui, [(panel.HEADING,
                               t("console.ext_action.not_come_across", count=len(missed)))])
             for row in missed[:20]:
-                ui.label(t("console.ext_action.missed", name=(row.get("name") or row.get("key")),
-                           error=row["error"])).classes("console-help px-3")
+                error, detail = _worded(row["error"])
+                _line(t("console.ext_action.missed", name=(row.get("name") or row.get("key")),
+                        error=error), detail)
             if len(missed) > 20:
                 ui.label(t("console.ext_action.more",
                         count=len(missed) - 20)).classes("console-help px-3")

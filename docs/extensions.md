@@ -337,6 +337,17 @@ answers are the extension's to look up, with `ctx.t`.
 because a count that stays quiet about what the job cannot do describes something that
 will not happen.
 
+A note is a string, or `{text, detail}` when there is a reason behind it. `text` is the
+line and `detail` shows on hover, the way the Console shows the reason under one of its own
+failures:
+
+```json
+{"text": "Settings.xml could not be read", "detail": "Nothing is at /pbx/Config/Settings.xml"}
+```
+
+A job's `result` may list `rows`, and every row with an `error` is shown under what did not
+come across, by its `name`. That `error` takes the same two forms.
+
 ## Adding a Community list
 
 A list an extension holds, shown under Community. Needs `ui:mount`.
