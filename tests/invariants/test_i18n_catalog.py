@@ -173,6 +173,7 @@ SPEAKS_TO_A_SURFACE = {
     "common/online/theme_registry_client.py": frozenset({"raise"}),
     "common/online/app_updater.py": frozenset({"raise"}),
     "frontend/metadata_build_service.py": frozenset({"return"}),
+    "common/games/identity_claims.py": frozenset({"return"}),
 }
 
 # Functions in those modules whose raises are only ever caught and logged, never shown.
@@ -271,7 +272,24 @@ def _handed_back(source: str) -> list[tuple[str, ast.expr]]:
                 for at, value in pairs:
                     if _names_reason(at):
                         add("reason", value)
+    for call in _appended_to_what_is_returned(tree):
+        add("return", call.args[0])
     return found
+
+
+def _appended_to_what_is_returned(tree: ast.Module) -> list[ast.Call]:
+    calls: dict[int, ast.Call] = {}
+    for function in ast.walk(tree):
+        if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        returned = {node.value.id for node in ast.walk(function)
+                    if isinstance(node, ast.Return) and isinstance(node.value, ast.Name)}
+        calls.update((id(node), node) for node in ast.walk(function)
+                     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                     and node.func.attr == "append" and node.args
+                     and isinstance(node.func.value, ast.Name)
+                     and node.func.value.id in returned)
+    return list(calls.values())
 
 
 def _not_looked_up(kind: str, one: ast.expr) -> bool:
@@ -336,7 +354,13 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                   "    asset: str\n"
                   "    reason: str\n"
                   "def blocked(asset):\n"
-                  '    return Blocked(asset, "Drop it on a game")\n')
+                  '    return Blocked(asset, "Drop it on a game")\n'
+                  "def problems(basis):\n"
+                  "    found = []\n"
+                  "    if not basis:\n"
+                  '        found.append(f"{basis} says how nothing is known")\n'
+                  "    found.append(t(KEY))\n"
+                  "    return found\n")
 
         said = sorted(f"{kind} {ast.unparse(one)}" for kind, one in _handed_back(source)
                       if _not_looked_up(kind, one))
@@ -347,7 +371,8 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                                 "reason 'Drop it on a game'",
                                 "reason 'Nothing performs that.'",
                                 "reason str(exc)",
-                                "refusal f'Table folder already exists: {name}'"])
+                                "refusal f'Table folder already exists: {name}'",
+                                "return f'{basis} says how nothing is known'"])
 
 
 CAUGHT_WHOLE = {"Exception", "BaseException"}
