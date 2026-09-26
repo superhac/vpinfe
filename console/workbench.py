@@ -17,7 +17,7 @@ import json
 import logging
 import time
 from collections import Counter
-from collections.abc import Awaitable, Callable, Collection, Sequence
+from collections.abc import Awaitable, Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass
 from functools import partial
 from itertools import groupby
@@ -944,7 +944,7 @@ async def _file_settings_block(context: dict[str, Any]) -> None:
     shown = [block for group in inner["tied"] for block in curated_blocks(group, values)]
     entries = await _setting_entries(
         inner, [(heading.label, heading.note, fields) for heading, fields in shown],
-        curated=True, redraw_on={heading.enabled_by for heading, _ in shown},
+        curated=True, redraw_on=switches(heading for heading, _ in shown),
         pairs=[pair for heading, _ in shown for pair in heading.pairs])
     if shared := inner.get("shared"):
         entries.insert(0, panel.intro(
@@ -4543,7 +4543,7 @@ async def _config_rows(context: dict[str, Any], group: Any) -> None:
     shown = curated_blocks(group, await _config_values(context))
     entries = await _setting_entries(
         context, [(heading.label, heading.note, fields) for heading, fields in shown],
-        curated=True, redraw_on={h.enabled_by for h in group.curated if h.enabled_by},
+        curated=True, redraw_on=switches(group.curated),
         pairs=[pair for heading, _ in shown for pair in heading.pairs])
     if rest := len(group.settings) - len(curated_keys(group)):
         entries.append((FULL, panel.action(
@@ -4568,18 +4568,31 @@ async def _every_row(context: dict[str, Any], group: Any) -> None:
 
 def curated_blocks(group: Any, values: dict[str, Any]) -> list[tuple[Any, list[Any]]]:
     """Each curated heading with the rows it draws: all of them while its switch is on
-    anywhere, the switch alone while it is off."""
+    anywhere, the switch alone while it is off, and never a row whose own switch is
+    off."""
     by_key = {f.key: f for f in group.settings}
+
+    def off(key: str) -> bool:
+        held = values.get(key) or {}
+        return key in by_key and not held.get("varies") and not _is_on(by_key[key], held)
+
     found = []
     for heading in group.curated:
-        fields = [by_key[key] for key in heading.keys if key in by_key]
-        switch = by_key.get(heading.enabled_by)
-        held = values.get(heading.enabled_by) or {}
-        if switch is not None and not held.get("varies") and not _is_on(switch, held):
-            fields = [switch]
+        hidden = {key for one in getattr(heading, "switched", ()) if off(one.enabled_by)
+                  for key in one.keys}
+        fields = [by_key[key] for key in heading.keys if key in by_key and key not in hidden]
+        if off(heading.enabled_by):
+            fields = [by_key[heading.enabled_by]]
         if fields:
             found.append((heading, fields))
     return found
+
+
+def switches(headings: Iterable[Any]) -> set[str]:
+    """Every switch the headings draw rows by."""
+    return {key for one in headings
+            for key in (one.enabled_by, *(s.enabled_by for s in getattr(one, "switched", ())))
+            if key}
 
 
 def conflicts(groups: Sequence[Any], values: dict[str, Any]) -> dict[str, str]:

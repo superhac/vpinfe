@@ -492,6 +492,18 @@ class BackglassPluginAtATableTests(_TableCase):
             ("DMD Size", "×", ["Plugin.B2S.BackglassDMDW", "Plugin.B2S.BackglassDMDH"])])
         self.assertTrue(set(self.VALUES) <= set(b2s["keys"]))
 
+    def test_the_overlay_s_rows_are_switched_by_the_overlay(self) -> None:
+        got = self.client.get("/launchers/l1/config?table=t1&scope=entry")
+        b2s, = {g["key"]: g for g in got.json()["groups"]}["plugins"]["curated"]
+        prefix = "Plugin.B2S."
+
+        self.assertEqual(b2s["switched"], [
+            {"enabled_by": f"{prefix}BackglassDMDOverlay",
+             "keys": [f"{prefix}BackglassDMD{part}" for part in
+                      ("AutoPos", "X", "Y", "W", "H")]},
+            {"enabled_by": f"{prefix}ScoreViewDMDOverlay",
+             "keys": [f"{prefix}ScoreViewDMDAutoPos"]}])
+
 
 class _Wire:
     """The Console's HTTP session, answered by the API in this process."""
@@ -531,8 +543,10 @@ class _BackglassPanel(_TableCase, unittest.IsolatedAsyncioTestCase):
         program.parent.mkdir()
         program.touch(mode=0o755)
         app_ini = pathlib.Path(self.tmp.name, "VPinballX.ini")
-        app_ini.write_text("[Plugin.B2S]\nEnable = 1\n" + "".join(
-            f"{key.rsplit('.', 1)[-1]} = \n" for key in BackglassPluginAtATableTests.VALUES))
+        app_ini.write_text(
+            "[Plugin.B2S]\nEnable = 1\nBackglassDMDOverlay = 1\nScoreViewDMDOverlay = 1\n"
+            + "".join(f"{key.rsplit('.', 1)[-1]} = \n"
+                      for key in BackglassPluginAtATableTests.VALUES))
         self.client.put("/launchers/l1", json={"app": "vpx", "settings": {
             "bin_path": str(program), "ini_path": str(app_ini)}})
         api = ApiClient("http://testserver")
@@ -840,7 +854,7 @@ class CuratedTests(_TableCase):
             "key": "playfield", "label": "Playfield",
             "note": "Mechanical sounds - flippers, solenoids, the ball", "description": "",
             "keys": ["Player.PlaySound", "Player.Sound3D"], "enabled_by": "",
-            "rivals": [], "pairs": [], "kinds": []}])
+            "rivals": [], "pairs": [], "switched": [], "kinds": []}])
         self.assertFalse(sound["summarized"])
 
     def test_a_heading_carries_its_pairs_with_their_words(self) -> None:

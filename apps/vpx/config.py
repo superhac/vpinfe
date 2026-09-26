@@ -613,7 +613,8 @@ def _curated(area: str, offered: set[str],
         return areas.view_headings(offered)
     kept = (Heading(one.key, tuple(key for key in one.keys if key in offered),
                     one.enabled_by,
-                    pairs=tuple(pair for pair in one.pairs if set(pair.keys) <= offered))
+                    pairs=tuple(pair for pair in one.pairs if set(pair.keys) <= offered),
+                    switched=areas.kept_switched(one.switched, offered))
             for one in areas.CURATED.get(area, ()))
     return tuple(one for one in kept if one.keys)
 

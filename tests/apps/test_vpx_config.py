@@ -411,6 +411,17 @@ class AreaTests(_Case):
 
         self.assertEqual([pair.key for pair in heading.pairs], ["dmd_position"])
 
+    def test_the_dmd_overlay_s_rows_are_switched_by_the_overlay(self) -> None:
+        prefix = "Plugin.B2SLegacy."
+        heading, = areas.plugin_headings({f"{prefix}Enable", f"{prefix}BackglassDMDOverlay",
+                                          f"{prefix}BackglassDMDAutoPos",
+                                          f"{prefix}BackglassDMDX",
+                                          f"{prefix}ScoreViewDMDAutoPos"})
+
+        self.assertEqual([(one.enabled_by, one.keys) for one in heading.switched],
+                         [(f"{prefix}BackglassDMDOverlay", (f"{prefix}BackglassDMDAutoPos",
+                                                            f"{prefix}BackglassDMDX"))])
+
     def test_any_other_plugin_is_about_no_file(self) -> None:
         heading, = areas.plugin_headings({"Plugin.PinMAME.Enable"})
 

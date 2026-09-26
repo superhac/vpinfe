@@ -118,7 +118,9 @@ def config_groups(found: dict[str, Any]) -> list:
             pairs=tuple(SimpleNamespace(
                 key=p["key"], label=p["label"], note=p.get("note", ""),
                 joiner=p.get("joiner", ""), keys=tuple(p["keys"]))
-                for p in h.get("pairs") or ()))
+                for p in h.get("pairs") or ()),
+            switched=tuple(SimpleNamespace(enabled_by=s["enabled_by"], keys=tuple(s["keys"]))
+                           for s in h.get("switched") or ()))
             for h in g.get("curated") or ()],
         settings=[SimpleNamespace(
             key=f["key"], label=f["label"], type=f["type"],

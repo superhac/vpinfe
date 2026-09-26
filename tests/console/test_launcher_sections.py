@@ -159,10 +159,12 @@ class AllSettingsTests(unittest.TestCase):
                          t("console.workbench.plugin_section", name="Hello World"))
 
 
-def _heading(key: str, *keys: str, enabled_by: str = "",
-             rivals: tuple[str, ...] = (), label: str = "", pairs=()) -> SimpleNamespace:
+def _heading(key: str, *keys: str, enabled_by: str = "", rivals: tuple[str, ...] = (),
+             label: str = "", pairs=(), switched=()) -> SimpleNamespace:
     return SimpleNamespace(key=key, label=label or key.title(), note="", keys=keys,
-                           enabled_by=enabled_by, rivals=rivals, pairs=tuple(pairs))
+                           enabled_by=enabled_by, rivals=rivals, pairs=tuple(pairs),
+                           switched=tuple(SimpleNamespace(enabled_by=switch, keys=rows)
+                                          for switch, rows in switched))
 
 
 class ConflictTests(unittest.TestCase):
@@ -243,6 +245,51 @@ class CuratedAreaTests(unittest.TestCase):
         self.assertEqual([f.key for f in on[0][1]], ["Plugin.B2S.Enable",
                                                      "Plugin.B2S.ShowGrill"])
         self.assertEqual([f.key for f in off[0][1]], ["Plugin.B2S.Enable"])
+
+    OVERLAY = _group(
+        "plugins", _setting("Plugin.B2S.Enable", default="1"),
+        _setting("Plugin.B2S.BackglassDMDOverlay", default="0"),
+        _setting("Plugin.B2S.BackglassDMDX"), _setting("Plugin.B2S.ShowGrill"),
+        curated=[_heading("B2S", "Plugin.B2S.Enable", "Plugin.B2S.BackglassDMDOverlay",
+                          "Plugin.B2S.BackglassDMDX", "Plugin.B2S.ShowGrill",
+                          enabled_by="Plugin.B2S.Enable",
+                          switched=[("Plugin.B2S.BackglassDMDOverlay",
+                                     ("Plugin.B2S.BackglassDMDX",))])])
+
+    def _overlay(self, **values: dict) -> list[str]:
+        held = {f"Plugin.B2S.{key}": value for key, value in values.items()}
+        return [f.key.rsplit(".", 1)[-1]
+                for _, fields in workbench.curated_blocks(self.OVERLAY, held)
+                for f in fields]
+
+    def test_a_row_its_own_switch_gates_is_drawn_only_while_that_is_on(self) -> None:
+        self.assertEqual(self._overlay(), ["Enable", "BackglassDMDOverlay", "ShowGrill"])
+        self.assertEqual(self._overlay(BackglassDMDOverlay={"value": "1"}),
+                         ["Enable", "BackglassDMDOverlay", "BackglassDMDX", "ShowGrill"])
+
+    def test_or_while_it_varies_across_tables(self) -> None:
+        self.assertIn("BackglassDMDX", self._overlay(
+            BackglassDMDOverlay={"value": "", "varies": True}))
+
+    def test_the_heading_s_switch_off_hides_a_row_switch_and_its_rows(self) -> None:
+        self.assertEqual(self._overlay(Enable={"value": "0"},
+                                       BackglassDMDOverlay={"value": "1"}), ["Enable"])
+
+    def test_writing_a_row_switch_redraws_the_panel(self) -> None:
+        self.assertEqual(workbench.switches(self.OVERLAY.curated),
+                         {"Plugin.B2S.Enable", "Plugin.B2S.BackglassDMDOverlay"})
+
+    def test_row_switches_travel_with_their_heading(self) -> None:
+        groups = data.config_groups({"groups": [{
+            "key": "plugins", "label": "Plugins", "settings": [], "curated": [
+                {"key": "B2S", "label": "B2S", "keys": ["Plugin.B2S.BackglassDMDOverlay",
+                                                        "Plugin.B2S.BackglassDMDX"],
+                 "switched": [{"enabled_by": "Plugin.B2S.BackglassDMDOverlay",
+                               "keys": ["Plugin.B2S.BackglassDMDX"]}]}]}]})
+
+        switched, = groups[0].curated[0].switched
+        self.assertEqual((switched.enabled_by, switched.keys),
+                         ("Plugin.B2S.BackglassDMDOverlay", ("Plugin.B2S.BackglassDMDX",)))
 
     def test_a_heading_whose_settings_the_file_does_not_have_is_left_out(self) -> None:
         self.assertNotIn("Serum", [key for key, _ in self._drawn({})])

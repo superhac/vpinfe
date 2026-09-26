@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from common.apps.contract import Heading, Pair
+from common.apps.contract import Heading, Pair, Switched
 
 from .plugins import Plugin
 
@@ -56,10 +56,16 @@ CURATED: dict[str, tuple[Heading, ...]] = {
 }
 
 
-def _dmd(prefix: str) -> tuple[str, ...]:
-    return (f"{prefix}BackglassDMDOverlay", f"{prefix}BackglassDMDAutoPos",
-            *(f"{prefix}BackglassDMD{part}" for part in "XYWH"),
-            f"{prefix}ScoreViewDMDOverlay", f"{prefix}ScoreViewDMDAutoPos")
+def _overlays(plugin: str) -> tuple[Switched, ...]:
+    prefix = f"Plugin.{plugin}."
+    return (Switched(f"{prefix}BackglassDMDOverlay",
+                     (f"{prefix}BackglassDMDAutoPos",
+                      *(f"{prefix}BackglassDMD{part}" for part in "XYWH"))),
+            Switched(f"{prefix}ScoreViewDMDOverlay", (f"{prefix}ScoreViewDMDAutoPos",)))
+
+
+def _dmd(plugin: str) -> tuple[str, ...]:
+    return tuple(key for one in _overlays(plugin) for key in (one.enabled_by, *one.keys))
 
 
 def _dmd_pairs(plugin: str) -> tuple[Pair, ...]:
@@ -76,9 +82,9 @@ PLUGIN_ROWS: dict[str, tuple[str, ...]] = {
     "FlexDMD": (),
     "RemoteControl": (),
     "WMP": (),
-    "B2S": ("Plugin.B2S.ShowGrill", *_dmd("Plugin.B2S.")),
+    "B2S": ("Plugin.B2S.ShowGrill", *_dmd("B2S")),
     "B2SLegacy": ("Plugin.B2SLegacy.B2SHideGrill", "Plugin.B2SLegacy.B2SHideB2SDMD",
-                  "Plugin.B2SLegacy.B2SHideDMD", *_dmd("Plugin.B2SLegacy.")),
+                  "Plugin.B2SLegacy.B2SHideDMD", *_dmd("B2SLegacy")),
     "ScoreView": ("Plugin.ScoreView.LayoutFolder",),
     "PinMAME": ("Plugin.PinMAME.Sound", "Plugin.PinMAME.PinMAMEPath"),
     "AltSound": ("Plugin.AltSound.Folder",),
@@ -98,6 +104,9 @@ RIVALS: dict[str, tuple[str, ...]] = {"B2S": ("B2SLegacy",), "B2SLegacy": ("B2S"
 
 PLUGIN_PAIRS: dict[str, tuple[Pair, ...]] = {plugin: _dmd_pairs(plugin)
                                              for plugin in ("B2S", "B2SLegacy")}
+
+PLUGIN_SWITCHED: dict[str, tuple[Switched, ...]] = {plugin: _overlays(plugin)
+                                                    for plugin in ("B2S", "B2SLegacy")}
 
 # The asset kinds a plugin's settings are about.
 PLUGIN_KINDS: dict[str, tuple[str, ...]] = {"B2S": ("backglass",),
@@ -214,8 +223,16 @@ def plugin_headings(offered: set[str],
                 if switched else (),
                 pairs=tuple(pair for pair in PLUGIN_PAIRS.get(plugin, ())
                             if set(pair.keys) <= set(keys)),
+                switched=kept_switched(PLUGIN_SWITCHED.get(plugin, ()), set(keys)),
                 kinds=PLUGIN_KINDS.get(plugin, ())))
     return tuple(sorted(found, key=lambda one: plugin_order(one.key, installed)))
+
+
+def kept_switched(switched: tuple[Switched, ...], offered: set[str]) -> tuple[Switched, ...]:
+    """Each switch offered, with the rows it gates that are."""
+    kept = (Switched(one.enabled_by, tuple(key for key in one.keys if key in offered))
+            for one in switched if one.enabled_by in offered)
+    return tuple(one for one in kept if one.keys)
 
 
 def plugin_order(plugin: str, installed: Mapping[str, Plugin] | None) -> str:

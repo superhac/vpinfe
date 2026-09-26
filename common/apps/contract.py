@@ -182,6 +182,14 @@ class Pair:
 
 
 @dataclass(frozen=True)
+class Switched:
+    """Rows of a heading drawn only while `enabled_by`, another of its rows, is on."""
+
+    enabled_by: str
+    keys: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class Heading:
     """Curated rows under one sub-heading of a group. An empty key draws no heading."""
 
@@ -198,6 +206,8 @@ class Heading:
     rivals: tuple[str, ...] = ()
     # Each pair's keys are two of `keys`.
     pairs: tuple[Pair, ...] = ()
+    # Each one's switch and rows are among `keys`.
+    switched: tuple[Switched, ...] = ()
     # Core's asset kinds these settings are about. A file of one of them draws the
     # heading too, at the table the file is for.
     kinds: tuple[str, ...] = ()
