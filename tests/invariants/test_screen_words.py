@@ -39,6 +39,8 @@ BUILD = {
     "console.sections.written_older_build_can": "an older VPinFE build",
     "error.games.no_app_called_build": "this VPinFE build",
     "error.games.nothing_build_knows_plays": "this VPinFE build",
+    "error.instance.no_build_for_system": "a VPinFE build",
+    "error.instance.not_a_release": "this VPinFE build",
     "error.launchers.no_app_called_build": "this VPinFE build",
     "error.locations.no_location_kind_called": "this VPinFE build",
     "ext.library_importer.reason.nothing_readable": "this VPinFE build",

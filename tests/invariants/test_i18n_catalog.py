@@ -170,6 +170,7 @@ SPEAKS_TO_A_SURFACE = {
     "common/online/themes.py": frozenset({"raise"}),
     "common/online/theme_installer.py": frozenset({"raise", "refusal"}),
     "common/online/theme_registry_client.py": frozenset({"raise"}),
+    "common/online/app_updater.py": frozenset({"raise"}),
 }
 
 # Functions in those modules whose raises are only ever caught and logged, never shown.

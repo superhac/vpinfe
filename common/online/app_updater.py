@@ -17,6 +17,7 @@ from pathlib import Path
 import requests
 
 from common.http_client import download_file, get_json
+from common.i18n import t
 from common.online.update_scripts import (
     _build_posix_update_script,
     _build_windows_bootstrap_script,
@@ -265,10 +266,12 @@ def _get_release_payload() -> dict:
 def _get_release_manifest(release_payload: dict) -> dict:
     manifest_asset = _find_release_asset(release_payload, "manifest.json")
     if not manifest_asset:
-        raise UpdateError("Release manifest is missing")
+        logger.warning("The latest release has no manifest.json")
+        raise UpdateError(t("error.instance.release_incomplete"))
     manifest_url = manifest_asset.get("browser_download_url")
     if not manifest_url:
-        raise UpdateError("Release manifest download URL is missing")
+        logger.warning("The latest release's manifest.json has no download URL")
+        raise UpdateError(t("error.instance.release_incomplete"))
     manifest = _request_json(manifest_url)
     logger.debug(
         "Release manifest version=%s assets=%s", manifest.get("version"),
@@ -405,7 +408,8 @@ def check_for_updates() -> dict:
 def prepare_update() -> dict:
     context = get_install_context()
     if not context["supported"]:
-        raise UpdateError(context["reason"] or "update_not_supported")
+        logger.warning("Cannot update in place: %s", context["reason"])
+        raise UpdateError(t("error.instance.device_cannot_update_itself"))
 
     release_payload = _get_release_payload()
     latest_tag = (release_payload.get("tag_name") or "").strip()
@@ -413,16 +417,19 @@ def prepare_update() -> dict:
     latest_ver = _parse_tag_version(latest_tag)
 
     if not latest_tag or latest_ver is None:
-        raise UpdateError("Could not determine the latest release")
+        logger.warning("The latest release's tag does not read as a version: %r",
+                       latest_tag)
+        raise UpdateError(t("error.instance.latest_unreadable"))
     if current_ver is None:
-        raise UpdateError("Automatic updates require a tagged release build")
+        raise UpdateError(t("error.instance.not_a_release"))
     if latest_ver <= current_ver:
-        raise UpdateError("Already on the latest version")
+        raise UpdateError(t("error.instance.already_latest"))
 
     manifest = _get_release_manifest(release_payload)
     resolved_triplet, asset_info = _resolve_manifest_asset(manifest, context["triplet"])
     if not asset_info:
-        raise UpdateError(f"No release asset for {context['triplet']}")
+        logger.warning("The latest release has no asset for %s", context["triplet"])
+        raise UpdateError(t("error.instance.no_build_for_system"))
     if resolved_triplet and resolved_triplet != context["triplet"]:
         logger.info(
             "Preparing update using compatible manifest triplet=%s for context triplet=%s",
@@ -433,15 +440,19 @@ def prepare_update() -> dict:
     asset_name = asset_info.get("file")
     expected_sha = (asset_info.get("sha256") or "").strip().lower()
     if not asset_name or not expected_sha:
-        raise UpdateError("Release manifest is incomplete")
+        logger.warning("The latest release's manifest has no file name or checksum for %s",
+                       context["triplet"])
+        raise UpdateError(t("error.instance.release_incomplete"))
 
     asset = _find_release_asset(release_payload, asset_name)
     if not asset:
-        raise UpdateError(f"Release asset {asset_name} was not found")
+        logger.warning("The latest release does not have %s attached", asset_name)
+        raise UpdateError(t("error.instance.release_incomplete"))
 
     asset_url = asset.get("browser_download_url")
     if not asset_url:
-        raise UpdateError(f"Release asset {asset_name} has no download URL")
+        logger.warning("The latest release's %s has no download URL", asset_name)
+        raise UpdateError(t("error.instance.release_incomplete"))
 
     stage_dir = UPDATES_DIR / latest_tag / (context["triplet"] or "unknown")
     stage_dir.mkdir(parents=True, exist_ok=True)
@@ -463,7 +474,7 @@ def prepare_update() -> dict:
         _append_log_line(LAST_UPDATE_LOG, f"[Updater] Downloaded asset sha256={actual_sha}")
         if actual_sha != expected_sha:
             temp_path.unlink(missing_ok=True)
-            raise UpdateError("Downloaded update failed checksum verification")
+            raise UpdateError(t("error.instance.download_damaged"))
         temp_path.replace(zip_path)
         _append_log_line(LAST_UPDATE_LOG, f"[Updater] Cached verified asset at {zip_path}")
     else:
@@ -582,7 +593,7 @@ def check_now() -> dict:
         return check_for_updates()
     except Exception as exc:
         logger.warning("Could not check for updates: %s", exc)
-        return {"update_available": False, "error": str(exc),
+        return {"update_available": False, "error": "check_failed",
                 "current_version": get_version(), "latest_version": None,
                 "update_supported": False, "support_reason": "check failed",
                 "triplet": None, "asset_name": None}
@@ -597,7 +608,6 @@ def take_published(*, stop_table: bool = False) -> dict:
     """
     from common import device_client, lifecycle, service_errors
     from common.host import launch_state
-    from common.i18n import t
 
     context = get_install_context()
     if not context["supported"]:
@@ -610,7 +620,10 @@ def take_published(*, stop_table: bool = False) -> dict:
         raise service_errors.BlockedError(t("error.instance.table_running"),
                                           details={"game_name": playing.game_name})
 
-    prepared = prepare_update()
+    try:
+        prepared = prepare_update()
+    except UpdateError as exc:
+        raise service_errors.BlockedError(str(exc)) from exc
 
     stopped_table = None
     if playing.launching and device_client.local().request(

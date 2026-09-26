@@ -13,6 +13,8 @@ from unittest.mock import patch
 import httpapi
 from common import lifecycle
 from common.host import launch_state
+from common.i18n import t
+from common.online import app_updater
 
 try:
     from starlette.testclient import TestClient
@@ -118,6 +120,16 @@ class PerformUpdateTests(unittest.TestCase):
         self._post({"stop_table": True}, prepare=explode)
 
         self.assertEqual(self.performed, [])
+
+    def test_a_build_that_cannot_be_taken_says_why(self) -> None:
+        def damaged():
+            raise app_updater.UpdateError(t("error.instance.download_damaged"))
+
+        response = self._post(prepare=damaged)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["error"]["message"],
+                         t("error.instance.download_damaged"))
 
     def test_this_install_goes_down_so_the_updater_can_run(self) -> None:
         self._post()
