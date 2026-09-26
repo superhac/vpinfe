@@ -2144,7 +2144,6 @@
   "error.frontend.not_on_screen": "The collection on screen does not hold {game_id}",
   "error.frontend.not_running": "The frontend is not running",
   "error.games.already_folder_name": "There is already a folder by that name",
-  "error.games.could_not_reach": "Could not reach {source}: {exc}",
   "error.games.could_not_record": "Could not record it",
   "error.games.could_not_write": "Could not write {name}",
   "error.games.created_device_not_read": "It was created, but this device does not read the folder it went into",

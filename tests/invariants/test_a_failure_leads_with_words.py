@@ -24,7 +24,6 @@ TEXT = {"args", "msg", "message", "strerror", "reason"}
 SLOT = re.compile(r"\{exc(?:[.!:\[][^}]*)?\}")
 
 NOT_YET: frozenset[str] = frozenset({
-    "common/games/media_ops.py",
     "extensions/library_importer/adopt.py",
     "extensions/library_importer/emulationstation.py",
     "extensions/library_importer/gamestats.py",

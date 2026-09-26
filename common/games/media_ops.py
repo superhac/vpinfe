@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from common import media_probe, service_errors
+from common.failures import why
 from common.games import (
     asset_origin,
     game_lens,
@@ -380,8 +381,7 @@ def fetch_file(game_id: str, kind: str, table_id: str, source: str, vps_id: str,
         try:
             download_file(offer.url, staged)
         except Exception as exc:
-            raise service_errors.UnavailableError(
-                t("error.games.could_not_reach", source=(source), exc=(exc))) from exc
+            raise service_errors.UnavailableError(why(exc)) from exc
         # Stamped with the source and the source's own hash. Without the hash this art is
         # indistinguishable from hand-placed later, so a refresh would leave it untouched
         # forever - the bulk downloader has always recorded one.

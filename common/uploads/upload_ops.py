@@ -13,6 +13,7 @@ from pathlib import Path, PurePosixPath
 from typing import IO, Any
 
 from common import media_browse, service_errors
+from common.failures import why
 from common.games import identity_claims, media_placement, media_service
 from common.games.asset_registry import spec_for
 from common.games.game_metadata import made_from
@@ -442,7 +443,7 @@ def _associate(report: dict, vps_entry: dict) -> None:
         media_fill.request([report["game_dir"]])
     except FileNotFoundError as exc:
         report["vps_associated"] = False
-        report["vps_error"] = str(exc)
+        report["vps_error"] = why(exc)
     except Exception:
         logging.getLogger("vpinfe.common.uploads.upload_ops").exception(
             "VPS association failed after import")

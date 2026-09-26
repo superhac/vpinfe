@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 import requests
 
 from common import device_client, events, service_errors
+from common.failures import why
 from common.i18n import t
 
 logger = logging.getLogger("vpinfe.common.jobs")
@@ -173,7 +174,7 @@ def _reason(error: BaseException) -> str:
     """Why a job stopped, as a person reads it."""
     if isinstance(error, requests.RequestException):
         return t(device_client.why_not(error))
-    return str(error) or error.__class__.__name__
+    return why(error)
 
 
 def _finish(job: Job, error: BaseException | None) -> None:
