@@ -163,7 +163,7 @@ def why_not(exc: Exception) -> str:
 
     if isinstance(exc, NotVPinFEError):
         return "device.reason.runs_vpx_mobile"
-    if isinstance(exc, requests.Timeout):
+    if isinstance(exc, (requests.Timeout, TimeoutError)):
         return "device.reason.timed_out"
     if any(isinstance(one, ConnectionRefusedError) for one in _chain(exc)):
         return "device.reason.refused"

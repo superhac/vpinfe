@@ -31,6 +31,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
+from common.device_client import why_not
 from common.games.export_bundle import bundle_paths, prune_info
 from common.i18n import t
 
@@ -63,7 +64,7 @@ def carried(host: str, port: int, *, timeout: float = ASK_SECONDS) -> list[str]:
     try:
         found = json.loads(body.decode("utf-8"))
     except ValueError as exc:
-        raise DeviceUnreachableError(f"{host} answered something that is not a file list") from exc
+        raise DeviceUnreachableError(t("device.reason.unreadable")) from exc
     return sorted(str(one.get("name") or "") for one in found
                   if isinstance(one, dict) and one.get("isDir") and one.get("name"))
 
@@ -80,7 +81,7 @@ def send(game_dir: Path, host: str, port: int, *,
     """
     contents = list(bundle_paths(game_dir, everything=everything))
     if not contents:
-        raise ValueError(f"{game_dir.name} has nothing to send")
+        raise ValueError(t("error.devices.nothing_to_send", game=game_dir.name))
 
     name = game_dir.name
     _ask(host, port, "POST", f"/folder?q={quote(name, safe='')}", timeout=ASK_SECONDS)
@@ -180,8 +181,9 @@ def _ask(host: str, port: int, method: str, path: str, *, body: bytes = b"",
             answer = connection.getresponse()
             said = answer.read()
             if answer.status >= 400:
-                raise DeviceUnreachableError(
-                    f"{host} refused {method} {where.path}: {answer.status}")
+                logger.warning("%s refused %s %s: %s", host, method, where.path,
+                               answer.status)
+                raise DeviceUnreachableError(t("device.reason.answered_but_refused"))
             return said
         except DeviceUnreachableError:
             raise
@@ -191,4 +193,5 @@ def _ask(host: str, port: int, method: str, path: str, *, body: bytes = b"",
                 time.sleep(2 * (attempt + 1))
         finally:
             connection.close()
-    raise DeviceUnreachableError(f"{host} did not answer: {last}")
+    logger.warning("%s did not answer: %s", host, last)
+    raise DeviceUnreachableError(t(why_not(last) if last else "device.reason.unreachable"))

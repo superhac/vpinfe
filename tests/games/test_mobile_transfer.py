@@ -17,6 +17,7 @@ from tempfile import TemporaryDirectory
 from urllib.parse import parse_qs, urlparse
 
 from common.games import mobile_transfer
+from common.i18n import t
 
 
 class _Device(BaseHTTPRequestHandler):
@@ -170,19 +171,28 @@ class MobileTransferTests(unittest.TestCase):
     def test_a_device_that_refuses_says_so_rather_than_reporting_success(self) -> None:
         _Device.refuse = "/upload"
 
-        with self.assertRaises(mobile_transfer.DeviceUnreachableError):
+        with self.assertLogs("vpinfe.common.games.mobile_transfer", "WARNING") as logged, \
+                self.assertRaises(mobile_transfer.DeviceUnreachableError) as raised:
             self._send()
 
+        self.assertEqual(str(raised.exception), t("device.reason.answered_but_refused"))
+        self.assertIn("/upload: 500", logged.output[0])
+
     def test_a_device_that_is_not_there_says_so(self) -> None:
-        with self.assertRaises(mobile_transfer.DeviceUnreachableError):
+        with self.assertRaises(mobile_transfer.DeviceUnreachableError) as raised:
             mobile_transfer.carried("127.0.0.1", 9, timeout=0.2)
+
+        self.assertEqual(str(raised.exception), t("device.reason.refused"))
 
     def test_a_game_with_nothing_to_send_is_refused_before_anything_is_made(self) -> None:
         """Otherwise an empty folder appears on the device and reads as a broken game."""
         empty = Path(self.tmp.name) / "Empty"
         empty.mkdir()
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as raised:
             mobile_transfer.send(empty, self.host, self.port)
+
+        self.assertEqual(str(raised.exception),
+                         t("error.devices.nothing_to_send", game="Empty"))
 
         self.assertEqual(_Device.folders, {})
