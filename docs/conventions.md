@@ -261,7 +261,7 @@ locale may leave in English.
    An entry with a space at either end is one of those fragments, and the catalog
    invariant refuses it; a joiner such as `console.collection_rules.list_join` is the one
    allowance.
-3. `python3 scripts/i18n.py --record` and `--pseudo`, which keep the staleness hashes and the
+3. `python3 scripts/i18n.py --record --pseudo`, which keeps the staleness hashes and the
    render-check locale in step.
 
 `scripts/i18n.py` also answers `--missing`, `--stale`, `--unused` and `--coverage`.
