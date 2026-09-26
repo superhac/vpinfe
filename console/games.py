@@ -703,6 +703,12 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                                       on_header_context, view_of=showing)
         context_menu: ui.context_menu = ui.context_menu()
 
+    async def rows_again(ids: set[str]) -> list[dict[str, Any]]:
+        """These games' rows, read as a full draw reads them."""
+        await run.io_bound(library.load_games_grid, True)
+        renderers.install_collection_looks(library.smart_collections(), on=table)
+        return [row for row in await offload.io(library.game_rows) if row.get("id") in ids]
+
     async def refresh_game(game_id: str) -> None:
         """Put one game's row back on screen after something changed it.
 
@@ -710,13 +716,9 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         scroll position, focus and the open panel all go, for a write that touched one
         row. `getRowId` is the row's id, so a transaction leaves all three alone.
         """
-        await run.io_bound(library.load_game_collections, True)
-        renderers.install_collection_looks(library.smart_collections(), on=table)
-        fresh = next((row for row in await offload.io(library.game_rows)
-                      if row.get("id") == game_id), None)
-        if fresh is None:
-            return
-        grid.transact(table, rows, {"update": [fresh]}, by_id)
+        fresh = await rows_again({game_id})
+        if fresh:
+            grid.transact(table, rows, {"update": fresh}, by_id)
 
     state["refresh_game"] = refresh_game
 
@@ -725,12 +727,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         where it is showing one of them. Nothing where the grid has gone."""
         if table.is_deleted or state.get("view") != "games":
             return
-        await run.io_bound(library.load_game_collections, True)
-        renderers.install_collection_looks(library.smart_collections(), on=table)
         wanted = set(ids)
-        fresh = [row for row in await offload.io(library.game_rows)
-                 if row.get("id") in wanted]
-        grid.transact(table, rows, {"update": fresh}, by_id)
+        grid.transact(table, rows, {"update": await rows_again(wanted)}, by_id)
         if state.get("game") in wanted and state.get("section") == "collections":
             answer = on_select(by_id.get(str(state["game"])))
             if inspect.isawaitable(answer):

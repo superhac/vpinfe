@@ -819,9 +819,10 @@ class Library:
     def has_game_collections(self) -> bool:
         return self._game_collections is not None
 
-    def load_games_grid(self) -> None:
-        """What the Games grid draws from. Off the event loop."""
-        self.load_game_collections()
+    def load_games_grid(self, again: bool = False) -> None:
+        """What the Games grid draws from, whole or a row at a time. Off the event loop;
+        `again` as `load_game_collections` takes it."""
+        self.load_game_collections(again)
         self._read_missing_media()
 
     def has_games_grid(self) -> bool:
