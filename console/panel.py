@@ -1070,6 +1070,13 @@ def note(text: str, hint: str = "") -> tuple[Any, Callable[[], None]]:
     return (ASIDE, draw)
 
 
+def disclosure(label: str) -> Any:
+    """A label that opens onto more of what is already here. Used as a context."""
+    built = ui.expansion(label).props("dense dense-toggle").classes("console-disclosure")
+    built.props["toggle-aria-label"] = label
+    return built
+
+
 def lede(text: str) -> tuple[Any, Callable[[], None]]:
     """The line under a heading that says what the group is for."""
     def draw() -> None:

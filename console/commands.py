@@ -35,8 +35,8 @@ def add_to(entries: list[Any], context: str) -> None:
                 ui.label(says).classes("console-help")
 
     def draw() -> None:
-        with ui.expansion(t("console.commands.names_can_use", len=(len(available)))) \
-                .props("dense dense-toggle").classes("console-disclosure console-tokens"):
+        with panel.disclosure(t("console.commands.names_can_use", len=(len(available)))) \
+                .classes("console-tokens"):
             with ui.column().classes("gap-1 pt-1"):
                 ui.label(t("console.commands.each_stands_something_command")).classes("console-help")
                 rows()

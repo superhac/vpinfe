@@ -1,8 +1,8 @@
 """A disclosure is drawn one way, whatever it sits in.
 
-Every `ui.expansion` in the Console is a disclosure, so each one carries
-`console-disclosure`, and a stylesheet rule reaches Quasar's expansion only through it. A
-rule scoped to a container instead restyles the disclosures that happen to sit there.
+Every expansion in the Console is a disclosure, built by `panel.disclosure`, and a
+stylesheet rule reaches Quasar's expansion only through `console-disclosure`. A rule
+scoped to a container instead restyles the disclosures that happen to sit there.
 """
 
 from __future__ import annotations
@@ -12,15 +12,38 @@ import pathlib
 import re
 import unittest
 
+from nicegui import ui
+
+from common import i18n
+from console import panel
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 CONSOLE = REPO / "console"
 EXPANSION_PARTS = (".q-expansion-item", ".nicegui-expansion")
 
 
-def _is_ui_expansion(node: ast.AST) -> bool:
+def _call_of(node: ast.AST, owner: str, name: str) -> bool:
     return (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "expansion" and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "ui")
+            and node.func.attr == name and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == owner)
+
+
+def _is_ui_expansion(node: ast.AST) -> bool:
+    return _call_of(node, "ui", "expansion") or _call_of(node, "panel", "disclosure")
+
+
+def _built_outside_the_panel() -> list[str]:
+    found = []
+    for path in sorted(CONSOLE.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        allowed: set[int] = set()
+        if path.name == "panel.py":
+            for fn in ast.walk(tree):
+                if isinstance(fn, ast.FunctionDef) and fn.name == "disclosure":
+                    allowed |= {id(node) for node in ast.walk(fn)}
+        found += [f"{path.relative_to(REPO)}:{node.lineno}" for node in ast.walk(tree)
+                  if _call_of(node, "ui", "expansion") and id(node) not in allowed]
+    return found
 
 
 def _base(call: ast.Call) -> ast.AST:
@@ -33,7 +56,7 @@ def _base(call: ast.Call) -> ast.AST:
 
 
 def _expansions() -> list[tuple[str, int, list[str]]]:
-    """Each `ui.expansion` with the words its chained `.classes` calls pass."""
+    """Each disclosure built with the words its chained `.classes` calls pass."""
     found = []
     for path in sorted(CONSOLE.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -68,12 +91,21 @@ def _selectors() -> list[tuple[str, str]]:
 
 class TestOneDisclosure(unittest.TestCase):
     def test_the_console_has_disclosures_to_check(self) -> None:
-        self.assertTrue(_expansions(), "no ui.expansion found; the walk is broken")
+        self.assertTrue(_expansions(), "no disclosure found; the walk is broken")
 
     def test_every_expansion_is_a_disclosure(self) -> None:
-        for where, line, words in _expansions():
-            with self.subTest(f"{where}:{line}"):
-                self.assertIn("console-disclosure", words)
+        self.assertEqual(_built_outside_the_panel(), [],
+                         "an expansion in the Console is built by panel.disclosure")
+
+    def test_a_disclosure_is_named_by_its_words_alone(self) -> None:
+        self.addCleanup(i18n.set_language, i18n.language())
+        i18n.set_language("qps")
+        label = i18n.t("console.workbench.hidden_guides", count=2)
+        with ui.card():
+            built = panel.disclosure(label)
+
+        self.assertIn("console-disclosure", built.classes)
+        self.assertEqual(built.props["toggle-aria-label"], label)
 
     def test_no_disclosure_spans_the_pane(self) -> None:
         for where, line, words in _expansions():

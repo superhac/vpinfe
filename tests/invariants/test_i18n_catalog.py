@@ -460,7 +460,7 @@ DISPLAY_CALLS = {
 # person, and each was found by reading `console/panel.py` rather than by the check
 # noticing: a helper the list does not name is a hole the check cannot see.
 DISPLAY_ARG = {"column": 1, "two_line": 0, "intro": 0, "note": 0, "state": 0,
-               "header": 0, "fact": 0, "action": 0, "trouble_mark": 0}
+               "header": 0, "fact": 0, "action": 0, "trouble_mark": 0, "disclosure": 0}
 # `search` only as `panel.search`: `re.search` is the same attribute name and its first
 # argument is a pattern, not a placeholder.
 QUALIFIED = {("panel", "search"): 0, ("confirm", "ask"): 0}

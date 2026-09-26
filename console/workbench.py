@@ -2549,9 +2549,8 @@ async def _guides_block(context: dict[str, Any]) -> None:
                 _guide_row(*guide_words(one), arrange=len(shown) > 1,
                            act=_guide_act(context, one))
         if hidden:
-            with ui.expansion(t("console.workbench.hidden_guides", count=len(hidden))) \
-                    .props("dense dense-toggle") \
-                    .classes("console-disclosure console-disclosure-rows pt-2"):
+            with panel.disclosure(t("console.workbench.hidden_guides", count=len(hidden))) \
+                    .classes("console-disclosure-rows pt-2"):
                 for one in hidden:
                     _guide_row(*guide_words(one), act=_guide_act(context, one))
         with ui.element("div").classes("console-slot-actions px-3"):
