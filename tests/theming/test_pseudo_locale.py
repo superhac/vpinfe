@@ -41,6 +41,8 @@ GAME = "Attack from Mars"
 DOTTED = re.compile(r"\b[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+\b", re.IGNORECASE)
 KEYS = {key.lower(): key for key in CATALOG}
 FIRST_ROW = ".ag-row .ag-cell"
+# Each page in Settings' own rail. `view=settings` alone is its first page.
+SETTINGS_PAGE = ".console-section-rail .console-section-hit"
 # Rendered elements only: the grid's paging bar is in every page, hidden, and unread.
 PAGE_WORDS = ("[document.body.innerText, ...[...document.querySelectorAll('[aria-label]')]"
               ".filter(e => e.getClientRects().length)"
@@ -161,6 +163,8 @@ class PseudoLocaleTests(unittest.TestCase):
             | {"visual", "pinball"}
             # the name the bundled VPinPlay gives its Community list, in the rail
             | {"vpinplay"}
+            # an art source's own name, which Library > Media lists as a source
+            | {"vpinmediadb"}
             # `Last Played` is a collection *name*, written into collections.json - it
             # is stored data, and translating it would rename what is on disk
             | {"last", "played"}
@@ -184,6 +188,7 @@ class PseudoLocaleTests(unittest.TestCase):
 
         found: dict[str, list[str]] = {}
         keys: dict[str, list[str]] = {}
+        settings_pages: list[str] = []
 
         def read(where: str, text: str) -> None:
             leaked = sorted({w.lower() for w in ASCII_WORD.findall(text)} - allowed)
@@ -202,6 +207,15 @@ class PseudoLocaleTests(unittest.TestCase):
                         timeout=90.0)
                     await asyncio.sleep(3)
                     read(view, await browser.evaluate(PAGE_WORDS) + await _picker_text(browser))
+                await browser.navigate(instance.console_url("/console?view=settings"))
+                rail = f"document.querySelectorAll({json.dumps(SETTINGS_PAGE)}).length"
+                await browser.wait_for(f"{rail} > 0", timeout=90.0)
+                for nth in range(await browser.evaluate(rail)):
+                    await browser.click(SETTINGS_PAGE, nth=nth)
+                    await asyncio.sleep(1.5)
+                    where = await browser.evaluate("location.search")
+                    settings_pages.append(where)
+                    read(where, await browser.evaluate(PAGE_WORDS))
                 await browser.navigate(instance.console_url("/console?view=locations"))
                 await browser.wait_for(
                     f"document.querySelector({json.dumps(FIRST_ROW)}) !== null", timeout=90.0)
@@ -217,6 +231,7 @@ class PseudoLocaleTests(unittest.TestCase):
                 allowed |= _machine_words(root, instance.config_dir)
                 asyncio.run(look(instance))
 
+        self.assertIn("?view=settings&page=hardware.input", settings_pages)
         self.assertEqual(keys, {}, "these reached the screen as the catalog's own keys")
         self.assertEqual(found, {}, "these reached the screen without the catalog")
 

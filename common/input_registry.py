@@ -208,10 +208,12 @@ def describe(binding: str) -> str:
     if members:
         # Composed, not looked up. "Left Shift + Right Shift, held 1.5s" is built from
         # its parts, which is where the readable names stop being a table.
-        said = " + ".join(describe(one) for one in members)
-        return f"{said}{_held_for(text)}"
+        said = describe(members[0])
+        for one in members[1:]:
+            said = t("input.chord", chord=said, key=describe(one))
+        return _held(said, text)
     if text.endswith(_hold_of(text)) and _hold_of(text):
-        return f"{describe(text[:-len(_hold_of(text))])}{_held_for(text)}"
+        return _held(describe(text[:-len(_hold_of(text))]), text)
     if any(mark in text for mark in ("@", "+", "/axis:")):
         # Whatever is left after chords and holds have been named above: a modifier, an
         # axis, a selector this build has never seen. Returned whole, because inventing
@@ -228,8 +230,8 @@ def describe(binding: str) -> str:
             # An axis, or something this build has never seen. Half-naming it - "Pad 1"
             # followed by the raw rest - would read as a name while saying nothing.
             return text
-        where = f"Pad {int(pad) + 1}" if pad.isdigit() else f"Pad {pad}"
-        return f"{where} button {what[len('button:'):]}"
+        return t("input.pad_button", pad=int(pad) + 1 if pad.isdigit() else pad,
+                 button=what[len("button:"):])
     return text
 
 
@@ -259,29 +261,30 @@ def _hold_of(binding: str) -> str:
     return text[at:] if at != -1 and text[at + len(HOLD_MARK):].isdigit() else ""
 
 
-def _held_for(binding: str) -> str:
-    """", held 1.5s" - said in seconds, because a hold is something a person counts."""
+def _held(said: str, binding: str) -> str:
+    """"Esc, held 1.5s" - said in seconds, because a hold is something a person counts."""
     suffix = _hold_of(binding)
     if not suffix:
-        return ""
+        return said
     ms = int(suffix[len(HOLD_MARK):])
-    seconds = f"{ms / 1000:g}"
-    return f", held {seconds}s"
+    return t("input.held", binding=said, seconds=f"{ms / 1000:g}")
 
 
-# Key names as a keyboard has them printed. `event.code` is what a browser reports and
-# what is stored; the rest is only ever shown.
-_KEY_NAMES = {
-    "ArrowLeft": "Left arrow", "ArrowRight": "Right arrow",
-    "ArrowUp": "Up arrow", "ArrowDown": "Down arrow",
-    "ShiftLeft": "Left Shift", "ShiftRight": "Right Shift",
-    "ControlLeft": "Left Ctrl", "ControlRight": "Right Ctrl",
-    "AltLeft": "Left Alt", "AltRight": "Right Alt",
-    "MetaLeft": "Left Meta", "MetaRight": "Right Meta",
-    "PageUp": "Page Up", "PageDown": "Page Down",
-    "Escape": "Esc", "Enter": "Enter", "Space": "Space", "Tab": "Tab",
-    "Backspace": "Backspace", "Delete": "Delete", "Home": "Home", "End": "End",
-    # A code names the key; a chip shows what is printed on it.
+# `event.code` is what a browser reports and what is stored; the caption is only shown.
+_KEY_WORDS = {
+    "ArrowLeft": "input.key.arrow_left", "ArrowRight": "input.key.arrow_right",
+    "ArrowUp": "input.key.arrow_up", "ArrowDown": "input.key.arrow_down",
+    "ShiftLeft": "input.key.shift_left", "ShiftRight": "input.key.shift_right",
+    "ControlLeft": "input.key.control_left", "ControlRight": "input.key.control_right",
+    "AltLeft": "input.key.alt_left", "AltRight": "input.key.alt_right",
+    "MetaLeft": "input.key.meta_left", "MetaRight": "input.key.meta_right",
+    "PageUp": "input.key.page_up", "PageDown": "input.key.page_down",
+    "Escape": "input.key.escape", "Enter": "input.key.enter", "Space": "input.key.space",
+    "Tab": "input.key.tab", "Backspace": "input.key.backspace",
+    "Delete": "input.key.delete", "Home": "input.key.home", "End": "input.key.end",
+}
+# A code names the key; a chip shows what is printed on it, in every language.
+_KEY_SYMBOLS = {
     "Minus": "-", "Equal": "=", "BracketLeft": "[", "BracketRight": "]",
     "Backslash": "\\", "Semicolon": ";", "Quote": "'", "Comma": ",",
     "Period": ".", "Slash": "/", "Backquote": "`",
@@ -294,18 +297,20 @@ def key_names() -> dict[str, str]:
     Handed over rather than reimplemented: a browser reading a gamepad cannot call
     `describe`, and a second copy of this table is a second thing to keep in step.
     """
-    return dict(_KEY_NAMES)
+    return {**{code: t(key) for code, key in _KEY_WORDS.items()}, **_KEY_SYMBOLS}
 
 
 def _key_name(code: str) -> str:
-    if code in _KEY_NAMES:
-        return _KEY_NAMES[code]
+    if code in _KEY_WORDS:
+        return t(_KEY_WORDS[code])
+    if code in _KEY_SYMBOLS:
+        return _KEY_SYMBOLS[code]
     if code.startswith("Key") and len(code) == 4:
         return code[3]
     if code.startswith("Digit") and len(code) == 6:
         return code[5]
     if code.startswith("Numpad"):
-        return f"Numpad {code[len('Numpad'):]}"
+        return t("input.key.numpad", key=code[len("Numpad"):])
     # A single character is already its own name, and an unknown code is more use shown
     # than replaced with a guess.
     return code

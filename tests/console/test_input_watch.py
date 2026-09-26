@@ -16,6 +16,7 @@ import re
 import unittest
 
 from common import input_registry
+from common.i18n import t
 from console import input_watch, settings
 
 
@@ -63,7 +64,7 @@ def _as_the_script_would(code: str) -> str:
     if re.fullmatch(r"Digit.", code):
         return code[5:]
     if code.startswith("Numpad"):
-        return "Numpad " + code[len("Numpad"):]
+        return t("input.key.numpad", key="{key}").replace("{key}", code[len("Numpad"):])
     return code
 
 

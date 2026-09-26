@@ -42,6 +42,7 @@ _WATCH_JS = """
   if (!root || root.dataset.watching) return;
   root.dataset.watching = '1';
   const NAMES = %(names)s;
+  const WORDS = %(words)s;
   const KEEP = %(keep)d;
   // Most recent first. One entry per input: pressing the same thing again moves it back
   // to the front rather than filling the strip with one button.
@@ -51,7 +52,7 @@ _WATCH_JS = """
     if (NAMES[code]) return NAMES[code];
     if (/^Key.$/.test(code)) return code.slice(3);
     if (/^Digit.$/.test(code)) return code.slice(5);
-    if (code.startsWith('Numpad')) return 'Numpad ' + code.slice(6);
+    if (code.startsWith('Numpad')) return WORDS.numpad.replace('{key}', code.slice(6));
     return code;
   };
 
@@ -72,7 +73,7 @@ _WATCH_JS = """
     if (!seen.length) {
       const empty = document.createElement('span');
       empty.className = 'console-member-chip console-chip-quiet';
-      empty.textContent = 'Nothing yet';
+      empty.textContent = WORDS.nothing;
       root.appendChild(empty);
       return;
     }
@@ -104,7 +105,8 @@ _WATCH_JS = """
         const known = seen.find(one => one.id === id);
         if (button.pressed === !!(known && known.down)) return;
         // Pads are numbered from zero on the wire and from one in the hand.
-        note(id, 'Pad ' + (pad.index + 1) + ' button ' + i, button.pressed);
+        note(id, WORDS.pad.replace('{pad}', pad.index + 1).replace('{button}', i),
+             button.pressed);
       });
     }
   }, 60);
@@ -131,6 +133,12 @@ def strip() -> None:
     ui.timer(0.05, lambda: ui.run_javascript(_WATCH_JS % {
         "id": json.dumps(f"c{where.id}"),
         "names": json.dumps(input_registry.key_names()),
+        # The slots are left in for the script to fill.
+        "words": json.dumps({
+            "nothing": t("console.input_watch.nothing_yet"),
+            "numpad": t("input.key.numpad", key="{key}"),
+            "pad": t("input.pad_button", pad="{pad}", button="{button}"),
+        }),
         "keep": KEEP,
     }), once=True)
 
