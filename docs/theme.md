@@ -102,7 +102,7 @@ Everything about a window follows from its name:
 so declaring four on a two-monitor machine is fine.
 
 Name a window after a media kind and `vpin.getImageURL(index, windowName)` gives you that
-kind's art — which is what several published themes already rely on for `bg` and `dmd`.
+kind's art. Several published contract 1 themes already rely on it for `bg` and `dmd`.
 
 ### Theme contract
 
@@ -164,7 +164,7 @@ At `contract: 2` the payload is an object, and the list you iterate is `entries`
       },
       "assets": { "pup_pack": true, "alt_color": false, "alt_sound": false },
       "siblings": 2,
-      "media": ["playfield", "bg", "wheel"]
+      "media": ["playfield", "backglass", "wheel"]
     }
   ]
 }
@@ -192,7 +192,7 @@ the game it belongs to attached.
 | `entries[].table.derived_tags` | Tags a Community list puts on this table alone - a list naming one build tags that build, not its game. |
 | `entries[].assets` | What the game needs to play as intended, as booleans. |
 | `entries[].siblings` | How many tables this entry's game offers. `1` means there is nothing to switch to. |
-| `entries[].media` | The media kinds this game **has a file for** — `playfield`, `bg`, `wheel` and the rest, the same names `vpin.getMedia(index, kind)` takes. Names, not paths: fetch one from `/media/<table id>/<kind>`. |
+| `entries[].media` | The media kinds this game **has a file for**: `playfield`, `backglass`, `wheel` and the rest, the same names `vpin.getMedia(index, kind)` takes. Names, not paths: fetch one from `/media/<table id>/<kind>`. |
 | `entries[].game.manufacturer_logo` | Web path to the manufacturer's shared logo, or `null`. Art about the manufacturer rather than about this game, which is why it is not a media kind. |
 | `entries[].game.created_at` | When the game's folder appeared, ISO 8601 UTC, or `null` where the filesystem gave no answer. What a "Newest" sort orders on. |
 
@@ -628,8 +628,8 @@ Same structure as above but with simpler content. These windows only display med
 
 Important: theme code for these windows should support both static images and videos. In practice that means:
 
-- `bg` windows should prefer `bg.mp4` and fall back to `bg.png`
-- `dmd` windows should prefer `dmd.mp4` and fall back to `dmd.png`
+- `backglass` windows should prefer `bg.mp4` and fall back to `bg.png`
+- `scoreview` windows should prefer `dmd.mp4` and fall back to `dmd.png`
 
 Do not hardcode these windows to image-only rendering with `getImageURL()` alone, or `bg.mp4` / `dmd.mp4` will never appear even when the files exist.
 
@@ -638,7 +638,7 @@ Do not hardcode these windows to image-only rendering with `getImageURL()` alone
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>VPinFE - BG</title>
+  <title>VPinFE - Backglass</title>
   <link rel="stylesheet" href="/core/common/vpinfe-style.css">
   <link rel="stylesheet" href="style.css">
   <script src="/core/common/vpinfe-core.js"></script>
@@ -647,7 +647,7 @@ Do not hardcode these windows to image-only rendering with `getImageURL()` alone
 <body>
   <div id="fadeContainer">
     <div id="bgImageContainer">
-      <!-- BG or DMD image inserted here by theme.js -->
+      <!-- Backglass or score view image inserted here by theme.js -->
     </div>
   </div>
   <div id="overlay-root"></div>
@@ -703,18 +703,18 @@ function renderWindowMedia(container, imageUrl, videoUrl, altText) {
   container.appendChild(img);
 }
 
-function updateBGWindow() {
+function updateBackglassWindow() {
   const container = document.getElementById('rootContainer');
-  const bgUrl = vpin.getImageURL(currentGameIndex, 'bg');
-  const bgVideoUrl = vpin.getVideoURL(currentGameIndex, 'bg');
-  renderWindowMedia(container, bgUrl, bgVideoUrl, 'Backglass');
+  const imageUrl = vpin.getImageURL(currentGameIndex, 'backglass');
+  const videoUrl = vpin.getVideoURL(currentGameIndex, 'backglass');
+  renderWindowMedia(container, imageUrl, videoUrl, 'Backglass');
 }
 
-function updateDMDWindow() {
+function updateScoreViewWindow() {
   const container = document.getElementById('rootContainer');
-  const dmdUrl = vpin.getImageURL(currentGameIndex, 'dmd');
-  const dmdVideoUrl = vpin.getVideoURL(currentGameIndex, 'dmd');
-  renderWindowMedia(container, dmdUrl, dmdVideoUrl, 'DMD');
+  const imageUrl = vpin.getImageURL(currentGameIndex, 'scoreview');
+  const videoUrl = vpin.getVideoURL(currentGameIndex, 'scoreview');
+  renderWindowMedia(container, imageUrl, videoUrl, 'Score view');
 }
 ```
 
@@ -750,7 +750,7 @@ theme = <THEME NAME>
 
 The main JS file for interacting with VPinFE and controlling the theme UI. Every window loads the same `theme.js`, so use `vpin.windowName` to branch logic per window - or `vpin.isController()`, which does not care what the controller is called. Older themes read a global `windowName` that they set themselves from `get_my_window_name`; `vpin.windowName` is the same answer without the round trip.
 
-VPinFE also passes the current window identity in the page URL as `?window=playfield`, `?window=bg`, or `?window=dmd`. For high-DPI backglass and DMD setups, VPinFE may also include an optional `override` query parameter in the form `x,y,width,height`. Theme authors can read that value when they need to use the configured bounds instead of the auto-detected browser window size.
+VPinFE also passes the current window identity in the page URL as `?window=playfield`, `?window=backglass`, or `?window=scoreview`. For a high-DPI setup, a contract 1 theme's `bg` and `dmd` windows may also get an optional `override` query parameter in the form `x,y,width,height`. Theme authors can read that value when they need to use the configured bounds instead of the auto-detected browser window size.
 
 ```javascript
 /*
@@ -854,10 +854,10 @@ function updateScreen() {
     if (vpin.isController()) {
         // Update the playfield window: images, carousel, info, audio
         vpin.playTableAudio(currentGameIndex);
-    } else if (windowName === "bg") {
+    } else if (windowName === "backglass") {
         // Update backglass image
-    } else if (windowName === "dmd") {
-        // Update DMD image
+    } else if (windowName === "scoreview") {
+        // Update score view image
     }
 }
 
@@ -1301,7 +1301,7 @@ a block named after it, and `enabled` is one of those settings:
 ```json
 {
   "audio":   { "enabled": true, "max_volume": 0.8 },
-  "preload": { "enabled": true, "kinds": ["playfield", "bg", "wheel"] }
+  "preload": { "enabled": true, "kinds": ["playfield", "backglass", "wheel"] }
 }
 ```
 
@@ -1319,11 +1319,11 @@ theme preloading on every step asks for images that are obsolete before they dec
 browser is still draining that queue long after the control is released. Waiting for the wheel to settle turns a
 two-second hold into one batch.
 
-`preload.kinds` chooses what gets fetched; the default is `["playfield", "bg", "wheel"]`.
+`preload.kinds` chooses what gets fetched; the default is `["playfield", "backglass", "wheel"]`.
 A theme showing a cabinet shot wants `cab` in there, and one with no wheel should drop it.
 
 ```json
-{ "preload": { "enabled": true, "kinds": ["playfield", "bg", "wheel"] } }
+{ "preload": { "enabled": true, "kinds": ["playfield", "backglass", "wheel"] } }
 ```
 
 **If you switch this on, delete your own preloading.** Running both just doubles the
@@ -1356,7 +1356,7 @@ The following methods are available via `vpin.call()`:
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `get_my_window_name` | — | `string` | Returns the window name for this instance (`"playfield"`, `"bg"`, or `"dmd"` by default). |
+| `get_my_window_name` | — | `string` | Returns the window name for this instance (`"playfield"`, `"backglass"`, or `"scoreview"` by default). |
 | `close_app` | — | — | Shuts down all browser windows and exits the application. |
 | `shutdown_system` | — | — | Powers off the machine. |
 | `lifecycle_request` | `scope`, `action`, `reason`, `confirmed` | `bool` | Starts, stops or restarts something. Returns whether it is going ahead. |
@@ -1436,7 +1436,7 @@ change it — `set_tables_by_collection` and the lists above are what a theme ne
 |--------|------|---------|-------------|
 | `send_event_all_windows` | `message` | — | Sends an event to all windows except the caller. |
 | `send_event_all_windows_incself` | `message` | — | Sends an event to all windows including the caller and iframes. |
-| `send_event` | `window_name`, `message` | — | Sends an event to a specific window by name (`"playfield"`, `"bg"`, or `"dmd"` by default). |
+| `send_event` | `window_name`, `message` | — | Sends an event to a specific window by name (`"playfield"`, `"backglass"`, or `"scoreview"` by default). |
 
 ##### Input
 
@@ -1463,10 +1463,10 @@ change it — `set_tables_by_collection` and the lists above are what a theme ne
 Theme pages receive the current window name in the `window` query parameter:
 
 - `?window=playfield`
-- `?window=bg`
-- `?window=dmd`
+- `?window=backglass`
+- `?window=scoreview`
 
-For `bg` and `dmd`, VPinFE can also pass an optional high-DPI display override:
+For a contract 1 theme's `bg` and `dmd`, VPinFE can also pass an optional high-DPI display override:
 
 - `?override=x,y,width,height`
 
@@ -1504,15 +1504,15 @@ If `override` is present, themes that position or scale BG/DMD content based on 
 | `setAudioOptions` | `options` | — | Sets runtime audio options. Supported keys: `maxVolume`/`max_volume`/`volume`, `fadeDuration`/`fade_duration_ms`/`fadeMs`, `loop`. |
 
 #### getImageURL(index, kind)
-Returns an HTTP URL for a table's image. `kind` can be `"playfield"`, `"bg"`, `"dmd"`, `"wheel"`, or `"cab"`. Returns a fallback `/core/images/file_missing.png` URL if the file doesn't exist or `index` is outside the list, never `null`.
+Returns an HTTP URL for a table's image. `kind` can be `"playfield"`, `"backglass"`, `"scoreview"`, `"wheel"`, or `"cab"`. Returns a fallback `/core/images/file_missing.png` URL if the file doesn't exist or `index` is outside the list, never `null`.
 
 #### getVideoURL(index, kind)
-Returns an HTTP URL for a table's video. `kind` can be `"playfield"`, `"bg"`, or `"dmd"`. Returns a fallback `/core/images/file_missing.png` URL if no video exists or `index` is outside the list, never `null`. See [Video Support](#video-support).
+Returns an HTTP URL for a table's video. `kind` can be `"playfield"`, `"backglass"`, or `"scoreview"`. Returns a fallback `/core/images/file_missing.png` URL if no video exists or `index` is outside the list, never `null`. See [Video Support](#video-support).
 
 #### getMediaURL(index, kind)
-Returns an HTTP URL using the user's configured media priority from Manager UI > Configuration > Media > Media Priorities. For `"playfield"`, `"bg"`, and `"dmd"`, VPinFE chooses image or video first based on the setting and falls back to the alternate when the preferred file is missing. For `"real_dmd"`, VPinFE chooses `realdmd-color.png` or `realdmd.png` first based on the setting and falls back to the other frame. Returns `/core/images/file_missing.png` when neither exists or `index` is outside the list, never `null`.
+Returns an HTTP URL using the user's configured media priority from Manager UI > Configuration > Media > Media Priorities. For `"playfield"`, `"backglass"`, and `"scoreview"`, VPinFE chooses image or video first based on the setting and falls back to the alternate when the preferred file is missing. For `"real_dmd"`, VPinFE chooses `realdmd-color.png` or `realdmd.png` first based on the setting and falls back to the other frame. Returns `/core/images/file_missing.png` when neither exists or `index` is outside the list, never `null`.
 
-Kind names are snake_case, the same strings the payload and `/api/v1` use. The spellings earlier builds accepted — `table`, `table_video`, `fss`, `realdmd`, `realdmd-color`, `rulecard`, `audiolaunch`, `rulesheet` — still work.
+Kind names are snake_case, the same strings the payload and `/api/v1` use, and at contract 2 they are the only names that answer. A contract 1 theme can still use the spellings earlier builds accepted: `bg`, `bg_video`, `dmd`, `dmd_video`, `table`, `table_video`, `fss`, `realdmd`, `realdmd-color`, `rulecard`, `audiolaunch` and `rulesheet`.
 
 #### getMedia(index, kind)
 Returns the same priority-aware selection with metadata: `{ url, kind, priority, path }`. Real DMD selections also include `variant` with `"color"` or `"standard"`. When there is nothing to show, including for an `index` outside the list, `kind` is `"missing"` and `url` is `/core/images/file_missing.png`.
@@ -1720,8 +1720,8 @@ Twenty. `entry.media` lists the ones a game has a file for, using exactly these 
 |---|---|---|---|
 | `playfield` | `table.png` | `(Playfield)` | |
 | `playfield_fss` | `fss.png` | `(FSS)` | |
-| `bg` | `bg.png` | `(Backglass)` | |
-| `dmd` | `dmd.png` | `(DMD)` | |
+| `backglass` | `bg.png` | `(Backglass)` | |
+| `scoreview` | `dmd.png` | `(DMD)` | |
 | `wheel` | `wheel.png` | `(Wheel)` | |
 | `logo` | `logo.png` | `(Logo)` | |
 | `cab` | `cab.png` | `(Cabinet)` | |
@@ -1731,8 +1731,8 @@ Twenty. `entry.media` lists the ones a game has a file for, using exactly these 
 | `real_dmd` | `realdmd.png` | `(RealDMD)` | |
 | `real_dmd_color` | `realdmd-color.png` | `(RealColorDMD)` | |
 | `playfield_video` | `table.mp4` | `(Playfield)` | |
-| `bg_video` | `bg.mp4` | `(Backglass)` | |
-| `dmd_video` | `dmd.mp4` | `(DMD)` | |
+| `backglass_video` | `bg.mp4` | `(Backglass)` | |
+| `scoreview_video` | `dmd.mp4` | `(DMD)` | |
 | `topper_video` | `topper.mp4` | `(Topper)` | |
 | `loading` | `loading.mp4` | `(Loading)` | |
 | `audio` | `audio.mp3` | `(Audio)` | |
@@ -1822,7 +1822,7 @@ For new themes, prefer `vpin.getMedia(index, kind)` or `vpin.getMediaURL(index, 
 
 Priority-aware example:
 ```javascript
-const media = vpin.getMedia(currentGameIndex, 'bg');
+const media = vpin.getMedia(currentGameIndex, 'backglass');
 const preview = document.createElement(media.kind === 'video' ? 'video' : 'img');
 preview.className = 'preview';
 preview.src = media.url;
@@ -1869,18 +1869,18 @@ if (videoUrl && !videoUrl.includes('file_missing')) {
 }
 ```
 
-For `bg` and `dmd` windows, use the same pattern with:
+For `backglass` and `scoreview` windows, use the same pattern with:
 
-- `vpin.getVideoURL(currentGameIndex, 'bg')` plus `vpin.getImageURL(currentGameIndex, 'bg')`
-- `vpin.getVideoURL(currentGameIndex, 'dmd')` plus `vpin.getImageURL(currentGameIndex, 'dmd')`
+- `vpin.getVideoURL(currentGameIndex, 'backglass')` plus `vpin.getImageURL(currentGameIndex, 'backglass')`
+- `vpin.getVideoURL(currentGameIndex, 'scoreview')` plus `vpin.getImageURL(currentGameIndex, 'scoreview')`
 
 Recommended rule for theme authors:
 
-- Table window: optionally prefer `table.mp4` over `table.png` / `fss.png`
-- BG window: prefer `bg.mp4`, fall back to `bg.png`
-- DMD window: prefer `dmd.mp4`, fall back to `dmd.png`
+- `playfield` window: optionally prefer `table.mp4` over `table.png` / `fss.png`
+- `backglass` window: prefer `bg.mp4`, fall back to `bg.png`
+- `scoreview` window: prefer `dmd.mp4`, fall back to `dmd.png`
 
-If you only use `getImageURL()` in BG or DMD renderers, those windows will remain image-only even when the matching video files exist.
+If you only use `getImageURL()` in `backglass` or `scoreview` renderers, those windows will remain image-only even when the matching video files exist.
 
 Key points:
 - Set `muted = true` — browsers require this for autoplay to work without user gesture.
@@ -2213,7 +2213,7 @@ html, body {
 
 ### Secondary Windows
 
-For `bg` and `dmd` windows that show a single fullscreen image:
+For `backglass` and `scoreview` windows that show a single fullscreen image:
 ```css
 .fullscreen-image-container {
   width: 100%;

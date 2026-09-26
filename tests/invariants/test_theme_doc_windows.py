@@ -1,4 +1,4 @@
-"""docs/theme.md names the windows a theme opens as the frontend reads them."""
+"""docs/theme.md names the windows a theme opens, and their media, as the frontend reads them."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from common import media_specs
 from frontend import theme_contract, theme_windows
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -17,6 +18,18 @@ JSON_BLOCK = re.compile(r"```json\n(.*?)```", re.DOTALL)
 NAMES_AT_CONTRACT = re.compile(r"((?:`\w+`(?:, | and )?)+) at contract (\d+)")
 FILES_ROW = re.compile(r"^\| (\d+) \| (.+) \|$", re.MULTILINE)
 PAGE = re.compile(r"index_(\w+)\.html")
+KIND_ROW = re.compile(r"^\| `(\w+)` \| `([^`]+)` \|", re.MULTILINE)
+UNIT = re.compile(r"(?<=[.!?])\s+|\n\s*\n|\n(?=[ \t]*(?:[-*|>]|\d+\.)\s)")
+
+_WINDOW = "|".join(theme_windows.DEFAULT_WINDOWS[1])
+_ONE_WINDOW = rf"`?\b(?:{_WINDOW})\b`?"
+# `table` is also what 3.0 calls a .vpx, and a key of every entry.
+_KIND = "|".join(sorted(set(media_specs.MEDIA_KIND_ALIASES) - {"table"}))
+CONTRACT_1_NAME = re.compile(
+    rf"(?i:{_ONE_WINDOW}(?:,?\s+(?:and|or)\s+{_ONE_WINDOW}|,\s+{_ONE_WINDOW})*\s+windows?\b)"
+    rf"|window=(?:{_WINDOW})\b"
+    rf"|[`'\"](?:{_KIND})[`'\"]"
+)
 
 
 def _doc() -> str:
@@ -97,6 +110,21 @@ class DefaultsTests(unittest.TestCase):
 
         self.assertEqual(listed, current)
         self.assertEqual(tuple(PAGE.findall(tree)), current)
+
+
+class NamesTests(unittest.TestCase):
+    def test_a_contract_1_name_appears_only_where_the_doc_speaks_of_contract_1(self) -> None:
+        stray = [f"{found!r} in: {sentence[:120]}"
+                 for sentence in (" ".join(unit.split()) for unit in UNIT.split(_doc()))
+                 if "contract 1" not in sentence.lower()
+                 for found in CONTRACT_1_NAME.findall(sentence)]
+
+        self.assertEqual(stray, [], "\n" + "\n".join(stray))
+
+    def test_the_kinds_table_names_each_kind_and_the_file_it_resolves(self) -> None:
+        rows = dict(KIND_ROW.findall(_section("### The kinds")))
+
+        self.assertEqual(rows, media_specs.media_filename_map())
 
 
 if __name__ == "__main__":
