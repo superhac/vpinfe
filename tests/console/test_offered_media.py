@@ -57,10 +57,6 @@ class OfferedMediaTests(unittest.TestCase):
         self.assertEqual(offered["rule_sheet"], 2)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class KeptKindsTests(unittest.TestCase):
     """What the Console asks for before it enumerates anything.
 
@@ -171,3 +167,7 @@ class HeldKeptKindsTests(unittest.TestCase):
             self.library.put_library_policy({"hidden_media_kinds": []})
 
         self.assertNotIn("topper", self.library.kept_kinds()["media"])
+
+
+if __name__ == "__main__":
+    unittest.main()
