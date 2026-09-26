@@ -531,6 +531,13 @@ def is_local(context: dict[str, Any]) -> bool:
     return _of(context).get("device_id") == context.get("local_device_id")
 
 
+def serves(context: dict[str, Any], capability: str) -> bool:
+    """False only where the device is known not to offer `capability`."""
+    return capability_state(_of(context), capability, context.get("local_device_id"),
+                            context.get("local_capabilities") or set(),
+                            context.get("reach")) != ABSENT
+
+
 async def detail_groups(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     """What a device is, whether it is there, where its settings are, and what this
     install holds about it.

@@ -7001,11 +7001,13 @@ SECTIONS: tuple[Section, ...] = (
             _device_capabilities,
             subjects=frozenset({"device"})),
     Section("device_logs", lambda _: t("console.workbench.logs"), _device_logs,
-            subjects=frozenset({"device"})),
+            subjects=frozenset({"device"}),
+            shown=lambda context: devices_page.serves(context, "logs")),
     # Last, and it is the only one that changes anything: reading down the rail is
     # reading from what a device is to what it can be told to do.
     Section("device_control", lambda _: t("console.workbench.control"), _device_control,
-            subjects=frozenset({"device"})),
+            subjects=frozenset({"device"}),
+            shown=lambda context: devices_page.serves(context, "actions")),
     Section("theme_details", lambda _: t("console.themes.theme"), themes_page.details,
             subjects=frozenset({"theme"})),
     Section("theme_settings", lambda _: t("console.themes.settings"),

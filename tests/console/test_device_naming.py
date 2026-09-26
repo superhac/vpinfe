@@ -10,7 +10,7 @@ import requests
 
 from common import device_client
 from common.i18n import t
-from console import devices
+from console import devices, workbench
 from console.api import ApiError
 
 LOCAL = "Aaaa111111"
@@ -98,6 +98,46 @@ class CapabilityStateTests(unittest.TestCase):
         """A state with no entry renders as a KeyError on somebody's screen."""
         for state in (devices.PRESENT, devices.ABSENT, devices.UNKNOWN):
             self.assertIn(state, devices._CHIP)
+
+
+class SectionsItServesTests(unittest.TestCase):
+    """Logs and Control are on a device's panel unless it is known not to serve them."""
+
+    SERVED = {"device_logs", "device_control"}
+
+    def _shown(self, device: dict, reach: dict | None = None,
+               local: set[str] | None = None) -> set[str]:
+        context = {"device": device, "local_device_id": LOCAL,
+                   "local_capabilities": local or set(), "reach": reach}
+        return {item.key for item in workbench.sections_for("device")
+                if item.shown is None or item.shown(context)}
+
+    def test_a_phone_serves_neither(self) -> None:
+        shown = self._shown({"device_id": "Pppp444444", "kind": "vpx_mobile"})
+
+        self.assertFalse(self.SERVED & shown)
+        self.assertIn("device_details", shown)
+
+    def test_an_install_that_answered_shows_what_it_declared(self) -> None:
+        reach = {"state": device_client.ANSWERING, "capabilities": ["logs"]}
+
+        shown = self._shown({"device_id": "Bbbb222222", "kind": "vpinfe"}, reach)
+
+        self.assertIn("device_logs", shown)
+        self.assertNotIn("device_control", shown)
+
+    def test_an_install_nobody_could_ask_keeps_both_to_say_why(self) -> None:
+        reach = {"state": device_client.UNREACHABLE}
+
+        shown = self._shown({"device_id": "Bbbb222222", "kind": "vpinfe"}, reach)
+
+        self.assertLessEqual(self.SERVED, shown)
+
+    def test_this_install_shows_what_it_declares(self) -> None:
+        shown = self._shown({"device_id": LOCAL, "kind": "vpinfe"},
+                            local={"logs", "actions"})
+
+        self.assertLessEqual(self.SERVED, shown)
 
 
 class SettingsDoorTests(unittest.TestCase):
