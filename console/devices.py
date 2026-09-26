@@ -28,15 +28,12 @@ IMPLIED_BY_KIND: dict[str, set[str]] = {
 PRESENT, ABSENT, UNKNOWN = "present", "absent", "unknown"
 
 # What the absence costs, which is what the chip's color means everywhere else in the
-# here: an unoffered capability is ordinary, one nothing has asked about is not.
+# Console: an unoffered capability is ordinary, one nothing has asked about is not.
 _CHIP = {
     PRESENT: ("console.devices.available_2", "on"),
     ABSENT: ("console.devices.not_offered", "off"),
     UNKNOWN: ("console.devices.cannot_determined", "unknown"),
 }
-
-# Why the name of a device that is not this one cannot be edited here. The install owns
-# its own name, and the registry holds a copy of what it last reported.
 
 # A device there is no way to call back. Not the same as one that is down, and it says
 # which: an install announces the port it answers on, and this one never did.
@@ -55,8 +52,6 @@ WHY_NOT = {
     "unsupported_platform": "console.devices.why_not.updating_place_not_built"
 }
 
-# What forgetting a device does, said before it is done. The registry is a record of what
-# this install has met, not a permission list, so this removes a row and nothing else.
 # How many records to ask for. Enough to see what led to something without handing over
 # a 2MB file to a panel; the path is on the page for anyone who wants the rest.
 LOG_LIMIT = 200
@@ -81,10 +76,6 @@ _ACTION_ICONS = {
     ("system", "stop"): "power_settings_new",
     ("system", "restart"): "restart_alt",
 }
-
-# Said once over the list rather than under each. Which machine this happens on is the
-# thing a fleet surface has to be clear about.
-
 
 # What a probe found, as the mark on a rail row and the chip on the page. Green for
 # answering, because that is the one a person scans the rail for.
