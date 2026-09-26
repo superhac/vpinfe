@@ -10,6 +10,7 @@ An implementation imports this module for the types and nothing else of ours.
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -70,6 +71,14 @@ def words(name: str) -> Callable[..., str]:
         return t(f"ext.{name}.{key}", **params)
 
     return said
+
+
+def why(exc: BaseException, /, at: str | os.PathLike[str] = "") -> str:
+    """`ctx.why`, for a module that is not handed the context. `at` is the URL or path
+    being reached, for an exception that does not carry one."""
+    from common.failures import why as worded
+
+    return worded(exc, at)
 
 
 # What `register(ctx)` receives is built in `common/extensions/context.py` and described

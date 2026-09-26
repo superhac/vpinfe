@@ -288,6 +288,23 @@ class WordsTests(HostCase):
         self.assertEqual((directory / "said.txt").read_text(), "Hello, Pat")
         self.assertEqual(contract.words("speaker")("greeting", who="Sam"), "Hello, Sam")
 
+    def test_it_words_a_failure_the_way_core_does(self) -> None:
+        directory = self.make("failing", body=(
+            'import errno, urllib.error\n'
+            'from pathlib import Path\n'
+            'def register(ctx):\n'
+            '    gone = FileNotFoundError(errno.ENOENT, "gone", "/tables/a.vpx")\n'
+            '    quiet = urllib.error.URLError(ConnectionRefusedError())\n'
+            '    Path(__file__).with_name("said.txt").write_text("\\n".join((\n'
+            '        ctx.why(gone), ctx.why(quiet, at="https://vp.example/api/v1"))))\n'))
+
+        self.registry.load(directory)
+
+        self.assertEqual((directory / "said.txt").read_text().splitlines(),
+                         ["Nothing is at /tables/a.vpx", "Nothing answers at vp.example"])
+        self.assertEqual(contract.why(TimeoutError(), at="https://vp.example/"),
+                         "vp.example did not answer in time")
+
 
 class ContextTests(HostCase):
     def test_the_logger_is_the_extensions_own_namespace(self) -> None:

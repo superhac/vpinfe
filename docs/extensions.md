@@ -76,6 +76,7 @@ application, and that is the guarantee the model rests on.
 |---|---|
 | `ctx.name`, `ctx.manifest` | What this extension is and what it declared |
 | `ctx.t(key, **params)` | What its own `i18n/<language>.json` says for `key`, in the language now set |
+| `ctx.why(exc, at=...)` | Why something failed, in core's words, for the line under a failure. See "Its words" |
 | `ctx.logger` | A logger in `vpinfe.ext.<name>` |
 | `ctx.config` | `get`, `set`, `all` over its own settings |
 | `ctx.events` | `subscribe` to a core event; `publish` one of its own |
@@ -163,7 +164,26 @@ one's file to what its code asks for, both ways, and to the rules under "Type" i
 `docs/conventions.md`, and fail on a sentence written anywhere in its code outside a
 docstring, a log line, a query or a builtin exception. What a `ValueError` says reaches a
 log and nobody else; what an `HTTPException` says is read by a person, so its `detail`
-comes from `ctx.t`.
+comes from `ctx.t`, or from `ctx.why` when it is the reason something failed.
+
+`ctx.why(exc)` says why in the words core uses under its own failures - a missing file, a
+refused permission, a host that did not answer - and in the language set. For anything
+core has no words for it is the exception's own text, so the extension words that one
+itself, from its own catalog. `at=` is the URL or path being reached, for an exception
+that does not carry it, such as urllib's:
+
+```python
+try:
+    with urllib.request.urlopen(endpoint, timeout=10) as answer:
+        rows = json.load(answer)
+except (urllib.error.URLError, TimeoutError) as exc:
+    raise HTTPException(502, detail=ctx.why(exc, at=endpoint)) from exc   # vp.example did not answer in time
+except ValueError as exc:
+    raise HTTPException(502, detail=ctx.t("error.not_json")) from exc
+```
+
+A note or a row's error carries it the same way, as `{"text": ctx.t(...), "detail":
+ctx.why(exc)}`. `contract.why` is the same for a module that is not handed `ctx`.
 
 ## Adding a way to play a table
 

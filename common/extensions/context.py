@@ -8,6 +8,7 @@ this?" is answerable from a log line, a config file or a scope.
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -15,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 from common import events as core_events
 
 from .contract import ContractError, Manifest, words
+from .contract import why as worded
 from .games import ExtensionGames
 from .store import ExtensionStore
 
@@ -515,6 +517,10 @@ class ExtensionContext:
         """What this extension's `i18n/<language>.json` says for `key`, in the language
         now set: a wizard's title, a field's label, a sentence a route answers with."""
         return words(self.name)(key, **params)
+
+    def why(self, exc: BaseException, /, at: str | os.PathLike[str] = "") -> str:
+        """What core says under a failure of its own: `contract.why`."""
+        return worded(exc, at)
 
     def scope(self, action: str) -> str:
         """The scope for one of this extension's own actions."""
