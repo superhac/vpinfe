@@ -2482,7 +2482,9 @@ class ImportPlanResource(ApiModel):
 
 class ImportReport(ApiModel):
     """vps_associated and vps_error report a post-import association that is allowed
-    to fail without failing the import - the files are already on disk by then."""
+    to fail without failing the import - the files are already on disk by then.
+    vps_associated answers for a record the sender picked; vps_matched answers for
+    one the import looked for itself. None means that step did not run."""
 
     imported: list[str]
     skipped: list[str]
@@ -2491,6 +2493,7 @@ class ImportReport(ApiModel):
     media_kinds: list[str]
     blocked: list[BlockedAsset]
     vps_associated: bool | None = None
+    vps_matched: bool | None = None
     vps_error: str | None = None
     added_tables: list[str] = []
 

@@ -17,6 +17,7 @@ from common.games.game_metadata import (
 )
 from common.online.vpsdb import VPSdb
 from common.uploads import upload_ops
+from httpapi import models
 from tests.support.library import TempTree, fake_game, game_info, write_game
 
 FOLDER = "Fathom (Bally 1981)"
@@ -341,6 +342,7 @@ class ImportWithoutPickTests(TempTree):
                 patch.object(upload_ops, "_built_plan", return_value=plan), \
                 patch.object(upload_ops, "select_plan_items", return_value=plan), \
                 patch.object(upload_ops, "_run", return_value={
+                    "imported": [], "skipped": [], "media_kinds": [], "blocked": [],
                     "new_game": True, "game_dir": str(folder)}), \
                 patch("common.games.game_repository.refresh_game"), \
                 patch("common.games.media_fill.request") as self.art:
@@ -360,13 +362,13 @@ class ImportWithoutPickTests(TempTree):
     def test_the_new_game_is_matched_from_its_folder_name(self) -> None:
         report, folder = self.imported(NEW)
 
-        self.assertTrue(report["vps_matched"])
+        self.assertIs(models.ImportReport(**report).vps_matched, True)
         self.assertEqual(_read(folder)["Info"]["VPSId"], "fathom")
 
     def test_the_report_says_when_it_needs_a_match(self) -> None:
         report, folder = self.imported(UNKNOWN)
 
-        self.assertFalse(report["vps_matched"])
+        self.assertIs(models.ImportReport(**report).vps_matched, False)
         self.assertFalse((folder / f"{UNKNOWN}.info").exists())
 
 

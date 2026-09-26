@@ -128,7 +128,7 @@ the documented entry point is a plain 200. Both spellings work.
 | DELETE | `/api/v1/uploads/{id}` | Abort a session |
 | GET | `/api/v1/uploads/{id}/analysis` | Analyze what was uploaded |
 | POST | `/api/v1/uploads/{id}/plan` | Build an import plan. `asset_kind`, the asset lens's name for a kind (`pup_pack`, `alt_color`, `backglass`...), plans only that kind, and everything else the upload holds comes back under `blocked`. `add_table` with `game_dir` makes a table in the upload one more for that game instead of replacing its table; one with a filename the game already has comes back under `blocked`. An item's `replaces` says what it would replace, and where that is a table, `made_from_it` names the game's tables a patch made from it, by filename |
-| POST | `/api/v1/uploads/{id}/import` | Execute the plan. Takes `asset_kind` and `add_table` the same way. `added_tables` lists the ids of the tables it added |
+| POST | `/api/v1/uploads/{id}/import` | Execute the plan. Takes `asset_kind` and `add_table` the same way. `added_tables` lists the ids of the tables it added. For a new game, `vps_associated` says whether the `vps_id` sent with it was saved, and without one `vps_matched` says whether VPinFE matched the game from its folder name |
 | GET | `/api/v1/filesystem/entries` | What is in one folder. With `kind`, the files that asset kind takes are listed beside the media (`backglass` lists `.directb2s`); `kind` is the registry's name or the asset lens's, so `alt_color` lists both Serum and VNI files. `archives=true` lists archives too. `/filesystem/file` still serves media only |
 | GET | `/api/v1/vps/search?q=&limit=` | VPSdb lookup |
 | GET | `/api/v1/vps/entry/{id}` | One VPSdb entry, in the shape a search result has |
