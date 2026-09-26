@@ -94,9 +94,11 @@ class LauncherApiTests(unittest.TestCase):
         vpx = next(one for one in self.client.get("/launchers").json()["apps"]
                    if one["id"] == "vpx")
 
-        paths = [(one["key"], one["label"]) for one in vpx["fields"] if one["path"]]
+        paths = [(one["key"], one["label"], one["blank"]) for one in vpx["fields"]
+                 if one["path"]]
 
-        self.assertEqual(paths, [("bin_path", "Program"), ("ini_path", "Settings File")])
+        self.assertEqual(paths, [("bin_path", "Program", ""),
+                                 ("ini_path", "Settings File", "Visual Pinball's own")])
 
     def test_an_app_says_whether_it_has_settings_of_its_own(self) -> None:
         """What a table played by another program is told it gives up."""

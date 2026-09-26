@@ -295,7 +295,8 @@ async def ask_name(title: str, answer: str, names: list[str],
 
     with frame.opened(title) as box:
         panel.facts(ui, [(t("word.name"), draw("name", named, placeholder))]
-                    + [(one["label"], draw(one["key"])) for one in asked or ()])
+                    + [(one["label"], draw(one["key"], hint=str(one.get("blank") or "")))
+                       for one in asked or ()])
         with frame.footer():
             frame.cancel(lambda: box.submit(False))
             go = frame.answer(answer, keep, icon=icon)

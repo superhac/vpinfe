@@ -106,7 +106,8 @@ def listing() -> dict[str, Any]:
         "apps": [{"id": app.id, "name": apps.app_name(app.id),
                   "suffixes": list(app.claim.suffixes),
                   "has_config": app.config is not None,
-                  "fields": [{"key": f.key, **apps.field_words(app.id, f), "path": f.path}
+                  "fields": [{"key": f.key, **apps.field_words(app.id, f), "path": f.path,
+                              "blank": apps.field_blank(app.id, f)}
                              for f in app.fields]}
                  for app in apps.all_apps()],
     }
