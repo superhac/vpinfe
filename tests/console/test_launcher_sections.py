@@ -181,8 +181,9 @@ def _heading(key: str, *keys: str, enabled_by: str = "", rivals: tuple[str, ...]
              label: str = "", pairs=(), switched=()) -> SimpleNamespace:
     return SimpleNamespace(key=key, label=label or key.title(), note="", keys=keys,
                            enabled_by=enabled_by, rivals=rivals, pairs=tuple(pairs),
-                           switched=tuple(SimpleNamespace(enabled_by=switch, keys=rows)
-                                          for switch, rows in switched))
+                           switched=tuple(SimpleNamespace(enabled_by=switch, keys=rows,
+                                                          on=(*on, True)[0])
+                                          for switch, rows, *on in switched))
 
 
 class ConflictTests(unittest.TestCase):
@@ -313,17 +314,44 @@ class CuratedAreaTests(unittest.TestCase):
         self.assertEqual(workbench.switches(self.OVERLAY.curated),
                          {"Plugin.B2S.Enable", "Plugin.B2S.BackglassDMDOverlay"})
 
+    WINDOW = _group(
+        "displays", _setting("Topper.TopperFullScreen", default="1"),
+        _setting("Topper.TopperFSWidth"), _setting("Topper.TopperWndX"),
+        curated=[_heading("topper", "Topper.TopperFullScreen", "Topper.TopperFSWidth",
+                          "Topper.TopperWndX",
+                          switched=[("Topper.TopperFullScreen", ("Topper.TopperFSWidth",)),
+                                    ("Topper.TopperFullScreen", ("Topper.TopperWndX",),
+                                     False)])])
+
+    def _window(self, fullscreen: dict) -> list[str]:
+        return [f.key.rsplit(".", 1)[-1] for _, fields in workbench.curated_blocks(
+            self.WINDOW, {"Topper.TopperFullScreen": fullscreen}) for f in fields]
+
+    def test_a_row_switched_the_other_way_is_drawn_only_while_its_switch_is_off(self) -> None:
+        self.assertEqual(self._window({}), ["TopperFullScreen", "TopperFSWidth"])
+        self.assertEqual(self._window({"value": "0"}), ["TopperFullScreen", "TopperWndX"])
+
+    def test_and_both_ways_while_the_switch_varies_across_tables(self) -> None:
+        self.assertEqual(self._window({"value": "", "varies": True}),
+                         ["TopperFullScreen", "TopperFSWidth", "TopperWndX"])
+
     def test_row_switches_travel_with_their_heading(self) -> None:
         groups = data.config_groups({"groups": [{
             "key": "plugins", "label": "Plugins", "settings": [], "curated": [
                 {"key": "B2S", "label": "B2S", "keys": ["Plugin.B2S.BackglassDMDOverlay",
+                                                        "Plugin.B2S.BackglassDMDAutoPos",
                                                         "Plugin.B2S.BackglassDMDX"],
                  "switched": [{"enabled_by": "Plugin.B2S.BackglassDMDOverlay",
-                               "keys": ["Plugin.B2S.BackglassDMDX"]}]}]}]})
+                               "keys": ["Plugin.B2S.BackglassDMDX"], "on": True},
+                              {"enabled_by": "Plugin.B2S.BackglassDMDAutoPos",
+                               "keys": ["Plugin.B2S.BackglassDMDX"], "on": False}]}]}]})
 
-        switched, = groups[0].curated[0].switched
-        self.assertEqual((switched.enabled_by, switched.keys),
-                         ("Plugin.B2S.BackglassDMDOverlay", ("Plugin.B2S.BackglassDMDX",)))
+        self.assertEqual([(one.enabled_by, one.keys, one.on)
+                          for one in groups[0].curated[0].switched],
+                         [("Plugin.B2S.BackglassDMDOverlay", ("Plugin.B2S.BackglassDMDX",),
+                           True),
+                          ("Plugin.B2S.BackglassDMDAutoPos", ("Plugin.B2S.BackglassDMDX",),
+                           False)])
 
     def test_a_heading_whose_settings_the_file_does_not_have_is_left_out(self) -> None:
         self.assertNotIn("Serum", [key for key, _ in self._drawn({})])

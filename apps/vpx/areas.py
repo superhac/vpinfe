@@ -26,13 +26,14 @@ AREAS = (DISPLAYS, SOUND, GRAPHICS, PLUGINS)
 
 def _window(key: str, prefix: str, parts: tuple[str, ...]) -> Heading:
     video_mode = (f"{prefix}FSWidth", f"{prefix}FSHeight")
-    return Heading(key, tuple(f"{prefix}{part}" for part in
-                              (*parts, "FSWidth", "FSHeight", "WndX", "WndY", "Width",
-                               "Height")),
-                   pairs=(Pair("video_mode", video_mode),
-                          Pair("position", (f"{prefix}WndX", f"{prefix}WndY")),
-                          Pair("size", (f"{prefix}Width", f"{prefix}Height"))),
-                   switched=(Switched(f"{prefix}FullScreen", video_mode),))
+    position = (f"{prefix}WndX", f"{prefix}WndY")
+    size = (f"{prefix}Width", f"{prefix}Height")
+    return Heading(key, (*(f"{prefix}{part}" for part in parts), *video_mode, *position,
+                         *size),
+                   pairs=(Pair("video_mode", video_mode), Pair("position", position),
+                          Pair("size", size)),
+                   switched=(Switched(f"{prefix}FullScreen", video_mode),
+                             Switched(f"{prefix}FullScreen", (*position, *size), on=False)))
 
 
 CURATED: dict[str, tuple[Heading, ...]] = {
@@ -65,14 +66,15 @@ CURATED: dict[str, tuple[Heading, ...]] = {
 
 def _overlays(plugin: str) -> tuple[Switched, ...]:
     prefix = f"Plugin.{plugin}."
-    return (Switched(f"{prefix}BackglassDMDOverlay",
-                     (f"{prefix}BackglassDMDAutoPos",
-                      *(f"{prefix}BackglassDMD{part}" for part in "XYWH"))),
+    box = tuple(f"{prefix}BackglassDMD{part}" for part in "XYWH")
+    return (Switched(f"{prefix}BackglassDMDOverlay", (f"{prefix}BackglassDMDAutoPos", *box)),
+            Switched(f"{prefix}BackglassDMDAutoPos", box, on=False),
             Switched(f"{prefix}ScoreViewDMDOverlay", (f"{prefix}ScoreViewDMDAutoPos",)))
 
 
 def _dmd(plugin: str) -> tuple[str, ...]:
-    return tuple(key for one in _overlays(plugin) for key in (one.enabled_by, *one.keys))
+    return tuple(dict.fromkeys(key for one in _overlays(plugin)
+                               for key in (one.enabled_by, *one.keys)))
 
 
 def _dmd_pairs(plugin: str) -> tuple[Pair, ...]:
@@ -237,7 +239,7 @@ def plugin_headings(offered: set[str],
 
 def kept_switched(switched: tuple[Switched, ...], offered: set[str]) -> tuple[Switched, ...]:
     """Each switch offered, with the rows it gates that are."""
-    kept = (Switched(one.enabled_by, tuple(key for key in one.keys if key in offered))
+    kept = (Switched(one.enabled_by, tuple(key for key in one.keys if key in offered), one.on)
             for one in switched if one.enabled_by in offered)
     return tuple(one for one in kept if one.keys)
 

@@ -514,9 +514,11 @@ class BackglassPluginAtATableTests(_TableCase):
         self.assertEqual(b2s["switched"], [
             {"enabled_by": f"{prefix}BackglassDMDOverlay",
              "keys": [f"{prefix}BackglassDMD{part}" for part in
-                      ("AutoPos", "X", "Y", "W", "H")]},
+                      ("AutoPos", "X", "Y", "W", "H")], "on": True},
+            {"enabled_by": f"{prefix}BackglassDMDAutoPos",
+             "keys": [f"{prefix}BackglassDMD{part}" for part in "XYWH"], "on": False},
             {"enabled_by": f"{prefix}ScoreViewDMDOverlay",
-             "keys": [f"{prefix}ScoreViewDMDAutoPos"]}])
+             "keys": [f"{prefix}ScoreViewDMDAutoPos"], "on": True}])
 
 
 class _Wire:

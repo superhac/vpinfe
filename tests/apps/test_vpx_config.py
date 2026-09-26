@@ -418,9 +418,19 @@ class AreaTests(_Case):
                                           f"{prefix}BackglassDMDX",
                                           f"{prefix}ScoreViewDMDAutoPos"})
 
-        self.assertEqual([(one.enabled_by, one.keys) for one in heading.switched],
+        self.assertEqual([(one.enabled_by, one.keys) for one in heading.switched if one.on],
                          [(f"{prefix}BackglassDMDOverlay", (f"{prefix}BackglassDMDAutoPos",
                                                             f"{prefix}BackglassDMDX"))])
+
+    def test_the_dmd_box_is_drawn_only_while_automatic_position_is_off(self) -> None:
+        prefix = "Plugin.B2S.BackglassDMD"
+        heading, = areas.plugin_headings({"Plugin.B2S.Enable", f"{prefix}Overlay",
+                                          f"{prefix}AutoPos", f"{prefix}X", f"{prefix}Y"})
+
+        self.assertEqual([(one.enabled_by, one.keys) for one in heading.switched
+                          if not one.on],
+                         [(f"{prefix}AutoPos", (f"{prefix}X", f"{prefix}Y"))])
+        self.assertEqual(heading.keys.count(f"{prefix}X"), 1)
 
     def test_any_other_plugin_is_about_no_file(self) -> None:
         heading, = areas.plugin_headings({"Plugin.PinMAME.Enable"})
@@ -453,10 +463,19 @@ class AreaTests(_Case):
             fullscreen = next(key for key in window.keys if key.endswith("FullScreen"))
             video_mode = next(pair.keys for pair in window.pairs if pair.key == "video_mode")
             with self.subTest(window.key):
-                self.assertEqual([(one.enabled_by, one.keys) for one in window.switched],
-                                 [(fullscreen, video_mode)])
+                self.assertEqual([(one.enabled_by, one.keys) for one in window.switched
+                                  if one.on], [(fullscreen, video_mode)])
                 self.assertEqual(window.keys[window.keys.index(fullscreen) + 1:][:2],
                                  video_mode)
+
+    def test_a_window_s_position_and_size_are_drawn_only_while_it_is_windowed(self) -> None:
+        for window in (h for h in areas.CURATED[areas.DISPLAYS] if h.key != "cabinet"):
+            fullscreen = next(key for key in window.keys if key.endswith("FullScreen"))
+            windowed = tuple(key for pair in window.pairs if pair.key in ("position", "size")
+                             for key in pair.keys)
+            with self.subTest(window.key):
+                self.assertEqual([(one.enabled_by, one.keys) for one in window.switched
+                                  if not one.on], [(fullscreen, windowed)])
 
     def test_a_window_s_video_mode_is_not_switched_where_fullscreen_is_not_offered(self) -> None:
         self.app_ini.write_text("[Topper]\nTopperFSWidth = 1920\nTopperFSHeight = 1080\n")

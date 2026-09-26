@@ -120,7 +120,8 @@ def config_groups(found: dict[str, Any]) -> list:
                 key=p["key"], label=p["label"], note=p.get("note", ""),
                 joiner=p.get("joiner", ""), keys=tuple(p["keys"]))
                 for p in h.get("pairs") or ()),
-            switched=tuple(SimpleNamespace(enabled_by=s["enabled_by"], keys=tuple(s["keys"]))
+            switched=tuple(SimpleNamespace(enabled_by=s["enabled_by"], keys=tuple(s["keys"]),
+                                           on=s.get("on", True))
                            for s in h.get("switched") or ()))
             for h in g.get("curated") or ()],
         settings=[SimpleNamespace(

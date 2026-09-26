@@ -4618,20 +4618,20 @@ async def _every_row(context: dict[str, Any], group: Any) -> None:
 
 def curated_blocks(group: Any, values: dict[str, Any]) -> list[tuple[Any, list[Any]]]:
     """Each curated heading with the rows it draws: all of them while its switch is on
-    anywhere, the switch alone while it is off, and never a row whose own switch is
-    off."""
+    anywhere, the switch alone while it is off, and never a row its own switch hides."""
     by_key = {f.key: f for f in group.settings}
 
-    def off(key: str) -> bool:
+    def set_to(key: str, on: bool) -> bool:
         held = values.get(key) or {}
-        return key in by_key and not held.get("varies") and not _is_on(by_key[key], held)
+        return (key in by_key and not held.get("varies")
+                and _is_on(by_key[key], held) == on)
 
     found = []
     for heading in group.curated:
-        hidden = {key for one in getattr(heading, "switched", ()) if off(one.enabled_by)
-                  for key in one.keys}
+        hidden = {key for one in getattr(heading, "switched", ())
+                  if set_to(one.enabled_by, not getattr(one, "on", True)) for key in one.keys}
         fields = [by_key[key] for key in heading.keys if key in by_key and key not in hidden]
-        if off(heading.enabled_by):
+        if set_to(heading.enabled_by, False):
             fields = [by_key[heading.enabled_by]]
         if fields:
             found.append((heading, fields))

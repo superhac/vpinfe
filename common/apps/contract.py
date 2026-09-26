@@ -183,10 +183,12 @@ class Pair:
 
 @dataclass(frozen=True)
 class Switched:
-    """Rows of a heading drawn only while `enabled_by`, another of its rows, is on."""
+    """Rows of a heading drawn only while `enabled_by`, another of its rows, is on - or is
+    off, where `on` is false."""
 
     enabled_by: str
     keys: tuple[str, ...]
+    on: bool = True
 
 
 @dataclass(frozen=True)
