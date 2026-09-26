@@ -2188,7 +2188,6 @@
   "error.frontend.not_running": "Ţĥè ƒřöñţèñđ îš ñöţ řûññîñĝ",
   "error.games.already_folder_name": "Ţĥèřè îš àŀřèàđý à ƒöŀđèř ƀý ţĥàţ ñàɱè",
   "error.games.could_not_record": "Çöûŀđ ñöţ řèçöřđ îţ",
-  "error.games.could_not_write": "Çöûŀđ ñöţ ŵřîţè {name}",
   "error.games.created_device_not_read": "Îţ ŵàš çřèàţèđ, ƀûţ ţĥîš đèṽîçè đöèš ñöţ řèàđ ţĥè ƒöŀđèř îţ ŵèñţ îñţö",
   "error.games.file_already_game_s": "Ţĥàţ ƒîŀè îš àŀřèàđý îñ ţĥîš ĝàɱè'š ƒöŀđèř, šö îţ îš öñè öƒ îţš ţàƀŀèš řàţĥèř ţĥàñ šöɱèţĥîñĝ îţ þöîñţš àţ",
   "error.games.file_has_no_name": "Ţĥàţ ƒîŀè ĥàš ñö ûšàƀŀè ñàɱè",

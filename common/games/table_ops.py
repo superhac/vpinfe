@@ -226,10 +226,11 @@ def set_overrides(game_id: str, table_id: str, changes: dict) -> dict:
     if table_id not in table_entries(load_game_meta(game)):
         raise service_errors.NotFoundError(
             t("error.games.no_table_id_game", table_id=table_id, game=game_title(game)))
-    for name, value in changes.items():
-        if not game_service.update_table_vpinfe_setting(game_dir, table_id, name, value):
-            raise service_errors.BlockedError(
-                t("error.games.could_not_write", name=(name)))
+    try:
+        for name, value in changes.items():
+            game_service.update_table_vpinfe_setting(game_dir, table_id, name, value)
+    except (OSError, LookupError, ValueError) as exc:
+        raise service_errors.BlockedError(why(exc)) from exc
     fresh = game_lens.game_or_refuse(game_id)
     return table_lens.table_overrides(
         table_entries(load_game_meta(fresh)).get(table_id) or {},

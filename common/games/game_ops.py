@@ -226,20 +226,21 @@ def set_overrides(game_id: str, changes: dict) -> dict:
             t("error.games.not_game_s_set", keys=", ".join(sorted(unknown))))
 
     game_dir = Path(game.full_path_game)
-    for name, value in changes.items():
-        if not game_service.update_vpinfe_setting(game_dir, GAME_OVERRIDES[name], value):
-            raise service_errors.BlockedError(
-                t("error.games.could_not_write", name=(name)))
+    try:
+        for name, value in changes.items():
+            game_service.update_vpinfe_setting(game_dir, GAME_OVERRIDES[name], value)
+    except (OSError, ValueError) as exc:
+        raise service_errors.BlockedError(why(exc)) from exc
     return game_lens.detail(game_id)["overrides"]
 
 
 def declare_no_match(game_id: str) -> dict:
     """Say this machine is in no catalog, and answer with the overrides that leaves."""
     game = game_lens.game_or_refuse(game_id)
-    if not game_service.update_vpinfe_setting(Path(game.full_path_game),
-                                              "alt_vpsid", None):
-        raise service_errors.BlockedError(
-            t("error.games.could_not_write", name=("alt_vps_id")))
+    try:
+        game_service.update_vpinfe_setting(Path(game.full_path_game), "alt_vpsid", None)
+    except (OSError, ValueError) as exc:
+        raise service_errors.BlockedError(why(exc)) from exc
     return game_lens.detail(game_id)["overrides"]
 
 

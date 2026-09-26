@@ -27,6 +27,16 @@ ACCEPT_VNI = ['.vni', '.VNI', '.pal', '.PAL']
 
 
 
+def _saved(write: Callable[[Path, str, object], None], game_dir: Path, key: str,
+           value: object) -> bool:
+    try:
+        write(game_dir, key, value)
+    except (OSError, ValueError):
+        logger.exception("Could not save %s for %s", key, game_dir)
+        return False
+    return True
+
+
 def add_game_to_collection(game_id: str, collection_name: str) -> bool:
     if not game_service.add_game_to_collection(game_id, collection_name):
         return False
@@ -441,7 +451,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                             if not game_dir.name:
                                 ui.notify('Unable to save rating: missing table path', type='negative')
                                 return
-                            if game_service.update_user_setting(game_dir, 'Rating', clamped):
+                            if _saved(game_service.update_user_setting, game_dir, 'Rating', clamped):
                                 rating_state['value'] = clamped
                                 row_data['rating'] = clamped
                                 game_index_service.update_row_by_path(game_dir, {'rating': clamped})
@@ -531,7 +541,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
 
                     def on_alttitle_save():
                         new_value = (alttitle_input.value or '').strip()
-                        if game_service.update_vpinfe_setting(game_dir, 'alt_title', new_value):
+                        if _saved(game_service.update_vpinfe_setting, game_dir, 'alt_title', new_value):
                             row_data['alt_title'] = new_value
                             fallback_name = (row_data.get('filename') or 'Table').strip()
                             try:
@@ -581,7 +591,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                         if game_dir_name:
                             await on_rebuild_meta()
                         with save_client:
-                            if game_service.update_vpinfe_setting(game_dir, 'alt_vpsid', new_value):
+                            if _saved(game_service.update_vpinfe_setting, game_dir, 'alt_vpsid', new_value):
                                 # Collections do not move with this any more - membership
                                 # is the table's own id, which a VPS id change cannot touch.
                                 row_data['alt_vpsid'] = new_value
@@ -612,7 +622,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
 
                     def on_frontend_dof_event_save():
                         new_value = (frontend_dof_event_input.value or '').strip()
-                        if game_service.update_vpinfe_setting(game_dir, 'frontend_dof_event', new_value):
+                        if _saved(game_service.update_vpinfe_setting, game_dir, 'frontend_dof_event', new_value):
                             row_data['frontend_dof_event'] = new_value
                             game_index_service.update_row_by_path(game_dir, {'frontend_dof_event': new_value})
                             ui.notify('Frontend DOF event saved', type='positive')
@@ -625,7 +635,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                 with ui.row().classes('items-center gap-3 mt-3'):
                     def on_delete_nvram_change(e):
                         new_value = e.value
-                        if game_service.update_vpinfe_setting(game_dir, 'delete_nvram_on_close', new_value):
+                        if _saved(game_service.update_vpinfe_setting, game_dir, 'delete_nvram_on_close', new_value):
                             row_data['delete_nvram_on_close'] = new_value
                             # Also update the cache so the value persists across dialog opens
                             game_index_service.update_row_by_path(game_dir, {'delete_nvram_on_close': new_value})

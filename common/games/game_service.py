@@ -105,29 +105,21 @@ def add_game_to_collection(game_id: str, collection_name: str) -> bool:
         return False
 
 
-def update_info_section(game_dir: Path, section: str, key: str, value: Any) -> bool:
-    try:
-        info_file = game_dir / f"{game_dir.name}.info"
-        if not info_file.exists():
-            logger.error("Info file not found: %s", info_file)
-            return False
-
-        data = json.loads(info_file.read_text(encoding="utf-8"))
-        data.setdefault(section, {})[key] = value
-        info_file.write_text(json.dumps(data, indent=4), encoding="utf-8")
-        refresh_game(game_dir)
-        return True
-    except Exception as e:
-        logger.error("Failed to update %s.%s: %s", section, key, e)
-        return False
+def update_info_section(game_dir: Path, section: str, key: str, value: Any) -> None:
+    """Raises OSError or ValueError when the .info cannot be read or written."""
+    info_file = game_dir / f"{game_dir.name}.info"
+    data = json.loads(info_file.read_text(encoding="utf-8"))
+    data.setdefault(section, {})[key] = value
+    info_file.write_text(json.dumps(data, indent=4), encoding="utf-8")
+    refresh_game(game_dir)
 
 
-def update_vpinfe_setting(game_dir: Path, key: str, value: Any) -> bool:
-    return update_info_section(game_dir, VPINFE_SECTION, key, value)
+def update_vpinfe_setting(game_dir: Path, key: str, value: Any) -> None:
+    update_info_section(game_dir, VPINFE_SECTION, key, value)
 
 
 def update_table_vpinfe_setting(game_dir: Path, table_id: str, key: str,
-                                value: Any) -> bool:
+                                value: Any) -> None:
     """One table's own override, beside what was discovered about it, not on top of it.
 
     Under the table entry's own `vpinfe` key. A rebuild refreshes only what the parser
@@ -137,29 +129,23 @@ def update_table_vpinfe_setting(game_dir: Path, table_id: str, key: str,
     Per table rather than per game because these govern one file: which binary runs it,
     which ini it launches with, whose nvram is its own. A folder holding a VPX table and
     a Future Pinball one cannot answer for both with a single value.
+
+    Raises OSError or ValueError when the .info cannot be read or written, and
+    LookupError when it holds no such table.
     """
-    try:
-        info_file = game_dir / f"{game_dir.name}.info"
-        if not info_file.exists():
-            logger.error("Info file not found: %s", info_file)
-            return False
-
-        data = json.loads(info_file.read_text(encoding="utf-8"))
-        entry = (data.get(TABLES_KEY) or {}).get(table_id)
-        if entry is None:
-            logger.error("No table %s in %s", table_id, info_file)
-            return False
-        entry.setdefault(VPINFE_SECTION, {})[key] = value
-        info_file.write_text(json.dumps(data, indent=4), encoding="utf-8")
-        refresh_game(game_dir)
-        return True
-    except Exception as e:
-        logger.error("Failed to update table %s %s: %s", table_id, key, e)
-        return False
+    info_file = game_dir / f"{game_dir.name}.info"
+    data = json.loads(info_file.read_text(encoding="utf-8"))
+    entry = (data.get(TABLES_KEY) or {}).get(table_id)
+    if entry is None:
+        raise LookupError(t("error.games.no_table_id_game", table_id=table_id,
+                            game=game_dir.name))
+    entry.setdefault(VPINFE_SECTION, {})[key] = value
+    info_file.write_text(json.dumps(data, indent=4), encoding="utf-8")
+    refresh_game(game_dir)
 
 
-def update_user_setting(game_dir: Path, key: str, value: Any) -> bool:
-    return update_info_section(game_dir, "User", key, value)
+def update_user_setting(game_dir: Path, key: str, value: Any) -> None:
+    update_info_section(game_dir, "User", key, value)
 
 
 def load_vpsdb() -> list[dict]:
