@@ -1,3 +1,4 @@
+import errno
 import unittest
 from unittest import mock
 
@@ -9,7 +10,12 @@ from common.host import metrics as host_metrics
 from common.i18n import t
 from httpapi import capabilities
 from httpapi import metrics as metrics_api
-from httpapi.errors import ApiError, FeatureUnavailableError, NotFoundError
+from httpapi.errors import (
+    ApiError,
+    FeatureUnavailableError,
+    NotFoundError,
+    install_error_handlers,
+)
 from tests.support.library import fake_game
 
 
@@ -307,6 +313,22 @@ class ErrorEnvelopeTests(unittest.TestCase):
 
                 self.assertEqual(response.status_code, 409)
                 self.assertEqual(self._envelope(response)["message"], str(refusal))
+
+    def test_a_refused_write_is_not_told_to_the_seam_as_a_break(self) -> None:
+        told = mock.Mock()
+        api = FastAPI()
+        install_error_handlers(api, on_unhandled=told)
+
+        @api.get("/locked")
+        def _locked():
+            raise PermissionError(errno.EACCES, "Permission denied", "/games/Locked")
+
+        with self.assertLogs("vpinfe.httpapi.errors", "WARNING"):
+            response = TestClient(api, raise_server_exceptions=False).get("/locked")
+
+        self.assertEqual((response.status_code, self._envelope(response)["message"]),
+                         (409, t("said.why.no_permission_at", path="/games/Locked")))
+        told.assert_not_called()
 
 
 class OpenApiTests(unittest.TestCase):

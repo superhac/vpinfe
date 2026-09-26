@@ -9,7 +9,9 @@ from starlette.testclient import TestClient
 
 import httpapi
 from common.games import asset_origin
+from common.i18n import t
 from tests.support.library import TempTree, fake_game, write_game
+from tests.support.skips import needs_posix_permissions
 
 GAME_ID = "Assets0002"
 FOLDER = "Attack from Mars (Bally 1995)"
@@ -97,6 +99,20 @@ class AssetWrites(TempTree):
     def test_a_file_of_another_kind_is_refused(self) -> None:
         self.assertEqual(400, self._put("backglass", "art.png", b"png", "vr").status_code)
         self.assertFalse((self.folder / "AFM VR.png").exists())
+
+    @needs_posix_permissions
+    def test_a_folder_it_may_not_write_is_refused_with_why(self) -> None:
+        self.folder.chmod(0o555)
+        self.addCleanup(self.folder.chmod, 0o755)
+
+        with self.assertLogs("vpinfe.httpapi.errors", "WARNING"):
+            answer = self._put("backglass", "anything.directb2s", b"new backglass")
+
+        self.assertEqual(
+            (409, "conflict", t("said.why.no_permission_at", path=str(self.folder))),
+            (answer.status_code, answer.json()["error"]["code"],
+             answer.json()["error"]["message"]))
+        self.assertEqual(b"old backglass", (self.folder / "AFM VR.directb2s").read_bytes())
 
     def test_what_a_write_would_replace_is_asked_first(self) -> None:
         body = self.client.get(f"/games/{GAME_ID}/assets/backglass/displaced",

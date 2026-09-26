@@ -352,9 +352,12 @@ raise InvalidRequestError("sort must be one of: name, year", details={"got": sor
 raise FeatureUnavailableError("DOF is not configured on this instance")
 ```
 
-For anything else, `ApiError(code, message, status_code=..., details=...)`. Uncaught
-exceptions become a logged `internal_error` with no detail in the response — put anything the
-user needs into an explicit `ApiError`.
+For anything else, `ApiError(code, message, status_code=..., details=...)`. An `OSError`
+that reaches the top, such as a read-only folder, a full disk or a host that did not answer,
+is `409` `conflict` with the reason in words as the message: *VPinFE does not have
+permission for /path/to/the/folder*. Any other uncaught exception becomes a logged
+`internal_error` with no detail in the response — put anything the user needs into an
+explicit `ApiError`.
 
 Codes defined so far: `not_found`, `invalid_request`, `method_not_allowed`, `conflict`,
 `feature_unavailable`, `internal_error`, plus `unauthorized` and `forbidden` reserved for the

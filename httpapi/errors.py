@@ -17,6 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
 
 from common import service_errors
+from common.failures import why
 from common.i18n import t
 
 logger = logging.getLogger("vpinfe.httpapi.errors")
@@ -134,6 +135,12 @@ def install_error_handlers(
                              exc: service_errors.ServiceError) -> JSONResponse:
         api = as_api_error(exc)
         return error_response(api.status_code, api.code, api.message, api.details)
+
+    @app.exception_handler(OSError)
+    async def _refused(request: Request, exc: OSError) -> JSONResponse:
+        said = why(exc)
+        logger.warning("%s %s refused: %s", request.method, request.url.path, said)
+        return error_response(409, CODE_CONFLICT, said)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
