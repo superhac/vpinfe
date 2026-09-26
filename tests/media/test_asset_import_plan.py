@@ -324,8 +324,8 @@ class MediaSlotReplacesTests(unittest.TestCase):
     def test_the_games_own_file_in_another_extension_is_replaced(self):
         self.assertEqual(self._said("(Wheel) Foo (Bar 1999).jpg"), "replaces current")
 
-    def test_a_file_at_a_lower_tier_is_neither_replaced_nor_an_empty_slot(self):
-        self.assertEqual(self._said("wheel.png"), "")
+    def test_a_file_at_a_lower_tier_is_named_as_the_one_it_goes_in_front_of(self):
+        self.assertEqual(self._said("wheel.png"), "in front of wheel.png")
 
 
 class VpsHelperTests(unittest.TestCase):

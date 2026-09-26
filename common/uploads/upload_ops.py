@@ -127,7 +127,7 @@ def _media_replaces(base: Path, item: PlannedItem) -> str:
     shown = media_service.resolved_media(base).get(kind)
     if shown is None or shown.path is None:
         return t("asset.plan.slot_empty")
-    return ""
+    return t("asset.plan.in_front_of", name=shown.path.name)
 
 
 def _made_from_replaced(plan: ImportPlan, item: PlannedItem) -> list[str]:

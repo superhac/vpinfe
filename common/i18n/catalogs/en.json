@@ -32,6 +32,7 @@
   "asset.kind.scv.label": "Scoreview",
   "asset.kind.table.label": "Table",
   "asset.plan.adopts_info": "adopts bundle metadata",
+  "asset.plan.in_front_of": "in front of {name}",
   "asset.plan.merges_info": "merges into existing metadata - fills gaps only, backup kept",
   "asset.plan.replaces_current": "replaces current",
   "asset.plan.replaces_file": "replaces existing file",
