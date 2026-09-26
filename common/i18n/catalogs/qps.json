@@ -2787,6 +2787,8 @@
   "said.why.in_use_at": "Šöɱèţĥîñĝ èŀšè îš ûšîñĝ {path}",
   "said.why.is_folder": "Ţĥàţ îš à ƒöŀđèř",
   "said.why.is_folder_at": "{path} îš à ƒöŀđèř",
+  "said.why.link_loops": "Ţĥàţ ŀîñķ ŀèàđš ƀàçķ ţö îţšèŀƒ",
+  "said.why.link_loops_at": "Ţĥè ŀîñķ àţ {path} ŀèàđš ƀàçķ ţö îţšèŀƒ",
   "said.why.name_too_long": "Ţĥè ñàɱè îš ţöö ŀöñĝ",
   "said.why.no_permission": "ṼÞîñƑÈ đöèš ñöţ ĥàṽè þèřɱîššîöñ",
   "said.why.no_permission_at": "ṼÞîñƑÈ đöèš ñöţ ĥàṽè þèřɱîššîöñ ƒöř {path}",

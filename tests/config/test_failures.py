@@ -5,6 +5,9 @@ from __future__ import annotations
 import errno
 import socket
 import unittest
+from email.message import Message
+from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
 
 import requests
 
@@ -75,6 +78,41 @@ class WhyTests(TempTree):
         self.assertEqual([why(_answered(status)) for status in (404, 403, 503)],
                          ["catalog.example does not have it", "catalog.example refused it",
                           "catalog.example is having trouble"])
+
+    def test_a_link_that_leads_back_to_itself(self) -> None:
+        loop = self.root / "Loop.vpx"
+        try:
+            loop.symlink_to(loop)
+        except (OSError, NotImplementedError):
+            self.skipTest("this platform will not make a symlink")
+
+        with self.assertRaises(OSError) as raised:
+            loop.open("wb")
+
+        self.assertEqual([why(raised.exception),
+                          why(OSError(errno.ELOOP, "Too many levels of symbolic links"))],
+                         [f"The link at {loop} leads back to itself",
+                          "That link leads back to itself"])
+
+    def test_urllib_is_read_by_what_it_wraps(self) -> None:
+        with socket.socket() as free:
+            free.bind(("127.0.0.1", 0))
+            port = free.getsockname()[1]
+
+        with self.assertRaises(URLError) as raised:
+            urlopen(f"http://127.0.0.1:{port}/", timeout=5)
+
+        self.assertEqual([why(raised.exception), why(URLError(TimeoutError("timed out"))),
+                          why(URLError("unknown url type: gopher"))],
+                         ["Nothing answers there", "It did not answer in time",
+                          "unknown url type: gopher"])
+
+    def test_what_a_host_answered_over_urllib(self) -> None:
+        url = "https://catalog.example/data.json"
+        self.assertEqual([why(HTTPError(url, status, "Refused", Message(), None))
+                          for status in (404, 403, 503, 418)],
+                         ["catalog.example does not have it", "catalog.example refused it",
+                          "catalog.example is having trouble", "HTTP Error 418: Refused"])
 
     def test_a_host_that_asked_to_wait(self) -> None:
         said = why(HostQuietError("api.example", 0.0))

@@ -2787,6 +2787,8 @@
   "said.why.in_use_at": "Something else is using {path}",
   "said.why.is_folder": "That is a folder",
   "said.why.is_folder_at": "{path} is a folder",
+  "said.why.link_loops": "That link leads back to itself",
+  "said.why.link_loops_at": "The link at {path} leads back to itself",
   "said.why.name_too_long": "The name is too long",
   "said.why.no_permission": "VPinFE does not have permission",
   "said.why.no_permission_at": "VPinFE does not have permission for {path}",

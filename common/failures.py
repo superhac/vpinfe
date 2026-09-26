@@ -6,6 +6,7 @@ import errno
 import os
 import socket
 from datetime import datetime
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 
 import requests
@@ -27,6 +28,7 @@ _FILES: dict[int, tuple[str, str]] = {
     errno.EBUSY: ("said.why.in_use", "said.why.in_use_at"),
     errno.ETXTBSY: ("said.why.in_use", "said.why.in_use_at"),
     errno.ENAMETOOLONG: ("said.why.name_too_long", "said.why.name_too_long"),
+    errno.ELOOP: ("said.why.link_loops", "said.why.link_loops_at"),
 }
 
 _UNREACHABLE = {errno.ENETUNREACH, errno.EHOSTUNREACH, errno.EHOSTDOWN, errno.ENETDOWN}
@@ -42,6 +44,12 @@ def why(exc: BaseException) -> str:
                  time=datetime.fromtimestamp(exc.until).strftime("%H:%M"))
     if isinstance(exc, requests.RequestException):
         return _network(exc) or _raw(exc)
+    if isinstance(exc, HTTPError):
+        return _answered(exc.code, urlsplit(str(exc.url or "")).hostname or "") or _raw(exc)
+    if isinstance(exc, URLError):
+        if isinstance(exc.reason, BaseException):
+            return why(exc.reason)
+        return str(exc.reason or "") or _raw(exc)
     if isinstance(exc, (TimeoutError, socket.timeout)):
         return t("said.why.timed_out")
     if isinstance(exc, ConnectionRefusedError):
@@ -91,8 +99,13 @@ def _network(exc: requests.RequestException) -> str:
             return (t("said.why.nothing_answers_at", host=host) if host
                     else t("said.why.nothing_answers"))
         return t("said.why.unreachable_at", host=host) if host else t("said.why.unreachable")
-    status = getattr(exc.response, "status_code", 0)
-    if not host or not isinstance(exc, requests.HTTPError):
+    if not isinstance(exc, requests.HTTPError):
+        return ""
+    return _answered(getattr(exc.response, "status_code", 0), host)
+
+
+def _answered(status: int, host: str) -> str:
+    if not host:
         return ""
     if status in (404, 410):
         return t("said.why.not_found_at", host=host)
