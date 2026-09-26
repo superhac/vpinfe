@@ -769,9 +769,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             if found.get("state") == "running":
                 continue
             if found.get("state") == "failed":
-                ui.notify(t("console.page.scan_failed",
-                        value=(found.get('error') or t("console.page.no_reason_given"))),
-                          type="negative")
+                lead, caption = read_failure(found)
+                ui.notify(lead, caption=caption, type="negative")
             else:
                 await run.io_bound(library.refresh_after_import)
                 said, waiting = read_outcome(found.get("result") or {})
@@ -1480,6 +1479,11 @@ def read_outcome(result: dict[str, Any]) -> tuple[str, list[str]]:
     if matched:
         return t("console.page.matched_new_games", count=matched), []
     return t("console.page.library_date"), []
+
+
+def read_failure(job: dict[str, Any]) -> tuple[str, str]:
+    """What a read of the library that failed says, and the reason under it."""
+    return t("console.page.scan_failed"), str(job.get("error") or "")
 
 
 async def _read_the_library() -> dict | None:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from console.games import auto_match_outcome
-from console.page import read_outcome
+from console.page import read_failure, read_outcome
 
 
 def _result(games: int, matched: int, waiting: list[str]) -> dict:
@@ -36,6 +36,14 @@ class ReadOutcomeTests(unittest.TestCase):
 
     def test_a_job_that_said_nothing_is_up_to_date(self) -> None:
         self.assertEqual(read_outcome({}), ("The library is up to date", []))
+
+    def test_a_failed_read_puts_its_reason_under_the_lead(self) -> None:
+        self.assertEqual(read_failure({"state": "failed", "error": "Nothing is at /tables"}),
+                         ("The scan failed", "Nothing is at /tables"))
+
+    def test_a_failed_read_with_no_reason_has_nothing_under_it(self) -> None:
+        self.assertEqual(read_failure({"state": "failed", "error": None}),
+                         ("The scan failed", ""))
 
 
 class AutoMatchOutcomeTests(unittest.TestCase):
