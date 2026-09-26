@@ -155,7 +155,7 @@ def sync(config: ConfigStore, force: bool = False) -> dict:
     from common.games.game_service import ensure_vpsdb_downloaded
 
     if not force and not due(config):
-        return {"checked": False, "reason": "not due", "at": checked_at(config)}
+        return {"checked": False, "reason": "not_due", "at": checked_at(config)}
     before = (cfg_get(config, SECTION, "last", "") or "").strip()
     ok = ensure_vpsdb_downloaded()
     stamp(config)
