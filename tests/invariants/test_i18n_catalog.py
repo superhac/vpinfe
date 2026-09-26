@@ -533,7 +533,7 @@ def _fault(path, call, kwarg, node) -> list[str]:
         if any(c.isalpha() for c in words) and len(words.strip()) > 2:
             return [f"{where} {shown}f{words.strip()[:46]!r}...)"]
         slots = sum(isinstance(v, ast.FormattedValue) for v in node.values)
-        if slots > 1 and words.strip():
+        if slots > 1 and words:
             return [f"{where} {shown}f{words!r})"]
     return []
 
@@ -569,6 +569,10 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
                     if kw.arg in DISPLAY_KWARGS:
                         offenders += _fault(path, name, kw.arg, kw.value)
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
+
+    def test_two_values_joined_by_a_space_are_read(self) -> None:
+        joined = ast.parse('f"{label} {value}"', mode="eval").body
+        self.assertEqual(len(_fault(ROOT / "console" / "metrics.py", "label", "", joined)), 1)
 
     def test_a_constant_is_not_a_hiding_place(self) -> None:
         """`INTRO = "Each one is a way of..."` then `ui.label(INTRO)` reads as clean.
