@@ -9,7 +9,7 @@ from collections.abc import Callable
 from functools import partial
 from typing import Any
 
-from nicegui import run, ui
+from nicegui import background_tasks, run, ui
 
 from common import device_client, feature_checks, icons, install_identity
 from common.i18n import t
@@ -222,6 +222,10 @@ def _version(said: Any) -> str:
     """
     text = str(said or "").strip() or "?"
     return text if not text[:1].isdigit() else f"v{text}"
+
+
+JOBS_RUNNING_S = 2.0
+JOBS_IDLE_S = 5.0
 
 
 def failed_since(jobs: list[dict[str, Any]], opened: float,
@@ -625,13 +629,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         failed_line.set_visibility(False)
 
     async def _watch_jobs() -> None:
-        """Say what is running, or what failed since the page opened, and stop asking
-        once nothing runs.
-
-        Polled rather than subscribed: the job event stream is per job and this needs
-        to notice one starting that this client did not start. A timer that only runs
-        while something is running costs nothing the rest of the time.
-        """
+        """Say what is running, or what failed since the page opened, wherever it was
+        started from."""
         try:
             found = await offload.io(ApiClient().jobs)
         except Exception:
@@ -639,6 +638,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             return
         running = [job for job in found if job.get("state") == "running"]
         failed = None if running else failed_since(found, opened, dismissed)
+        job_timer.interval = JOBS_RUNNING_S if running else JOBS_IDLE_S
         job_line.set_visibility(bool(running))
         failed_line.set_visibility(failed is not None)
         if failed is not None:
@@ -647,7 +647,6 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             failed_why.text = str(failed.get("error") or "")
             shown_failed["id"] = str(failed.get("id") or "")
         if not running:
-            job_timer.active = False
             return
         job = running[0]
         said = str(job.get("message") or "").strip() or t("console.page.working")
@@ -655,13 +654,11 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         job_text.text = t("console.page.job_progress", message=said, percent=pct) \
             if pct else said
 
-    # Idle until something starts it. `_rescan` turns it on, and so does anything
-    # holding `state["watch_jobs"]`; so does the first draw, once, in case a job was
-    # already running when this page opened.
-    job_timer = ui.timer(2.0, _watch_jobs, active=True)
+    job_timer = ui.timer(JOBS_RUNNING_S, _watch_jobs)
 
     def watch_jobs() -> None:
-        job_timer.active = True
+        """For a job this page has just started."""
+        background_tasks.create(_watch_jobs(), name="console-watch-jobs")
 
     state["watch_jobs"] = watch_jobs
 
@@ -741,7 +738,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         job = await _read_the_library()
         if job is None:
             return
-        job_timer.active = True
+        watch_jobs()
         client = ApiClient()
         for _ in range(150):
             await asyncio.sleep(0.2)
