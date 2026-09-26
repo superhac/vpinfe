@@ -130,7 +130,8 @@ _CAPTURE_JS = """() => {
 def rows(option: dict[str, Any], value: Any, save: Callable[[Any], Any], *,
          section: dict[str, Any] | None = None,
          writable: bool = True,
-         rerender: Callable[[], None] | None = None) -> Callable[[], None]:
+         rerender: Callable[[], None] | None = None,
+         **_: Any) -> Callable[[], None]:
     """One action's bindings, and the way to add another.
 
     `section` is every action's bindings, because a collision is a fact about two rows

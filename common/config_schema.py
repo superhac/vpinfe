@@ -94,6 +94,9 @@ class ConfigOption:
     # Empty means the key follows the section and the key, which is every other setting.
     label_key: str = ""
     choices: tuple[str, ...] = ()
+    # Where a choice with no word of its own under `keys` finds one, `{choice}` standing
+    # for the value.
+    choice_words: str = ""
     # How many rows a `text` setting gets. A paragraph and a one-line name want
     # different controls, and only the setting knows which it is.
     lines: int = 0
@@ -153,8 +156,12 @@ class ConfigOption:
         """What to call each choice on screen, for the choices the catalog names."""
         found = {}
         for value in self.choices:
-            said = t(f"{self.keys}.choice.{value}")
-            if not said.endswith(f".choice.{value}"):
+            key = f"{self.keys}.choice.{value}"
+            said = t(key)
+            if said == key and self.choice_words:
+                key = self.choice_words.format(choice=value)
+                said = t(key)
+            if said != key:
                 found[value] = said
         return found
 
@@ -184,7 +191,9 @@ EDITOR_BINDING = "binding"
 EDITOR_CONSOLE_THEME = "console_theme"
 # Shown in Settings, chosen on the Themes page.
 EDITOR_FRONTEND_THEME = "frontend_theme"
-EDITORS = (EDITOR_BINDING, EDITOR_CONSOLE_THEME, EDITOR_FRONTEND_THEME)
+# The kinds of art the library keeps, which only a running install can say.
+EDITOR_LIST_ART = "list_art"
+EDITORS = (EDITOR_BINDING, EDITOR_CONSOLE_THEME, EDITOR_FRONTEND_THEME, EDITOR_LIST_ART)
 
 # What a `suggest` may name. Closed, so a typo is a setting with no suggestions rather
 # than a surface quietly asking for a list nobody serves.
@@ -390,6 +399,14 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             choices=("synthwave", "dark", "light", "system"),
             editor=EDITOR_CONSOLE_THEME,
             legacy=(),
+        ),
+        ConfigOption(
+            "list_art",
+            type="choice",
+            default="wheel",
+            choices=("none", "wheel", "backglass", "playfield", "logo"),
+            choice_words="media.kind.{choice}.label",
+            editor=EDITOR_LIST_ART,
         ),
         ConfigOption(
             "dates",

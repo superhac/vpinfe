@@ -91,10 +91,23 @@ def _frontend_theme(option: dict, value: Any, save: Callable[[Any], Any],
     return draw
 
 
+def _list_art(option: dict, value: Any, save: Callable[[Any], Any], *,
+              writable: bool = True, suggestions: dict[str, Any] | None = None,
+              **_: Any) -> Callable[[], None]:
+    """The kinds the library keeps, and the one already chosen."""
+    hidden = (suggestions or {}).get(config_schema.EDITOR_LIST_ART) or set()
+    named = option.get("choice_labels") or {}
+    offered = {choice: named.get(choice, choice) for choice in option.get("choices") or ()
+               if choice not in hidden or choice == str(value)}
+    return panel.select(offered, str(value or ""), lambda e: save(e.value),
+                        disabled=not writable)
+
+
 EDITORS: dict[str, Callable[..., Callable[[], None]]] = {
     config_schema.EDITOR_BINDING: binding_editor.rows,
     config_schema.EDITOR_CONSOLE_THEME: theme_picker.tiles,
     config_schema.EDITOR_FRONTEND_THEME: _frontend_theme,
+    config_schema.EDITOR_LIST_ART: _list_art,
 }
 
 
@@ -161,7 +174,7 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
     editor = EDITORS.get(str(option.get("editor") or ""))
     if editor is not None:
         return editor(option, value, save, section=section_values or {},
-                      writable=writable, rerender=rerender)
+                      writable=writable, rerender=rerender, suggestions=suggestions)
 
     kind = option.get("type")
     if varies:
@@ -961,15 +974,25 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
 
 async def _suggestions(library: Library, schema: list[dict],
                        sections: tuple[str, ...]) -> dict[str, Any]:
-    """The live lists this page's settings say are worth offering.
+    """The live lists this page's settings and editors say are worth offering.
 
     Asked for only where a setting on this page declares one, so opening Displays does
     not go and look at the network.
     """
-    wanted = {str(option.get("suggest") or "")
-              for block in schema if str(block.get("name")) in sections
-              for option in block.get("options") or []}
+    on_page = [option for block in schema if str(block.get("name")) in sections
+               for option in block.get("options") or []]
+    wanted = {str(option.get("suggest") or "") for option in on_page}
+    editors = {str(option.get("editor") or "") for option in on_page}
     offered: dict[str, Any] = {}
+
+    if config_schema.EDITOR_LIST_ART in editors:
+        try:
+            policy = await offload.io(library.library_policy)
+        except Exception as exc:  # noqa: BLE001 - every kind is offered instead
+            logger.warning("Could not read the media kinds the library keeps: %s", why(exc))
+        else:
+            offered[config_schema.EDITOR_LIST_ART] = _listed(
+                policy.get("hidden_media_kinds"))
 
     if config_schema.SUGGEST_LIBRARIES in wanted:
         found = await offload.io(library.discovered_installs)

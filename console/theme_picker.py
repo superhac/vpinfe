@@ -69,7 +69,8 @@ def _swatch(mode: str) -> None:
 def tiles(option: dict[str, Any], value: Any, save: Callable[[Any], Any], *,
           section: dict[str, Any] | None = None,
           writable: bool = True,
-          rerender: Callable[[], None] | None = None) -> Callable[[], None]:
+          rerender: Callable[[], None] | None = None,
+          **_: Any) -> Callable[[], None]:
     """The four modes, side by side, the one in use marked on its edge.
 
     The palette is rewritten in place rather than the page reloading. Every surface
