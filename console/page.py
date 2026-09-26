@@ -12,6 +12,7 @@ from typing import Any
 from nicegui import background_tasks, run, ui
 
 from common import device_client, feature_checks, icons, install_identity
+from common.failures import why
 from common.i18n import t
 from console import about as about_page
 from console import assets as assets_page
@@ -984,7 +985,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             found = {p.get("device_id"): p
                      for p in await offload.io(ApiClient().probe_devices)}
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(t("console.page.could_not_ask_devices", exc=(exc)), type="negative")
+            ui.notify(t("console.page.could_not_ask_devices"), caption=why(exc),
+                      type="negative")
             return
         state["device_reach"] = found
         render()
@@ -1517,7 +1519,7 @@ async def _read_the_library() -> dict | None:
         job = await offload.io(ApiClient().refresh_library)
     except Exception as exc:
         # Already running is the ordinary case here, not a failure worth a trace.
-        ui.notify(t("console.page.could_not_start", exc=(exc)), type="warning")
+        ui.notify(t("console.page.could_not_start"), caption=why(exc), type="warning")
         return None
     ui.notify(t("console.page.reading_library_disk"), type="positive")
     return job

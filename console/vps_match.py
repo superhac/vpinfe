@@ -18,6 +18,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import icons
+from common.failures import why
 from common.i18n import t
 from console import candidates, dialog, game_tables, offload, panel, verbs
 
@@ -163,7 +164,8 @@ async def walk(library: Any, games: list[dict[str, Any]]) -> None:
                                    {"alt_vps_id": str(picked)})
         except Exception as exc:  # noqa: BLE001 - one bad write does not end the walk
             logger.exception("Could not set the match for %s", game.get("id"))
-            ui.notify(t("console.vps_match.could_not_set_match", exc=(exc)), type="negative")
+            ui.notify(t("console.vps_match.could_not_set_match"), caption=why(exc),
+                      type="negative")
             continue
         changed += 1
     # Said once at the end rather than per game: a toast after every pick in a run of

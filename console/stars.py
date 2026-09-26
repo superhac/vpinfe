@@ -13,6 +13,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.failures import why
 from common.i18n import t
 from console import grid
 
@@ -104,7 +105,8 @@ def rating_handler(held: list[dict[str, Any]], rows_by_id: dict[str, Any],
         try:
             await run.io_bound(call, *wanted)
         except Exception as exc:
-            ui.notify(t("console.stars.could_not_save_rating", exc=(exc)), type="negative")
+            ui.notify(t("console.stars.could_not_save_rating"), caption=why(exc),
+                      type="negative")
             return
         row = rows_by_id.get(table_id or game_id)
         if row is not None:

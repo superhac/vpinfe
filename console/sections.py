@@ -14,6 +14,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.extensions.host import SWITCHED_OFF
+from common.failures import why
 from common.i18n import t
 from common.media_specs import media_label_map
 from console import art_fill, offload, panel, verbs
@@ -225,7 +226,7 @@ def _metadata_action(library: Library) -> Callable[[str], Any]:
         try:
             await run.io_bound(call)
         except Exception as exc:
-            ui.notify(str(exc), type="negative")
+            ui.notify(t("said.could_not_start_it"), caption=why(exc), type="negative")
             return
         ui.notify(t("console.sections.way", word=(word)), type="positive")
         # The counts this card is drawn from are now stale. Asked again off the loop,
@@ -387,7 +388,8 @@ def table_scripts(library: Library) -> None:
         try:
             await run.io_bound(ApiClient().apply_script_patches)
         except Exception as exc:
-            ui.notify(str(exc), type="negative")
+            ui.notify(t("console.sections.could_not_fetch_fixes"), caption=why(exc),
+                      type="negative")
             return
         ui.notify(t("console.sections.fetching_way"), type="positive")
         await run.io_bound(library.read_script_patches)
@@ -434,7 +436,8 @@ def _extension_card(found: dict, open_one: Callable[..., Any] | None = None) -> 
                                           str(shown.get("name") or ""),
                                           bool(event.value)))
         except Exception as exc:  # noqa: BLE001
-            ui.notify(str(exc), type="negative")
+            ui.notify(t("said.could_not_turn_on" if event.value else "said.could_not_turn_off"),
+                      caption=why(exc), type="negative")
         # Either way: a refused switch has to go back to where it was.
         draw()
 

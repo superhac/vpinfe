@@ -16,6 +16,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import device_registry
+from common.failures import why
 from common.i18n import t
 from console import confirm, offload, panel, verbs
 from console import dialog as frame
@@ -55,7 +56,8 @@ async def ask_where(games: list[dict[str, Any]],
     try:
         found = phones(await offload.io(ApiClient().devices))
     except Exception as exc:
-        ui.notify(str(exc), type="negative")
+        ui.notify(t("console.send_to_device.could_not_read_devices"), caption=why(exc),
+                  type="negative")
         return
     if not found:
         # Said rather than hidden: the answer is "not yet", and somebody who has just
@@ -85,7 +87,8 @@ async def send(games: list[dict[str, Any]], device: dict[str, Any],
         job = await run.io_bound(client.send_to_device, str(device["device_id"]),
                                  [str(one["id"]) for one in games])
     except Exception as exc:
-        ui.notify(str(exc), type="negative")
+        ui.notify(t("console.send_to_device.failed", name_of=name_of(device)),
+                  caption=why(exc), type="negative")
         return
     ui.notify(t("console.send_to_device.sending", len=(len(games)), name_of=(name_of(device))),
             type="positive")
@@ -101,8 +104,8 @@ async def send(games: list[dict[str, Any]], device: dict[str, Any],
         if found.get("state") == "running":
             continue
         if found.get("state") == "failed":
-            ui.notify(t("console.send_to_device.failed", name_of=name_of(device),
-                        error=found.get("error") or ""), type="negative")
+            ui.notify(t("console.send_to_device.failed", name_of=name_of(device)),
+                      caption=str(found.get("error") or ""), type="negative")
         return
 
 

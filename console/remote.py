@@ -27,6 +27,7 @@ from nicegui import background_tasks, run, ui
 
 from common import device_registry, events, install_identity
 from common.config_access import NetworkConfig
+from common.failures import why
 from common.i18n import t
 from common.labels import humanize
 from console import game_tables, offload, stars, theme, verbs
@@ -563,7 +564,7 @@ def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target: Cal
         try:
             await run.io_bound(client_for_target().stop_play)
         except Exception as exc:
-            ui.notify(str(exc), type="negative")
+            ui.notify(t("console.remote.could_not_quit"), caption=why(exc), type="negative")
             return
         state["play"] = await offload.io(client_for_target().play_state)
         redraw()
@@ -593,7 +594,8 @@ def _idle(state: dict[str, Any], redraw: Callable[[], None]) -> None:
         try:
             await run.io_bound(ApiClient().rate, game["id"], value)
         except Exception as exc:
-            ui.notify(str(exc), type="negative")
+            ui.notify(t("console.stars.could_not_save_rating"), caption=why(exc),
+                      type="negative")
             return
         game.setdefault("user", {})["rating"] = value
         redraw()
@@ -707,12 +709,14 @@ def _play(state: dict[str, Any],
             try:
                 await run.io_bound(client_for_target().show_on_frontend, name)
             except Exception as exc:
-                ui.notify(str(exc), type="negative")
+                ui.notify(t("console.remote.could_not_show"), caption=why(exc),
+                          type="negative")
         try:
             state.update(await offload.io(_narrowed_to, client_for_target(), name))
         except Exception as exc:
             state["collection_ids"] = None
-            ui.notify(str(exc), type="negative")
+            ui.notify(t("console.remote.could_not_read_collection"), caption=why(exc),
+                      type="negative")
         listed()
 
     def picked() -> None:
@@ -825,7 +829,7 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target: 
             try:
                 await run.io_bound(call, *args)
             except Exception as exc:
-                ui.notify(str(exc), type="negative")
+                ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
                 return False
             return True
 
@@ -865,7 +869,7 @@ def _launch_button(game: dict[str, Any], state: dict[str, Any],
         try:
             await run.io_bound(client_for_target().launch, game["id"])
         except Exception as exc:
-            ui.notify(str(exc), type="negative")
+            ui.notify(t("console.remote.could_not_launch"), caption=why(exc), type="negative")
             return
         then()
         state["screen"] = NOW

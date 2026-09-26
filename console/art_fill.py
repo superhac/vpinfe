@@ -13,6 +13,7 @@ from typing import Any, Literal
 
 from nicegui import ui
 
+from common.failures import why
 from common.games import media_fill
 from common.i18n import t
 from common.media_specs import media_label_map
@@ -66,7 +67,7 @@ async def ask(game_ids: list[str] | None, state: dict[str, Any],
     try:
         found = await offload.io(ApiClient().missing_media, game_ids)
     except Exception as exc:  # noqa: BLE001 - said, and nothing was fetched
-        ui.notify(t("console.art_fill.could_not_read", exc=exc), type="warning")
+        ui.notify(t("console.art_fill.could_not_read"), caption=why(exc), type="warning")
         return
     if not found.get("sources"):
         ui.notify(t("console.art_fill.no_sources"), type="warning")
@@ -99,7 +100,7 @@ async def confirm_kind(game_ids: list[str], kind: str, state: dict[str, Any],
     try:
         found = await offload.io(ApiClient().missing_media, game_ids)
     except Exception as exc:  # noqa: BLE001 - said, and nothing was fetched
-        ui.notify(t("console.art_fill.could_not_read", exc=exc), type="warning")
+        ui.notify(t("console.art_fill.could_not_read"), caption=why(exc), type="warning")
         return
     if not found.get("sources"):
         ui.notify(t("console.art_fill.no_sources"), type="warning")
@@ -211,7 +212,7 @@ async def get(start: Callable[[], dict], state: dict[str, Any],
     try:
         job = await offload.io(start)
     except Exception as exc:  # noqa: BLE001 - said, and nothing was fetched
-        ui.notify(t("console.art_fill.could_not_start", exc=exc), type="warning")
+        ui.notify(t("console.art_fill.could_not_start"), caption=why(exc), type="warning")
         return
     watch = state.get("watch_jobs")
     if callable(watch):
@@ -225,8 +226,7 @@ async def get(start: Callable[[], dict], state: dict[str, Any],
         if found.get("state") == "running":
             continue
         if found.get("state") == "failed":
-            ui.notify(t("console.art_fill.failed",
-                        error=found.get("error") or t("console.page.no_reason_given")),
+            ui.notify(t("console.art_fill.failed"), caption=str(found.get("error") or ""),
                       type="negative")
             return
         result = found.get("result") or {}

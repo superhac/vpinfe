@@ -18,6 +18,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.failures import why
 from common.i18n import t
 from console import ext_action, offload, panel, verbs
 from console.api import ApiClient
@@ -61,8 +62,8 @@ def _settings(name: str, surfaces: dict) -> None:
         except Exception as exc:  # noqa: BLE001
             card.clear()
             with card:
-                ui.label(t("console.ext_page.could_not_read_them",
-                        exc=(exc))).classes("console-help")
+                ui.label(t("console.ext_page.could_not_read_them")).classes("console-help") \
+                    .tooltip(why(exc))
             return
         card.clear()
         with card:
@@ -93,7 +94,7 @@ def _control(client: Any, base: str, key: str, field: dict,
         try:
             await run.io_bound(client.ext_put, base, {"values": {key: new_value}})
         except Exception as exc:  # noqa: BLE001
-            ui.notify(str(exc), type="negative")
+            ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
             return
         await redraw()
 
@@ -137,7 +138,8 @@ def _state(name: str, surfaces: dict) -> None:
         except Exception as exc:  # noqa: BLE001
             card.clear()
             with card:
-                ui.label(t("console.ext_page.could_not_read", exc=(exc))).classes("console-help")
+                ui.label(t("console.ext_page.could_not_read")).classes("console-help") \
+                    .tooltip(why(exc))
             return
         card.clear()
         rows = list(found.get("rows") or [])
@@ -160,7 +162,7 @@ def _row(client: Any, base: str, row: dict, redraw: Callable[[], Awaitable[None]
             await run.io_bound(client.ext_post, f"{base}/{key}",
                                {"id": str(row.get("id") or "")})
         except Exception as exc:  # noqa: BLE001
-            ui.notify(str(exc), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         await redraw()
 

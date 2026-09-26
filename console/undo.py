@@ -9,6 +9,7 @@ from typing import Any
 
 from nicegui import ui
 
+from common.failures import why
 from common.i18n import t
 
 logger = logging.getLogger("vpinfe.console.undo")
@@ -59,6 +60,6 @@ async def _undo(reverse: Callable[[], Awaitable[Any]], done: str = "") -> None:
         await reverse()
     except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
         logger.warning("console: an undo failed", exc_info=True)
-        ui.notify(t("console.undo.could_not", exc=exc), type="negative")
+        ui.notify(t("console.undo.could_not"), caption=why(exc), type="negative")
         return
     ui.notify(done or t("console.undo.undone"), type="positive")

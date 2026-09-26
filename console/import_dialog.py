@@ -20,6 +20,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import i18n
+from common.failures import why
 from common.i18n import t
 from console import dialog as frame
 from console import game_tables, offload, panel, verbs
@@ -68,7 +69,8 @@ async def ask_where(library: Any) -> str | None:
     try:
         found = await offload.io(library.new_game_destination)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.import_dialog.could_not_work_where", exc=(exc)), type="negative")
+        ui.notify(t("console.import_dialog.could_not_work_where"), caption=why(exc),
+                  type="negative")
         return None
 
     others = list(found.get("alternatives") or [])
@@ -131,7 +133,8 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
             await run.io_bound(library.set_location_write_to, said)
         except Exception as exc:  # noqa: BLE001
             # The import still goes where they said. Only the remembering failed.
-            ui.notify(t("console.import_dialog.could_not_remember", exc=(exc)), type="warning")
+            ui.notify(t("console.import_dialog.could_not_remember"), caption=why(exc),
+                      type="warning")
     return said
 
 
@@ -229,7 +232,8 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
             selected=wanted, declared=declared)
     except Exception as exc:  # noqa: BLE001
         note.dismiss()
-        ui.notify(t("console.import_dialog.could_not_import", exc=(exc)), type="negative")
+        ui.notify(t("console.import_dialog.could_not_import"), caption=why(exc),
+                  type="negative")
         await run.io_bound(library.abort_upload, upload_id)
         return
     note.dismiss()
@@ -239,8 +243,8 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
     if report.get("vps_error"):
         # The import worked and the match did not. Two facts, and rolling the second
         # into a failure would say the files did not land when they did.
-        ui.notify(t("console.import_dialog.imported_could_not_match", value=(report['vps_error'])),
-                  type="warning")
+        ui.notify(t("console.import_dialog.imported_could_not_match"),
+                  caption=str(report["vps_error"]), type="warning")
     if on_done is not None:
         answer = on_done(report)
         if hasattr(answer, "__await__"):
@@ -305,7 +309,8 @@ async def _match(library: Any, named: dict[str, Any], field: Any) -> None:
     try:
         found = await offload.io(library.vps_search, term, 8)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.import_dialog.could_not_search", exc=(exc)), type="negative")
+        ui.notify(t("console.import_dialog.could_not_search"), caption=why(exc),
+                  type="negative")
         return
     if not found:
         ui.notify(t("console.import_dialog.nothing_spreadsheet_matches_name"), type="warning")

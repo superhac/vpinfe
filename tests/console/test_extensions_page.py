@@ -138,7 +138,8 @@ class SwitchTests(unittest.IsolatedAsyncioTestCase):
 
         await switch.call_args.args[1](SimpleNamespace(value=False))
 
-        notify.assert_called_once_with("Not allowed", type="negative")
+        notify.assert_called_once_with(i18n.t("said.could_not_turn_off"), caption="Not allowed",
+                                       type="negative")
         self.assertEqual([one.args[0] for one in switch.call_args_list], [True, True])
 
 

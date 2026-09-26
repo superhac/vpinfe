@@ -25,18 +25,6 @@ SLOT = re.compile(r"\{exc(?:[.!:\[][^}]*)?\}")
 
 NOT_YET: frozenset[str] = frozenset({
     "common/games/media_ops.py",
-    "console/about.py",
-    "console/art_fill.py",
-    "console/ext_action.py",
-    "console/ext_page.py",
-    "console/import_dialog.py",
-    "console/page.py",
-    "console/remote.py",
-    "console/sections.py",
-    "console/send_to_device.py",
-    "console/stars.py",
-    "console/undo.py",
-    "console/vps_match.py",
     "extensions/library_importer/adopt.py",
     "extensions/library_importer/emulationstation.py",
     "extensions/library_importer/gamestats.py",

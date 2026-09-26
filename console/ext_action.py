@@ -20,6 +20,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.failures import why
 from common.i18n import literal_or, t
 from console import dialog as frame
 from console import offload, panel, verbs
@@ -139,7 +140,8 @@ async def open_action(extension: str, action: dict) -> None:
                 client.ext_post, f"{base}/check",
                 {"values": values, "step": str(step_now["found"].get("step") or "")})
             except Exception as exc:  # noqa: BLE001
-                ui.notify(str(exc), type="negative")
+                ui.notify(t("console.ext_action.could_not_go_on"), caption=why(exc),
+                          type="negative")
                 return
             # A step that answers with itself is the same question asked again, not a
             # new one. Remembering it would make Back go nowhere.
@@ -157,7 +159,7 @@ async def open_action(extension: str, action: dict) -> None:
                 started = await offload.io(client.ext_post, f"{base}/run",
                                              {"values": values})
             except Exception as exc:  # noqa: BLE001
-                ui.notify(str(exc), type="negative")
+                ui.notify(t("said.could_not_start_it"), caption=why(exc), type="negative")
                 return
             job_id = str(started.get("job_id") or "")
             if job_id:
