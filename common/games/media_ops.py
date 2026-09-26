@@ -244,7 +244,8 @@ def placements(game_id: str, kind: str) -> dict:
         # file is the game's. Most single-table folders are like that, so this is the
         # common case rather than a corner, and offering both would be two choices that
         # do one thing.
-        if table.get("id") and option["base"] not in {item["base"] for item in found}:
+        if table.get("id") and option["base"].lower() not in {
+                item["base"].lower() for item in found}:
             found.append(option)
     return {"placements": found, "extensions": list(spec.family)}
 

@@ -68,6 +68,18 @@ class PlacementTests(TempTree):
         self.assertEqual(len({item["base"] for item in found}), len(found),
                          "no two choices should write the same filename")
 
+    def test_a_build_named_after_its_folder_in_another_case_is_not_offered_either(
+            self) -> None:
+        lower = f"{FOLDER.lower()}.vpx"
+        info = {**INFO, "tables": {"tbl0000003": {"id": "tbl0000003", "filename": lower}}}
+        folder = write_game(self.root / "other", FOLDER, info=info, vpx=False,
+                            files={lower: b"vpx"})
+        with patch("common.games.game_repository.catalog",
+                   return_value={GAME_ID: fake_game(folder, FOLDER, meta=info)}):
+            found = self._placements()["placements"]
+
+        self.assertEqual([item["table"] for item in found], [""])
+
     def test_the_extension_is_left_off_because_the_file_decides_it(self) -> None:
         body = self._placements()
         self.assertNotIn(".", body["placements"][0]["base"].rsplit(")", 1)[-1])
