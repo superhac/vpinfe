@@ -51,26 +51,43 @@
     return collected;
   }
 
+  function ask(url, options) {
+    return fetch(url, options).catch(() => {
+      throw { unreached: window.location.hostname };
+    });
+  }
+
+  async function refused(resp) {
+    let words = '';
+    // API errors arrive as {"error": {code, message, details}}.
+    try { words = (await resp.json()).error.message || ''; } catch (e) { /* ignore */ }
+    return { said: words };
+  }
+
+  function stopped(token, err) {
+    return { token: token, status: 'error', said: (err && err.said) || '',
+             unreached: (err && err.unreached) || '' };
+  }
+
   async function uploadAll(token, files) {
-    const begin = await fetch('/api/v1/uploads', { method: 'POST' });
+    const begin = await ask('/api/v1/uploads', { method: 'POST' });
+    if (!begin.ok) throw await refused(begin);
     const uploadId = (await begin.json()).id;
     let done = 0;
     for (const item of files) {
       const form = new FormData();
       form.append('relpath', item.relpath);
       form.append('file', item.file, item.file.name);
-      const resp = await fetch(`/api/v1/uploads/${uploadId}/files`, { method: 'POST', body: form });
+      const resp = await ask(`/api/v1/uploads/${uploadId}/files`, { method: 'POST', body: form });
       if (!resp.ok) {
-        let message = 'Upload failed';
-        // API errors arrive as {"error": {code, message, details}}.
-        try { message = (await resp.json()).error.message || message; } catch (e) { /* ignore */ }
-        await fetch(`/api/v1/uploads/${uploadId}`, { method: 'DELETE' });
-        throw new Error(message);
+        const why = await refused(resp);
+        await ask(`/api/v1/uploads/${uploadId}`, { method: 'DELETE' }).catch(() => {});
+        throw why;
       }
       done += 1;
       emit({ token: token, status: 'progress', done: done, total: files.length, name: item.relpath });
     }
-    const summary = await fetch(`/api/v1/uploads/${uploadId}`);
+    const summary = await ask(`/api/v1/uploads/${uploadId}`);
     return { uploadId: uploadId, info: await summary.json() };
   }
 
@@ -102,7 +119,7 @@
       try {
         const files = await collectFiles(e.dataTransfer);
         if (!files.length) {
-          emit({ token: token, status: 'error', message: 'No files found in the drop' });
+          emit({ token: token, status: 'error', empty: true });
           return;
         }
         emit({ token: token, status: 'progress', done: 0, total: files.length, name: '' });
@@ -113,7 +130,7 @@
           name: rootName(files),
         });
       } catch (err) {
-        emit({ token: token, status: 'error', message: String((err && err.message) || err) });
+        emit(stopped(token, err));
       }
     });
   }
@@ -158,7 +175,7 @@
       try {
         const files = await collectFiles(e.dataTransfer);
         if (!files.length) {
-          emit({ token: token, status: 'error', message: 'No files found in the drop' });
+          emit({ token: token, status: 'error', empty: true });
           return;
         }
         emit({ token: token, status: 'progress', done: 0, total: files.length, name: '' });
@@ -169,7 +186,7 @@
           name: rootName(files),
         });
       } catch (err) {
-        emit({ token: token, status: 'error', message: String((err && err.message) || err) });
+        emit(stopped(token, err));
       }
     });
   }
@@ -213,7 +230,7 @@
       try {
         const files = await collectFiles(e.dataTransfer);
         if (!files.length) {
-          emit({ token: token, status: 'error', message: 'No files found in the drop' });
+          emit({ token: token, status: 'error', empty: true });
           return;
         }
         emit({ token: token, status: 'progress', done: 0, total: files.length, name: '' });
@@ -225,7 +242,7 @@
           name: rootName(files),
         });
       } catch (err) {
-        emit({ token: token, status: 'error', message: String((err && err.message) || err) });
+        emit(stopped(token, err));
       }
     });
   }

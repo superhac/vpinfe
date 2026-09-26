@@ -12,6 +12,7 @@ from uuid import uuid4
 from nicegui import context, run, ui
 
 from common.games import identity_claims
+from common.i18n import t
 from common.uploads import upload_session_service
 from common.uploads.asset_analyzer_service import AnalysisResult, analyze_upload_session
 from common.uploads.asset_import_service import build_import_plan, build_media_slot_plan
@@ -84,6 +85,17 @@ def _game_id_for(game_dir: Path | None) -> str:
     except Exception:
         logger.debug("Could not read a game id for %s", game_dir, exc_info=True)
         return ""
+
+
+def _stopped(payload: dict) -> str:
+    """Why an upload stopped, as far as the page could tell, or "" when it could not."""
+    if payload.get("empty"):
+        return "No files found in the drop"
+    if payload.get("said"):
+        return str(payload["said"])
+    if payload.get("unreached"):
+        return t("said.why.unreachable_at", host=str(payload["unreached"]))
+    return ""
 
 
 def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
@@ -209,7 +221,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                                             payload.get("cell_media_kind") or ""))
         elif status == "error":
             status_label.set_text(label)
-            ui.notify(f"Upload failed: {payload.get('message', '')}", type="negative")
+            ui.notify("Upload failed", caption=_stopped(payload), type="negative")
 
     ui.on("vpinfe_dnd", on_event)
     # The static script auto-attaches drop zones via a MutationObserver, so no
