@@ -1879,7 +1879,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
             ui.notify(t("said.could_not_remove_it"), caption=why(exc), type="negative")
             return
         gone = len(result.get("removed") or [])
-        ui.notify(t("console.workbench.removed_file_s", gone=(gone)) if gone
+        ui.notify(t("console.workbench.removed_files", count=gone) if gone
                   else t("console.workbench.nothing_remove_level"),
                   type="positive" if gone else "info")
         await draw()
@@ -2919,7 +2919,7 @@ def _resolved_row(context: dict[str, Any], table: dict[str, Any], kind: str,
             if kind == "script":
                 word = game_tables.word_for(game_tables.SCRIPT_WORDS, external)
                 why = (t("console.workbench.vbs_beside_table_vpx") if external
-                       else "The table runs the script inside its own .vpx")
+                       else t("console.workbench.script_inside_vpx"))
                 ui.label(word).classes("console-tier console-tier--off").tooltip(why)
             else:
                 tier = media_ownership.for_resolution(state.get("resolution"))

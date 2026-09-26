@@ -1297,7 +1297,10 @@
   "console.sections.every_game_saved_copy": "Every game with a saved copy goes back to it. Anything written since the copy was taken goes with it - a rating you set afterwards is in the current file, not the old one.",
   "console.sections.extension_adds_feature": "An extension adds a feature to VPinFE without being part of it",
   "console.sections.failed": "Failed",
-  "console.sections.fetch_fixes_table_s": "Fetch fixes for {len} table(s)?",
+  "console.sections.fetch_fixes_tables": {
+    "one": "Fetch fixes for 1 table?",
+    "other": "Fetch fixes for {count} tables?"
+  },
   "console.sections.fetching_way": "Fetching under way",
   "console.sections.findings_across_library": "findings across the library",
   "console.sections.format": "Format",
@@ -1342,7 +1345,10 @@
   "console.send_to_device.no_devices_send_add": "No devices to send to. Add one under Devices first.",
   "console.send_to_device.send": "Send",
   "console.send_to_device.send_device": "Send to which device?",
-  "console.send_to_device.send_game_s": "Send {len} game(s) to “{name_of}”?",
+  "console.send_to_device.send_games": {
+    "one": "Send 1 game to “{device}”?",
+    "other": "Send {count} games to “{device}”?"
+  },
   "console.send_to_device.sending": "Sending {len} to {name_of}",
   "console.send_to_device.table_backglass_settings_rom": "The table, its backglass, its settings and its rom go across, which is the same set an export holds. Artwork stays here.",
   "console.settings.already_date": "Already up to date",
@@ -1931,7 +1937,10 @@
   "console.workbench.remove_nvram_file_table": "Remove the NVRAM file when this table exits",
   "console.workbench.remove_rule": "Remove this rule",
   "console.workbench.remove_rules": "Remove Rules",
-  "console.workbench.removed_file_s": "Removed {gone} file(s)",
+  "console.workbench.removed_files": {
+    "one": "Removed 1 file",
+    "other": "Removed {count} files"
+  },
   "console.workbench.replaced": "Replaced",
   "console.workbench.reset_game_s_play": "Reset this game's play record?",
   "console.workbench.reset_play_record": "Reset play record",
@@ -1948,6 +1957,7 @@
   "console.workbench.save_rules": "Save Rules",
   "console.workbench.saved_for_this_table": "Saved for this table",
   "console.workbench.script_hash": "Script hash",
+  "console.workbench.script_inside_vpx": "The table runs the script inside its .vpx",
   "console.workbench.script_uses_flexdmd_not": "The script uses FlexDMD, which is not installed",
   "console.workbench.sec": "{count} sec",
   "console.workbench.select_media_item_manage": "Select any media item to manage it",

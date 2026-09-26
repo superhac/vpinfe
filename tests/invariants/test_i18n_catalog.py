@@ -1096,6 +1096,18 @@ class TestPluralsComeFromTheCatalog(unittest.TestCase):
                 offenders += [f"{path.relative_to(ROOT)}:{line}" for line in seen.found]
         self.assertEqual(offenders, [], "give the key one/other forms and pass count=")
 
+    def test_no_entry_writes_a_plural_as_a_suffix(self) -> None:
+        said = [key for key, value in sorted(served().items())
+                if any(WRITTEN_SUFFIX.search(str(form))
+                       for form in (value.values() if isinstance(value, dict) else [value]))]
+        self.assertEqual(said, [], "give the key one/other forms and pass count=")
+
+    def test_a_written_suffix_is_found(self) -> None:
+        self.assertEqual([bool(WRITTEN_SUFFIX.search(one)) for one in
+                          ("Removed {gone} file(s)", "2 match(es)", "Removed 2 files",
+                           "Use (s) for seconds")],
+                         [True, True, False, False])
+
     def test_a_form_chosen_in_a_page_is_found(self) -> None:
         self.assertTrue(PAGE_CHOOSES_A_FORM.search(
             "t('k.games', count === 1 ? '{count} game' : '{count} games', { count })"))
@@ -1115,6 +1127,8 @@ class TestPluralsComeFromTheCatalog(unittest.TestCase):
 
 # A page's t(key, english, params) whose English is picked by comparing a count with 1.
 PAGE_CHOOSES_A_FORM = re.compile(r"""\bt\(\s*(['"])[\w.]+\1\s*,[^,]*?[!=]==?\s*1\s*\?""")
+# A word with its plural ending in brackets, as in "file(s)".
+WRITTEN_SUFFIX = re.compile(r"\w\((?:s|es)\)")
 
 
 class TestFrontendChrome(unittest.TestCase):

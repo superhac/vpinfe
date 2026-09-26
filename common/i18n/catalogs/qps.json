@@ -1297,7 +1297,10 @@
   "console.sections.every_game_saved_copy": "Èṽèřý ĝàɱè ŵîţĥ à šàṽèđ çöþý ĝöèš ƀàçķ ţö îţ. Àñýţĥîñĝ ŵřîţţèñ šîñçè ţĥè çöþý ŵàš ţàķèñ ĝöèš ŵîţĥ îţ - à řàţîñĝ ýöû šèţ àƒţèřŵàřđš îš îñ ţĥè çûřřèñţ ƒîŀè, ñöţ ţĥè öŀđ öñè.",
   "console.sections.extension_adds_feature": "Àñ èẋţèñšîöñ àđđš à ƒèàţûřè ţö ṼÞîñƑÈ ŵîţĥöûţ ƀèîñĝ þàřţ öƒ îţ",
   "console.sections.failed": "Ƒàîŀèđ",
-  "console.sections.fetch_fixes_table_s": "Ƒèţçĥ ƒîẋèš ƒöř {len} ţàƀŀè(š)?",
+  "console.sections.fetch_fixes_tables": {
+    "one": "Ƒèţçĥ ƒîẋèš ƒöř 1 ţàƀŀè?",
+    "other": "Ƒèţçĥ ƒîẋèš ƒöř {count} ţàƀŀèš?"
+  },
   "console.sections.fetching_way": "Ƒèţçĥîñĝ ûñđèř ŵàý",
   "console.sections.findings_across_library": "ƒîñđîñĝš àçřöšš ţĥè ŀîƀřàřý",
   "console.sections.format": "Ƒöřɱàţ",
@@ -1342,7 +1345,10 @@
   "console.send_to_device.no_devices_send_add": "Ñö đèṽîçèš ţö šèñđ ţö. Àđđ öñè ûñđèř Đèṽîçèš ƒîřšţ.",
   "console.send_to_device.send": "Šèñđ",
   "console.send_to_device.send_device": "Šèñđ ţö ŵĥîçĥ đèṽîçè?",
-  "console.send_to_device.send_game_s": "Šèñđ {len} ĝàɱè(š) ţö “{name_of}”?",
+  "console.send_to_device.send_games": {
+    "one": "Šèñđ 1 ĝàɱè ţö “{device}”?",
+    "other": "Šèñđ {count} ĝàɱèš ţö “{device}”?"
+  },
   "console.send_to_device.sending": "Šèñđîñĝ {len} ţö {name_of}",
   "console.send_to_device.table_backglass_settings_rom": "Ţĥè ţàƀŀè, îţš ƀàçķĝŀàšš, îţš šèţţîñĝš àñđ îţš řöɱ ĝö àçřöšš, ŵĥîçĥ îš ţĥè šàɱè šèţ àñ èẋþöřţ ĥöŀđš. Àřţŵöřķ šţàýš ĥèřè.",
   "console.settings.already_date": "Àŀřèàđý ûþ ţö đàţè",
@@ -1931,7 +1937,10 @@
   "console.workbench.remove_nvram_file_table": "Řèɱöṽè ţĥè ÑṼŘÀḾ ƒîŀè ŵĥèñ ţĥîš ţàƀŀè èẋîţš",
   "console.workbench.remove_rule": "Řèɱöṽè ţĥîš řûŀè",
   "console.workbench.remove_rules": "Řèɱöṽè Řûŀèš",
-  "console.workbench.removed_file_s": "Řèɱöṽèđ {gone} ƒîŀè(š)",
+  "console.workbench.removed_files": {
+    "one": "Řèɱöṽèđ 1 ƒîŀè",
+    "other": "Řèɱöṽèđ {count} ƒîŀèš"
+  },
   "console.workbench.replaced": "Řèþŀàçèđ",
   "console.workbench.reset_game_s_play": "Řèšèţ ţĥîš ĝàɱè'š þŀàý řèçöřđ?",
   "console.workbench.reset_play_record": "Řèšèţ þŀàý řèçöřđ",
@@ -1948,6 +1957,7 @@
   "console.workbench.save_rules": "Šàṽè Řûŀèš",
   "console.workbench.saved_for_this_table": "Šàṽèđ ƒöř ţĥîš ţàƀŀè",
   "console.workbench.script_hash": "Šçřîþţ ĥàšĥ",
+  "console.workbench.script_inside_vpx": "Ţĥè ţàƀŀè řûñš ţĥè šçřîþţ îñšîđè îţš .ṽþẋ",
   "console.workbench.script_uses_flexdmd_not": "Ţĥè šçřîþţ ûšèš ƑŀèẋĐḾĐ, ŵĥîçĥ îš ñöţ îñšţàŀŀèđ",
   "console.workbench.sec": "{count} šèç",
   "console.workbench.select_media_item_manage": "Šèŀèçţ àñý ɱèđîà îţèɱ ţö ɱàñàĝè îţ",

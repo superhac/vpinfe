@@ -70,8 +70,7 @@ async def ask_where(games: list[dict[str, Any]],
     if not picked:
         return
     if not await confirm.ask(
-            t("console.send_to_device.send_game_s", len=(len(games)),
-                    name_of=(name_of(picked))),
+            t("console.send_to_device.send_games", count=len(games), device=name_of(picked)),
             detail=t("console.send_to_device.table_backglass_settings_rom"),
             confirm=t("console.send_to_device.send"), icon=verbs.SEND, danger=False):
         return

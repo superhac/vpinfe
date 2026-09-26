@@ -381,7 +381,7 @@ def table_scripts(library: Library) -> None:
     async def fetch() -> None:
         offered = list(library.script_patches().get("offered") or [])
         if not await confirm.ask(
-                t("console.sections.fetch_fixes_table_s", len=(len(offered))),
+                t("console.sections.fetch_fixes_tables", count=len(offered)),
                 detail=t("console.sections.each_one_lands_vbs"),
                 confirm=t("word.fetch"), icon=verbs.FETCH, danger=False):
             return
