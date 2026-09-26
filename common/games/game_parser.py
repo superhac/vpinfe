@@ -15,6 +15,7 @@ from time import perf_counter
 from common.config_access import MediaConfig
 from common.config_store import ConfigStore
 from common.failures import why
+from common.games import unreadable as unread_files
 from common.games.game import Game
 from common.games.game_metadata import vpinfe_section
 from common.games.info_file import InvalidMetaConfigError, MetaConfig
@@ -96,7 +97,7 @@ class GameParser:
         if not self.games_root_file_path.exists():
             return
 
-        logger.info("Loading games and image paths...")
+        logger.debug("Loading games and image paths...")
         folders = ([self.games_root_file_path] if self.one_game
                    else [d for d in sorted(self.games_root_file_path.iterdir())
                          if d.is_dir() and not d.name.startswith('.')])
@@ -211,18 +212,24 @@ class GameParser:
         if any(is_readme(name) for name in game_contents):
             game.readme_exists = True
 
-        try:
-            self.load_metadata(game)
-        except (InvalidMetaConfigError, OSError) as exc:
+        info = game_dir / f"{game_dir.name}.info"
+        reason = unread_files.failed(info)
+        if reason is None:
+            try:
+                self.load_metadata(game)
+            except (InvalidMetaConfigError, OSError) as exc:
+                reason = why(exc)
+                unread_files.note(info, reason)
+                logger.error("Skipping %s, its metadata could not be read: %s",
+                             info, exc.__cause__ or exc)
+        if reason is not None:
             # This used to stop the whole library loading. Excluded rather than loaded
             # empty, so nothing can write over a file we could not read.
             (self.unreadable_games if unreadable is None else unreadable).append({
                 'folder': game.game_dir_name,
                 'path': str(game_dir),
-                'error': why(exc),
+                'error': reason,
             })
-            logger.error("Skipping %s, its metadata could not be read: %s",
-                         game_dir / f"{game_dir.name}.info", exc.__cause__ or exc)
             return None
 
         # After the metadata, so a folder with several .vpx launches the one its

@@ -63,9 +63,11 @@ def refresh(reporter: JobReporter | None = None) -> dict:
               "new_unmatched_ids": _waiting(unseen)}
     if reporter:
         reporter.progress(4, 4, t("word.done"))
-    logger.info("Library refresh: %s games, %s tables found, %s read, %s of %s new "
-                "games matched", len(games), found["found"], read["read"],
-                matched["matched"], matched["games"])
+    level = (logging.INFO if found["found"] or read["read"] or matched["games"]
+             else logging.DEBUG)
+    logger.log(level, "Library refresh: %s games, %s tables found, %s read, %s of %s new "
+               "games matched", len(games), found["found"], read["read"],
+               matched["matched"], matched["games"])
     return result
 
 

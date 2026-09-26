@@ -21,6 +21,7 @@ from common.games import (
     game_repository,
     game_service,
     library_refresh,
+    unreadable,
     unwritten,
 )
 from common.games.info_maintenance import upgrade_library
@@ -36,6 +37,10 @@ OLD = "Locked Old (Original 2024)"
 NEW = "Locked New (Original 2024)"
 LOCKED = (OLD, NEW)
 SECOND = "Second Build.vpx"
+# Writable, and its .vpx is one the real parser cannot read.
+BROKEN = "Broken Table (Original 2024)"
+MALFORMED = "Malformed Info (Original 2024)"
+READ = VPXParser.single_file_extract
 
 
 def _legacy(name: str) -> dict:
@@ -80,7 +85,8 @@ class LockedGameRefreshTests(TempTree):
                 mock.patch("socket.socket.connect", side_effect=OSError("offline")),
                 mock.patch.object(VPXParser, "single_file_extract", self._read),
                 mock.patch("common.games.watching.note_games"),
-                mock.patch.dict(unwritten._HELD, clear=True)):
+                mock.patch.dict(unwritten._HELD, clear=True),
+                mock.patch.dict(unreadable._FAILED, clear=True)):
             patcher.start()
             self.addCleanup(patcher.stop)
         art = mock.patch("common.games.media_fill.request")
@@ -95,8 +101,10 @@ class LockedGameRefreshTests(TempTree):
 
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
 
-    def _read(self, path: str) -> dict[str, str]:
+    def _read(self, path: str) -> dict[str, str] | None:
         self.reads.append(Path(path).name)
+        if Path(path).parent.name == BROKEN:
+            return READ(VPXParser(), path)
         return {"filename": Path(path).name, "filehash": "f00d", "rom": "sample"}
 
     def _refresh_twice(self) -> tuple[dict, dict, list[logging.LogRecord]]:
@@ -136,16 +144,41 @@ class LockedGameRefreshTests(TempTree):
         self.assertEqual(len(first), 5)
         self.assertEqual(self._ids(), first)
 
-    def test_a_second_refresh_reads_no_table_and_warns_of_nothing(self) -> None:
+    def test_a_second_refresh_reads_no_table_and_logs_nothing(self) -> None:
+        write_game(self.games, BROKEN, info=game_info("Broken Table"))
+        (write_game(self.games, MALFORMED) / f"{MALFORMED}.info").write_text(
+            '{"Info": {"Title": "broken",,,}', encoding="utf-8")
         library_refresh.refresh()
         first = sorted(self.reads)
         self.reads.clear()
 
-        with self.assertNoLogs("vpinfe", level="WARNING"):
+        with self.assertNoLogs("vpinfe", level="INFO"):
             library_refresh.refresh()
 
-        self.assertEqual(first, [f"{NEW}.vpx", SECOND, SECOND])
+        self.assertEqual(first, [f"{BROKEN}.vpx", f"{NEW}.vpx", SECOND, SECOND])
         self.assertEqual(self.reads, [])
+
+    def test_a_table_that_could_not_be_read_is_read_again_once_it_changes(self) -> None:
+        folder = write_game(self.games, BROKEN, info=game_info("Broken Table"))
+        library_refresh.refresh()
+        (folder / f"{BROKEN}.vpx").write_bytes(b"still not a vpx, and longer")
+        self.reads.clear()
+
+        with self.assertLogs("vpinfe", level="WARNING") as logged:
+            library_refresh.refresh()
+
+        self.assertEqual(self.reads, [f"{BROKEN}.vpx"])
+        self.assertEqual(len(logged.records), 1)
+
+    def test_an_info_put_right_is_read_at_the_next_refresh(self) -> None:
+        info = write_game(self.games, MALFORMED) / f"{MALFORMED}.info"
+        info.write_text('{"Info": {"Title": "broken",,,}', encoding="utf-8")
+        library_refresh.refresh()
+        info.write_text(json.dumps(game_info("Malformed Info")), encoding="utf-8")
+
+        library_refresh.refresh()
+
+        self.assertIn(MALFORMED, [game.game_dir_name for game in game_repository.all_games()])
 
     def test_a_table_found_there_is_counted_once(self) -> None:
         first, second, _ = self._refresh_twice()

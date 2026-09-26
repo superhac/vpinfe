@@ -221,8 +221,8 @@ class MetaConfig:
             if needs_migration(self.data):
                 self._pre_migration = original
                 self.data = migrate(self.data)
-                logger.info("Migrated %s to schema %s in memory", configfilepath,
-                            INFO_SCHEMA)
+                logger.debug("Migrated %s to schema %s in memory", configfilepath,
+                             INFO_SCHEMA)
         else:
             self.data = {}
         held = unwritten.held(configfilepath)

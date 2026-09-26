@@ -16,6 +16,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Protocol
 
+from common.failures import why
+from common.games import unreadable
 from common.games.game import Game
 from common.games.game_metadata import keep_game_meta, load_game_meta
 from common.games.tables import (
@@ -41,7 +43,8 @@ class TableReader(Protocol):
 
 
 def pending(games: Iterable[Game]) -> list[tuple[Game, str, str]]:
-    """Every (game, key, filename) an entry exists for and nothing has read yet.
+    """Every (game, key, filename) an entry exists for and nothing has read yet, but for
+    a file that could not be read and has not changed since.
 
     Counted before the work starts so a job can say how many of how many, which on a
     network share is the difference between a progress bar and a hang.
@@ -51,9 +54,11 @@ def pending(games: Iterable[Game]) -> list[tuple[Game, str, str]]:
         on_disk = {name.lower() for name in (getattr(game, "table_files", None) or ())}
         if not on_disk:
             continue
+        folder = Path(str(game.full_path_game or ""))
         for key, entry in table_entries(getattr(game, "meta_config", {})).items():
             filename = entry_filename(entry)
-            if filename.lower() in on_disk and not is_parsed(entry):
+            if (filename.lower() in on_disk and not is_parsed(entry)
+                    and unreadable.failed(folder / filename) is None):
                 todo.append((game, key, filename))
     return todo
 
@@ -61,10 +66,14 @@ def pending(games: Iterable[Game]) -> list[tuple[Game, str, str]]:
 def _read(parser: TableReader, game: Game, filename: str) -> dict | None:
     path = Path(str(game.full_path_game or "")) / filename
     try:
-        return parser.single_file_extract(str(path))
-    except Exception:
+        parsed = parser.single_file_extract(str(path))
+    except Exception as exc:
         logger.exception("Could not read %s", path)
+        unreadable.note(path, why(exc))
         return None
+    if not parsed:
+        unreadable.note(path)
+    return parsed
 
 
 def _parser() -> TableReader:

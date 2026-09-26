@@ -98,6 +98,18 @@ class EnrichmentTests(TempTree):
         self.assertEqual(totals, {"read": 0, "failed": 1, "games": 0})
         self.assertEqual(self._stored()[VR.lower()], {"id": "t2", "filename": VR})
 
+    def test_a_file_that_will_not_read_is_offered_again_only_once_it_changes(self) -> None:
+        game = self._game({"t2": {"id": "t2", "filename": VR}})
+        with patch("common.games.vpx_parser.VPXParser.single_file_extract",
+                   return_value=None):
+            enrich([game])
+
+        before = pending([game])
+        (self.folder / VR).write_bytes(b"a different vpx")
+
+        self.assertEqual(before, [])
+        self.assertEqual([name for _, _, name in pending([game])], [VR])
+
     def test_progress_is_reported_against_a_known_total(self) -> None:
         game = self._game({"t1": {"id": "t1", "filename": DESKTOP},
                            "t2": {"id": "t2", "filename": VR}})
