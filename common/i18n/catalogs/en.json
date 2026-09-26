@@ -1681,7 +1681,7 @@
   "console.workbench.could_not_read_copies": "Could not read the copies: {exc}",
   "console.workbench.could_not_read_file": "Could not read the file: {exc}",
   "console.workbench.could_not_read_game": "Could not read this game's tables: {exc}",
-  "console.workbench.could_not_read_vps": "Could not read VPS: {exc}",
+  "console.workbench.could_not_read_vps": "Could not read VPS",
   "console.workbench.could_not_read_what_2": "Could not read what is shadowed here: {exc}",
   "console.workbench.could_not_reorder_them": "Could not reorder them: {exc}",
   "console.workbench.could_not_save": "Could not save: {exc}",

@@ -40,20 +40,20 @@ class PickerListTests(unittest.IsolatedAsyncioTestCase):
 
         listed = await workbench._listed_by_vps(context, NONE_LISTED, "topperFiles")
 
-        self.assertEqual((RECORDS, ""), listed)
+        self.assertEqual((RECORDS, "", ""), listed)
         context["library"].vps_releases.assert_called_once_with("mm_1997x", "topperFiles")
         self.assertIn(context["library"].vps_releases, self.offloaded)
 
     async def test_vps_listing_none_says_so(self) -> None:
         listed = await workbench._listed_by_vps(_context(records=[]), NONE_LISTED)
 
-        self.assertEqual(([], NONE_LISTED), listed)
+        self.assertEqual(([], NONE_LISTED, ""), listed)
 
     async def test_no_catalog_is_not_vps_listing_none(self) -> None:
         listed = await workbench._listed_by_vps(_context(records=[], held=False),
                                                 NONE_LISTED)
 
-        self.assertEqual(([], t("console.workbench.vps_not_downloaded")), listed)
+        self.assertEqual(([], t("console.workbench.vps_not_downloaded"), ""), listed)
 
     async def test_a_read_that_fails_says_it_could_not_read(self) -> None:
         for failing in ("vps_releases", "vps_catalog_held"):
@@ -66,7 +66,8 @@ class PickerListTests(unittest.IsolatedAsyncioTestCase):
                     listed = await workbench._listed_by_vps(context, NONE_LISTED)
 
                 self.assertEqual(
-                    ([], t("console.workbench.could_not_read_vps", exc="read timed out")),
+                    ([], t("console.workbench.could_not_read_vps"),
+                     t("said.why.timed_out")),
                     listed)
 
     async def test_a_game_with_no_vps_entry_asks_nothing_of_the_list(self) -> None:
@@ -74,7 +75,7 @@ class PickerListTests(unittest.IsolatedAsyncioTestCase):
 
         listed = await workbench._listed_by_vps(context, NONE_LISTED)
 
-        self.assertEqual(([], NONE_LISTED), listed)
+        self.assertEqual(([], NONE_LISTED, ""), listed)
         context["library"].vps_releases.assert_not_called()
 
 

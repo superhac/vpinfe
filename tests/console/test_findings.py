@@ -77,6 +77,25 @@ class Findings(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(found[0][1][2], "https://vps.example/entry")
 
+    async def test_an_update_vps_could_not_be_read_for_says_so_in_place_of_the_link(
+            self) -> None:
+        for failing in ("vps_releases", "vps_entry"):
+            with self.subTest(failing=failing):
+                tables = (_table("a", update_available=True, source={
+                    "vps_file_id": "r-9", "version": "3.0"}),)
+                context = _context(*tables)
+                getattr(context["library"], failing).side_effect = TimeoutError("timed out")
+
+                with patch.object(workbench, "_state",
+                                  new=lambda text, level, hint="": (text, level, hint)), \
+                        self.assertLogs("vpinfe.console.workbench", level="WARNING"):
+                    entries = await workbench._findings(context, tables)
+
+                self.assertEqual([alert for _, alert in entries], [(
+                    t("console.workbench.newer_on_vps", theirs="3.0", ours="1.0"),
+                    (t("console.workbench.could_not_read_vps"), "unknown",
+                     t("said.why.timed_out")), "")])
+
     async def test_a_fault_nothing_here_fixes_carries_no_act(self) -> None:
         found = await self._found(_table("a", dependencies={
             "flexdmd": {"detected": True, "installed": False}}))

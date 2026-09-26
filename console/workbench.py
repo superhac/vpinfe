@@ -29,6 +29,7 @@ from urllib.parse import urlencode, urlparse
 from nicegui import run, ui
 
 from common import apps, config_schema, icons, path_checks, tokens
+from common.failures import why
 from common.games import asset_registry, tag_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.asset_resolver import VPX_ASSET_KINDS
@@ -2072,7 +2073,7 @@ async def _release_match(context: dict[str, Any],
     if not bound:
         return rows + _unmatched(release_match_gap(entry, bound, True)) \
             + [(FULL, _change_match(pick, matched=False))]
-    releases = await offload.io(_releases_of, context, entry)
+    releases, unread = await _read_releases(context, entry)
     release = next((one for one in releases
                     if str(one.get("vps_file_id") or "") == bound), None)
     # Found across the whole catalog, though no longer under this entry.
@@ -2083,8 +2084,13 @@ async def _release_match(context: dict[str, Any],
         if source.get("mod_of"):
             rows.append((FULL, partial(_based_on, source["mod_of"])))
     else:
-        held = await offload.io(context["library"].vps_catalog_held)
-        rows += _unmatched(release_match_gap(entry, bound, held))
+        try:
+            held = not unread and await offload.io(context["library"].vps_catalog_held)
+        except Exception as exc:
+            logger.warning("console: could not read VPS for %s", entry, exc_info=True)
+            held, unread = False, why(exc)
+        rows += _unmatched(release_match_gap(entry, bound, held, read=not unread),
+                           hint=unread)
     return rows + [(FULL, _change_match(pick, matched=True))]
 
 
@@ -2195,13 +2201,17 @@ def game_match_gap(vps_id: str, declared: bool, held: bool) -> tuple[str, str, s
             "console.workbench.vps_lists_no_such_game")
 
 
-def release_match_gap(entry: str, bound: str, held: bool) -> tuple[str, str, str]:
-    """The same for a table's release, which has none to draw."""
+def release_match_gap(entry: str, bound: str, held: bool,
+                      read: bool = True) -> tuple[str, str, str]:
+    """The same for a table's release, which has none to draw. `read` is whether the
+    entry's releases could be read."""
     if not entry:
         return ("console.workbench.not_matched", "off",
                 "console.workbench.match_game_vps_first")
     if not bound:
         return ("console.workbench.not_matched", "off", "")
+    if not read:
+        return ("word.unknown", "unknown", "console.workbench.could_not_read_vps")
     if not held:
         return ("word.unknown", "unknown", "console.workbench.vps_not_downloaded")
     return ("console.workbench.not_in_vps", "warn",
@@ -2224,10 +2234,10 @@ def _how_matched(how: str) -> Callable[[], None] | None:
     return _state(game_tables.HOW_MATCHED[how], "on", hint=hint)
 
 
-def _unmatched(gap: tuple[str, str, str]) -> list[tuple[Any, Any]]:
-    said, level, why = gap
-    rows: list[tuple[Any, Any]] = [(FULL, _state(t(said), level))]
-    return rows + [panel.intro(t(why))] if why else rows
+def _unmatched(gap: tuple[str, str, str], hint: str = "") -> list[tuple[Any, Any]]:
+    said, level, under = gap
+    rows: list[tuple[Any, Any]] = [(FULL, _state(t(said), level, hint=hint))]
+    return rows + [panel.intro(t(under))] if under else rows
 
 
 def _outside(links: Sequence[dict[str, Any]]) -> list[tuple[Any, Any]]:
@@ -3250,25 +3260,31 @@ async def _findings(context: dict[str, Any],
     and listing them here would teach the block to be ignored.
     """
     releases: dict[str, dict[str, Any]] = {}
-    entry_url = ""
+    entry_url = unread = ""
     if any(table.get("update_available") for table in tables):
         vps_id = str(context["game"].get("vps_id") or "")
-        releases = {str(one.get("vps_file_id") or ""): one
-                    for one in await offload.io(_releases_of, context, vps_id)}
-        entry = await offload.io(context["library"].vps_entry, vps_id) if vps_id else {}
-        entry_url = str((entry or {}).get("url") or "")
+        listed, unread = await _read_releases(context, vps_id)
+        releases = {str(one.get("vps_file_id") or ""): one for one in listed}
+        if vps_id and not unread:
+            try:
+                entry = await offload.io(context["library"].vps_entry, vps_id)
+            except Exception as exc:
+                logger.warning("console: could not read VPS for %s", vps_id, exc_info=True)
+                unread = why(exc)
+            else:
+                entry_url = str((entry or {}).get("url") or "")
     named = len(context["tables"]) > 1
     entries: list[tuple[Any, Any]] = []
     for table in tables:
         said = game_tables.name_among(table, context["tables"]) if named else ""
         entries += [(FULL, _alert(line, act, said))
-                    for line, act in _faults(context, table, releases, entry_url)]
+                    for line, act in _faults(context, table, releases, entry_url, unread)]
     return entries
 
 
 def _faults(context: dict[str, Any], table: dict[str, Any],
-            releases: dict[str, dict[str, Any]],
-            entry_url: str) -> list[tuple[str, Callable[[], None] | None]]:
+            releases: dict[str, dict[str, Any]], entry_url: str,
+            unread: str = "") -> list[tuple[str, Callable[[], None] | None]]:
     pinmame = (table.get("dependencies") or {}).get("pinmame") or {}
     flex = (table.get("dependencies") or {}).get("flexdmd") or {}
     faults: list[tuple[str, Callable[[], None] | None]] = []
@@ -3300,10 +3316,11 @@ def _faults(context: dict[str, Any], table: dict[str, Any],
         theirs = str(source.get("version") or "")
         release = releases.get(str(source.get("vps_file_id") or "")) or {}
         to = str(release.get("url") or "") or entry_url
+        act = (panel.link_out(t("console.workbench.get_version", version=theirs), to=to)
+               if to else _state(t("console.workbench.could_not_read_vps"), "unknown",
+                                 hint=unread) if unread else None)
         faults.append((t("console.workbench.newer_on_vps", theirs=theirs,
-                         ours=str(table.get("version") or "")),
-                       panel.link_out(t("console.workbench.get_version", version=theirs),
-                                      to=to) if to else None))
+                         ours=str(table.get("version") or "")), act))
     return faults
 
 
@@ -3968,7 +3985,7 @@ async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
     scorer over this question is no better than chance.
     """
     library = context["library"]
-    records, empty = await _listed_by_vps(
+    records, empty, reason = await _listed_by_vps(
         context, t("console.workbench.vps_lists_none_for_game", lower=(label.lower())),
         listed_as)
 
@@ -3976,8 +3993,7 @@ async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
                       persistent=True) as box:
         ui.label(path).classes("console-help px-3")
         with ui.column().classes("w-full gap-0 console-source-list console-pick-list px-3"):
-            if empty:
-                ui.label(empty).classes("console-help")
+            _in_place_of_list(empty, reason)
             for item in records:
                 _record_row(item, box, bound)
         with frame.footer():
@@ -4011,10 +4027,10 @@ def _record_row(record: dict[str, Any], dialog: Any, bound: str) -> None:
 
 
 async def _listed_by_vps(context: dict[str, Any], none_listed: str,
-                         *listed_as: str) -> tuple[list[dict[str, Any]], str]:
-    """What VPS lists for the game, read off the loop, and the line a picker shows in
-    place of the list: `none_listed`, or why there is no list to show. Empty while there
-    is one."""
+                         *listed_as: str) -> tuple[list[dict[str, Any]], str, str]:
+    """What VPS lists for the game, read off the loop, the line a picker shows in place
+    of the list - `none_listed`, or why there is no list to show - and why a read
+    failed. The two lines are empty while there is a list."""
     library = context["library"]
     vps_id = str(context["game"].get("vps_id") or "")
     try:
@@ -4023,10 +4039,17 @@ async def _listed_by_vps(context: dict[str, Any], none_listed: str,
         held = bool(found) or await offload.io(library.vps_catalog_held)
     except Exception as exc:
         logger.warning("console: could not read VPS for %s", vps_id, exc_info=True)
-        return [], t("console.workbench.could_not_read_vps", exc=(exc))
+        return [], t("console.workbench.could_not_read_vps"), why(exc)
     if found:
-        return found, ""
-    return [], none_listed if held else t("console.workbench.vps_not_downloaded")
+        return found, "", ""
+    return [], none_listed if held else t("console.workbench.vps_not_downloaded"), ""
+
+
+def _in_place_of_list(line: str, reason: str) -> None:
+    if line:
+        shown = ui.label(line).classes("console-help")
+        if reason:
+            shown.tooltip(reason)
 
 
 async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -4039,16 +4062,15 @@ async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> Non
     """
     library = context["library"]
     bound = str((table.get("source") or {}).get("vps_file_id") or "")
-    releases, empty = await _listed_by_vps(context,
-                                           t("console.workbench.vps_lists_no_tables"))
+    releases, empty, reason = await _listed_by_vps(
+        context, t("console.workbench.vps_lists_no_tables"))
 
     with frame.opened(t("console.workbench.release_table"), wide=True,
                       persistent=True) as box:
         with ui.element("div").classes("px-3"):
             _yours(table)
         with ui.column().classes("w-full gap-0 console-source-list console-pick-list px-3"):
-            if empty:
-                ui.label(empty).classes("console-help")
+            _in_place_of_list(empty, reason)
             for item, under in in_lineage(releases):
                 _release_row(item, box, bound, under)
         with frame.footer():
@@ -4158,15 +4180,17 @@ def _release_shown(release: dict[str, Any]) -> None:
                       glyph=icons.TABLES, trailing=end, entry=True)
 
 
-def _releases_of(context: dict[str, Any], vps_id: str) -> list[dict[str, Any]]:
-    """The entry's builds. This blocks, so it belongs on a worker thread and never in a
-    draw."""
+async def _read_releases(context: dict[str, Any],
+                         vps_id: str) -> tuple[list[dict[str, Any]], str]:
+    """The entry's builds, read off the loop, and why they could not be read. Empty
+    where they were."""
     if not vps_id:
-        return []
+        return [], ""
     try:
-        return list(context["library"].vps_releases(vps_id))
-    except Exception:
-        return []
+        return list(await offload.io(context["library"].vps_releases, vps_id)), ""
+    except Exception as exc:
+        logger.warning("console: could not read VPS for %s", vps_id, exc_info=True)
+        return [], why(exc)
 
 
 def _launch_button(context: dict[str, Any], table: dict[str, Any]) -> None:
