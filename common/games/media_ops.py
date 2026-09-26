@@ -28,6 +28,7 @@ from common.games.game_repository import game_to_row
 from common.i18n import t
 from common.media_specs import (
     MEDIA_SPECS,
+    MediaCandidate,
     MediaSpec,
     canonical_kind,
     media_candidates,
@@ -182,8 +183,9 @@ def detail(game_id: str, kind: str, table_id: str = "") -> dict:
 
     files, medias = media_service.media_contents(game_dir)
     variant, active_sets = media_service.media_settings()
-    candidates = media_candidates(game_dir, files, medias, kind, variant, stem,
-                                  active_sets)
+    candidates: dict[Path, MediaCandidate] = {}
+    for item in media_candidates(game_dir, files, medias, kind, variant, stem, active_sets):
+        candidates.setdefault(item.path, item)
     recorded = asset_origin.sources(game_dir)
     hosts = {key: str(source.get("host", "") or "").strip()
              for key, source in recorded.items()
@@ -201,7 +203,7 @@ def detail(game_id: str, kind: str, table_id: str = "") -> dict:
         "matched_to": asset_origin.match_of(recorded, game_dir, path) or None,
         "tiers": [{"tier": item.tier, "file": item.path.name,
                    "wins": item.path == path}
-                  for item in candidates],
+                  for item in candidates.values()],
         "links": {"self": f"{prefix}/{kind}" if path is not None else None},
         **(_file_facts(path) if path is not None else _NO_FACTS),
     }

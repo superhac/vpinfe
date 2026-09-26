@@ -138,5 +138,30 @@ class OverrideTests(PlacementTests):
         self.assertEqual(self._overrides(), {})
 
 
+class DetailTests(PlacementTests):
+    """One slot: the file that wins it, and every other file that could."""
+
+    def _tiers(self, table: str = "") -> list[tuple[str, str, bool]]:
+        at = f"/tables/{table}" if table else ""
+        response = self.client.get(f"/games/{GAME_ID}{at}/media/playfield/detail")
+        self.assertEqual(response.status_code, 200, response.text)
+        return [(item["tier"], item["file"], item["wins"])
+                for item in response.json()["tiers"]]
+
+    def test_a_table_file_named_as_its_folder_is_listed_once(self) -> None:
+        (self.folder / "medias" / f"(Playfield) {FOLDER}.png").write_bytes(b"\x89PNG")
+
+        self.assertEqual(self._tiers("tbl0000001"),
+                         [("table", f"(Playfield) {FOLDER}.png", True),
+                          ("default", "table.png", False)])
+
+    def test_a_table_with_a_name_of_its_own_lists_both_files(self) -> None:
+        (self.folder / "medias" / f"(Playfield) {FOLDER}.png").write_bytes(b"\x89PNG")
+        (self.folder / "medias" / f"(Playfield) {FOLDER} - VR.png").write_bytes(b"\x89PNG")
+
+        self.assertEqual([tier for tier, _, _ in self._tiers("tbl0000002")],
+                         ["table", "game", "default"])
+
+
 if __name__ == "__main__":
     unittest.main()
