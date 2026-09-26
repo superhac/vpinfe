@@ -588,6 +588,8 @@
   "console.game_tables.automatic.help": "a833123f90ba",
   "console.game_tables.blocked": "c0ee434b7aa8",
   "console.game_tables.default_table": "21964818aa0b",
+  "console.game_tables.deleted_every_table_runs_own": "947e78e92dec",
+  "console.game_tables.every_table_loses_script": "dc59687a0bce",
   "console.game_tables.external": "3199d448a119",
   "console.game_tables.features": "5ba7137beafc",
   "console.game_tables.frontend": "e473e08ff649",

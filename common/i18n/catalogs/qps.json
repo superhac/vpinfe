@@ -699,6 +699,8 @@
   "console.game_tables.automatic.help": "Ţĥè ñèŵèšţ ţàƀŀè ýöû àđđèđ. Ŀöçķ îţ ţö ķèèþ îţ.",
   "console.game_tables.blocked": "Ɓŀöçķèđ",
   "console.game_tables.default_table": "Đèƒàûŀţ Ţàƀŀè",
+  "console.game_tables.deleted_every_table_runs_own": "Đèŀèţèđ - èṽèřý ţàƀŀè ŵîţĥöûţ îţš öŵñ .ṽƀš řûñš ţĥè šçřîþţ îñšîđè îţš .ṽþẋ",
+  "console.game_tables.every_table_loses_script": "Èṽèřý ţàƀŀè ŵîţĥöûţ îţš öŵñ .ṽƀš ŀöšèš îţ, àñđ àñý þàţçĥ öř èđîţ îţ ĥöŀđš.",
   "console.game_tables.external": "Èẋţèřñàŀ",
   "console.game_tables.features": "Ƒèàţûřèš",
   "console.game_tables.frontend": "Ƒřöñţèñđ",

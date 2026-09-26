@@ -699,6 +699,8 @@
   "console.game_tables.automatic.help": "The newest table you added. Lock it to keep it.",
   "console.game_tables.blocked": "Blocked",
   "console.game_tables.default_table": "Default Table",
+  "console.game_tables.deleted_every_table_runs_own": "Deleted - every table without its own .vbs runs the script inside its .vpx",
+  "console.game_tables.every_table_loses_script": "Every table without its own .vbs loses it, and any patch or edit it holds.",
   "console.game_tables.external": "External",
   "console.game_tables.features": "Features",
   "console.game_tables.frontend": "Frontend",

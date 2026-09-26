@@ -2932,7 +2932,7 @@ def _script_actions(context: dict[str, Any], table: dict[str, Any],
                     external: bool) -> None:
     """Extract a sidecar, or drop one. The script is managed here and Launch only
     reports it."""
-    if external:
+    if external and game_tables.runs_its_own_script(table):
         ui.button(t("word.delete"),
             icon=verbs.DELETE, on_click=lambda: _drop_script(context, table)) \
             .props("flat dense no-caps size=sm") \
@@ -3530,13 +3530,17 @@ async def _extract_script(context: dict[str, Any], table: dict[str, Any]) -> Non
 async def _drop_script(context: dict[str, Any], table: dict[str, Any]) -> None:
     """Confirmed: whatever the sidecar held goes with it, and a patched table quietly
     becomes an unpatched one."""
+    every = game_tables.shares_its_script(table)
     if not await confirm.ask(
             t("console.workbench.delete_script_beside_table"),
-            detail=t("console.workbench.table_goes_back_script"),
+            detail=t("console.game_tables.every_table_loses_script" if every
+                     else "console.workbench.table_goes_back_script"),
             lines=[f"{Path(table.get('filename') or '').stem}.vbs"]):
         return
     await _script_act(context, context["library"].delete_script,
-                      table.get("id") or "", t("console.workbench.deleted_table_runs_own"),
+                      table.get("id") or "",
+                      t("console.game_tables.deleted_every_table_runs_own" if every
+                        else "console.workbench.deleted_table_runs_own"),
                       lambda exc: t("console.workbench.could_not_delete_script", exc=exc))
 
 

@@ -1374,13 +1374,16 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
 
     async def drop_script(row: dict[str, Any]) -> None:
         """Asked, because a patched table quietly becomes an unpatched one."""
+        every = game_tables.shares_its_script(row)
         if not await confirm.ask(
                 t("console.games.delete_script_beside_table"),
-                detail=t("console.games.table_goes_back_script"),
+                detail=t("console.game_tables.every_table_loses_script" if every
+                         else "console.games.table_goes_back_script"),
                 lines=[f"{Path(str(row.get('filename') or '')).stem}.vbs"]):
             return
         await act(library.delete_script, row["game_id"], row["id"],
-                  said=t("console.games.deleted_table_runs_own"), row=row)
+                  said=t("console.game_tables.deleted_every_table_runs_own" if every
+                         else "console.games.deleted_table_runs_own"), row=row)
 
     async def lock_default(row: dict[str, Any], *, lock: bool) -> None:
         def said(after: Any) -> str:
@@ -1476,10 +1479,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                 # The script sidecar. VPX loads a `<table>.vbs` beside the .vpx in
                 # preference to the one inside it, so this is per table and belongs on
                 # the row rather than only on the panel that was carrying it.
-                script = str(((row.get("assets") or {}).get("script") or {})
-                             .get("file") or "")
-                if script and Path(script).stem.lower() == \
-                        Path(str(row.get("filename") or "")).stem.lower():
+                if game_tables.runs_its_own_script(row):
                     panel.menu_entry(t("console.games.delete_script"),
                                      lambda r=row: drop_script(r),
                                      classes="console-menu-danger")

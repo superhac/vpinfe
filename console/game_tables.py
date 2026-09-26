@@ -223,6 +223,21 @@ def named_as_folder(table: dict[str, Any] | None, game: dict[str, Any]) -> bool:
     return table is not None and bool(folder) and _stem(_file_of(table)) == folder.lower()
 
 
+def _script(table: dict[str, Any]) -> dict[str, Any]:
+    return (table.get("assets") or {}).get("script") or {}
+
+
+def runs_its_own_script(table: dict[str, Any]) -> bool:
+    """Whether the .vbs the table runs carries the table's own name."""
+    script = str(_script(table).get("file") or "")
+    return bool(script) and _stem(script) == _stem(_file_of(table))
+
+
+def shares_its_script(table: dict[str, Any]) -> bool:
+    """Whether the .vbs the table runs is the folder's, run by every table without one."""
+    return _script(table).get("resolution") == "shared"
+
+
 def usual_launcher(tables: list[dict[str, Any]]) -> str:
     """The launcher a game plays with: its default table's, or "" with no default."""
     default = next((one for one in tables if one.get("default")), None)
