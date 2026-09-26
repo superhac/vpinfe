@@ -1808,6 +1808,33 @@ def running_time(seconds: float) -> str:
     return f"{hours}:{minutes:02}:{rest:02}" if hours else f"{minutes}:{rest:02}"
 
 
+def _removal(context: dict[str, Any], tiers: list[dict[str, Any]] | None,
+             entry: dict[str, Any]) -> tuple[str, str] | None:
+    """The file this lens's Remove takes and who loses it, or None where the lens has no
+    file at its own tier and Remove takes nothing.
+
+    `tiers` is None when the slot's detail could not be read, and then only the file on
+    show is known.
+    """
+    table_id = context["lens"]
+    table = next((one for one in context["tables"] if one.get("id") == table_id), None)
+    own = bool(table_id) and not game_tables.named_as_folder(table, context["game"])
+    tier = media_ownership.TABLE if own else media_ownership.GAME
+    known = tiers is not None
+    if tiers is None:
+        tiers = [{"tier": entry.get("via"), "file": entry.get("file")}] \
+            if entry.get("present") else []
+    at = next((i for i, one in enumerate(tiers) if one.get("tier") == tier), None)
+    if at is None:
+        return None
+    name = str(tiers[at].get("file") or "")
+    if not own:
+        return name, t("console.workbench.remove_asset.game")
+    followed = at + 1 < len(tiers) or not known
+    return name, t("console.workbench.remove_asset.table" if followed
+                   else "console.workbench.remove_asset.table_only")
+
+
 def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
           detail: dict[str, Any] | None, draw: Any,
           differing: list[dict[str, Any]] | None = None, *,
@@ -1830,6 +1857,11 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
     also_here = list(detail.get("tiers") or [])
 
     async def remove() -> None:
+        taken = _removal(context, detail.get("tiers"), entry)
+        if taken is not None and not await confirm.ask(
+                t("console.workbench.remove_asset", name=taken[0]), detail=taken[1],
+                confirm=t("word.remove"), icon=verbs.REMOVE):
+            return
         try:
             result = await offload.io(library.remove_media, game_id, table_id, kind)
         except Exception as exc:

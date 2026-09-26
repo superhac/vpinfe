@@ -213,6 +213,16 @@ def _file_of(table: dict[str, Any]) -> str:
             or re.split(r"[\\/]", path)[-1])
 
 
+def _stem(name: str) -> str:
+    return os.path.splitext(re.split(r"[\\/]", name)[-1])[0].lower()
+
+
+def named_as_folder(table: dict[str, Any] | None, game: dict[str, Any]) -> bool:
+    """Whether the table's file carries its folder's name, in any case."""
+    folder = re.split(r"[\\/]", str(game.get("folder") or "").rstrip("\\/"))[-1]
+    return table is not None and bool(folder) and _stem(_file_of(table)) == folder.lower()
+
+
 def usual_launcher(tables: list[dict[str, Any]]) -> str:
     """The launcher a game plays with: its default table's, or "" with no default."""
     default = next((one for one in tables if one.get("default")), None)
