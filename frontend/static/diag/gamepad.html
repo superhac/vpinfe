@@ -278,21 +278,24 @@
     const mappingsGrid = document.getElementById("mappingsGrid");
     const statusMessage = document.getElementById("statusMessage");
 
-    // Button mapping definitions with friendly names
+    // In the input registry's order, under the key `get_joymaping` reports each one by.
     const buttonMappings = [
-      { key: 'joyleft', label: 'Left' },
-      { key: 'joyright', label: 'Right' },
-      { key: 'joyup', label: 'Up' },
-      { key: 'joydown', label: 'Down' },
-      { key: 'joypageup', label: 'Page Up' },
-      { key: 'joypagedown', label: 'Page Down' },
-      { key: 'joyselect', label: 'Select' },
-      { key: 'joymenu', label: 'Menu' },
-      { key: 'joyback', label: 'Back' },
-      { key: 'joytutorial', label: 'Tutorial' },
-      { key: 'joyexit', label: 'Exit' },
-      { key: 'joycollectionmenu', label: 'Collection Menu' }
+      { key: 'joyleft', word: 'input.previous.label', english: 'Previous' },
+      { key: 'joyright', word: 'input.next.label', english: 'Next' },
+      { key: 'joypageup', word: 'input.page_previous.label', english: 'Page Previous' },
+      { key: 'joypagedown', word: 'input.page_next.label', english: 'Page Next' },
+      { key: 'joyselect', word: 'input.select.label', english: 'Select' },
+      { key: 'joyback', word: 'input.back.label', english: 'Back' },
+      { key: 'joymenu', word: 'input.menu.label', english: 'Menu' },
+      { key: 'joycollectionmenu', word: 'input.collection_menu.label', english: 'Collection Menu' },
+      { key: 'joytutorial', word: 'input.tutorial.label', english: 'Tutorial' },
+      { key: 'joyexit', word: 'input.exit.label', english: 'Exit' }
     ];
+
+    function actionLabel(key) {
+      const { word, english } = buttonMappings.find(m => m.key === key);
+      return vpin.t(word, english);
+    }
 
     let currentMappings = {};
     let activeMappingKey = null;
@@ -316,27 +319,33 @@
         renderMappings();
       } catch (error) {
         console.error("Failed to load mappings:", error);
-        setStatus("Failed to load current mappings", "info");
+        setStatus(vpin.t("frontend.gamepad.could_not_load",
+                         "Could not load the current mappings"), "info");
       }
     }
 
     function renderMappings() {
       mappingsGrid.innerHTML = '';
-      buttonMappings.forEach(({ key, label }) => {
+      buttonMappings.forEach(({ key, word }) => {
         const div = document.createElement("div");
         div.classList.add("mapping-item");
         div.dataset.key = key;
 
+        // `data-i18n` as well, so words that arrive after this draw still reach it.
         const labelDiv = document.createElement("div");
         labelDiv.classList.add("mapping-label");
-        labelDiv.textContent = label;
+        labelDiv.dataset.i18n = word;
+        labelDiv.textContent = actionLabel(key);
 
         const valueDiv = document.createElement("div");
         valueDiv.classList.add("mapping-value");
-        valueDiv.textContent = currentMappings[key]
-          ? vpin.t("frontend.gamepad.button_number", "Button {button}",
-                   { button: currentMappings[key] })
-          : vpin.t("word.none", "None");
+        if (currentMappings[key]) {
+          valueDiv.textContent = vpin.t("frontend.gamepad.button_number", "Button {button}",
+                                        { button: currentMappings[key] });
+        } else {
+          valueDiv.dataset.i18n = "word.none";
+          valueDiv.textContent = vpin.t("word.none", "None");
+        }
 
         div.appendChild(labelDiv);
         div.appendChild(valueDiv);
@@ -358,8 +367,9 @@
       item.classList.add('active');
       activeMappingKey = key;
 
-      const label = buttonMappings.find(m => m.key === key).label;
-      setStatus(`Press a gamepad button to assign to "${label}"`, "waiting");
+      setStatus(vpin.t("frontend.gamepad.press_to_assign",
+                       'Press a gamepad button to assign to "{action}"',
+                       { action: actionLabel(key) }), "waiting");
     }
 
     function setStatus(message, type = "info") {
@@ -370,7 +380,9 @@
     async function assignButton(buttonIndex) {
       if (!activeMappingKey) return;
 
-      const label = buttonMappings.find(m => m.key === activeMappingKey).label;
+      const label = actionLabel(activeMappingKey);
+      const couldNotSave = () => setStatus(
+        vpin.t("frontend.gamepad.could_not_save", "✗ Could not save that mapping"), "info");
 
       try {
         const result = await vpin.call("set_button_mapping", activeMappingKey, buttonIndex);
@@ -378,7 +390,8 @@
         if (result.success) {
           currentMappings[activeMappingKey] = buttonIndex.toString();
           renderMappings();
-          setStatus(`✓ ${label} mapped to button ${buttonIndex}`, "success");
+          setStatus(vpin.t("frontend.gamepad.mapped", "✓ {action} mapped to button {button}",
+                           { action: label, button: buttonIndex }), "success");
 
           // Clear active mapping after success
           setTimeout(() => {
@@ -386,14 +399,17 @@
               item.classList.remove('active');
             });
             activeMappingKey = null;
-            setStatus("Click a mapping below, then press a gamepad button to assign it", "info");
+            setStatus(vpin.t("frontend.gamepad.click_mapping_below_press",
+                             "Click a mapping below, then press a gamepad button to assign it"),
+                      "info");
           }, 2000);
         } else {
-          setStatus(`✗ Failed: ${result.message}`, "info");
+          console.error("Failed to save mapping:", result.message);
+          couldNotSave();
         }
       } catch (error) {
         console.error("Failed to save mapping:", error);
-        setStatus(`✗ Error saving mapping: ${error}`, "info");
+        couldNotSave();
       }
     }
 

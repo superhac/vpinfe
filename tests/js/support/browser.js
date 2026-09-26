@@ -10,9 +10,9 @@ import { dirname, join } from "node:path";
 // rather than returning undefined, because a silent undefined is how a test passes while
 // the real thing is broken.
 
-// What `_serve_core_words` sends a page: the frontend's own namespace and the shared
-// vocabulary. Read from the real catalog so a test asserting on a word is asserting on
-// the word that ships, not on one written twice.
+// What `_serve_core_words` sends a page: the namespaces in `CORE_WORDS`. Read from the
+// real catalog so a test asserting on a word is asserting on the word that ships, not on
+// one written twice.
 // Every timer the stubbed browser hands out, so the file can end even if core left one
 // re-arming. Registered once: `after` at module scope runs when the test file is done.
 const timers = new Set();
@@ -30,7 +30,7 @@ function coreWords() {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
   const all = JSON.parse(readFileSync(join(root, "common/i18n/catalogs/en.json"), "utf8"));
   return Object.fromEntries(Object.entries(all).filter(
-    ([key]) => key.startsWith("frontend.") || key.startsWith("word.")));
+    ([key]) => ["frontend.", "word.", "input."].some((space) => key.startsWith(space))));
 }
 
 function unimplemented(name) {

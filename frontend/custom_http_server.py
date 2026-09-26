@@ -32,7 +32,7 @@ LOOPBACK = "127.0.0.1"
 NOTHING_HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__unmounted__")
 
 # The catalog namespaces a core page is sent.
-CORE_WORDS = ("frontend", "word")
+CORE_WORDS = ("frontend", "word", "input")
 
 class CustomHTTPServer:
     """The loopback server that hands theme assets to the frontend windows."""
