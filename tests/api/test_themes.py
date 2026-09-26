@@ -1,4 +1,4 @@
-"""Theme calls over HTTP when the theme sources cannot be read."""
+"""Theme calls over HTTP."""
 
 from __future__ import annotations
 
@@ -38,6 +38,17 @@ class SourcesThatWillNotLoadTests(TempTree):
 
                 self.assertEqual(answer.status_code, 503)
                 self.assertEqual(answer.json()["error"]["message"], said)
+
+
+class NoThemeNamedTests(TempTree):
+    def test_making_no_theme_active_asks_for_its_name(self) -> None:
+        client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
+        with patch.object(theme_ops, "_loaded"):
+            answer = client.put("/themes/active", json={"key": " "})
+
+        self.assertEqual(answer.status_code, 400)
+        self.assertEqual(answer.json()["error"]["message"],
+                         t("error.themes.name_theme_to_activate"))
 
 
 if __name__ == "__main__":

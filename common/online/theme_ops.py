@@ -250,10 +250,10 @@ def activate(key: str) -> dict[str, Any]:
     caller is expected to say - this endpoint changes a setting rather than restarting
     anything."""
     key = str(key or "").strip()
-    registry = _readable()
-    if not key or not registry.is_installed(key):
-        raise service_errors.RefusedError(
-            t("error.themes.not_installed_2", theme=(key or 'That theme')))
+    if not key:
+        raise service_errors.RefusedError(t("error.themes.name_theme_to_activate"))
+    if not _readable().is_installed(key):
+        raise service_errors.RefusedError(t("error.themes.not_installed", key=key))
     theme_service.set_active_theme(key)
     return {"active": theme_service.get_active_theme()}
 
