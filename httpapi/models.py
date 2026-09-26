@@ -179,6 +179,9 @@ class InfoMaintenance(ApiModel):
     `unreadable` names folders whose `.info` could not be parsed at all. Those games are
     absent from the library entirely, which is the failure most worth saying out loud -
     nothing else on any screen would show them.
+
+    `unwritten` names games whose `.info` could not take the id they were given, each
+    with why. They are in the library under that id until VPinFE restarts.
     """
 
     pending_upgrade: int
@@ -188,6 +191,7 @@ class InfoMaintenance(ApiModel):
     pending_games: list[str]
     restorable_games: list[str]
     unreadable: list[dict]
+    unwritten: list[dict]
 
 
 class ScriptPatches(ApiModel):

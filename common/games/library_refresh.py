@@ -35,7 +35,8 @@ def refresh(reporter: JobReporter | None = None) -> dict:
     games = all_games(reload=True)
     # Taken straight after the read: any request that reaches the catalog gives these
     # an id, and then nothing can tell they are new.
-    unseen = [game for game in games if not game_identity.game_id(game)]
+    unseen = [game for game in games
+              if not (game_identity.game_id(game) or game_identity.held_id(game))]
 
     if reporter:
         reporter.progress(1, 4, t("said.finding_tables"))

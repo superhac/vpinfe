@@ -11,6 +11,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from common.failures import why
 from common.games.game import Game, GameRecord
 from common.games.game_metadata import (
     load_game_meta,
@@ -74,8 +75,19 @@ def ensure_id(game: Game, *, force_new: bool = False) -> str:
     return minted
 
 
-# Folder path -> the id a folder VPinFE could not write to was given, for this run.
+# Folder path -> the id a folder VPinFE could not write to was given, for this run, and why.
 _HELD: dict[str, str] = {}
+_WHY: dict[str, str] = {}
+
+
+def held_id(game: GameRecord) -> str:
+    """The id this game holds for this run because its .info could not take it, or ""."""
+    return _HELD.get(str(getattr(game, "full_path_game", "") or ""), "")
+
+
+def unwritten() -> dict[str, str]:
+    """{folder path: why} for every game holding an id its .info could not take."""
+    return {path: _WHY.get(path, "") for path in _HELD}
 
 
 def _assigned(game: Game) -> str:
@@ -86,9 +98,10 @@ def _assigned(game: Game) -> str:
     if held is None:
         try:
             return ensure_id(game)
-        except Exception:
+        except Exception as exc:
             logger.exception("Could not write an id to %s; it has one until VPinFE "
                              "restarts", game.game_dir_name)
+            _WHY[path] = why(exc)
         held = _HELD[path] = new_id()
     else:
         try:
@@ -96,9 +109,11 @@ def _assigned(game: Game) -> str:
             _vpinfe_section(config)[ID_KEY] = held
             persist_game_meta(game, config)
             del _HELD[path]
+            _WHY.pop(path, None)
             return held
-        except Exception:
+        except Exception as exc:
             logger.debug("Still could not write an id to %s", game.game_dir_name)
+            _WHY[path] = why(exc)
     meta = normalize_meta(game.meta_config)
     game.meta_config = {**meta, ID_SECTION: {**section(meta, ID_SECTION), ID_KEY: held}}
     return held

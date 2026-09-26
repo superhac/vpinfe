@@ -18,7 +18,7 @@ from common.config_store import ConfigStore
 from common.games import derived_tags, locations
 from common.games.collection_store import CollectionStore
 from common.games.game import Game
-from common.games.game_identity import ensure_unique_ids
+from common.games.game_identity import ensure_unique_ids, unwritten
 from common.games.game_identity import game_id as vpinfe_id
 from common.games.game_metadata import (
     GAME_OVERRIDES,
@@ -168,6 +168,14 @@ def unreadable_games() -> list[dict[str, str]]:
     with _LOCK:
         return [dict(row) for parser in _PARSERS.values()
                 for row in parser.get_unreadable_games()]
+
+
+def unwritten_games() -> list[dict[str, str]]:
+    """Games holding an id their .info could not take, each with why, by folder."""
+    held = unwritten()
+    return sorted(({"folder": game.game_dir_name, "error": held[str(game.full_path_game)]}
+                   for game in all_games() if str(game.full_path_game or "") in held),
+                  key=lambda row: row["folder"].lower())
 
 
 def pending_upgrade_game_names() -> list[str]:

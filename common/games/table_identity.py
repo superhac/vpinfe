@@ -31,6 +31,11 @@ logger = logging.getLogger("vpinfe.common.games.table_identity")
 _HELD: dict[str, dict[str, str]] = {}
 
 
+def holds(game_dir: str) -> bool:
+    """Whether this folder's table ids are on the game for this run and not on disk."""
+    return str(game_dir) in _HELD
+
+
 def table_ids(game: GameRecord) -> dict[str, str]:
     """{native key: id} for a game's tables, skipping entries with no id yet.
 

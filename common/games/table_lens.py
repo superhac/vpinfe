@@ -22,6 +22,7 @@ from common.games import (
     library_discovery,
     media_service,
     mods,
+    table_identity,
     tables,
 )
 from common.games.game import Game
@@ -211,7 +212,9 @@ def table_rows(game: Game, row: dict, *, launcher_settings: bool = False,
     `art_settings` where the caller has read `media_settings` once for many games.
     """
     game_dir = Path(row.get("game_dir", ""))
-    described = table_settings(game_dir)
+    described = (tables.table_entries(game.meta_config)
+                 if table_identity.holds(str(game.full_path_game or ""))
+                 else table_settings(game_dir))
 
     files, subdirs = asset_resolver.folder_listing(game_dir)
     on_disk = table_names(files)

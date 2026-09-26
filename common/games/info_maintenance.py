@@ -126,7 +126,7 @@ def upgrade_library(
         except (InvalidMetaConfigError, OSError) as exc:
             result["failed"] += 1
             result["failures"].append((game_dir.name, why(exc)))
-            log(f"Left alone, could not be read: {game_dir.name}")
+            log(f"Could not upgrade {game_dir.name}: {why(exc)}")
             continue
         result["upgraded"] += 1
         log(f"Upgraded: {game_dir.name}")
@@ -210,18 +210,15 @@ def _files(count: int) -> str:
 
 
 def _upgrade_summary(result: UpgradeResult) -> str:
-    if not result["upgraded"]:
+    if not result["upgraded"] and not result["failed"]:
         return "Nothing to upgrade - every .info file is already on the current format."
-    summary = (
-        f"Upgraded {_files(result['upgraded'])}. Ratings, favorites, tags and play "
-        "counts came across unchanged, and a backup of each was saved."
-    )
+    said = []
+    if result["upgraded"]:
+        said.append(f"Upgraded {_files(result['upgraded'])}. Ratings, favorites, tags and "
+                    "play counts came across unchanged, and a backup of each was saved.")
     if result["failed"]:
-        summary += (
-            f" {_games(result['failed'])} could not be read and were left exactly as "
-            "they were."
-        )
-    return summary
+        said.append(f"Could not upgrade {_files(result['failed'])}, and left each as it was.")
+    return " ".join(said)
 
 
 def _restore_summary(result: RestoreResult) -> str:

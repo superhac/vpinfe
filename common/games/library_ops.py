@@ -249,8 +249,9 @@ def vps_rollup() -> dict[str, Any]:
 
 
 def info_maintenance() -> dict[str, Any]:
-    """The three states a `.info` file can be in that are worth acting on, and the
-    folders with no readable one at all. Counted off the library already in memory."""
+    """The three states a `.info` file can be in that are worth acting on, the folders
+    with no readable one at all, and the games whose id theirs could not take. Counted
+    off the library already in memory."""
     counts = game_repository.info_maintenance_counts()
     return {"pending_upgrade": counts.get("pending_upgrade", 0),
             "restorable": counts.get("restorable", 0),
@@ -258,7 +259,8 @@ def info_maintenance() -> dict[str, Any]:
             "newest_backup": game_service.newest_backup_stamp() or "",
             "pending_games": game_service.pending_upgrade_game_names(),
             "restorable_games": game_service.restorable_game_names(),
-            "unreadable": game_repository.unreadable_games()}
+            "unreadable": game_repository.unreadable_games(),
+            "unwritten": game_repository.unwritten_games()}
 
 
 def offered_patches() -> dict[str, Any]:
