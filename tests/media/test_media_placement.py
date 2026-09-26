@@ -139,8 +139,28 @@ class RetierTests(PlacementTests):
                 media_placement.retier(self.root, kind, BUILD, GAME)
 
                 self.assertEqual(b"shows", (self.root / "medias" / moved).read_bytes())
-                behind.unlink()
-                (self.root / "medias" / moved).unlink()
+                for path in media_placement.displaced(self.root, kind, GAME, ".png"):
+                    path.unlink()
+
+    def test_the_rest_of_the_family_moves_behind_it(self) -> None:
+        """Left at the table's tier, a file behind the one that moved goes on serving
+        that table as its own."""
+        shows = self.root / "medias" / f"(Flyer) {BUILD}.png"
+        family = (shows, self.root / "medias" / f"(Flyer) {BUILD}.jpg",
+                  self.root / f"(Flyer) {BUILD}.png",
+                  self.root / "medias" / f"(GameInfo) {BUILD}.png")
+        for path in family:
+            path.write_bytes(path.name.encode())
+
+        media_placement.retier(self.root, "flyer", BUILD, GAME)
+
+        self.assertEqual([], media_placement.displaced(self.root, "flyer", BUILD, ".png"))
+        self.assertEqual(["(Flyer) MyGame.jpg", "(Flyer) MyGame.png", "(GameInfo) MyGame.png"],
+                         self._medias())
+        self.assertEqual(shows.name.encode(),
+                         (self.root / "medias" / "(Flyer) MyGame.png").read_bytes())
+        self.assertEqual(family[2].name.encode(),
+                         (self.root / "(Flyer) MyGame.png").read_bytes())
 
     def test_moving_a_file_that_is_not_there_is_refused(self) -> None:
         with self.assertRaises(UnplaceableError) as caught:

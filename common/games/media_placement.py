@@ -116,11 +116,12 @@ def place(game_dir: str | Path, kind: str, stem: str, source: str | Path) -> Pat
 
 
 def retier(game_dir: str | Path, kind: str, from_stem: str, to_stem: str) -> Path:
-    """Move a placed file to the other tier by renaming it, keeping its extension.
+    """Move a tier's files for this kind to the other tier by renaming them, and return
+    where the one that shows landed.
 
     The tier is the filename, so changing who a file serves is a rename rather than a
-    re-upload. Routed through `place`, so a file arriving at the new tier displaces
-    what is there by exactly the rule a drop would.
+    re-upload. The one that shows is routed through `place`, so it displaces what is
+    there by exactly the rule a drop would.
     """
     game_dir = Path(game_dir)
     sources = list(_family_at_tier(game_dir, kind, from_stem))
@@ -129,13 +130,20 @@ def retier(game_dir: str | Path, kind: str, from_stem: str, to_stem: str) -> Pat
         raise UnplaceableError(t("error.games.nothing_in_slot_to_move",
                                  slot=spec.label if spec else kind, name=from_stem))
 
-    source = sources[0]
+    source, *behind = sources
     target = place(game_dir, kind, to_stem, source)
     if source != target:
         try:
             source.unlink()
         except OSError:
             logger.warning("Placed %s but could not remove %s", target, source)
+    for path in behind:
+        token = path.name[:len(path.name) - len(from_stem) - len(path.suffix)]
+        moved = path.with_name(f"{token}{to_stem}{path.suffix}")
+        try:
+            path.rename(moved)
+        except OSError:
+            logger.warning("Could not move %s to %s", path, moved)
     return target
 
 
