@@ -242,8 +242,9 @@ class Registry:
             record.manifest = _read_manifest(directory)
             record.name = record.manifest.name
         except ManifestError as exc:
-            logger.error("Extension %s: %s", record.name, exc)
-            record.became(FAILED, "extension.reason.refused_manifest", detail=str(exc))
+            logger.error("Extension %s: %s", record.name,
+                         i18n.t_source(exc.key, **exc.values), exc_info=exc.__cause__)
+            record.became(FAILED, exc.key, **exc.values)
             return self._remember(record)
         i18n.own(f"ext.{record.name}", directory / "i18n")
 
@@ -401,8 +402,7 @@ def _directories(root: Path | str) -> Iterator[Path]:
 def _read_manifest(directory: Path) -> Manifest:
     manifest = read_manifest(directory)
     if manifest.name != directory.name:
-        raise ManifestError(f"{directory.name} holds a manifest calling itself "
-                            f"{manifest.name}; the folder is the name")
+        raise ManifestError("extension.reason.manifest_names_another", name=manifest.name)
     return manifest
 
 

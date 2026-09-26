@@ -42,6 +42,8 @@ BUILD = {
     "error.launchers.no_app_called_build": "this VPinFE build",
     "error.locations.no_location_kind_called": "this VPinFE build",
     "ext.library_importer.reason.nothing_readable": "this VPinFE build",
+    "extension.reason.manifest_platform_not_offered": "this VPinFE build",
+    "extension.reason.manifest_unknown_capabilities": "this VPinFE build",
     "frontend.buildmeta.build_metadata_started": "the verb",
     "frontend.mainmenu.build_metadata": "the verb",
     "frontend.mainmenu.build_metadata_options": "the verb",

@@ -156,12 +156,15 @@ SPEAKS_TO_A_SURFACE = {
     "common/games/config_backups.py": frozenset({"raise", "refusal"}),
     "common/games/asset_resolver.py": frozenset({"reason"}),
     "common/games/table_lens.py": frozenset({"reason"}),
+    "common/extensions/contract.py": frozenset({"raise"}),
+    "common/extensions/host.py": frozenset({"raise"}),
 }
 
 # Said to whoever wrote the calling code, which has a bug to fix rather than a person
 # something to do.
-SAID_TO_A_DEVELOPER = {"AttributeError", "ContractError", "NotThisDeviceError",
-                       "NotVPinFEError", "RuntimeError", "TypeError"}
+SAID_TO_A_DEVELOPER = {"AttributeError", "ContractError", "ImportError",
+                       "ModuleNotFoundError", "NotThisDeviceError", "NotVPinFEError",
+                       "RuntimeError", "TypeError"}
 # A value refused, which a module's caller may show as it was said. One that does lists
 # `refusal`.
 REFUSED = "ValueError"
@@ -1067,6 +1070,10 @@ class TestPanelFactLabels(unittest.TestCase):
         self.assertEqual(offenders, [], "a fact's label belongs in the catalog too")
 
 
+# Each takes a catalog key first and the values for its slots by name.
+TAKES_A_KEY = {"t", "ManifestError"}
+
+
 class TestEveryKeyIsServed(unittest.TestCase):
     """`t("a.key.nobody.added")` renders the key. Two shipped because a script that
     rewrote the source aborted before it wrote the catalog, so the code asked for
@@ -1082,7 +1089,7 @@ class TestEveryKeyIsServed(unittest.TestCase):
                     continue
                 for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
                     if not isinstance(node, ast.Call) \
-                       or getattr(node.func, "id", None) != "t":
+                       or getattr(node.func, "id", None) not in TAKES_A_KEY:
                         continue
                     if not node.args or not isinstance(node.args[0], ast.Constant):
                         continue
@@ -1154,7 +1161,7 @@ class TestParametersMatchTheirTemplate(unittest.TestCase):
                     continue
                 for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
                     if not isinstance(node, ast.Call) \
-                       or getattr(node.func, "id", None) != "t":
+                       or getattr(node.func, "id", None) not in TAKES_A_KEY:
                         continue
                     if not node.args or not isinstance(node.args[0], ast.Constant):
                         continue

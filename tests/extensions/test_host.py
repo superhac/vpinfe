@@ -79,7 +79,24 @@ class LoadTests(HostCase):
             record = self.registry.load(directory)
 
         self.assertEqual(record.state, host.FAILED)
-        self.assertIn("the folder is the name", record.reason)
+        self.assertEqual(record.as_dict()["reason_key"],
+                         "extension.reason.manifest_names_another")
+        self.assertEqual(record.reason,
+                         i18n.t("extension.reason.manifest_names_another", name="sample"))
+
+    def test_a_refused_manifest_is_read_in_the_language_set_when_it_is_shown(self) -> None:
+        directory = self.make("unreadable")
+        (directory / "extension.json").write_text("{", encoding="utf-8")
+        with self.assertLogs(self.LOG, "ERROR") as logged:
+            record = self.registry.load(directory)
+        english = record.reason
+
+        self.addCleanup(i18n.set_language, i18n.language())
+        i18n.set_language("qps")
+
+        self.assertEqual(english, "Its manifest cannot be read")
+        self.assertIn("JSONDecodeError", logged.output[0])
+        self.assertNotEqual(record.reason, english)
 
     def test_a_package_with_no_register_is_refused(self) -> None:
         with self.assertLogs(self.LOG, "ERROR") as logged:

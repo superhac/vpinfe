@@ -49,7 +49,12 @@ FEATURES: frozenset[str] = frozenset(install_identity.FEATURES)
 
 
 class ManifestError(ValueError):
-    """The manifest is not one. Carries the sentence shown to whoever installed it."""
+    """The manifest is not one. `key` is the catalog line that says why, to whoever
+    installed it, and `values` fill its slots."""
+
+    def __init__(self, key: str, **values: str) -> None:
+        super().__init__(key)
+        self.key, self.values = key, values
 
 
 class ContractError(RuntimeError):
@@ -117,51 +122,49 @@ def _strings(raw: Any, field: str) -> tuple[str, ...]:
     if raw is None:
         return ()
     if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
-        raise ManifestError(f"{field} has to be a list of strings")
+        raise ManifestError("extension.reason.manifest_not_a_list", field=field)
     return tuple(str(item).strip() for item in raw if str(item).strip())
 
 
-def parse(raw: Any, *, source: str = "") -> Manifest:
-    """Read a manifest, or say what is wrong with it in a sentence a user can act on."""
-    where = f" in {source}" if source else ""
+def parse(raw: Any) -> Manifest:
+    """Read a manifest, or say what is wrong with it in a line a user can act on."""
     if not isinstance(raw, dict):
-        raise ManifestError(f"The manifest{where} is not an object")
+        raise ManifestError("extension.reason.manifest_unreadable")
 
     name = str(raw.get("name") or "").strip()
     if not NAME_PATTERN.match(name):
-        raise ManifestError(f"{name or '(unnamed)'}{where}: a name is lowercase letters, "
-                            "digits, hyphen and underscore, starting with a letter")
+        raise ManifestError("extension.reason.manifest_bad_name")
 
     try:
         abi = int(raw.get("requires_platform", ""))
     except (TypeError, ValueError):
-        raise ManifestError(f"{name}: requires_platform has to be a number") from None
+        raise ManifestError("extension.reason.manifest_platform_unsaid") from None
     if abi not in SUPPORTED_ABI:
-        raise ManifestError(f"{name} was built for platform {abi}; this build offers "
-                            f"{', '.join(str(v) for v in sorted(SUPPORTED_ABI))}")
+        raise ManifestError("extension.reason.manifest_platform_not_offered", abi=str(abi),
+                            offered=", ".join(str(v) for v in sorted(SUPPORTED_ABI)))
 
     provides = _strings(raw.get("provides"), "provides")
     for action in provides:
         if not ACTION_PATTERN.match(action):
-            raise ManifestError(f"{name}: {action!r} is not an action name")
+            raise ManifestError("extension.reason.manifest_bad_action", action=action)
 
     capabilities = _strings(raw.get("capabilities"), "capabilities")
     unknown = sorted(set(capabilities) - CAPABILITIES)
     if unknown:
-        raise ManifestError(f"{name} asks for capabilities this build does not offer: "
-                            f"{', '.join(unknown)}")
+        raise ManifestError("extension.reason.manifest_unknown_capabilities",
+                            capabilities=", ".join(unknown))
 
     platforms = _strings(raw.get("platforms"), "platforms")
     unknown = sorted(set(platforms) - PLATFORMS)
     if unknown:
-        raise ManifestError(f"{name} names platforms that do not exist: "
-                            f"{', '.join(unknown)}")
+        raise ManifestError("extension.reason.manifest_unknown_platforms",
+                            platforms=", ".join(unknown))
 
     features = _strings(raw.get("requires_features"), "requires_features")
     unknown = sorted(set(features) - FEATURES)
     if unknown:
-        raise ManifestError(f"{name} needs features that do not exist: "
-                            f"{', '.join(unknown)}")
+        raise ManifestError("extension.reason.manifest_unknown_features",
+                            features=", ".join(unknown))
 
     return Manifest(
         name=name,
@@ -184,8 +187,7 @@ def read_manifest(directory: Path) -> Manifest:
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        raise ManifestError(f"No {MANIFEST_NAME} in {path.parent.name}") from None
+        raise ManifestError("extension.reason.manifest_missing", file=MANIFEST_NAME) from None
     except (OSError, ValueError) as exc:
-        raise ManifestError(f"{path.parent.name}: {MANIFEST_NAME} could not be "
-                            f"read: {exc}") from None
-    return parse(raw, source=f"{path.parent.name}/{MANIFEST_NAME}")
+        raise ManifestError("extension.reason.manifest_unreadable") from exc
+    return parse(raw)
