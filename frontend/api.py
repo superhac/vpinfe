@@ -514,7 +514,7 @@ class API:
         return public_name(self.current_collection) or 'None'
 
     def _filter_option(self, key: str) -> list[str]:
-        return game_state.filter_options(self.all_games)[key]
+        return game_state.filter_options(self.library.whole())[key]
 
     def get_filter_letters(self) -> list[str]:
         return self._filter_option(_FILTER_OPTION_KEYS["letters"])

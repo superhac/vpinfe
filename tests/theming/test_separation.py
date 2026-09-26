@@ -362,6 +362,27 @@ class SeparationTests(TempTree):
         self.assertEqual((count, shown), (1, ["Twilight Zone"]))
         self.assertEqual(failures, [])
 
+    def test_a_device_s_filter_menu_offers_the_whole_hub_library(self) -> None:
+        with LiveInstance(self.library_root) as library:
+            library.wait_for_api()
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+            ids = {entry["game"]["name"]: entry["game"]["id"] for entry in
+                   _fetch(f"{library_api}/api/v1/library/entries")["entries"]}
+            library.post("/api/v1/collections", {"name": "Hub Picks",
+                                                 "games": [ids["Twilight Zone"]]})
+
+            with LiveInstance(self.device_root,
+                              extra_settings={("network", "library_url"): library_api}) as device:
+                device.wait_for_api()
+                device.library_assets_port = library.ports["assets"]
+
+                (_, letters), failures = self._evaluate(device, (
+                    "vpin.call('set_tables_by_collection', 'Hub Picks')",
+                    "vpin.call('get_filter_letters')"))
+
+        self.assertEqual(letters, ["A", "M", "T"])
+        self.assertEqual(failures, [])
+
     def _evaluate(self, device: LiveInstance, steps: tuple[str | Callable[[], object], ...]):
         """Open the device's playfield window and take each step, in order, once the
         theme is ready: a string is evaluated in the page, anything else is called here."""

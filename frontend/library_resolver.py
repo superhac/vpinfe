@@ -126,6 +126,11 @@ class LibraryResolver:
                          exc_info=True)
         return self.all_games
 
+    def whole(self) -> list[Any]:
+        if self._remote and self._whole is not None:
+            return self._whole
+        return self.all_games
+
     def collections(self) -> CollectionStore:
         """This install's collections. One place to ask, so the view and the resolver
         behind it cannot end up reading two different files."""
