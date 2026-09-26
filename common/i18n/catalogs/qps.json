@@ -1289,6 +1289,7 @@
   "console.renderers.picture": "Ţĥûɱƀñàîŀš",
   "console.renderers.state": "Šţàţè",
   "console.screens.at": "{width} ẋ {height} àţ {x}, {y}",
+  "console.screens.named": "{name} - {screen}",
   "console.screens.not_connected": "Ñöţ çöññèçţèđ",
   "console.screens.numbered": "Šçřèèñ {number}",
   "console.section.about": "Àƀöûţ",

@@ -65,6 +65,7 @@ from console import (
     offload,
     panel,
     row_drag,
+    screens,
     stars,
     table_features,
     tag_chips,
@@ -4819,9 +4820,9 @@ async def _setting_entries(context: dict[str, Any],
         await more.ready(values)
     groups = context.get("config_groups") or []
     clashing = conflicts(groups, values)
-    redraw_on = {*redraw_on, *rival_switches(groups),
-                 *(f.key for _, _, fields in blocks for f in fields
-                   if getattr(f, "reported", ()))}
+    named = {f.key for _, _, fields in blocks for f in fields if getattr(f, "reported", ())}
+    redraw_on = {*redraw_on, *rival_switches(groups), *named}
+    seen = await offload.io(screens.connected) if named else []
     rows: dict[str, dict] = {}
     redraws: list[Callable[[], None]] = []
     shown = dict(values)
@@ -4909,7 +4910,7 @@ async def _setting_entries(context: dict[str, Any],
             option, settings_page.value_for(option, held.get("value")),
             save(field.key, option["type"] in TYPED), writable=not playing and offered(field),
             check=_unreported(held.get("value"), reported, app_name),
-            suggestions={REPORTED: dict(zip(reported, reported, strict=True))},
+            suggestions={REPORTED: screens.reported(reported, seen)},
             varies=bool(held.get("varies"))), held, field
 
     def marks(parts: Sequence[Part], joiner: str = "") -> Callable[[], None] | None:

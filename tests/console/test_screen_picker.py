@@ -10,7 +10,7 @@ from screeninfo import Monitor
 from common import config_schema, config_service
 from common.host import display_service
 from common.i18n import t
-from console import panel, settings
+from console import panel, screens, settings, workbench
 from frontend.chromium_manager import MonitorInfo
 
 WINDOWS = ("windows.playfield", "windows.backglass", "windows.score_view")
@@ -33,11 +33,11 @@ def _option(section: str) -> dict[str, Any]:
 
 
 class PickedFromTheScreensTests(unittest.TestCase):
-    def _drawn(self, section: str, value: Any, screens: list[Any]) -> tuple[Mock, Mock, Mock]:
+    def _drawn(self, section: str, value: Any, found: list[Any]) -> tuple[Mock, Mock, Mock]:
         save = Mock()
         with patch.object(panel, "select") as select, patch.object(panel, "number") as number:
             settings.control_for(_option(section), value, save,
-                                 suggestions={config_schema.SUGGEST_SCREENS: screens})
+                                 suggestions={config_schema.SUGGEST_SCREENS: found})
         return select, number, save
 
     def test_each_window_s_screen_is_one_of_the_screens_and_not_a_number(self) -> None:
@@ -116,6 +116,61 @@ class TheScreensAreReadForThePageTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(offered[config_schema.SUGGEST_SCREENS], [WIDE, TALL])
         read.assert_called_once_with(refresh=True)
+
+
+class AReportedDisplayShowsItsScreenTests(unittest.IsolatedAsyncioTestCase):
+    NAMED = "Built-in Retina Display [0, 0]"
+    FIELD = SimpleNamespace(key="Player.PlayfieldDisplay", type="text", label="Display",
+                            default="", choices=(), blank="",
+                            reported=(NAMED, "Built-in Retina Display"),
+                            scopes=("launcher", "entry"), help="", description="")
+
+    def test_a_name_with_a_position_shows_the_screen_there(self) -> None:
+        self.assertEqual(
+            screens.reported([self.NAMED, "Studio Display [1728, -200]"], [BUILT_IN, BESIDE]),
+            {self.NAMED: "Built-in Retina Display - 1728 x 1117 at 0, 0",
+             "Studio Display [1728, -200]": "Studio Display - 1920 x 1080 at 1728, -200"})
+
+    def test_a_bare_name_or_one_where_no_screen_is_stays_as_vpx_said_it(self) -> None:
+        names = ["Built-in Retina Display", "LG TV [3648, 0]"]
+
+        self.assertEqual(screens.reported(names, [BUILT_IN, BESIDE]),
+                         dict(zip(names, names, strict=True)))
+
+    def test_the_playfield_reads_the_same_on_both_pages(self) -> None:
+        on_hardware = screens.choices([BUILT_IN, BESIDE], "0", blank=False)["0"]
+
+        self.assertIn(on_hardware, screens.reported([self.NAMED], [BUILT_IN, BESIDE])[self.NAMED])
+
+    async def _offered(self, field: Any) -> tuple[Mock, Mock]:
+        values = {field.key: {"value": self.NAMED, "scope": "launcher"}}
+        context = {"library": Mock(), "launcher": {"launcher_id": "probe"},
+                   "config_scope": "launcher", "rebuild": AsyncMock()}
+        self.enterContext(patch.object(workbench, "ui"))
+        self.enterContext(patch.object(workbench, "_config_values",
+                                       new=AsyncMock(return_value=values)))
+        self.enterContext(patch.object(workbench, "_set_by_tables",
+                                       new=AsyncMock(return_value={})))
+        self.enterContext(patch.object(
+            workbench.run, "io_bound",
+            new=AsyncMock(side_effect=lambda call, *args, **kwargs: call(*args, **kwargs))))
+        read = self.enterContext(patch.object(display_service, "get_display_monitors",
+                                              return_value=[BUILT_IN, BESIDE]))
+        control_for = self.enterContext(patch.object(workbench.settings_page, "control_for"))
+        await workbench._setting_entries(context, [("", "", [field])])
+        return control_for, read
+
+    async def test_the_launcher_page_offers_each_name_with_its_screen(self) -> None:
+        control_for, _ = await self._offered(self.FIELD)
+
+        self.assertEqual(control_for.call_args.kwargs["suggestions"][workbench.REPORTED],
+                         {self.NAMED: "Built-in Retina Display - 1728 x 1117 at 0, 0",
+                          "Built-in Retina Display": "Built-in Retina Display"})
+
+    async def test_the_screens_are_not_read_for_a_setting_vpx_reports_nothing_for(self) -> None:
+        _, read = await self._offered(SimpleNamespace(**{**vars(self.FIELD), "reported": ()}))
+
+        read.assert_not_called()
 
 
 if __name__ == "__main__":

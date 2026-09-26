@@ -1289,6 +1289,7 @@
   "console.renderers.picture": "Thumbnails",
   "console.renderers.state": "State",
   "console.screens.at": "{width} x {height} at {x}, {y}",
+  "console.screens.named": "{name} - {screen}",
   "console.screens.not_connected": "Not connected",
   "console.screens.numbered": "Screen {number}",
   "console.section.about": "About",

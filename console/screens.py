@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+import re
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
 from common.host import display_service
 from common.i18n import t
 from console import panel
+
+_POSITIONED = re.compile(r"(?P<name>.+?)\s*\[\s*(?P<x>-?\d+),\s*(?P<y>-?\d+)\s*\]")
 
 
 def connected() -> list[Any]:
@@ -18,6 +21,17 @@ def connected() -> list[Any]:
 def described(screen: Any) -> str:
     return t("console.screens.at", width=screen.width, height=screen.height,
              x=screen.x, y=screen.y)
+
+
+def reported(names: Iterable[str], screens: Iterable[Any]) -> dict[str, str]:
+    at = {(screen.x, screen.y): screen for screen in screens}
+    labels = {}
+    for name in names:
+        found = _POSITIONED.fullmatch(name)
+        screen = at.get((int(found["x"]), int(found["y"]))) if found else None
+        labels[name] = (name if found is None or screen is None else
+                        t("console.screens.named", name=found["name"], screen=described(screen)))
+    return labels
 
 
 def choices(screens: Sequence[Any], value: str, *, blank: bool) -> dict[str, str]:
