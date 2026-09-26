@@ -80,7 +80,6 @@ from console import launchers as launchers_page
 from console import locations as locations_page
 from console import settings as settings_page
 from console import themes as themes_page
-from console.api import ApiError
 from console.data import Library, config_groups, read_state, tag_source
 
 logger = logging.getLogger("vpinfe.console.workbench")
@@ -1633,7 +1632,7 @@ async def _media_block(context: dict[str, Any]) -> None:
         overrides = ({} if table_id else
                      await run.io_bound(library.media_overrides, game_id))
         offered = await offload.io(_offered_media, context)
-        kept = await offload.io(_kept_kinds, context, "media")
+        kept = _kept_kinds(context, "media")
         holder.clear()
         with holder:
             mediamap.build(entries, game_id, table_id or "",
@@ -1741,22 +1740,9 @@ def _preview(src: str, kind: str, label: str) -> None:
 
 
 def _kept_kinds(context: dict[str, Any], family: str) -> set[str] | None:
-    """The kinds this library collects, or None where the answer cannot be had.
-
-    None rather than an empty set, and the difference matters: filtering to an empty
-    set blanks the surface, which is what a config that could not be read would
-    otherwise do. Empty is folded into None for the same reason - a library keeping no
-    kinds at all is not a state anybody can be in, and every way of reaching it here is
-    a failure to read rather than an answer.
-
-    Narrow on purpose. A blanket except here swallowed a missing attribute and the
-    filter silently did nothing, which looks exactly like a library that keeps
-    everything - the one failure this cannot afford to be quiet about.
-    """
-    try:
-        return set(context["library"].kept_kinds()[family]) or None
-    except (ApiError, OSError):
-        return None
+    """The kinds this library collects, or None to filter nothing: an empty set would
+    blank the surface."""
+    return set(context["library"].kept_kinds()[family]) or None
 
 
 def _offered_media(context: dict[str, Any]) -> dict[str, int]:
@@ -2821,7 +2807,7 @@ async def _assets_block(context: dict[str, Any]) -> None:
     game = context["game"]
     chosen = next((item for item in context["tables"]
                    if item.get("id") == context["lens"]), None)
-    kept = await offload.io(_kept_kinds, context, "asset")
+    kept = _kept_kinds(context, "asset")
     resolved = _only_kept((chosen or {}).get("assets") or {}, kept)
     folder = _only_kept(game.get("assets") or {}, kept)
 

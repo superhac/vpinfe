@@ -80,26 +80,26 @@ class KeptKindsTests(unittest.TestCase):
         return library
 
     def test_a_hidden_kind_is_not_kept(self) -> None:
-        kept = self._library({"hidden_media_kinds": ["topper"]}).kept_kinds()
+        kept = self._library({"hidden_media_kinds": ["topper"]}).load_kept_kinds()
 
         self.assertNotIn("topper", kept["media"])
         self.assertIn("wheel", kept["media"])
 
     def test_a_kind_nobody_hid_is_kept(self) -> None:
         """Including every kind a config written by an older build never mentioned."""
-        kept = self._library({}).kept_kinds()
+        kept = self._library({}).load_kept_kinds()
 
         self.assertEqual(kept["media"], set(media_label_map()))
 
     def test_the_rom_can_be_hidden(self) -> None:
         """An EM table declares none, and required-ness belongs to the kind while
         whether it applies belongs to the table."""
-        kept = self._library({"hidden_asset_kinds": ["rom"]}).kept_kinds()
+        kept = self._library({"hidden_asset_kinds": ["rom"]}).load_kept_kinds()
 
         self.assertNotIn("rom", kept["asset"])
 
     def test_the_comma_string_the_ini_holds_reads_the_same(self) -> None:
-        kept = self._library({"hidden_media_kinds": "topper, wheel"}).kept_kinds()
+        kept = self._library({"hidden_media_kinds": "topper, wheel"}).load_kept_kinds()
 
         self.assertNotIn("topper", kept["media"])
         self.assertNotIn("wheel", kept["media"])
@@ -107,6 +107,55 @@ class KeptKindsTests(unittest.TestCase):
     def test_hiding_a_kind_this_build_never_heard_of_changes_nothing(self) -> None:
         """A config written by a newer build must not subtract a name from a set that
         does not contain it and leave the reader short."""
-        kept = self._library({"hidden_media_kinds": ["nonesuch"]}).kept_kinds()
+        kept = self._library({"hidden_media_kinds": ["nonesuch"]}).load_kept_kinds()
 
         self.assertEqual(kept["media"], set(media_label_map()))
+
+
+class HeldKeptKindsTests(unittest.TestCase):
+    """A draw is on the event loop, where a read over HTTP waits on the process making it."""
+
+    def setUp(self) -> None:
+        self.client = Mock()
+        self.client.library_policy.return_value = {"hidden_media_kinds": ["topper"]}
+        self.library = Library(self.client)
+
+    def test_a_draw_asks_nothing(self) -> None:
+        self.library.load_kept_kinds()
+
+        kept = self.library.kept_kinds()
+
+        self.assertNotIn("topper", kept["media"])
+        self.assertEqual(self.client.library_policy.call_count, 1)
+
+    def test_before_the_read_every_kind_is_kept(self) -> None:
+        self.assertEqual(self.library.kept_kinds()["media"], set(media_label_map()))
+        self.client.library_policy.assert_not_called()
+
+    def test_a_config_write_leaves_them_held(self) -> None:
+        self.library.load_kept_kinds()
+
+        self.library.put_config({"relative_dates": False})
+        self.library.load_kept_kinds()
+
+        self.assertNotIn("topper", self.library.kept_kinds()["media"])
+        self.assertEqual(self.client.library_policy.call_count, 1)
+
+    def test_a_policy_write_holds_what_it_answered(self) -> None:
+        self.library.load_kept_kinds()
+        self.client.put_library_policy.return_value = {"hidden_media_kinds": ["wheel"]}
+
+        self.library.put_library_policy({"hidden_media_kinds": ["wheel"]})
+
+        kept = self.library.kept_kinds()["media"]
+        self.assertEqual(("topper" in kept, "wheel" in kept), (True, False))
+        self.assertEqual(self.client.library_policy.call_count, 1)
+
+    def test_a_policy_write_that_fails_leaves_them_as_they_were(self) -> None:
+        self.library.load_kept_kinds()
+        self.client.put_library_policy.side_effect = OSError("refused")
+
+        with self.assertRaises(OSError):
+            self.library.put_library_policy({"hidden_media_kinds": []})
+
+        self.assertNotIn("topper", self.library.kept_kinds()["media"])

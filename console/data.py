@@ -80,6 +80,18 @@ def _listed(section: dict, key: str) -> set[str]:
     return {str(item).strip() for item in value if str(item).strip()}
 
 
+def _kept_of(policy: dict) -> dict[str, set[str]]:
+    """Which kinds of file a library collects: what to enumerate, never what exists.
+
+    What this build knows less what is hidden, the direction that survives an upgrade:
+    a kind added later is in nobody's hidden list, so it arrives switched on.
+    """
+    return {
+        "media": set(media_label_map()) - _listed(policy, "hidden_media_kinds"),
+        "asset": {spec.kind for spec in ASSET_SPECS} - _listed(policy, "hidden_asset_kinds"),
+    }
+
+
 def tag_source(said: dict[str, Any]) -> str:
     return t("console.tags.source", extension=str(said.get("display_name")
                                                  or said.get("extension") or ""),
@@ -194,7 +206,7 @@ class Library:
         started = time.perf_counter()
         self.games = self._client.games()
         self.media = self._shared_media()
-        self.kept_kinds()
+        self.load_kept_kinds()
         self.read_metadata_state()
         self.read_tags()
         # Info only when it took long enough to be worth knowing. This runs on every
@@ -524,7 +536,6 @@ class Library:
         return result
 
     def put_config(self, changes: dict) -> dict:
-        self._kept = None
         self._collections = None
         return self._client.put_config(changes)
 
@@ -953,11 +964,12 @@ class Library:
         """Read the media lens. Off the event loop, once per session.
 
         The kept kinds are read here too, because `media_rows` filters on them while
-        the page is drawing - which is on the loop, where the config call is refused.
+        the page is drawing - which is on the loop, where the policy read is refused.
         """
         rows = self._media_rows
         if rows is None:
             rows = self._media_rows = self._client.all_media()
+        self.load_kept_kinds()
         return self._kept_media(rows)
 
     def media_rows(self) -> list[dict[str, Any]]:
@@ -982,6 +994,7 @@ class Library:
         rows = self._asset_rows
         if rows is None:
             rows = self._asset_rows = self._client.all_assets()
+        self.load_kept_kinds()
         return self._kept_assets(rows)
 
     def asset_rows(self) -> list[dict[str, Any]]:
@@ -1108,27 +1121,16 @@ class Library:
         return self._client.sync_vps()
 
     def kept_kinds(self) -> dict[str, set[str]]:
-        """Which kinds of file this library collects, as {"media": {...}, "asset": {...}}.
-
-        A library that keeps no toppers should not be told about toppers - not counted
-        against them, not shown an empty tile, not offered one from the catalog. This
-        answers what to enumerate; it never answers what exists. A file already on disk
-        still resolves, and a table that will not launch still will not.
-
-        Derived by subtracting what is hidden from what this build knows, because that
-        is the direction that survives an upgrade: a kind added later is in nobody's
-        hidden list, so it arrives switched on.
-
-        Held for the page's life and dropped on a write, like the schema beside it: it
-        is read on every panel draw and changes only when somebody changes it.
-        """
+        """What `load_kept_kinds` or a policy write last held, and every kind before
+        either. Asks nothing, so a draw on the event loop may call it."""
         if self._kept is None:
-            policy = self.library_policy()
-            self._kept = {
-                "media": set(media_label_map()) - _listed(policy, "hidden_media_kinds"),
-                "asset": ({spec.kind for spec in ASSET_SPECS}
-                          - _listed(policy, "hidden_asset_kinds")),
-            }
+            return _kept_of({})
+        return self._kept
+
+    def load_kept_kinds(self) -> dict[str, set[str]]:
+        """Read the kept kinds, once. Off the loop."""
+        if self._kept is None:
+            self._kept = _kept_of(self.library_policy())
         return self._kept
 
     def library_policy(self) -> dict:
@@ -1137,9 +1139,10 @@ class Library:
         return self._client.library_policy()
 
     def put_library_policy(self, changes: dict) -> dict:
-        self._kept = None
         self._hidden_checks = None
-        return self._client.put_library_policy(changes)
+        answer = self._client.put_library_policy(changes)
+        self._kept = _kept_of(answer)
+        return answer
 
     def offered_media(self, game_id: str) -> dict[str, int]:
         """How many files the catalog lists for each of our media kinds, counting only
