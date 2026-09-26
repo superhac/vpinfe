@@ -125,6 +125,9 @@ def app_name(app_id: str | None) -> str:
     return i18n.literal_or(found.name, f"app.{found.id}.name", fallback=found.id)[0]
 
 
+_ASIDE = re.compile(r"(.*\S)\s*\(([^()]+)\)")
+
+
 def field_words(app_id: str, field: Field) -> dict[str, str]:
     """`label`, `label_key` and `description` for a field on a launcher of this app.
 
@@ -144,7 +147,10 @@ def field_words(app_id: str, field: Field) -> dict[str, str]:
     grouping = getattr(config, "set_word", None)
     among = grouping(field.key) if grouping is not None else ""
     named_set = i18n.literal_or("", f"app.{app_id}.{among}")[0] if among else ""
-    if named_set:
+    if named_set and (aside := _ASIDE.fullmatch(label)):
+        label, label_key = i18n.t("launcher.label_and_aside_in_set", label=aside[1],
+                                  aside=aside[2], set_name=named_set), ""
+    elif named_set:
         label, label_key = i18n.t("launcher.label_in_set", label=label,
                                   set_name=named_set), ""
     return {"label": label, "label_key": label_key,

@@ -2680,6 +2680,7 @@
   "launcher.field.on_table_exit.label": "Àƒţèř à Ţàƀŀè Èẋîţš",
   "launcher.field.on_table_start.description": "Öñè çöɱɱàñđ þèř ŀîñè, řûñ àƒţèř ţĥè öñèš îñ Šèţţîñĝš",
   "launcher.field.on_table_start.label": "Ɓèƒöřè à Ţàƀŀè Šţàřţš",
+  "launcher.label_and_aside_in_set": "{label} ({aside}, {set_name})",
   "launcher.label_in_set": "{label} ({set_name})",
   "media.kind.audio.label": "Àûđîö",
   "media.kind.audio_launch.label": "Ŀàûñçĥ Àûđîö",

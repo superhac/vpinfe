@@ -1307,6 +1307,13 @@ class NumberedSetTests(_Case):
                           "DefaultCamera.FSSCamX":
                               ("Camera X (Default Camera: Full Single Screen)", "")})
 
+    def test_a_label_s_own_aside_shares_the_set_s_parentheses(self) -> None:
+        said = self._labels("[DefaultCamera]\n; Field Of View (overall scale): Global view "
+                            "scale [Default: 50.0 in 25.0 .. 90.0]\nDesktopFov = \n")
+
+        self.assertEqual(said["DefaultCamera.DesktopFov"]["label"],
+                         "Field Of View (overall scale, Default Camera: Desktop)")
+
     def test_a_profile_the_program_has_not_named_keeps_its_label(self) -> None:
         said = self._labels("[DMD]\n; Dot Tint: Color of lit dots [Default: 0]\n"
                             "Profile8DotTint = \n")

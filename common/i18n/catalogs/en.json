@@ -2680,6 +2680,7 @@
   "launcher.field.on_table_exit.label": "After a Table Exits",
   "launcher.field.on_table_start.description": "One command per line, run after the ones in Settings",
   "launcher.field.on_table_start.label": "Before a Table Starts",
+  "launcher.label_and_aside_in_set": "{label} ({aside}, {set_name})",
   "launcher.label_in_set": "{label} ({set_name})",
   "media.kind.audio.label": "Audio",
   "media.kind.audio_launch.label": "Launch Audio",
