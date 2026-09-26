@@ -547,6 +547,7 @@
   "console.devices.why_not.build_not_published_release": "a3a02f14a0fc",
   "console.devices.why_not.build_runs_source_updates": "e7a8b5e0faa1",
   "console.devices.why_not.no_published_build_matches": "6df1c7e0f577",
+  "console.devices.why_not.release_incomplete": "e774f474a348",
   "console.devices.why_not.updating_place_not_built": "1a84df405dc9",
   "console.ext_action.already": "c948a91f975d",
   "console.ext_action.matched": "9a12edd24fba",

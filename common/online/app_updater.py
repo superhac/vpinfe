@@ -615,7 +615,7 @@ def check_now(refresh: bool = False) -> dict:
         logger.exception("Could not check for updates")
         return {"update_available": False, "error": "check_failed",
                 "current_version": get_version(), "latest_version": None,
-                "update_supported": False, "support_reason": "check failed",
+                "update_supported": False, "support_reason": "check_failed",
                 "triplet": None, "asset_name": None, "checked_at": None}
 
 

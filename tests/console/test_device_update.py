@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import inspect
+import re
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
 from common.i18n import t
+from common.online import app_updater
 from console import devices, verbs
 
 UPDATE = {"latest_version": "v3.1.0"}
@@ -80,6 +83,24 @@ class SoftwareRows(unittest.TestCase):
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0][1][1], t("console.devices.not_known"))
+
+
+class EveryReasonIsSaid(unittest.TestCase):
+    def test_every_reason_the_updater_gives_has_words(self) -> None:
+        given = set(re.findall(r'\["(?:support_)?reason"\] = "(\w+)"',
+                               inspect.getsource(app_updater)))
+
+        self.assertIn("no_matching_asset", given)
+        self.assertEqual(given - set(devices.WHY_NOT), set())
+
+    def test_an_incomplete_release_is_not_blamed_on_the_device(self) -> None:
+        with patch.object(devices.panel, "note", new=lambda text: ("note", text)):
+            rows = devices._software_rows({}, True, Mock(), {
+                "current_version": "v3.0.0", "latest_version": "v3.1.0",
+                "update_available": True, "update_supported": False,
+                "support_reason": "asset_not_attached_to_release"})
+
+        self.assertEqual(rows[-1], ("note", t("console.devices.why_not.release_incomplete")))
 
 
 class CheckNow(unittest.IsolatedAsyncioTestCase):

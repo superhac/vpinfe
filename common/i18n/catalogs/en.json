@@ -658,6 +658,7 @@
   "console.devices.why_not.build_not_published_release": "This build was not published as a release, so there is nothing to replace it with.",
   "console.devices.why_not.build_runs_source_updates": "This build runs from source, so it updates with a git pull rather than from here.",
   "console.devices.why_not.no_published_build_matches": "No published build matches this device's architecture.",
+  "console.devices.why_not.release_incomplete": "The latest release is incomplete, so there is nothing to update to yet.",
   "console.devices.why_not.updating_place_not_built": "Updating in place is not built for this platform.",
   "console.ext_action.already": "Already here ({len})",
   "console.ext_action.matched": "{value} - matched by {value2}",

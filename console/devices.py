@@ -48,6 +48,9 @@ WHY_NOT = {
     "source_build": "console.devices.why_not.build_runs_source_updates",
     "non_release_build": "console.devices.why_not.build_not_published_release",
     "unsupported_architecture": "console.devices.why_not.no_published_build_matches",
+    "no_matching_asset": "console.devices.why_not.no_published_build_matches",
+    "asset_missing_file_name": "console.devices.why_not.release_incomplete",
+    "asset_not_attached_to_release": "console.devices.why_not.release_incomplete",
     "macos_not_supported_yet": "console.devices.why_not.updating_place_not_built",
     "unsupported_platform": "console.devices.why_not.updating_place_not_built"
 }

@@ -658,6 +658,7 @@
   "console.devices.why_not.build_not_published_release": "Ţĥîš ƀûîŀđ ŵàš ñöţ þûƀŀîšĥèđ àš à řèŀèàšè, šö ţĥèřè îš ñöţĥîñĝ ţö řèþŀàçè îţ ŵîţĥ.",
   "console.devices.why_not.build_runs_source_updates": "Ţĥîš ƀûîŀđ řûñš ƒřöɱ šöûřçè, šö îţ ûþđàţèš ŵîţĥ à ĝîţ þûŀŀ řàţĥèř ţĥàñ ƒřöɱ ĥèřè.",
   "console.devices.why_not.no_published_build_matches": "Ñö þûƀŀîšĥèđ ƀûîŀđ ɱàţçĥèš ţĥîš đèṽîçè'š àřçĥîţèçţûřè.",
+  "console.devices.why_not.release_incomplete": "Ţĥè ŀàţèšţ řèŀèàšè îš îñçöɱþŀèţè, šö ţĥèřè îš ñöţĥîñĝ ţö ûþđàţè ţö ýèţ.",
   "console.devices.why_not.updating_place_not_built": "Ûþđàţîñĝ îñ þŀàçè îš ñöţ ƀûîŀţ ƒöř ţĥîš þŀàţƒöřɱ.",
   "console.ext_action.already": "Àŀřèàđý ĥèřè ({len})",
   "console.ext_action.matched": "{value} - ɱàţçĥèđ ƀý {value2}",
