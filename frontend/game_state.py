@@ -23,7 +23,6 @@ from common.games.collection_store import (
     ORDER_ALIASES,
     normalize_direction,
 )
-from common.games.collections_service import save_filter_collection
 from common.games.game import Game, GameRecord, ScannedGame
 from common.games.game_metadata import (
     GAME_OVERRIDES,
@@ -323,10 +322,11 @@ def save_current_filter_collection(api: API, name: str, letter: str, theme: str,
                                    order_by: str, rating: str,
                                    rating_or_higher: object,
                                    direction: str = "desc") -> dict[str, Any]:
-    # The stored criteria keys are still 2.x's `sort_by` and `order_by`, where `order_by`
-    # is the direction. That is on disk and stays; the names here say what they are.
-    save_filter_collection(name, letter, theme, game_type, manufacturer, year, rating,
-                           rating_or_higher, order_by, direction)
+    api.library.save_filter(
+        name, {"letter": letter, "theme": theme, "game_type": game_type,
+               "manufacturer": manufacturer, "year": year, "rating": rating,
+               "rating_or_higher": is_truthy(rating_or_higher)},
+        order_by, direction)
     return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
 
 

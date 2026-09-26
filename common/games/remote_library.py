@@ -20,7 +20,13 @@ from common.games.collection_ops import wheel_paths
 from common.games.collection_resolver import Entry
 from common.games.wire_entry import WireGame, table_of
 from common.i18n import t
-from common.service_errors import NotFoundError
+from common.service_errors import (
+    BlockedError,
+    NotFoundError,
+    RefusedError,
+    ServiceError,
+    UnavailableError,
+)
 
 logger = logging.getLogger("vpinfe.common.games.remote_library")
 
@@ -158,6 +164,31 @@ def fetch_collection(library_url: str, name: str, *,
     if not isinstance(row, dict) or not row.get("name"):
         raise ValueError(f"{library_url} did not return a collection")
     return row
+
+
+_REFUSALS: dict[int, type[ServiceError]] = {404: NotFoundError, 409: BlockedError,
+                                            501: UnavailableError}
+
+
+def create_collection(library_url: str, body: dict[str, Any], *,
+                      timeout: int = http_client.DEFAULT_TIMEOUT) -> dict[str, Any]:
+    """Make a collection on another install, `body` being what its create route takes.
+
+    A refusal that install words raises as a ServiceError carrying those words. One it
+    does not word raises as it came.
+    """
+    try:
+        return http_client.post_json(_on(library_url, "api/v1/collections"), body,
+                                     timeout=timeout)
+    except requests.HTTPError as exc:
+        answer = exc.response
+        try:
+            said = str(answer.json()["error"]["message"]) if answer is not None else ""
+        except Exception:
+            said = ""
+        if answer is None or not said:
+            raise
+        raise _REFUSALS.get(answer.status_code, RefusedError)(said) from exc
 
 
 def metadata_row(library_url: str, resource: dict[str, Any]) -> dict[str, Any]:

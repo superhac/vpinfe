@@ -26,6 +26,7 @@ from common.games.game_metadata import game_rating, normalize_meta, set_game_rat
 from common.games.game_repository import all_games
 from common.host import frontend_state, launch, launch_state
 from common.host.display_service import monitors_as_dicts
+from common.service_errors import ServiceError
 from frontend import (
     config_api,
     game_state,
@@ -493,7 +494,7 @@ class API:
                 self, name, letter, theme, game_type, manufacturer, year, order_by,
                 rating, rating_or_higher, direction,
             )
-        except ValueError as e:
+        except (ValueError, ServiceError) as e:
             return {"success": False, "message": str(e)}
 
     def get_current_filter_state(self) -> dict[str, Any]:

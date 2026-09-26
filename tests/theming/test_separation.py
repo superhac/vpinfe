@@ -420,6 +420,36 @@ class SeparationTests(TempTree):
         self.assertEqual(after, ["None", list(TITLES)])
         self.assertEqual(failures, [])
 
+    def test_a_filter_saved_on_a_device_is_the_hub_s_collection(self) -> None:
+        with LiveInstance(self.library_root) as library:
+            library.wait_for_api()
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+
+            with LiveInstance(self.device_root,
+                              extra_settings={("network", "library_url"): library_api}) as device:
+                device.wait_for_api()
+                device.library_assets_port = library.ports["assets"]
+                save = ("vpin.call('save_filter_collection', 'Saved Here', 'T', 'All',"
+                        " 'All', 'All', 'All', 'year', 'All', false, 'asc')")
+
+                (saved, picker, again), failures = self._evaluate(device, (
+                    save, "vpin.call('get_collections')", save))
+                on_hub = [row["name"] for row in
+                          _fetch(f"{library_api}/api/v1/collections")["collections"]]
+                held = _fetch(f"{library_api}/api/v1/collections/Saved%20Here")
+                direct = requests.post(f"{library_api}/api/v1/collections",
+                                       json={"name": "Saved Here", "games": []}, timeout=30)
+
+        self.assertEqual(saved, {"success": True,
+                                 "message": "Filter collection 'Saved Here' saved successfully"})
+        self.assertIn("Saved Here", picker)
+        self.assertIn("Saved Here", on_hub)
+        self.assertEqual((held["type"], held["count"], held["order_by"], held["direction"]),
+                         ("filter", 1, "year", "asc"))
+        self.assertEqual(again, {"success": False,
+                                 "message": direct.json()["error"]["message"]})
+        self.assertEqual(failures, [])
+
     def test_a_device_asked_to_show_a_collection_with_the_hub_down_says_so(self) -> None:
         with LiveInstance(self.library_root) as library:
             library.wait_for_api()

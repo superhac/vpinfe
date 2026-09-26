@@ -40,11 +40,12 @@ from common.games.collections_service import (
     get_collections_manager,
     get_frontend_collections,
     offered,
+    save_filter_collection,
 )
 from common.games.game_repository import all_games
 from common.games.media_lookup import resolved_kinds
 from common.i18n import t
-from common.service_errors import BlockedError, NotFoundError
+from common.service_errors import BlockedError, NotFoundError, ServiceError
 from frontend import game_state
 
 logger = logging.getLogger("vpinfe.frontend.library_resolver")
@@ -119,15 +120,16 @@ class LibraryResolver:
             return entries
         return all_games()
 
-    def _ask(self, fetch: Callable[[str, str], Any], collection: str) -> Any:
-        """`fetch` of the library, raising NotFoundError for a collection it does not
-        hold and BlockedError for any other failure."""
+    def _ask(self, call: Callable[..., Any], *args: Any) -> Any:
+        """`call` against the library. A refusal the library words raises as its
+        ServiceError, and any other failure as BlockedError."""
         try:
-            return fetch(self._library_url, collection)
-        except NotFoundError:
+            return call(self._library_url, *args)
+        except ServiceError:
             raise
         except Exception as exc:
-            logger.debug("The library did not answer for %r", collection, exc_info=True)
+            logger.debug("The library at %s did not answer", self._library_url,
+                         exc_info=True)
             raise BlockedError(t("error.frontend.library_unreachable",
                                  url=self._library_url)) from exc
 
@@ -203,6 +205,19 @@ class LibraryResolver:
                          resource.get("paging_group") or None)}
         self._orders[name] = order
         return None, order
+
+    def save_filter(self, name: str, criteria: dict[str, Any], order_by: str,
+                    direction: str) -> None:
+        """The filter menu's controls saved as a collection in the library this install
+        reads. `criteria` is keyed as `save_filter_collection` takes it."""
+        if not self._remote:
+            # The stored criteria keys are still 2.x's `sort_by` and `order_by`, where
+            # `order_by` is the direction. That is on disk and stays.
+            save_filter_collection(name, **criteria, sort_by=order_by, order_by=direction)
+            return
+        self._ask(remote_library.create_collection,
+                  {"name": name, "filters": {**criteria, "order_by": order_by,
+                                             "direction": direction}})
 
     def paging_group(self, name: str) -> str | None:
         """How a page press moves through `name`, or None to follow the player. A
