@@ -208,7 +208,7 @@ def _disk_row(disk: dict[str, Any]) -> None:
         # "used" beside a number reading "free" is two directions in one row.
         free = disk.get("free")
         ui.label(t("console.metrics.full_free", value=(disk.get('percent') or 0),
-                _size="-" if free is None else i18n.size(free))) \
+                free="-" if free is None else i18n.size(free))) \
             .classes("text-xs opacity-60 shrink-0")
 
 

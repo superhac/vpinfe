@@ -1299,6 +1299,22 @@ class TestParametersMatchTheirTemplate(unittest.TestCase):
         self.assertEqual(offenders, [], "a slot nobody fills renders as its own name")
 
 
+class TestASlotIsNamedForWhatItHolds(unittest.TestCase):
+    """A translator reads the slot's name to know what goes there."""
+
+    def test_no_slot_is_named_after_a_private_helper(self) -> None:
+        catalogs = {"common": SOURCE}
+        catalogs |= {f"apps/{path.parent.parent.name}": _file(path.parent)
+                     for path in sorted(APPS.glob("*/i18n/en.json"))}
+        catalogs |= {f"extensions/{path.name}": _file(path / "i18n")
+                     for path in _extensions()}
+        offenders = [f"{owner} {key}: {{{slot}}}"
+                     for owner, catalog in catalogs.items()
+                     for key, entry in sorted(catalog.items())
+                     for slot in sorted(_slots(entry)) if slot.startswith("_")]
+        self.assertEqual(offenders, [], "name the slot for what it holds")
+
+
 APPS = ROOT / "apps"
 
 

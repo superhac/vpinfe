@@ -211,7 +211,7 @@ def _chip(binding: str, store: Callable[..., Any], claimed_by: list[str],
         chip = ui.label(shown).classes(f"console-member-chip {tone}")
     if len(claimed_by) > 1:
         others = [_label_for(name) for name in claimed_by]
-        chip.tooltip(t("console.binding_editor.also_bound_first_one", _and=(_and(others))))
+        chip.tooltip(t("console.binding_editor.also_bound_first_one", others=_and(others)))
     elif text != shown:
         chip.tooltip(text)
     if not writable:
