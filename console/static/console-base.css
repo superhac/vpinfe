@@ -1144,6 +1144,8 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
   max-width: 340px;
 }
 .q-notification__message { white-space: pre-line; }
+/* A progress note leaves the moment its work is done, not over Quasar's 1s fade. */
+.q-notification[class*="-leave-active"]:has(.q-spinner) { transition: none; }
 
 /* The grid's own tooltip, which is where a column explains itself. AG Grid renders the
    text verbatim, so `pre-line` is what makes a newline in the help a line on screen -
