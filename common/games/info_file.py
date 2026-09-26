@@ -46,6 +46,7 @@ from common.games.tables import (
     stored_reference,
     table_entries,
 )
+from common.i18n import t
 from common.timestamps import utc_now_iso
 
 logger = logging.getLogger("vpinfe.common.games.info_file")
@@ -423,9 +424,9 @@ class MetaConfig:
         entries = self._entries_by_id()
         wanted = str(table_id or "").strip()
         if wanted and wanted not in entries:
-            raise ValueError(f"no table {wanted} in this game")
+            raise ValueError(t("error.games.game_no_such_table"))
         if wanted and entries[wanted].get("hidden") is True:
-            raise ValueError(f"table {wanted} is hidden")
+            raise ValueError(t("error.games.hidden_table_not_default"))
         vpinfe = self.data.setdefault(VPINFE_SECTION, {})
         if wanted:
             vpinfe[DEFAULT_TABLE_KEY] = wanted

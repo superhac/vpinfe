@@ -11,6 +11,7 @@ from common.games.info_file import (
     migrate_vpinfe_section,
 )
 from common.games.tables import entry_for_filename
+from common.i18n import t
 from tests.support.library import TempTree, write_game
 
 
@@ -448,3 +449,26 @@ class ForgetTableTests(unittest.TestCase):
         self.assertEqual(vpinfe["default_table"], "keep")
         self.assertEqual(vpinfe["alt_vpsid"], "USER-TYPED",
                          "adding or losing a peer is not a reason to drop the match")
+
+
+class DefaultTableRefusalTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._dir = TemporaryDirectory()
+        self.addCleanup(self._dir.cleanup)
+        info = Path(self._dir.name) / "T.info"
+        info.write_text(json.dumps({
+            "Info": {"Title": "T"}, "vpinfe": {"game_id": "g"},
+            "tables": {"shown": {"id": "shown", "filename": "a.vpx"},
+                       "kept": {"id": "kept", "filename": "b.vpx", "hidden": True}},
+        }))
+        self.meta = MetaConfig(str(info))
+
+    def test_a_table_the_game_lacks_is_refused_in_words(self) -> None:
+        with self.assertRaises(ValueError) as said:
+            self.meta.set_default_table("nope")
+        self.assertEqual(str(said.exception), t("error.games.game_no_such_table"))
+
+    def test_a_hidden_table_is_refused_in_words(self) -> None:
+        with self.assertRaises(ValueError) as said:
+            self.meta.set_default_table("kept")
+        self.assertEqual(str(said.exception), t("error.games.hidden_table_not_default"))
