@@ -785,7 +785,8 @@ class VPinFECore {
    * read as a key. Unknown keys with no English answer with the key, never blank.
    */
   t(key, english = "", params = {}) {
-    const said = VPinFECore.pluralForm(this.#words[key], params.count) ?? english;
+    const said = VPinFECore.pluralForm(this.#words[key], params.count)
+      ?? VPinFECore.pluralForm(english, params.count);
     if (!said) return key;
     return said.replace(/\{(\w+)\}/g, (whole, name) =>
       params[name] === undefined ? whole : params[name]);

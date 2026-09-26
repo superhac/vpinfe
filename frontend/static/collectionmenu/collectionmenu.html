@@ -223,11 +223,10 @@
 // is what shows.
 function t(key, english, params) {
   const words = window.__vpinWords;
-  const entry = words && words[key];
-  const forms = entry && typeof entry === 'object'
+  const form = (entry) => entry && typeof entry === 'object'
     ? (Math.abs(Number(params && params.count)) === 1 && entry.one) || entry.other
     : entry;
-  const said = forms || english;
+  const said = form(words && words[key]) || form(english);
   return params ? said.replace(/\{(\w+)\}/g, (whole, name) =>
     params[name] === undefined ? whole : params[name]) : said;
 }
@@ -487,7 +486,7 @@ function t(key, english, params) {
 
     function showCount(count) {
       document.getElementById('table-count').textContent =
-        t('frontend.collectionmenu.games', count === 1 ? '{count} game' : '{count} games',
+        t('frontend.collectionmenu.games', { one: '{count} game', other: '{count} games' },
           { count });
     }
 

@@ -1096,6 +1096,26 @@ class TestPluralsComeFromTheCatalog(unittest.TestCase):
                 offenders += [f"{path.relative_to(ROOT)}:{line}" for line in seen.found]
         self.assertEqual(offenders, [], "give the key one/other forms and pass count=")
 
+    def test_a_form_chosen_in_a_page_is_found(self) -> None:
+        self.assertTrue(PAGE_CHOOSES_A_FORM.search(
+            "t('k.games', count === 1 ? '{count} game' : '{count} games', { count })"))
+        self.assertIsNone(PAGE_CHOOSES_A_FORM.search(
+            "t('k.games', { one: '{count} game', other: '{count} games' }, { count })"))
+
+    def test_no_page_picks_a_form_beside_its_call(self) -> None:
+        offenders = []
+        for path in sorted(STATIC.rglob("*")):
+            if path.suffix not in (".html", ".js") or "vendor" in path.parts:
+                continue
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            offenders += [f"{path.relative_to(ROOT)}:{text.count(chr(10), 0, m.start()) + 1}"
+                          for m in PAGE_CHOOSES_A_FORM.finditer(text)]
+        self.assertEqual(offenders, [], "pass { one, other } as the English and count in params")
+
+
+# A page's t(key, english, params) whose English is picked by comparing a count with 1.
+PAGE_CHOOSES_A_FORM = re.compile(r"""\bt\(\s*(['"])[\w.]+\1\s*,[^,]*?[!=]==?\s*1\s*\?""")
+
 
 class TestFrontendChrome(unittest.TestCase):
     """The frontend serves its own markup, so the Python check cannot see any of it."""

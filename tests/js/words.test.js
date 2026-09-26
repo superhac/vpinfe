@@ -26,3 +26,11 @@ test("a plain entry is unchanged by a count", async () => {
   assert.equal(vpin.t("frontend.collectionmenu.pages_time", "", { size: 5, count: 1 }),
                "Pages 5 at a time");
 });
+
+test("an English fallback picks its form by count too", async () => {
+  const vpin = await withWords();
+  const english = { one: "{count} wheel", other: "{count} wheels" };
+
+  assert.equal(vpin.t("theme.not.in.the.catalog", english, { count: 1 }), "1 wheel");
+  assert.equal(vpin.t("theme.not.in.the.catalog", english, { count: 3 }), "3 wheels");
+});
