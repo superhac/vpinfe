@@ -9,6 +9,7 @@ from typing import Any
 
 from common.games.asset_registry import ASSET_SPECS
 from common.i18n import t
+from common.labels import field_label
 from common.media_specs import MEDIA_SPECS, media_family, media_label_map
 from console import art, game_tables, media_ownership, when
 from console.api import ApiClient
@@ -103,7 +104,7 @@ def sources_of(looks: dict[str, dict[str, Any]], extension: str,
 
 def config_groups(found: dict[str, Any]) -> list:
     """The groups a launcher's config read declares, as the panel's control grammar
-    wants them."""
+    wants them, each setting's label title-cased unless a catalog gave it."""
     from types import SimpleNamespace
 
     return [SimpleNamespace(
@@ -123,7 +124,8 @@ def config_groups(found: dict[str, Any]) -> list:
                            for s in h.get("switched") or ()))
             for h in g.get("curated") or ()],
         settings=[SimpleNamespace(
-            key=f["key"], label=f["label"], type=f["type"],
+            key=f["key"], label=f["label"] if f.get("label_key") else field_label(f["label"]),
+            type=f["type"],
             default=f["default"], description=f["description"],
             help=f.get("help", ""),
             choices=tuple(tuple(pair) for pair in f.get("choices") or ()),

@@ -225,6 +225,22 @@ class ConflictTests(unittest.TestCase):
                          [("Plugin.B2SLegacy.Enable",), ()])
 
 
+class SettingLabelTests(unittest.TestCase):
+    def test_the_program_s_label_is_title_cased_and_a_catalog_s_is_left_as_written(self) -> None:
+        def setting(key: str, label: str, label_key: str = "") -> dict[str, Any]:
+            return {"key": key, "label": label, "label_key": label_key, "type": "bool",
+                    "default": "0", "description": ""}
+
+        groups = data.config_groups({"groups": [{
+            "key": "graphics", "label": "Graphics", "settings": [
+                setting("Player.FXAA", "Post processed antialiasing"),
+                setting("Plugin.DMDUtil.PIN2DMD", "PIN2DMD",
+                        "app.vpx.field.Plugin.DMDUtil.PIN2DMD.label")]}]})
+
+        self.assertEqual([one.label for one in groups[0].settings],
+                         ["Post Processed Antialiasing", "PIN2DMD"])
+
+
 class CuratedAreaTests(unittest.TestCase):
     PLUGINS = _group(
         "plugins",
