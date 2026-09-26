@@ -19,6 +19,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common import i18n
 from common.i18n import t
 from console import dialog as frame
 from console import game_tables, offload, panel, verbs
@@ -32,15 +33,6 @@ def not_imported(one: dict[str, Any]) -> str:
     return t("console.import_dialog.not_imported_row",
              kind=t(f"asset.kind.{one.get('kind') or ''}.label"),
              reason=one.get("reason") or "")
-
-
-def _size(count: int) -> str:
-    size = float(count or 0)
-    for unit in ("B", "KB", "MB"):
-        if size < 1024:
-            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size:.1f} GB"
 
 
 def _where(plan: dict[str, Any], item: dict[str, Any]) -> str:
@@ -277,7 +269,7 @@ def _draw_row(item: dict[str, Any], plan: dict[str, Any], chosen: dict[int, bool
                 with ui.row().classes("items-center gap-1 no-wrap min-w-0"):
                     ui.icon("error_outline").classes("console-attention-icon")
                     ui.label(made).classes("console-member-table truncate")
-        ui.label(_size(int(item.get("size") or 0))) \
+        ui.label(i18n.size(int(item.get("size") or 0))) \
             .classes("console-member-qualifier")
 
 

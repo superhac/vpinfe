@@ -276,3 +276,16 @@ def date(when: dt.date) -> str:
     """A date as this language writes it. Short month, no leading zero on the day."""
     month = t(f"date.month.{when.month}")
     return t("date.short", day=when.day, month=month, year=when.year)
+
+
+_SIZE_UNITS = ("bytes", "kilobytes", "megabytes", "gigabytes", "terabytes")
+
+
+def size(count: float) -> str:
+    """A byte count as this language writes it. Powers of 1024; bytes whole, the rest
+    to one decimal."""
+    value, step = float(count), 0
+    while abs(value) >= 1024 and step < len(_SIZE_UNITS) - 1:
+        value /= 1024
+        step += 1
+    return t(f"size.{_SIZE_UNITS[step]}", value=f"{value:.0f}" if step == 0 else f"{value:.1f}")

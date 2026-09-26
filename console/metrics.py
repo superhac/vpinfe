@@ -18,6 +18,7 @@ from typing import Any
 
 from nicegui import ui
 
+from common import i18n
 from common.i18n import t
 from console import offload, panel
 from console.data import Library
@@ -196,8 +197,9 @@ def _disk_row(disk: dict[str, Any]) -> None:
             _bar((disk.get("percent") or 0) / 100, _tone(disk.get("percent")))
         # The bar fills as the disk fills, so the words say full too. A bar reading
         # "used" beside a number reading "free" is two directions in one row.
+        free = disk.get("free")
         ui.label(t("console.metrics.full_free", value=(disk.get('percent') or 0),
-                _size=(_size(disk.get('free'))))) \
+                _size="-" if free is None else i18n.size(free))) \
             .classes("text-xs opacity-60 shrink-0")
 
 
@@ -241,21 +243,10 @@ def _tone(value: Any) -> str:
     return "var(--accent)"
 
 
-def _size(value: Any) -> str:
-    if value is None:
-        return "-"
-    size = float(value)
-    for unit in ("B", "KB", "MB", "GB"):
-        if size < 1024:
-            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size:.1f} TB"
-
-
 def _bytes_said(used: Any, total: Any) -> str:
     if used is None or total is None:
         return ""
-    return t("console.metrics.used_of_total", used=_size(used), total=_size(total))
+    return t("console.metrics.used_of_total", used=i18n.size(used), total=i18n.size(total))
 
 
 def _load_said(load: Any) -> str:

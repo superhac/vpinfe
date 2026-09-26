@@ -21,7 +21,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common import icons
+from common import i18n, icons
 from common.games.asset_registry import ARCHIVE_EXTENSIONS, spec_for, specs_named
 from common.i18n import t
 from common.media_specs import (
@@ -78,15 +78,8 @@ def _one(uploader_id: int) -> str:
 
 
 def _size(count: int | None) -> str:
-    """A file size someone can read at a glance. Powers of 1024, one decimal."""
-    if not count:
-        return ""
-    size = float(count)
-    for unit in ("B", "KB", "MB"):
-        if size < 1024:
-            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size:.1f} GB"
+    """Nothing for a file whose size is not known."""
+    return i18n.size(count) if count else ""
 
 
 def _suffix(item: dict[str, Any]) -> str:
