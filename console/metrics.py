@@ -102,7 +102,9 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
             try:
                 held["gpu"] = await offload.io(library.gpu_metrics)
             except Exception as exc:  # noqa: BLE001
-                held["gpu"] = {"available": False, "reason": str(exc), "gpus": []}
+                held["gpu"] = {"available": False, "gpus": [],
+                               "reason": t("console.metrics.could_not_read_device",
+                                           exc=exc)}
             _draw_cards(cards, held)
 
     ui.timer(0.01, tick, once=True)

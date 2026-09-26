@@ -151,6 +151,7 @@ SPEAKS_TO_A_SURFACE = {
     "common/device_client.py": frozenset({"reason", "raise"}),
     "common/uploads/asset_import_service.py": frozenset({"reason"}),
     "common/games/locations.py": frozenset({"reason"}),
+    "console/metrics.py": frozenset({"reason"}),
 }
 
 # Said to whoever wrote the calling code, which has a bug to fix rather than a person
