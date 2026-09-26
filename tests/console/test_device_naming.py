@@ -119,6 +119,17 @@ class SectionsItServesTests(unittest.TestCase):
         self.assertFalse(self.SERVED & shown)
         self.assertIn("device_details", shown)
 
+    def test_a_phone_has_no_software_of_ours_to_show(self) -> None:
+        shown = self._shown({"device_id": "Pppp444444", "kind": "vpx_mobile"})
+
+        self.assertNotIn("device_software", shown)
+
+    def test_an_install_that_is_not_answering_keeps_its_software_to_say_why(self) -> None:
+        shown = self._shown({"device_id": "Bbbb222222", "kind": "vpinfe"},
+                            {"state": device_client.UNREACHABLE})
+
+        self.assertIn("device_software", shown)
+
     def test_an_install_that_answered_shows_what_it_declared(self) -> None:
         reach = {"state": device_client.ANSWERING, "capabilities": ["logs"]}
 

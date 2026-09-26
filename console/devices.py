@@ -539,6 +539,10 @@ def is_local(context: dict[str, Any]) -> bool:
     return _of(context).get("device_id") == context.get("local_device_id")
 
 
+def is_phone(context: dict[str, Any]) -> bool:
+    return _of(context).get("kind") == device_registry.KIND_VPX_MOBILE
+
+
 def serves(context: dict[str, Any], capability: str) -> bool:
     """False only where the device is known not to offer `capability`."""
     return capability_state(_of(context), capability, context.get("local_device_id"),
@@ -560,7 +564,7 @@ async def detail_groups(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     rows_out += await _identity_rows(context)
     rows_out.append((panel.HEADING, t("console.devices.connection")))
     rows_out += _connection_rows(_of(context), context.get("reach"))
-    if _of(context).get("kind") == device_registry.KIND_VPX_MOBILE:
+    if is_phone(context):
         # A phone is not an install: no software, no lifecycle, no settings of ours to
         # open. What it has instead is the one thing this end can act on - the games it
         # is carrying - so that heading takes the place of Settings rather than being
