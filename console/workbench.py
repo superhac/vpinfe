@@ -1809,9 +1809,9 @@ def running_time(seconds: float) -> str:
 
 
 def _removal(context: dict[str, Any], tiers: list[dict[str, Any]] | None,
-             entry: dict[str, Any]) -> tuple[str, str] | None:
+             entry: dict[str, Any], then: str | None = None) -> tuple[str, str] | None:
     """The file this lens's Remove takes and who loses it, or None where the lens has no
-    file at its own tier and Remove takes nothing.
+    file at its own tier and Remove takes nothing. `then` is the file shown after it.
 
     `tiers` is None when the slot's detail could not be read, and then only the file on
     show is known.
@@ -1830,9 +1830,11 @@ def _removal(context: dict[str, Any], tiers: list[dict[str, Any]] | None,
     name = str(tiers[at].get("file") or "")
     if not own:
         return name, t("console.workbench.remove_asset.game")
-    followed = at + 1 < len(tiers) or not known
-    return name, t("console.workbench.remove_asset.table" if followed
-                   else "console.workbench.remove_asset.table_only")
+    if not known:
+        return name, t("console.workbench.remove_asset.table")
+    if then:
+        return name, t("console.workbench.remove_asset.table_then", name=then)
+    return name, t("console.workbench.remove_asset.table_only")
 
 
 def _used_as(candidate: dict[str, Any]) -> str:
@@ -1864,7 +1866,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
     also_here = list(detail.get("tiers") or [])
 
     async def remove() -> None:
-        taken = _removal(context, detail.get("tiers"), entry)
+        taken = _removal(context, detail.get("tiers"), entry, detail.get("after_remove"))
         if taken is not None and not await confirm.ask(
                 t("console.workbench.remove_asset", name=taken[0]), detail=taken[1],
                 confirm=t("word.remove"), icon=verbs.REMOVE):

@@ -179,9 +179,23 @@ def _shown_to(game: Game, game_dir: Path, files: set[str], medias: set[str], kin
     return counted
 
 
+def _after_remove(game_dir: Path, files: set[str], medias: set[str], kind: str,
+                  variant: str, active_sets: dict[str, str] | None,
+                  stem: str | None) -> Path | None:
+    """The file this lens is shown once `remove` has taken the files at its tier."""
+    gone = media_placement.removable(game_dir, kind, stem or game_dir.name)
+    left_in_root = files - {path.name for path in gone if path.parent == game_dir}
+    left_in_medias = medias - {path.name for path in gone
+                               if path.parent == game_dir / "medias"}
+    hit = resolve_media_entries(game_dir, left_in_root, left_in_medias, variant, stem,
+                                active_sets).get(kind)
+    return hit.path if hit is not None else None
+
+
 def detail(game_id: str, kind: str, table_id: str = "") -> dict:
     """One slot: the winner, what it is, and every tier that holds a file for it, with
-    how many of the game's tables each of those is shown to.
+    how many of the game's tables each of those is shown to, and the file that takes
+    over once Remove has taken this lens's own.
 
     What a curator needs and a frontend never asks for.
     """
@@ -198,6 +212,7 @@ def detail(game_id: str, kind: str, table_id: str = "") -> dict:
     for item in media_candidates(game_dir, files, medias, kind, variant, stem, active_sets):
         candidates.setdefault(item.path, item)
     serves = _shown_to(game, game_dir, files, medias, kind, variant, active_sets)
+    after_remove = _after_remove(game_dir, files, medias, kind, variant, active_sets, stem)
     recorded = asset_origin.sources(game_dir)
     hosts = {key: str(source.get("host", "") or "").strip()
              for key, source in recorded.items()
@@ -216,6 +231,7 @@ def detail(game_id: str, kind: str, table_id: str = "") -> dict:
         "tiers": [{"tier": item.tier, "file": item.path.name,
                    "wins": item.path == path, "serves": serves.get(item.path, 0)}
                   for item in candidates.values()],
+        "after_remove": after_remove.name if after_remove is not None else None,
         "links": {"self": f"{prefix}/{kind}" if path is not None else None},
         **(_file_facts(path) if path is not None else _NO_FACTS),
     }

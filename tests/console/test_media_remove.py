@@ -3,6 +3,7 @@
 Remove deletes the files at the lens's own tier: the table's, or the game's from the
 game or from a table named as its folder. The confirm names the file at that tier and
 who loses it, in the Assets view's words, and asks nothing where Remove takes nothing.
+For a table's own file it names the file the table is shown next.
 """
 
 import unittest
@@ -37,14 +38,17 @@ class RemovalTests(unittest.TestCase):
         self.assertEqual((SHARED["file"], EVERY_TABLE),
                          _removal(_context("a1"), [SHARED], {}))
 
-    def test_a_table_takes_its_own_file_and_falls_back(self) -> None:
-        for tiers in ([OWN, SHARED], [OWN, DEFAULT]):
-            with self.subTest(then=tiers[1]["tier"]):
-                self.assertEqual((OWN["file"], FALLS_BACK),
-                                 _removal(_context("b2"), tiers, {}))
+    def test_a_table_takes_its_own_file_and_names_the_one_that_takes_over(self) -> None:
+        for tiers, then in (([OWN, SHARED], SHARED["file"]), ([OWN, DEFAULT], DEFAULT["file"]),
+                            ([OWN], "(Logo) Multi VPX (Original 2024).png")):
+            with self.subTest(then=then):
+                self.assertEqual(
+                    (OWN["file"], t("console.workbench.remove_asset.table_then", name=then)),
+                    _removal(_context("b2"), tiers, {}, then))
 
     def test_a_table_with_nothing_behind_its_own_file_goes_without(self) -> None:
-        self.assertEqual((OWN["file"], GOES_WITHOUT), _removal(_context("b2"), [OWN], {}))
+        self.assertEqual((OWN["file"], GOES_WITHOUT),
+                         _removal(_context("b2"), [OWN], {}, None))
 
     def test_nothing_at_the_lens_tier_asks_nothing(self) -> None:
         for lens, tiers in (("b2", [SHARED, DEFAULT]), ("", [DEFAULT]), ("a1", [])):

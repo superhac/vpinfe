@@ -165,16 +165,21 @@ def record_origin(game_dir: str | Path, path: Path, host: str = "user",
         logger.exception("Placed %s but could not record where it came from", path)
 
 
-def remove(game_dir: str | Path, kind: str, stem: str) -> list[str]:
-    """Delete this kind's files at this stem's tier. Never touches another tier."""
-    game_dir = Path(game_dir)
+def removable(game_dir: str | Path, kind: str, stem: str) -> list[Path]:
+    """The files a `remove` at this stem takes."""
     spec = _SPEC_BY_KIND.get(kind)
     if spec is None:
         raise UnplaceableError(t("error.games.unknown_media_kind"))
     if not spec.token:
         raise RuntimeError(f"Cannot address {kind} by name")
+    return list(_family_at_tier(Path(game_dir), kind, stem))
+
+
+def remove(game_dir: str | Path, kind: str, stem: str) -> list[str]:
+    """Delete this kind's files at this stem's tier. Never touches another tier."""
+    game_dir = Path(game_dir)
     removed = []
-    for path in list(_family_at_tier(game_dir, kind, stem)):
+    for path in removable(game_dir, kind, stem):
         try:
             path.unlink()
             # Forward-slashed: this list is an API payload, and `os.path.relpath`

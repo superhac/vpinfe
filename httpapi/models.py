@@ -1569,6 +1569,9 @@ class MediaDetail(ApiModel):
     format: str | None = None
     duration_s: float | None = None
     tiers: list[MediaTier] = []
+    # The file this lens is shown once a DELETE here has taken the files at its tier;
+    # null when nothing would be.
+    after_remove: str | None = None
     links: MediaEntryLinks
 
 

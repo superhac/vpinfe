@@ -1913,6 +1913,7 @@
   "console.workbench.remove_asset.loose": "Nothing reads it now.",
   "console.workbench.remove_asset.table": "This table goes back to the file named for the folder, where there is one.",
   "console.workbench.remove_asset.table_only": "This table goes without one.",
+  "console.workbench.remove_asset.table_then": "This table shows “{name}” instead.",
   "console.workbench.remove_collection": "Remove from this collection",
   "console.workbench.remove_nvram_file_table": "Remove the NVRAM file when this table exits",
   "console.workbench.remove_rule": "Remove this rule",

@@ -1670,6 +1670,7 @@
   "console.workbench.remove_asset.loose": "392d581fe6fb",
   "console.workbench.remove_asset.table": "2fc9aa6942fe",
   "console.workbench.remove_asset.table_only": "0dc8da0a33b5",
+  "console.workbench.remove_asset.table_then": "2bf98b94328f",
   "console.workbench.remove_collection": "39a348dd22df",
   "console.workbench.remove_nvram_file_table": "9e6b3e9fe235",
   "console.workbench.remove_rule": "69a6553e7ea9",

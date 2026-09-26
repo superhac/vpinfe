@@ -177,6 +177,25 @@ class DetailTests(PlacementTests):
         self.assertEqual([tier for tier, _, _ in self._tiers("tbl0000002")],
                          ["table", "game", "default"])
 
+    def test_what_takes_over_after_a_remove_is_what_the_resolver_picks_next(self) -> None:
+        medias = self.folder / "medias"
+        for kind, present, table, then in (
+                ("playfield", (f"(Playfield) {FOLDER} - VR.png", f"(Playfield) {FOLDER}.png"),
+                 "tbl0000002", f"(Playfield) {FOLDER}.png"),
+                ("playfield", (f"(Playfield) {FOLDER} - VR.png",), "tbl0000002", "table.png"),
+                ("playfield", (f"(Playfield) {FOLDER}.png",), "", "table.png"),
+                ("wheel", (f"(Wheel) {FOLDER} - VR.png", f"(Logo) {FOLDER}.png"),
+                 "tbl0000002", f"(Logo) {FOLDER}.png"),
+                ("backglass", (f"(Backglass) {FOLDER} - VR.png",), "tbl0000002", None)):
+            with self.subTest(kind=kind, present=present, table=table):
+                for name in present:
+                    (medias / name).write_bytes(b"\x89PNG")
+                at = f"/tables/{table}" if table else ""
+                response = self.client.get(f"/games/{GAME_ID}{at}/media/{kind}/detail")
+                self.assertEqual(then, response.json().get("after_remove"))
+                for name in present:
+                    (medias / name).unlink()
+
     def test_each_file_is_shown_to_as_many_tables_from_every_lens_as_the_media_view_says(
             self) -> None:
         own = self.folder / "medias" / f"(Playfield) {FOLDER} - VR.png"
