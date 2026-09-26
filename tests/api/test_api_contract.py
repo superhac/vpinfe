@@ -29,7 +29,7 @@ def _run_probe() -> dict:
         game = games_dir / "Example Table (Bally 1990)"
         game.mkdir(parents=True)
         (game / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
-        # Assets the parser should find: a backglass, a per-table ini, a ROM and music.
+        # Assets the parser should find: a backglass, an ini, a ROM and music.
         (game / "Example Table (Bally 1990).directb2s").write_bytes(b"b2s")
         (game / "Example Table (Bally 1990).ini").write_text("[Standalone]", encoding="utf-8")
         (game / "pinmame" / "roms").mkdir(parents=True)
@@ -191,8 +191,8 @@ class ApiContractTests(unittest.TestCase):
         self.assertTrue(assets["ini"]["present"])
         self.assertTrue(assets["music"]["present"])
         self.assertFalse(assets["pup_pack"]["present"], "the fixture has none")
-        # The inventory lens attributes each file to the build it serves.
-        self.assertEqual(assets["backglass"]["files"][0]["binding"], "dedicated")
+        # The inventory lens attributes each file to what it serves.
+        self.assertEqual(assets["backglass"]["files"][0]["binding"], "shared")
 
     def test_a_table_says_whether_it_will_run(self) -> None:
         """The rollup over every required-to-launch kind, on the wire rather than
@@ -208,8 +208,8 @@ class ApiContractTests(unittest.TestCase):
         """The launch lens: resolved assets and the pinmame chain, per table."""
         entry = self.probe["table_files"]["json"]["tables"][0]
 
-        self.assertEqual(entry["assets"]["backglass"]["resolution"], "dedicated")
-        self.assertEqual(entry["assets"]["ini"]["resolution"], "dedicated")
+        self.assertEqual(entry["assets"]["backglass"]["resolution"], "shared")
+        self.assertEqual(entry["assets"]["ini"]["resolution"], "shared")
         # The wire model makes the shape uniform: an unresolved kind still
         # carries file, explicitly null.
         self.assertEqual(entry["assets"]["pov"], {"resolution": "none", "file": None})
