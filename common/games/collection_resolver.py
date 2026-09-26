@@ -164,8 +164,7 @@ def _primary_key(order_by: str) -> Callable[[GameRecord], Any]:
     the field back to largest-first whatever `order.direction` says, which is the bug
     this shape exists to prevent - direction is applied once, by `_ordered`.
 
-    Takes a game rather than an entry: every one of these reads the game, and the wheel
-    re-sorts games while a collection resolves entries. One key, both callers."""
+    Takes a game, or an entry, which forwards what these read. One key, both callers."""
     if order_by == "year":
         return lambda game: str(game_year(game))
     if order_by == "rating":
@@ -208,9 +207,8 @@ def _ordered(entries: list, order_by: str, descending: bool = False) -> list:
 def order_games(games: list, order_by: str, descending: bool = False) -> list:
     """`games` in the order a collection would put them, sorted in place.
 
-    The wheel re-sorts games rather than entries, through this one implementation: one set
-    of keys, one direction rule, and the same tiebreak - title, since two games cannot
-    share the table id an entry list tiebreaks on.
+    The wheel re-sorts its entries through this one implementation: one set of keys and
+    one direction rule. A ranked order reads an entry's own table, and a game's default.
 
     `manual` means the array is already the order, so it is left alone.
     """

@@ -18,6 +18,7 @@ from frontend import game_state
 from frontend.api import API
 from frontend.library_resolver import LibraryResolver
 from tests.extensions.test_derived_tags import DerivedTagCase, _game
+from tests.support.library_loader import library_of
 
 TOP_RATED_TOKEN = "challenge/ratings/top"
 BY_BUILD = "challenge/builds/top"
@@ -223,6 +224,35 @@ class InACollection(RankedCase):
         self.assertEqual(["mm", "afm", "bk", "cv"],
                          [one["game"]["id"] for one in said["entries"]])
         self.assertEqual("", said["group_by"])
+
+    def test_the_wheel_re_sorted_ranks_the_table_each_entry_shows(self) -> None:
+        """The collection holds the newer Attack from Mars build, which the list ranks
+        first, and not the older default the game offers, which it does not rank."""
+        self.week(builds="afm-1-3=9,mm-vpw=8,bk-vpw=7")
+        self.read()
+        self.collections.add_collection("Builds")
+        self.collections.set_order("Builds", BY_BUILD)
+        self.collections.add_member("Builds", "afm", table_id="new")
+        for gid in ("cv", "bk", "mm"):
+            self.collections.add_member("Builds", gid)
+        ranked = ["afm/new", "mm/vpw", "bk/vpw", "cv/vpw"]
+
+        with patch("frontend.library_resolver.get_collections_manager",
+                   lambda: self.collections), library_of(self.games):
+            ini = SimpleNamespace(config=configparser.ConfigParser(), save=lambda: None)
+            ini.config.add_section("general")
+            api = API.__new__(API)
+            api._ini_config = ini
+            api.library = LibraryResolver(ini, games=list(self.games))
+            game_state.apply_collection(api, "Builds")
+
+            def shown() -> list[str]:
+                return [f"{game_id(entry.game)}/{entry.table_id}" for entry in api.entries]
+
+            game_state.refresh_view(api)
+            self.assertEqual(ranked, shown())
+            api.apply_sort(BY_BUILD)
+            self.assertEqual(ranked, shown())
 
 
 class OverTheApi(RankedCase):
