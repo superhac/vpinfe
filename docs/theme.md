@@ -8,9 +8,11 @@ Themes interact with the backend through `vpinfe-core.js`, so theme code calls `
 
 VPinFE runs up to 3 browser windows, one per monitor:
 
-- `playfield` — The main screen. Controller for all other screens and input. Handles gamepad/keyboard input and hosts the in-theme menu overlays. Contract 1 calls this window `table`.
-- `bg` — Backglass screen. Receives events from the controller.
-- `dmd` — DMD screen (not a "real DMD" like ZeDMD). Receives events from the controller.
+- `playfield` - The main screen. Controller for all other screens and input. Handles gamepad/keyboard input and hosts the in-theme menu overlays.
+- `backglass` - Backglass screen. Receives events from the controller.
+- `scoreview` - DMD screen (not a "real DMD" like ZeDMD). Receives events from the controller.
+
+Contract 1 calls them `table`, `bg` and `dmd`.
 
 Each window has its own webpage but shares an instance of the VPinFE API ([frontend/api.py](https://github.com/superhac/vpinfe/blob/master/frontend/api.py)), accessed via [vpinfe-core.js](#vpinfe-corejs).
 
@@ -26,8 +28,8 @@ Themes are installed in the user config directory: `~/.config/vpinfe/themes/<THE
 ├── theme.json           (optional - schema plus saved Manager UI theme options)
 ├── preview.png          (optional - shown in manager UI, can be .png or .gif)
 ├── index_playfield.html  (one per declared window: index_<window>.html)
-├── index_bg.html
-├── index_dmd.html
+├── index_backglass.html
+├── index_scoreview.html
 ├── style.css
 ├── theme.js
 └── fonts/               (optional - custom font files)
@@ -47,7 +49,7 @@ Every theme must include a `manifest.json`:
   "type": "desktop",
   "change_log": "Initial release.",
   "min_vpinfe": "3.0",
-  "windows": ["playfield", "bg", "dmd"]
+  "windows": ["playfield", "backglass", "scoreview"]
 }
 ```
 
@@ -72,9 +74,9 @@ versions serves, so the version you need already says which surface you get.
 
 ### Declaring windows
 
-By default a theme gets three windows, named for the contract it declares — `table`, `bg`
-and `dmd` at contract 1, `playfield`, `bg` and `dmd` at contract 2. Declaring nothing keeps
-what you have.
+By default a theme gets three windows, named for the contract it declares: `table`, `bg`
+and `dmd` at contract 1, `playfield`, `backglass` and `scoreview` at contract 2. Declaring
+nothing keeps what you have.
 
 Declaring nothing and shipping fewer pages also works: a default window whose
 `index_<name>.html` is missing is not opened, so a single-screen theme that ships only its
@@ -83,7 +85,8 @@ window you declare is opened whether or not its page is there, because a declara
 intent and hiding a missing page would hide your bug.
 
 ```json
-"windows": ["playfield", "bg", "dmd", "topper"]
+"min_vpinfe": "3.0",
+"windows": ["playfield", "backglass", "scoreview", "topper"]
 ```
 
 Everything about a window follows from its name:
@@ -270,7 +273,7 @@ Declare nothing and you get three, named for your contract:
 
 | Contract | Files |
 |---|---|
-| 2 | `index_playfield.html`, `index_bg.html`, `index_dmd.html` |
+| 2 | `index_playfield.html`, `index_backglass.html`, `index_scoreview.html` |
 | 1 | `index_table.html`, `index_bg.html`, `index_dmd.html` |
 
 **The main screen is `index_playfield.html` here.** Contract 1 called that window `table`,
@@ -619,7 +622,7 @@ body {
 }
 ```
 
-### index_bg.html & index_dmd.html
+### index_backglass.html & index_scoreview.html
 
 Same structure as above but with simpler content. These windows only display media and respond to events — they don't handle input.
 
@@ -1030,7 +1033,7 @@ Themes can show a loading image or animation while VPX is starting. Use the buil
 - hide it on `TableRunning`
 - also hide it on `TableLaunchComplete` as a cleanup fallback
 
-Add the overlay markup to every theme page that should show it (`index_playfield.html`, `index_bg.html`, and/or `index_dmd.html`):
+Add the overlay markup to every theme page that should show it (`index_playfield.html`, `index_backglass.html`, and/or `index_scoreview.html`):
 
 ```html
 <div id="table-loading-overlay" aria-hidden="true">
