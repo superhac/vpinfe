@@ -348,11 +348,12 @@ async def confirmed_import(library: Any, upload_id: str, analysis: dict[str, Any
     `on_done` runs only after an import, once the library has been read again. Declined,
     blocked or empty, the staged files are let go and nothing else happens.
     """
+    rom_name = _rom_of(library, game_id)
     try:
         plan = await offload.io(library.upload_plan, upload_id, game_dir=game_dir,
-                                allow_new_game=allow_new_game, media_kind=media_kind,
-                                location_id=location_id, asset_kind=asset_kind,
-                                add_table=add_table)
+                                rom_name=rom_name, allow_new_game=allow_new_game,
+                                media_kind=media_kind, location_id=location_id,
+                                asset_kind=asset_kind, add_table=add_table)
     except Exception as exc:  # noqa: BLE001
         ui.notify(t("console.uploads.could_not_work_where", exc=exc), type="negative")
         await run.io_bound(library.abort_upload, upload_id)
@@ -374,10 +375,17 @@ async def confirmed_import(library: Any, upload_id: str, analysis: dict[str, Any
             await answer
 
     await import_dialog.open_for(
-        library, upload_id, plan, source=source, game_dir=game_dir,
+        library, upload_id, plan, source=source, game_dir=game_dir, rom_name=rom_name,
         allow_new_game=allow_new_game, media_kind=media_kind, location_id=location_id,
         asset_kind=asset_kind, add_table=add_table, declared=_declared(analysis, game_id),
         on_done=done)
+
+
+def _rom_of(library: Any, game_id: str) -> str:
+    if not game_id:
+        return ""
+    found = next((one for one in library.games if str(one.get("id")) == game_id), None)
+    return str((found or {}).get("rom") or "").strip()
 
 
 def _declared(analysis: dict[str, Any], game_id: str) -> dict[str, Any]:
