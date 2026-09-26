@@ -191,19 +191,24 @@ def _preview(key: str, manifest: dict, info: dict, installed: bool) -> str:
     return f"{where.rsplit('/', 1)[0]}/{name}" if where else ""
 
 
+def _readable(refresh: bool = False) -> ThemeRegistry:
+    """The registry, or SourceUnavailableError in words."""
+    try:
+        return _loaded(refresh)
+    except ThemeRegistryError as exc:
+        raise SourceUnavailableError(str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 - a source that will not load is news
+        raise SourceUnavailableError(
+            t("error.themes.could_not_read_theme", exc=(exc))) from exc
+
+
 def listing(refresh: bool = False) -> dict[str, Any]:
     """Active first, then installed, then the rest.
 
     `refresh` re-reads the sources. Without it the answer is whatever was read when this
     process first asked, which is right for a page that draws several times a minute.
     """
-    try:
-        registry = _loaded(refresh)
-    except ThemeRegistryError as exc:
-        raise SourceUnavailableError(str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001 - a source that will not load is news
-        raise SourceUnavailableError(
-            t("error.themes.could_not_read_theme", exc=(exc))) from exc
+    registry = _readable(refresh)
     active = theme_service.get_active_theme()
     return {"active": active, "themes": _described(registry, active),
             "checked": theme_sync.checked_at(get_ini_config())}
@@ -212,7 +217,7 @@ def listing(refresh: bool = False) -> dict[str, Any]:
 def install(key: str) -> dict[str, Any]:
     """One call for both. Installing over an existing copy is what an update is, and two
     endpoints doing it would be two names for one act."""
-    registry = _loaded()
+    registry = _readable()
     try:
         theme_service.install_theme(registry, key)
     except ThemeRegistryError as exc:
@@ -224,7 +229,7 @@ def install(key: str) -> dict[str, Any]:
 
 
 def remove(key: str) -> dict[str, Any]:
-    registry = _loaded()
+    registry = _readable()
     if not registry.is_installed(key):
         raise service_errors.NotFoundError(t("error.themes.not_installed", key=(key)))
     if key == theme_service.get_active_theme():
@@ -247,7 +252,7 @@ def activate(key: str) -> dict[str, Any]:
     caller is expected to say - this endpoint changes a setting rather than restarting
     anything."""
     key = str(key or "").strip()
-    registry = _loaded()
+    registry = _readable()
     if not key or not registry.is_installed(key):
         raise service_errors.RefusedError(
             t("error.themes.not_installed_2", value=(key or 'That theme')))
@@ -262,7 +267,7 @@ def options(key: str) -> dict[str, Any]:
     live in its `theme.json`, and a theme can declare a control this install has never
     heard of.
     """
-    registry = _loaded()
+    registry = _readable()
     if not registry.is_installed(key):
         raise service_errors.NotFoundError(t("error.themes.not_installed", key=(key)))
     schema = theme_service.load_theme_option_schema(key, registry)
@@ -281,7 +286,7 @@ def save_options(key: str, values: dict[str, Any]) -> dict[str, Any]:
     next one - every time, with no warning. The theme still declares what its options
     *are*; this is only what somebody chose.
     """
-    registry = _loaded()
+    registry = _readable()
     if not registry.is_installed(key):
         raise service_errors.NotFoundError(t("error.themes.not_installed", key=(key)))
     try:
