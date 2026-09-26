@@ -95,7 +95,6 @@ class AuditFoldTests(unittest.TestCase):
         self.assertEqual(chain["audit"], "ok")
         self.assertTrue(chain["installed"])
         self.assertEqual(chain["clone_of"], "afm_113")
-        self.assertIsNone(chain["reason"])
 
     def test_the_audit_finally_makes_installed_false_sayable(self) -> None:
         """The name-match never says False; PinMAME's own audit may."""
@@ -105,7 +104,6 @@ class AuditFoldTests(unittest.TestCase):
 
         self.assertEqual(chain["audit"], "missing")
         self.assertFalse(chain["installed"])
-        self.assertIn("audit", chain["reason"])
 
     def test_an_unknown_set_is_not_declared_missing(self) -> None:
         """nfl_pat is not in the catalog: players reach it through an alias. Not
@@ -114,7 +112,6 @@ class AuditFoldTests(unittest.TestCase):
 
         self.assertEqual(chain["audit"], "unknown_set")
         self.assertIsNone(chain["installed"])
-        self.assertIn("alias", chain["reason"])
 
 
 class WorkerContractTests(unittest.TestCase):

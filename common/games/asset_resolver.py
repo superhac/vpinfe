@@ -180,7 +180,7 @@ def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files: Iterabl
     if not declared:
         return {"declared": None, "alias_of": None, "effective": None,
                 "required": required, "catalog": None, "clone_of": None,
-                "audit": None, "installed": None, "reason": "no rom declared"}
+                "audit": None, "installed": None}
 
     real = aliases.get(declared.lower())
     effective = real or declared
@@ -193,7 +193,6 @@ def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files: Iterabl
         "clone_of": None,
         "audit": None,
         "installed": None,
-        "reason": None,
     }
 
     wanted = effective.lower()
@@ -201,8 +200,7 @@ def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files: Iterabl
         base, ext = os.path.splitext(name)
         if ext.lower() == ".zip" and base.lower() == wanted:
             chain["installed"] = True
-            return chain
-    chain["reason"] = "not found in the table's roms folder; global locations not searched"
+            break
     return chain
 
 
@@ -221,8 +219,6 @@ def apply_audit(chain: dict, entry: dict | None) -> dict:
         chain["catalog"] = False
         chain["audit"] = "unknown_set"
         chain["installed"] = None
-        chain["reason"] = ("not in this PinMAME's catalog - an alias may be "
-                           "needed, or the set is newer than the shipped library")
         return chain
     chain["catalog"] = True
     chain["clone_of"] = entry.get("clone_of")
@@ -230,11 +226,9 @@ def apply_audit(chain: dict, entry: dict | None) -> dict:
     if entry.get("found"):
         chain["audit"] = "ok"
         chain["installed"] = True
-        chain["reason"] = None
     else:
         chain["audit"] = "missing"
         chain["installed"] = False
-        chain["reason"] = "PinMAME audit: romset missing or incomplete in the table's roms folder"
     return chain
 
 

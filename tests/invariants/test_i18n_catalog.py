@@ -153,6 +153,8 @@ SPEAKS_TO_A_SURFACE = {
     "common/games/locations.py": frozenset({"reason"}),
     "console/metrics.py": frozenset({"reason"}),
     "common/games/config_backups.py": frozenset({"raise", "refusal"}),
+    "common/games/asset_resolver.py": frozenset({"reason"}),
+    "common/games/table_lens.py": frozenset({"reason"}),
 }
 
 # Said to whoever wrote the calling code, which has a bug to fix rather than a person

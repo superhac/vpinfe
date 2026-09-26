@@ -362,8 +362,7 @@ def table_rows(game: Game, row: dict, *, launcher_settings: bool = False) -> lis
             # anything having read the file itself.
             chain = {"declared": None, "alias_of": None, "effective": None,
                      "required": None, "catalog": None, "clone_of": None,
-                     "audit": None, "installed": None,
-                     "reason": "unknown: this table has not been parsed yet"}
+                     "audit": None, "installed": None}
             flex = asset_resolver.flexdmd_state(subdirs, None)
         if chain is None:
             entry["dependencies"] = None

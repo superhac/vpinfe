@@ -321,8 +321,8 @@ satisfies, which is a different mechanism from an asset found by naming rule:
 - `flexdmd` reports whether the script uses FlexDMD and what `.UltraDMD` content exists;
   `declared` stays null until the project-folder extraction is built.
 
-The script-declared facts are only known for the table the game's metadata records;
-other tables report `null` with a reason rather than inheriting the wrong answer.
+Each table answers for itself. One nothing has read yet reports `null` throughout, its
+`features` included, rather than inheriting another table's answer.
 
 `rom` on the game resource is the recorded table's **declared** ROM name kept as plain
 metadata; the full chain (alias, effective, installed, nvram) lives on the table's

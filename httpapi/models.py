@@ -754,7 +754,7 @@ class NvramState(ApiModel):
 
 class PinmameChain(ApiModel):
     """declared -> alias -> effective -> required -> catalog/audit -> installed.
-    Every unknown is null-with-reason, never a guess."""
+    Every unknown is null, never a guess."""
 
     declared: str | None
     alias_of: str | None
@@ -765,7 +765,6 @@ class PinmameChain(ApiModel):
     description: str | None = None
     audit: str | None
     installed: bool | None
-    reason: str | None
     nvram: NvramState
 
 

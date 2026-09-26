@@ -242,7 +242,8 @@ class ApiContractTests(unittest.TestCase):
             chain = entry["dependencies"]["pinmame"]
             self.assertIsNone(chain["declared"], "must not inherit another build's rom")
             self.assertIsNone(chain["required"])
-            self.assertIn("not been parsed", chain["reason"])
+            self.assertEqual(set(entry["features"].values()), {None},
+                             "nothing has read it, which is not answering no")
 
     def test_rom_presence_is_not_reported_as_an_asset(self) -> None:
         """A declared ROM name may be a PinMAME dependency or just a DOF key. Until

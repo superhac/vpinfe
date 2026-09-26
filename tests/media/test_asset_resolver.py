@@ -169,11 +169,10 @@ class RomChainTests(unittest.TestCase):
 
     def test_not_found_is_reported_as_unknown_not_missing(self) -> None:
         """A DOF-only name on an EM game, or a rom in a global folder: neither is
-        a defect, so the answer is null-with-reason, never False."""
+        a defect, so the answer is null, never False."""
         chain = res.resolve_rom_chain("GTB2001_1971", {}, [])
 
         self.assertIsNone(chain["installed"])
-        self.assertIn("global locations not searched", chain["reason"])
 
     def test_no_declared_rom_is_a_complete_non_answer(self) -> None:
         chain = res.resolve_rom_chain("", {}, ["whatever.zip"])
