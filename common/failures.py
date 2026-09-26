@@ -33,36 +33,60 @@ _FILES: dict[int, tuple[str, str]] = {
 
 _UNREACHABLE = {errno.ENETUNREACH, errno.EHOSTUNREACH, errno.EHOSTDOWN, errno.ENETDOWN}
 
+# The key with no host, and the key naming the host.
+_TIMED_OUT = ("said.why.timed_out", "said.why.timed_out_at")
+_NOTHING_ANSWERS = ("said.why.nothing_answers", "said.why.nothing_answers_at")
+_NOT_REACHED = ("said.why.unreachable", "said.why.unreachable_at")
 
-def why(exc: BaseException) -> str:
+
+def why(exc: BaseException, at: str | os.PathLike[str] = "") -> str:
     """The failure in words where it is one a person can act on, else the exception's text.
 
     Never empty, and never a sentence built around the exception: it is the whole line.
+    `at` is the URL or path the caller was reaching, used where the exception does not
+    carry its own.
     """
+    host, path = _where(at)
     if isinstance(exc, HostQuietError):
         return t("said.why.asked_to_wait_at", host=exc.host,
                  time=datetime.fromtimestamp(exc.until).strftime("%H:%M"))
     if isinstance(exc, requests.RequestException):
-        return _network(exc) or _raw(exc)
+        return _network(exc, host) or _raw(exc)
     if isinstance(exc, HTTPError):
-        return _answered(exc.code, urlsplit(str(exc.url or "")).hostname or "") or _raw(exc)
+        return _answered(exc.code, urlsplit(str(exc.url or "")).hostname or host) \
+            or _raw(exc)
     if isinstance(exc, URLError):
         if isinstance(exc.reason, BaseException):
-            return why(exc.reason)
+            return why(exc.reason, at)
         return str(exc.reason or "") or _raw(exc)
     if isinstance(exc, (TimeoutError, socket.timeout)):
-        return t("said.why.timed_out")
+        return _named(_TIMED_OUT, host)
     if isinstance(exc, ConnectionRefusedError):
-        return t("said.why.nothing_answers")
-    if isinstance(exc, socket.gaierror):
-        return t("said.why.unreachable")
-    if isinstance(exc, OSError) and exc.errno in _UNREACHABLE:
-        return t("said.why.unreachable")
+        return _named(_NOTHING_ANSWERS, host)
+    if isinstance(exc, socket.gaierror) or (
+            isinstance(exc, OSError) and exc.errno in _UNREACHABLE):
+        return _named(_NOT_REACHED, host)
     if isinstance(exc, OSError) and exc.errno in _FILES:
-        bare, at = _FILES[exc.errno]
-        path = _path(exc.filename)
-        return t(at, path=path) if path else t(bare)
+        bare, named = _FILES[exc.errno]
+        path = _path(exc.filename) or path
+        return t(named, path=path) if path else t(bare)
     return _raw(exc)
+
+
+def _where(at: object) -> tuple[str, str]:
+    """(host, path): a URL gives its host, anything else is a path."""
+    text = _path(at)
+    try:
+        parts = urlsplit(text)
+        if parts.scheme and parts.netloc:
+            return parts.hostname or "", ""
+    except ValueError:
+        pass
+    return "", text
+
+
+def _named(keys: tuple[str, str], host: str) -> str:
+    return t(keys[1], host=host) if host else t(keys[0])
 
 
 def _raw(exc: BaseException) -> str:
@@ -90,15 +114,14 @@ def _wrapped(exc: BaseException) -> list[BaseException]:
     return found
 
 
-def _network(exc: requests.RequestException) -> str:
-    host = _host(exc)
+def _network(exc: requests.RequestException, reaching: str) -> str:
+    host = _host(exc) or reaching
     if isinstance(exc, requests.Timeout):
-        return t("said.why.timed_out_at", host=host) if host else t("said.why.timed_out")
+        return _named(_TIMED_OUT, host)
     if isinstance(exc, requests.ConnectionError):
         if any(isinstance(one, ConnectionRefusedError) for one in _wrapped(exc)):
-            return (t("said.why.nothing_answers_at", host=host) if host
-                    else t("said.why.nothing_answers"))
-        return t("said.why.unreachable_at", host=host) if host else t("said.why.unreachable")
+            return _named(_NOTHING_ANSWERS, host)
+        return _named(_NOT_REACHED, host)
     if not isinstance(exc, requests.HTTPError):
         return ""
     return _answered(getattr(exc.response, "status_code", 0), host)

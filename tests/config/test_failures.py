@@ -114,6 +114,42 @@ class WhyTests(TempTree):
                          ["catalog.example does not have it", "catalog.example refused it",
                           "catalog.example is having trouble", "HTTP Error 418: Refused"])
 
+    def test_urllib_is_worded_by_where_the_caller_was_reaching(self) -> None:
+        with socket.socket() as free:
+            free.bind(("127.0.0.1", 0))
+            port = free.getsockname()[1]
+        url = f"http://127.0.0.1:{port}/api/v1/tables"
+
+        with self.assertRaises(URLError) as raised:
+            urlopen(url, timeout=5)
+
+        self.assertEqual([why(raised.exception, at=url),
+                          why(URLError(TimeoutError("timed out")), at="https://api.example/x"),
+                          why(URLError(socket.gaierror(8, "nodename")),
+                              at="https://api.example/x")],
+                         ["Nothing answers at 127.0.0.1", "api.example did not answer in time",
+                          "api.example could not be reached"])
+
+    def test_a_file_failure_is_worded_by_the_path_the_caller_gives(self) -> None:
+        self.assertEqual([why(OSError(errno.EACCES, "Permission denied"), at=self.root / "a"),
+                          why(OSError(errno.ENOENT, "No such file"), at="C:\\Tables\\a.vpx")],
+                         [f"VPinFE does not have permission for {self.root / 'a'}",
+                          "Nothing is at C:\\Tables\\a.vpx"])
+
+    def test_where_the_exception_says_it_was_wins(self) -> None:
+        request = requests.Request("GET", "https://catalog.example/data.json").prepare()
+
+        self.assertEqual([why(requests.ReadTimeout(request=request), at="https://api.example/"),
+                          why(FileNotFoundError(errno.ENOENT, "gone", "/own/one.vpx"),
+                              at="/elsewhere.vpx")],
+                         ["catalog.example did not answer in time", "Nothing is at /own/one.vpx"])
+
+    def test_a_url_is_not_a_path_and_a_path_is_not_a_host(self) -> None:
+        self.assertEqual([why(OSError(errno.ENOENT, "No such file"), at="https://api.example/x"),
+                          why(ConnectionRefusedError(), at="/tables/a.vpx"),
+                          why(ConnectionRefusedError(), at="http://[::1")],
+                         ["Nothing is there", "Nothing answers there", "Nothing answers there"])
+
     def test_a_host_that_asked_to_wait(self) -> None:
         said = why(HostQuietError("api.example", 0.0))
 
