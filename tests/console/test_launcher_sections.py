@@ -1480,15 +1480,24 @@ class SetForAllTests(unittest.TestCase):
         with patch.object(app_settings.panel, "action") as action:
             app_settings._for_all(inner, [other], False, [], self.BOTH)(
                 dict(self.SET), self.FIELD, (dict(self.SET), self.HEIGHT))
-        with patch.object(app_settings, "ui") as ui, \
+        with patch.object(app_settings, "ui"), \
+                patch.object(workbench, "no_longer_reads_game") as warned, \
                 patch.object(app_settings.offload, "io",
                              new=AsyncMock(side_effect=lambda call: call())):
             asyncio.run(action.call_args.args[1]())
 
         self.assertEqual({key: one["value"] for key, one in game.held["b"]["values"].items()},
                          {"Player.X": "2", "Player.Y": "2"})
-        self.assertEqual(sum(call.kwargs.get("type") == "warning"
-                             for call in ui.notify.call_args_list), 1)
+        warned.assert_called_once()
+
+    def test_the_tables_cut_off_the_game_s_file_are_named_a_line_each(self) -> None:
+        cut = [{"id": "b", "name": "Addams Family, The"}, {"id": "c", "name": "Other"}]
+        with patch.object(workbench, "ui") as ui, \
+                patch.object(workbench, "_table_line", side_effect=lambda one, _: one["name"]):
+            workbench.no_longer_reads_game(cut, cut)
+
+        self.assertEqual(ui.notify.call_args.args[0].splitlines()[1:],
+                         ["Addams Family, The", "Other"])
 
 
 class _Tables:

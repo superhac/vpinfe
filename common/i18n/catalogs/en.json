@@ -296,7 +296,7 @@
   "console.app_settings.game_and_table": "{game} - {table}",
   "console.app_settings.no_longer_reads_game": {
     "one": "{tables} no longer reads this game's own settings",
-    "other": "{tables} no longer read this game's own settings"
+    "other": "{count} tables no longer read this game's own settings:\n{tables}"
   },
   "console.app_settings.now_same_all_tables": "Now the same as all tables",
   "console.app_settings.option_reset.help": "Back to the table's default",

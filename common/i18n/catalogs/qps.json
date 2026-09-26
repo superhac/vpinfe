@@ -296,7 +296,7 @@
   "console.app_settings.game_and_table": "{game} - {table}",
   "console.app_settings.no_longer_reads_game": {
     "one": "{tables} ñö ŀöñĝèř řèàđš ţĥîš ĝàɱè'š öŵñ šèţţîñĝš",
-    "other": "{tables} ñö ŀöñĝèř řèàđ ţĥîš ĝàɱè'š öŵñ šèţţîñĝš"
+    "other": "{count} ţàƀŀèš ñö ŀöñĝèř řèàđ ţĥîš ĝàɱè'š öŵñ šèţţîñĝš:\n{tables}"
   },
   "console.app_settings.now_same_all_tables": "Ñöŵ ţĥè šàɱè àš àŀŀ ţàƀŀèš",
   "console.app_settings.option_reset.help": "Ɓàçķ ţö ţĥè ţàƀŀè'š đèƒàûŀţ",

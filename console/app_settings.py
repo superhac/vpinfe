@@ -619,7 +619,5 @@ async def _set_for_all(inner: dict[str, Any], others: list[dict[str, Any]],
         ui.notify(t("console.app_settings.set_for_all_done", count=len(others) + 1),
                   type="positive")
         if cut:
-            ui.notify(t("console.app_settings.no_longer_reads_game", count=len(cut),
-                        tables=", ".join(workbench._table_line(one, tables) for one in cut)),
-                      type="warning")
+            workbench.no_longer_reads_game(cut, tables)
     await inner["rebuild"]()

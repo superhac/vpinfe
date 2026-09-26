@@ -4742,9 +4742,7 @@ async def _setting_entries(context: dict[str, Any],
                 ui.notify(t("said.could_not_save_it", exc=(exc)), type="negative")
                 return False
             if cut := (wrote or {}).get("cut"):
-                ui.notify(t("console.app_settings.no_longer_reads_game", count=len(cut),
-                            tables=", ".join(_table_line(one, context.get("tables"))
-                                             for one in cut)), type="warning")
+                no_longer_reads_game(cut, context.get("tables"))
             context.pop("config_values", None)
             try:
                 fresh = await _config_values(context)
@@ -4837,6 +4835,12 @@ async def _setting_entries(context: dict[str, Any],
 
 def _whose(values: dict[str, Any], key: str) -> str:
     return str((values.get(key) or {}).get("scope") or "")
+
+
+def no_longer_reads_game(cut: Sequence[dict[str, Any]],
+                         tables: list[dict[str, Any]] | None) -> None:
+    ui.notify(t("console.app_settings.no_longer_reads_game", count=len(cut),
+                tables="\n".join(_table_line(one, tables) for one in cut)), type="warning")
 
 
 async def _set_by_tables(context: dict[str, Any]) -> list[frozenset[str]]:
