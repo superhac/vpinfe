@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
-from console import mediasource, workbench
+from console import data, mediasource, workbench
 
 CONTEXT = {"rebuild": object()}
 
@@ -32,6 +32,11 @@ class PanelAssetAddTests(unittest.TestCase):
 
     def test_a_kind_the_assets_page_offers_nothing_for_gets_no_add(self) -> None:
         self.assertIsNone(_opens("table"))
+
+    def test_alt_color_and_alt_sound_have_a_row_to_add_from(self) -> None:
+        folder = {"alt_color": {"present": False}, "alt_sound": {"present": False}}
+
+        self.assertEqual(folder, workbench._only_kept(folder, data._kept_of({})["asset"]))
 
 
 if __name__ == "__main__":

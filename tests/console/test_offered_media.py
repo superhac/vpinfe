@@ -98,6 +98,18 @@ class KeptKindsTests(unittest.TestCase):
 
         self.assertNotIn("rom", kept["asset"])
 
+    def test_alt_color_and_alt_sound_are_kept_by_the_names_a_game_carries(self) -> None:
+        kept = self._library({}).load_kept_kinds()
+
+        self.assertLessEqual({"alt_color", "alt_sound"}, kept["asset"])
+
+    def test_alt_color_goes_only_when_serum_and_vni_both_do(self) -> None:
+        serum = self._library({"hidden_asset_kinds": ["altcolor_serum"]}).load_kept_kinds()
+        both = self._library({"hidden_asset_kinds": ["altcolor_serum", "altcolor_vni"]})
+
+        self.assertIn("alt_color", serum["asset"])
+        self.assertNotIn("alt_color", both.load_kept_kinds()["asset"])
+
     def test_the_comma_string_the_ini_holds_reads_the_same(self) -> None:
         kept = self._library({"hidden_media_kinds": "topper, wheel"}).load_kept_kinds()
 

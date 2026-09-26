@@ -7,7 +7,7 @@ import time
 from collections.abc import Iterable
 from typing import Any
 
-from common.games.asset_registry import ASSET_SPECS
+from common.games.asset_registry import ASSET_SPECS, lens_kind
 from common.i18n import t
 from common.labels import field_label
 from common.media_specs import MEDIA_SPECS, media_family, media_label_map
@@ -85,10 +85,14 @@ def _kept_of(policy: dict) -> dict[str, set[str]]:
 
     What this build knows less what is hidden, the direction that survives an upgrade:
     a kind added later is in nobody's hidden list, so it arrives switched on.
+
+    Assets are named both ways: the registry's kinds and the games resource's
+    `alt_color` and `alt_sound`.
     """
+    assets = {spec.kind for spec in ASSET_SPECS} - _listed(policy, "hidden_asset_kinds")
     return {
         "media": set(media_label_map()) - _listed(policy, "hidden_media_kinds"),
-        "asset": {spec.kind for spec in ASSET_SPECS} - _listed(policy, "hidden_asset_kinds"),
+        "asset": assets | {lens_kind(kind) for kind in assets},
     }
 
 
@@ -1001,22 +1005,13 @@ class Library:
         return self._kept_assets(rows)
 
     def asset_rows(self) -> list[dict[str, Any]]:
-        """The asset lens, filtered to the kinds this library collects.
-
-        `alt_color` is the games resource's name for the two the registry declares
-        separately, so it is kept while either of those is.
-        """
+        """The asset lens, filtered to the kinds this library collects."""
         return self._kept_assets(self._asset_rows or [])
 
     def _kept_assets(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         kept = self.kept_kinds()["asset"]
-        pairs = {"alt_color": ("altcolor_serum", "altcolor_vni"),
-                 "alt_sound": ("altsound",)}
         return [{**row, "said": game_tables.made(row)}
-                for row in rows
-                if (row.get("kind") in kept
-                    or any(name in kept
-                           for name in pairs.get(str(row.get("kind") or ""), ())))]
+                for row in rows if row.get("kind") in kept]
 
     def files_of(self, family: str, game_id: str) -> list[dict[str, Any]]:
         """One game's rows in the media or asset lens, read fresh and kept as the whole
