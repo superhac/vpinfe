@@ -259,8 +259,8 @@ An app keeps its own in `i18n/en.json` beside its code, served under `app.<id>.`
 `name` in `apps/vpx/i18n/en.json` is `app.vpx.name` to everything else. A prefix is all an
 app can hold, so it adds words and never changes one of core's.
 
-- `name`, `field.<key>.label`, `field.<key>.description` and `group.<key>.label` are found
-  by what the app declares. Any other key is one its code hands back, such as the reason
+- `name`, `field.<key>.label`, `field.<key>.description`, `field.<key>.blank` (what an
+  empty field reads as) and `group.<key>.label` are found by what the app declares. Any other key is one its code hands back, such as the reason
   in an `Availability`.
 - A field the app's file does not name takes core's `launcher.field.<key>`, so Program
   reads the same on every launcher.

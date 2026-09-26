@@ -419,6 +419,19 @@ class VariesControlTests(unittest.TestCase):
                          (None, ""))
 
 
+class PathControlTests(unittest.TestCase):
+    OPTION = {"key": "ini_path", "type": "str", "path": "file",
+              "blank": "Visual Pinball's own", "left_empty": "/prefs/VPinballX.ini"}
+
+    def test_an_empty_path_shows_the_word_and_hands_the_file_to_the_tooltip(self) -> None:
+        with patch.object(settings.panel, "field") as field:
+            settings.control_for(self.OPTION, "", lambda _v: True)
+
+        self.assertEqual((field.call_args.kwargs["placeholder"],
+                          field.call_args.kwargs["left_empty"]),
+                         ("Visual Pinball's own", "/prefs/VPinballX.ini"))
+
+
 class ColorControlTests(unittest.TestCase):
     OPTION = {"key": "Alpha.Profile4Color", "type": "color", "label": "Color",
               "default": "#FF2315"}

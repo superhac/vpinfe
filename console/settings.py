@@ -235,7 +235,7 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
                 rerender()
 
         return panel.field(str(value or ""), save_path, disabled=off, status=state,
-                           placeholder=blank)
+                           placeholder=blank, left_empty=str(option.get("left_empty") or ""))
     return panel.field(str(value or ""), lambda text: save(text), disabled=off)
 
 

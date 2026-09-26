@@ -234,7 +234,7 @@ def state(text: str, level: str, *, beside: str = "",
 def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
           placeholder: str = "", disabled: bool = False,
           status: Callable[[Any], Any] | None = None,
-          refuses: bool = False) -> Callable[[], None]:
+          refuses: bool = False, left_empty: str = "") -> Callable[[], None]:
     """Free text the user can set.
 
     Written when you leave it or when you press Enter, and `debounce=0` is what makes
@@ -252,6 +252,8 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
 
     With `refuses`, a one-line field's `on_save` answers why it refused the value, or
     empty when it saved, and the answer is the field's error.
+
+    With `left_empty`, a one-line field's tooltip holds its value, else `left_empty`.
     """
     async def leave(control: ui.input) -> None:
         said = on_save(control.value or "")
@@ -281,6 +283,10 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
                     .classes("console-edit-field")
                 control.on("blur", lambda: leave(control))
                 control.on("keydown.enter", lambda: control.run_method("blur"))
+                if left_empty:
+                    with control:
+                        ui.tooltip().bind_text_from(
+                            control, "value", backward=lambda said: said or left_empty)
                 if status is not None:
                     with control.add_slot("append"):
                         status(control)

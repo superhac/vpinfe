@@ -33,7 +33,8 @@ from .contract import (
 __all__ = [
     "App", "Availability", "Claim", "ConfigGroup", "Entry", "Field", "Heading", "Kinds",
     "Pair", "Parsed", "Session", "all_apps", "app_for", "app_name", "default_app",
-    "field_help", "field_words", "get", "group_words", "heading_words", "pair_words",
+    "field_blank", "field_help", "field_words", "get", "group_words", "heading_words",
+    "pair_words",
     "strip_suffix", "table_suffixes",
 ]
 
@@ -142,6 +143,12 @@ def field_help(app_id: str, field: Field) -> str:
     """What a setting is for, in the app's catalog's words, or "" where it says nothing.
     Beside `description`, which is the program's own."""
     return i18n.literal_or("", f"app.{app_id}.field.{field.key}.help")[0]
+
+
+def field_blank(app_id: str, field: Field) -> str:
+    """What a launcher's field does left empty, in the app's catalog's words, or "" where
+    it says nothing."""
+    return i18n.literal_or("", f"app.{app_id}.field.{field.key}.blank")[0]
 
 
 def choice_help(app_id: str, field: Field) -> dict[str, str]:

@@ -61,7 +61,8 @@ def _described(launcher: launchers.Launcher) -> dict[str, Any]:
                     "default": f.default, "path": f.path,
                     "lines": f.lines, "choices": dict(f.choices),
                     "min": f.minimum, "max": f.maximum,
-                    "blank": blanks.get(f.key, "")}
+                    "blank": apps.field_blank(launcher.app, f) or blanks.get(f.key, ""),
+                    "left_empty": blanks.get(f.key, "")}
                    for f in launcher.fields()],
         # Asked on every read, never stored: a launcher pointing at a program that has
         # been uninstalled otherwise looks exactly like one that works.

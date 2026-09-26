@@ -66,6 +66,20 @@ class LauncherApiTests(unittest.TestCase):
         self.assertIn("bin_path", keys)
         self.assertEqual(sorted(found["settings"]), sorted(keys))
 
+    def test_an_empty_settings_file_reads_as_a_word_and_says_which_file_it_stands_for(
+            self) -> None:
+        own = pathlib.Path(self.tmp.name, "VPinballX.ini")
+        self._put("one", display_name="VPX")
+
+        with patch("apps.vpx.config.own_file", return_value=own):
+            found = self.client.get("/launchers").json()["launchers"][0]
+
+        fields = {one["key"]: one for one in found["fields"]}
+        self.assertEqual((fields["ini_path"]["blank"], fields["ini_path"]["left_empty"]),
+                         ("Visual Pinball's own", str(own)))
+        self.assertEqual((fields["bin_path"]["blank"], fields["bin_path"]["left_empty"]),
+                         ("", ""))
+
     def test_a_launcher_says_whether_its_app_keeps_settings_of_its_own(self) -> None:
         self._put("vpx", display_name="VPX")
         self._put("gen", app="generic", display_name="Generic")
