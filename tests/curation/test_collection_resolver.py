@@ -19,6 +19,7 @@ from common.games.collection_store import (
     DuplicateMemberError,
 )
 from common.games.game import Game
+from common.i18n import t
 from tests.support.library import TempTree
 
 
@@ -214,8 +215,11 @@ class ResolverTests(TempTree):
         self.collections.add_member("Friday Night", "afm")
         self.collections.add_member("Friday Night", "mm", table_id="vpw")
 
-        with self.assertRaises(DuplicateMemberError):
+        with self.assertRaises(DuplicateMemberError) as caught:
             self.collections.set_member_table("Friday Night", "mm", "vpw", was="jp")
+
+        self.assertEqual(str(caught.exception),
+                         t("error.collections.table_already_in", name="Friday Night"))
 
         self.assertEqual(self._ids(resolve("Friday Night", self.collections,
                                            self.games)),
@@ -228,8 +232,11 @@ class ResolverTests(TempTree):
         self.collections.add_collection("Friday Night")
         self.collections.add_member("Friday Night", "mm")
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as caught:
             self.collections.set_member_table("Friday Night", "mm", "jp", was="vpw")
+
+        self.assertEqual(str(caught.exception),
+                         t("error.collections.row_gone", name="Friday Night"))
 
     def test_a_named_table_and_a_named_game_sit_side_by_side(self) -> None:
         self.collections.add_collection("Friday Night")

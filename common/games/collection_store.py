@@ -28,6 +28,7 @@ from common.games.info_migration import (
     copy_aside,
     write_atomic,
 )
+from common.i18n import t
 
 logger = logging.getLogger("vpinfe.common.games.collection_store")
 
@@ -351,7 +352,7 @@ class CollectionStore:
     def _require(self, name: str) -> dict:
         record = self._record(name)
         if record is None:
-            raise KeyError(f"Section '{name}' not found")
+            raise KeyError(t("error.collections.no_collection_named", name=name))
         return record
 
     def _require_mutable(self, name: str) -> dict:
@@ -359,7 +360,7 @@ class CollectionStore:
         so an edit would be accepted and then vanish at the next call."""
         record = self._require(name)
         if record.get("builtin") is True:
-            raise ValueError(f"Collection {name!r} is builtin and cannot be edited")
+            raise ValueError(t("error.collections.cannot_be_changed", name=name))
         return record
 
     def get_collections_name(self) -> list[str]:
@@ -368,7 +369,7 @@ class CollectionStore:
     def arrange(self, names: list[str]) -> None:
         """Put the records in the order `names` gives, which must name each exactly once."""
         if sorted(names) != sorted(self.get_collections_name()):
-            raise ValueError("An arrangement must name every collection exactly once")
+            raise ValueError(t("error.collections.order_must_name_every"))
         place = {name: at for at, name in enumerate(names)}
         self.records.sort(key=lambda record: place[record["name"]])
 
@@ -490,7 +491,7 @@ class CollectionStore:
             return
         value = int(limit)
         if value <= 0:
-            raise ValueError("A limit must be a positive number of rows")
+            raise ValueError(t("error.collections.cap_fewer_one_game"))
         record[LIMIT_KEY] = value
 
     def get_excluded_refs(self, section: str) -> list[dict]:
@@ -567,7 +568,8 @@ class CollectionStore:
     def add_collection(self, section: str, members: Iterable[object] | None = None) -> None:
         """Add a collection whose membership is an explicit list of games."""
         if self._record(section) is not None:
-            raise ValueError(f"Section '{section}' already exists")
+            raise ValueError(t("error.collections.collection_named_already_exists",
+                               name=section))
         self.records.append({"name": section, "type": "manual",
                              "image": "", "members": list(members or [])})
 
@@ -587,7 +589,8 @@ class CollectionStore:
     ) -> None:
         """Add a filter-based collection."""
         if self._record(section) is not None:
-            raise ValueError(f"Section '{section}' already exists")
+            raise ValueError(t("error.collections.collection_named_already_exists",
+                               name=section))
         criteria: dict[str, str | bool] = {
             "letter": letter, "theme": theme, "game_type": game_type,
             "manufacturer": manufacturer, "year": year, "rating": rating,
@@ -603,7 +606,8 @@ class CollectionStore:
 
     def copy_collection(self, source: str, section: str) -> None:
         if self._record(section) is not None:
-            raise ValueError(f"Section '{section}' already exists")
+            raise ValueError(t("error.collections.collection_named_already_exists",
+                               name=section))
         record = copy.deepcopy(self._require_mutable(source))
         record["name"] = section
         self.records.append(record)
@@ -646,9 +650,10 @@ class CollectionStore:
     def rename_collection(self, old_name: str, new_name: str) -> None:
         record = self._require_mutable(old_name)
         if self._record(new_name) is not None:
-            raise ValueError(f"Section '{new_name}' already exists")
+            raise ValueError(t("error.collections.collection_named_already_exists",
+                               name=new_name))
         if not new_name.strip():
-            raise ValueError("New name cannot be empty")
+            raise ValueError(t("error.collections.collection_needs_name"))
         record["name"] = new_name
 
     def add_member(self, section: str, member_id: str, table_id: str = "",
@@ -694,7 +699,7 @@ class CollectionStore:
                                 MEMBER_TABLE_KEY: table_id})
             keep = [m for m in members if m != gone]
         if len(keep) == len(members):
-            raise ValueError(f"'{member_id}' is not in collection '{section}'")
+            raise ValueError(t("error.collections.not", game_id=member_id, name=section))
         record["members"] = keep
 
     def set_member_table(self, section: str, member_id: str, table_id: str,
@@ -714,15 +719,13 @@ class CollectionStore:
         # A blank member id addresses nothing, so neither ref is built and there is
         # nothing in the collection it could be pointing at.
         if at is None or ref is None:
-            raise ValueError(
-                f"'{member_id}' does not name that table in collection '{section}'")
+            raise ValueError(t("error.collections.row_gone", name=section))
         # Refused, not repaired. A pairing appears once (2.10), so pointing this ref at
         # a table another already names cannot be stored - and the obvious repair, of
         # dropping one of them, takes a row away without saying so. A caller that is
         # told can offer a choice; a collection that quietly loses a row cannot.
         if any(m == ref for i, m in enumerate(members) if i != at):
-            raise DuplicateMemberError(
-                f"'{member_id}' already names that table in collection '{section}'")
+            raise DuplicateMemberError(t("error.collections.table_already_in", name=section))
         members[at] = ref
         record["members"] = members
 
