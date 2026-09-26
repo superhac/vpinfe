@@ -187,11 +187,24 @@ Every one of them comes from the catalog. `common/i18n/catalogs/en.json` holds t
 
 ```python
 ui.label(t("console.games.no_table_selected"))
-ui.notify(t("said.could_not_do_that", exc=exc), type="negative")
+ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
 ```
 
 `tests/invariants/test_i18n_catalog.py` fails the suite on a literal in a display position,
 so this is enforced rather than remembered.
+
+### A failure leads with words
+
+The message says what could not be done: "Could not install it". What went wrong goes under
+it, in a toast's `caption` or a line's tooltip, from `common.failures.why(exc)`. That words
+the failures a person can act on - no permission, a full disk, nothing at a path, a host
+that did not answer - and hands back the exception's own text for anything else. The log
+keeps the traceback.
+
+No message key takes the exception or its text, so no entry has an `{exc}` slot. A server
+error raised from one carries `why(exc)` as its message, and the Console puts that under its
+own lead in turn. `tests/invariants/test_a_failure_leads_with_words.py` holds the whole tree
+to it.
 
 ### What is not a word
 
