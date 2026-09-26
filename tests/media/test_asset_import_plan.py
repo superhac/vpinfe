@@ -234,19 +234,72 @@ class MediaSlotPlanTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 build_media_slot_plan(archive, game_dir=Path(tmp), media_kind="not_a_slot")
 
-    def test_execute_slot_plan_calls_replace(self):
+    def test_a_drop_is_the_games_own_file_and_the_games_remove_takes_it(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        from common.games import media_placement
+        with TemporaryDirectory() as tmp:
+            game_dir = Path(tmp) / "Foo (Bar 1999)"
+            (game_dir / "medias").mkdir(parents=True)
+            fixed = game_dir / "medias" / "logo.png"
+            fixed.write_bytes(b"from a catalog")
+            src = Path(tmp) / "cool-art.jpg"
+            src.write_bytes(b"jpg-bytes")
+
+            plan = build_media_slot_plan(src, game_dir=game_dir, media_kind="logo")
+            report = execute_import_plan(plan, src)
+
+            own = game_dir / "medias" / "(Logo) Foo (Bar 1999).jpg"
+            self.assertEqual((plan.items[0].destination, own.read_bytes()),
+                             (str(own), b"jpg-bytes"))
+            self.assertEqual(report["media_kinds"], ["logo"])
+            self.assertEqual(fixed.read_bytes(), b"from a catalog")
+            self.assertEqual(media_placement.remove(game_dir, "logo", game_dir.name),
+                             ["medias/(Logo) Foo (Bar 1999).jpg"])
+
+    def test_a_package_media_file_takes_the_same_name_as_a_drop(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Foo (Bar 1999)"
             game_dir.mkdir()
-            src = Path(tmp) / "cool-art.png"
-            src.write_bytes(b"png-bytes")
+            (game_dir / "Foo.vpx").write_bytes(b"x")
+            zip_path = Path(tmp) / "assets.zip"
+            make_zip(zip_path, ["wheel.png"])
+
+            plan = build_import_plan(analyze_path(zip_path), game_dir=game_dir)
+
+            self.assertEqual([item.destination for item in plan.items],
+                             [str(game_dir / "medias" / "(Wheel) Foo (Bar 1999).png")])
+
+
+class MediaSlotReplacesTests(unittest.TestCase):
+    """What the confirm says a drop does to the slot, asked of the name it is written at."""
+
+    def _said(self, *present: str) -> str:
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        from common.uploads import upload_ops
+        with TemporaryDirectory() as tmp:
+            game_dir = Path(tmp) / "Foo (Bar 1999)"
+            (game_dir / "medias").mkdir(parents=True)
+            for name in present:
+                (game_dir / "medias" / name).write_bytes(b"x")
+            src = Path(tmp) / "art.png"
+            src.write_bytes(b"x")
             plan = build_media_slot_plan(src, game_dir=game_dir, media_kind="wheel")
-            with mock.patch("common.uploads.asset_import_service.replace_media_file") as fake:
-                report = execute_import_plan(plan, src)
-            self.assertEqual(fake.call_args.args[2], "wheel")
-            self.assertEqual(report["media_kinds"], ["wheel"])
+            return upload_ops._plan_to_dict(plan)["items"][0]["replaces"]
+
+    def test_nothing_showing_is_an_empty_slot(self):
+        self.assertEqual(self._said(), "slot is empty")
+
+    def test_the_games_own_file_in_another_extension_is_replaced(self):
+        self.assertEqual(self._said("(Wheel) Foo (Bar 1999).jpg"), "replaces current")
+
+    def test_a_file_at_a_lower_tier_is_neither_replaced_nor_an_empty_slot(self):
+        self.assertEqual(self._said("wheel.png"), "")
 
 
 class VpsHelperTests(unittest.TestCase):

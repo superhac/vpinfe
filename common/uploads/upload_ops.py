@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 from typing import IO, Any
 
 from common import media_browse, service_errors
-from common.games import identity_claims
+from common.games import identity_claims, media_placement, media_service
 from common.games.asset_registry import spec_for
 from common.games.game_metadata import made_from
 from common.games.table_lens import table_settings
@@ -113,10 +113,19 @@ def _replaces(plan: ImportPlan, item: PlannedItem) -> str:
         replaced = replaced_table(base)
         return t("asset.plan.replaces_named", name=replaced.name) if replaced else ""
     if item.action == "replace_media":
-        return t("asset.plan.replaces_current" if Path(item.destination).exists()
-                 else "asset.plan.slot_empty")
+        return _media_replaces(base, item)
     if item.action in {"replace_b2s", "copy"} and Path(item.destination).exists():
         return t("asset.plan.replaces_file")
+    return ""
+
+
+def _media_replaces(base: Path, item: PlannedItem) -> str:
+    kind = item.asset.media_kind
+    if media_placement.displaced(base, kind, base.name, Path(item.destination).suffix):
+        return t("asset.plan.replaces_current")
+    shown = media_service.resolved_media(base).get(kind)
+    if shown is None or shown.path is None:
+        return t("asset.plan.slot_empty")
     return ""
 
 

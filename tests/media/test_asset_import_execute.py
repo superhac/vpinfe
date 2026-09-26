@@ -292,7 +292,7 @@ class ImportExecuteTests(unittest.TestCase):
                 report = execute_import_plan(plan, zip_path)
                 new_dir = Path(tmp) / "Medieval Madness"
                 self.assertTrue((new_dir / "Medieval Madness.vpx").exists())
-                self.assertTrue((new_dir / "medias" / "wheel.png").exists())
+                self.assertTrue((new_dir / "medias" / "(Wheel) Medieval Madness.png").exists())
                 self.assertTrue(report["new_game"])
 
     def test_execute_new_bundle_collision_raises(self):

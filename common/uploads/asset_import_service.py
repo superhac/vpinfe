@@ -15,6 +15,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 
+from common.games import media_placement
 from common.games.asset_registry import ARCHIVE_EXTENSIONS, lens_kind, spec_for
 from common.games.game_repository import refresh_game
 from common.games.game_service import (
@@ -29,7 +30,7 @@ from common.games.game_service import (
 from common.games.identity_claims import DeclaredIdentity
 from common.games.ids import new_id
 from common.games.info_file import VPINFE_SECTION, MetaConfig
-from common.games.media_service import IMAGE_EXTENSIONS, replace_media_file
+from common.games.media_service import IMAGE_EXTENSIONS
 from common.games.vpx_parser import VPXParser
 from common.i18n import t
 from common.media_specs import media_filename_map
@@ -244,9 +245,15 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
         return PlannedItem(asset, str(base / _patched_vpx_name(asset, base, vpx_stem)),
                            "apply_patch")
     if kind == "media":
-        filename = _MEDIA_FILENAMES.get(asset.media_kind, asset.media_kind)
-        return PlannedItem(asset, str(base / "medias" / filename), "replace_media")
+        return _plan_media(asset, base)
     return BlockedItem(asset, t("error.uploads.cannot_import_kind"))
+
+
+def _plan_media(asset: DetectedAsset, base: Path) -> PlannedItem:
+    """A media file for the whole game: the name the panel's Add gives it."""
+    suffix = PurePosixPath(asset.entries[0].arcname).suffix
+    name = media_placement.target_name(asset.media_kind, base.name, suffix)
+    return PlannedItem(asset, str(base / "medias" / name), "replace_media")
 
 
 def _new_games_under(location_id: str = "") -> str:
@@ -368,9 +375,7 @@ def build_media_slot_plan(source_path: Path, *, game_dir: Path, media_kind: str)
     if not suitable:
         return ImportPlan(str(game_dir), "", "", (), (BlockedItem(asset, why),))
 
-    destination = str(game_dir / "medias" / canonical)
-    item = PlannedItem(asset, destination, "replace_media")
-    return ImportPlan(str(game_dir), "", "", (item,), ())
+    return ImportPlan(str(game_dir), "", "", (_plan_media(asset, game_dir),), ())
 
 
 def build_readme_plan(source_path: Path, *, game_dir: Path) -> ImportPlan:
@@ -658,7 +663,8 @@ def _import_media(source: AssetSource, asset: DetectedAsset, game_dir: Path) -> 
         scratch = Path(handle.name)
     try:
         source.extract_member(entry.path, scratch)
-        replace_media_file(game_dir, game_dir.name, asset.media_kind, str(scratch))
+        written = media_placement.place(game_dir, asset.media_kind, game_dir.name, scratch)
+        media_placement.record_origin(game_dir, written)
     finally:
         scratch.unlink(missing_ok=True)
 

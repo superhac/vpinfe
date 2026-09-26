@@ -88,15 +88,17 @@ outranks token, so a game-file-specific `(GameHelp)` file beats a folder-level
 refresh could clobber a user's own file; the tiers make "mine" and "downloaded"
 structurally distinct. The published tokens for those two say the role rather than the
 thing, which reads as a different asset to anyone naming files by hand — and since VPinFE
-only ever *reads* tokens and writes the fixed names, accepting both costs nothing on disk.
+only ever *writes* its own tokens, accepting both costs nothing on disk.
 Covered by `tests/media/test_media_resolution.py`.
 
 **PAR-10 — Imported media keeps its real file extension.**
 Importing a `.jpg` wheel used to write JPEG bytes into `medias/wheel.png` — a file that
-lies about itself. It now writes `wheel.jpg`, and removes same-kind siblings that would
-shadow it.
+lies about itself. It now writes `(Wheel) <folder>.jpg`, the name the Console's Add gives
+the game's own wheel, and removes same-kind siblings at that name that would shadow it. A
+`wheel.png` a media refresh placed stays, behind it.
 *Why:* the on-disk name should tell the truth; browsers sniffed past it, other tools
-won't. Covered by `tests/media/test_media_resolution.py`.
+won't. The fixed name is where a media refresh writes, so the user's file goes above it.
+Covered by `tests/media/test_asset_import_plan.py`.
 
 **PAR-11 — Six new media kinds: instruction_card, topper, topper_video, loading,
 audio_launch, rule_sheet.**
