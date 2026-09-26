@@ -41,6 +41,10 @@ GAME = "Attack from Mars"
 DOTTED = re.compile(r"\b[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+\b", re.IGNORECASE)
 KEYS = {key.lower(): key for key in CATALOG}
 FIRST_ROW = ".ag-row .ag-cell"
+# Rendered elements only: the grid's paging bar is in every page, hidden, and unread.
+PAGE_WORDS = ("[document.body.innerText, ...[...document.querySelectorAll('[aria-label]')]"
+              ".filter(e => e.getClientRects().length)"
+              ".map(e => e.getAttribute('aria-label'))].join('\\n')")
 
 
 def _keys_in(text: str) -> list[str]:
@@ -197,15 +201,13 @@ class PseudoLocaleTests(unittest.TestCase):
                         "document.querySelectorAll('.q-page, .nicegui-content').length > 0",
                         timeout=90.0)
                     await asyncio.sleep(3)
-                    text = await browser.evaluate("document.body.innerText") or ""
-                    read(view, text + await _picker_text(browser))
+                    read(view, await browser.evaluate(PAGE_WORDS) + await _picker_text(browser))
                 await browser.navigate(instance.console_url("/console?view=locations"))
                 await browser.wait_for(
                     f"document.querySelector({json.dumps(FIRST_ROW)}) !== null", timeout=90.0)
                 await browser.click(FIRST_ROW)
                 await asyncio.sleep(3)
-                read("a location's panel",
-                     await browser.evaluate("document.body.innerText") or "")
+                read("a location's panel", await browser.evaluate(PAGE_WORDS))
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
