@@ -22,11 +22,7 @@ from common.deprecations import announce
 from common.extensions import services as ext_services
 from common.games import game_identity
 from common.games.collection_store import BUILTIN_ALL, normalize_direction, public_name
-from common.games.collections_service import (
-    get_collection_image_url,
-    get_collections_manager,
-    get_frontend_collections,
-)
+from common.games.collections_service import get_collections_manager
 from common.games.game_metadata import game_rating, normalize_meta, set_game_rating
 from common.games.game_repository import all_games
 from common.host import frontend_state, launch, launch_state
@@ -454,25 +450,26 @@ class API:
 
     def get_collections(self) -> list[str]:
         return [row["name"] for row in
-                get_frontend_collections(public_name(self.current_collection))]
+                self.library.offered(public_name(self.current_collection))]
 
     def get_collections_metadata(self) -> list[dict]:
-        return self._glanced(get_frontend_collections(public_name(self.current_collection)))
+        return self._glanced(self.library.offered(public_name(self.current_collection)))
 
     def get_collection_picker_items(self) -> list[dict]:
         """All Games, then what `get_collections_metadata` offers."""
         showing = public_name(self.current_collection)
         whole = {"name": "", "image": "", "image_url": ""}
-        rows = self._glanced([whole, *get_frontend_collections(showing)])
+        rows = self._glanced([whole, *self.library.offered(showing)])
         return [row | {"showing": row["name"] == showing} for row in rows]
 
     def _glanced(self, rows: list[dict]) -> list[dict]:
         names = [row["name"] or BUILTIN_ALL for row in rows]
         glances = self.library.glance(names)
-        return [row | glances[name] for row, name in zip(rows, names, strict=True)]
+        # The row wins: a library's rows arrive counted by the install that holds it.
+        return [glances[name] | row for row, name in zip(rows, names, strict=True)]
 
     def get_collection_image_url(self, collection: str) -> str:
-        return get_collection_image_url(collection)
+        return self.library.image_url(collection)
 
     def set_tables_by_collection(self, collection: str) -> None:
         """Set filtered games based on collection from collections.ini."""

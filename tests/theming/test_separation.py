@@ -21,6 +21,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import requests
+
 from tests.support.browser_session import BrowserSession, chromium_path
 from tests.support.library import TempTree, write_game
 from tests.support.live_instance import LiveInstance
@@ -238,6 +240,68 @@ class SeparationTests(TempTree):
         self.assertEqual([d["device_id"] for d in after["devices"]],
                          [mine["device_id"]],
                          "reading a library is not registering with it")
+
+    def test_a_device_picks_from_the_hub_s_collections(self) -> None:
+        """What the device's picker lists is the hub's, drawn with the hub's art - and a
+        collection only the device's own file holds is not among it."""
+        with LiveInstance(self.library_root) as library:
+            library.wait_for_api()
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+            ids = [entry["game"]["id"] for entry in
+                   _fetch(f"{library_api}/api/v1/library/entries")["entries"]]
+            library.post("/api/v1/collections", {"name": "Hub Picks",
+                                                 "games": [ids[2], ids[0]]})
+            requests.put(f"{library_api}/api/v1/collections/Hub%20Picks/image",
+                         files={"file": ("picks.png", PNG, "image/png")},
+                         timeout=30).raise_for_status()
+            offered = [row["name"] for row in
+                       _fetch(f"{library_api}/api/v1/collections")["collections"]
+                       if row["in_frontend"]]
+
+            with LiveInstance(self.device_root,
+                              extra_settings={("network", "library_url"): library_api}) as device:
+                device.wait_for_api()
+                device.library_assets_port = library.ports["assets"]
+                device.post("/api/v1/collections", {"name": "Only Here", "games": []})
+
+                (items, drawn), failures = self._evaluate(device, (
+                    "vpin.callInternal('get_collection_picker_items')",
+                    """(async () => {
+                         const items = await vpin.callInternal('get_collection_picker_items');
+                         const load = url => new Promise(done => {
+                           const img = new Image();
+                           img.onload = () => done(img.naturalWidth);
+                           img.onerror = () => done(0);
+                           img.src = url;
+                         });
+                         const rows = items.filter(item => item.name === 'Hub Picks');
+                         return Promise.all(rows.flatMap(item =>
+                           [item.image_url, ...item.game_wheel_urls].map(load)));
+                       })()"""))
+
+        self.assertEqual([item["name"] for item in items], ["", *offered])
+        self.assertIn("Hub Picks", offered)
+        picks = next(item for item in items if item["name"] == "Hub Picks")
+        self.assertEqual(picks["table_count"], 2)
+        self.assertEqual(drawn, [1, 1, 1],
+                         "the collection's image and both wheels load from the hub")
+        self.assertEqual(failures, [])
+
+    def _evaluate(self, device: LiveInstance, expressions: tuple[str, ...]):
+        """Open the device's playfield window and evaluate each expression there, in
+        order, once the theme is ready."""
+        async def run():
+            async with BrowserSession(chromium_path()) as browser:
+                await browser.navigate(device.theme_url("playfield"))
+                try:
+                    await browser.wait_for("document.body.dataset.ready === 'true'",
+                                           timeout=self.READY_TIMEOUT)
+                except TimeoutError as exc:
+                    raise AssertionError(self._diagnose(exc, browser, device)) from exc
+                results = [await browser.evaluate(expression) for expression in expressions]
+                return results, list(browser.failed_requests)
+
+        return asyncio.run(run())
 
     def _render(self, device: LiveInstance):
         """Open the device's playfield window and read back what the theme drew."""

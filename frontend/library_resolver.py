@@ -22,7 +22,13 @@ from common.games.collection_store import (
     CollectionStore,
     public_name,
 )
-from common.games.collections_service import WHEELS_SHOWN, get_collections_manager
+from common.games.collections_service import (
+    WHEELS_SHOWN,
+    get_collection_image_url,
+    get_collections_manager,
+    get_frontend_collections,
+    offered,
+)
 from common.games.game_repository import all_games
 from common.games.media_lookup import resolved_kinds
 from frontend import game_state
@@ -104,6 +110,29 @@ class LibraryResolver:
         """This install's collections. One place to ask, so the view and the resolver
         behind it cannot end up reading two different files."""
         return get_collections_manager()
+
+    def offered(self, showing: str = "") -> list[dict[str, Any]]:
+        """The collections the frontend offers, and `showing` whether offered or not.
+        A library's rows arrive glanced."""
+        if not self._remote:
+            return get_frontend_collections(showing)
+        try:
+            resources = remote_library.fetch_collections(self._library_url)
+        except Exception:
+            logger.warning("Could not list the library's collections", exc_info=True)
+            return []
+        return offered([remote_library.metadata_row(self._library_url, resource)
+                        for resource in resources], showing)
+
+    def image_url(self, collection: str) -> str:
+        if not self._remote:
+            return get_collection_image_url(collection)
+        try:
+            resource = remote_library.fetch_collection(self._library_url, collection)
+        except Exception:
+            logger.debug("No image for %r from the library", collection, exc_info=True)
+            return ""
+        return str(remote_library.metadata_row(self._library_url, resource)["image_url"])
 
     def resolve_view(self, collection: str, criteria: dict | None = None) -> list:
         """The entries a collection holds, off this install's library.

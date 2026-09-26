@@ -18,6 +18,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.parse import quote
 
 from common.games import remote_library
 from common.games.collection_resolver import Entry
@@ -177,6 +178,91 @@ class LibraryCollectionTests(unittest.TestCase):
         self.api.apply_sort("title", "asc")
 
         self.assertEqual(self._refreshed(), sorted(self.RANKED))
+
+
+LIBRARY = "http://library.example:8001"
+
+
+def _resource(name: str, count: int, *, image: str | None = None,
+              in_frontend: bool = True, wheels: tuple[str, ...] = ()) -> dict:
+    """A collection as the library's GET /api/v1/collections lists it."""
+    return {"name": name, "type": "manual", "image": image,
+            "image_version": "7" if image else None, "in_frontend": in_frontend,
+            "count": count, "game_count": count, "game_wheels": list(wheels),
+            "order_by": "title", "direction": "asc", "paging_group": ""}
+
+
+class LibraryPickerTests(unittest.TestCase):
+    """What a player offers to pick from, when its library is another install's."""
+
+    WHEEL = "/api/v1/games/Twil/tables/t-Twil/media/wheel"
+    LISTED = [_resource("Favorites", 2, image="favorites.png", wheels=(WHEEL,)),
+              _resource("Hub Picks", 1),
+              _resource("Kept Back", 3, in_frontend=False)]
+
+    def setUp(self) -> None:
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        store = CollectionStore(str(Path(tmp.name) / "collections.json"))
+        store.add_collection("Favorites", ["Atta"])
+        store.add_collection("Only Here", ["Medi"])
+        self.reachable = True
+        for patcher in (patch.object(remote_library.http_client, "get_json", self._answer),
+                        patch("frontend.library_resolver.get_collections_manager",
+                              lambda: store),
+                        patch("common.games.collections_service.get_collections_manager",
+                              lambda: store)):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+        ini = _ini(LIBRARY)
+        self.api = API.__new__(API)
+        self.api._ini_config = ini
+        self.api.library = LibraryResolver(ini)
+
+    def _answer(self, url: str, **_: object) -> dict:
+        path = url.removeprefix(LIBRARY)
+        if path.endswith("/entries"):
+            return PAYLOAD
+        if not self.reachable:
+            raise OSError("nothing answers")
+        if path == "/api/v1/collections":
+            return {"collections": self.LISTED}
+        for resource in self.LISTED:
+            if path == f"/api/v1/collections/{quote(resource['name'])}":
+                return resource
+        raise OSError(f"404 for {path}")
+
+    def _row(self, name: str) -> dict:
+        return next(item for item in self.api.get_collection_picker_items()
+                    if item["name"] == name)
+
+    def test_the_picker_offers_the_librarys_collections_and_none_of_its_own(self) -> None:
+        self.assertEqual([item["name"] for item in self.api.get_collection_picker_items()],
+                         ["", "Favorites", "Hub Picks"])
+        self.assertEqual(self.api.get_collections(), ["Favorites", "Hub Picks"])
+
+    def test_a_row_is_counted_and_drawn_by_the_library(self) -> None:
+        favorites = self._row("Favorites")
+
+        self.assertEqual(favorites["table_count"], 2)
+        self.assertEqual(favorites["image_url"],
+                         f"{LIBRARY}/api/v1/collections/Favorites/image?v=7")
+        self.assertEqual(favorites["game_wheel_urls"], [f"{LIBRARY}{self.WHEEL}"])
+        self.assertEqual(self._row("Hub Picks")["image_url"], "")
+        self.assertIsNone(self._row("")["table_count"])
+
+    def test_a_collections_image_is_the_librarys(self) -> None:
+        self.assertEqual(self.api.get_collection_image_url("Favorites"),
+                         f"{LIBRARY}/api/v1/collections/Favorites/image?v=7")
+        self.assertEqual(self.api.get_collection_image_url("Only Here"), "")
+
+    def test_a_library_that_cannot_be_reached_offers_none(self) -> None:
+        self.reachable = False
+
+        self.assertEqual(self.api.get_collections(), [])
+        self.assertEqual([item["name"] for item in self.api.get_collection_picker_items()],
+                         [""])
 
 
 if __name__ == "__main__":

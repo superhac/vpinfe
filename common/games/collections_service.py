@@ -137,10 +137,15 @@ def get_collections_metadata() -> list[dict]:
     return rows
 
 
+def offered(rows: list[dict], showing: str = "") -> list[dict]:
+    """The rows the frontend offers, and `showing` whether offered or not."""
+    return [row for row in rows
+            if row["in_frontend"] or (showing and row["name"] == showing)]
+
+
 def get_frontend_collections(showing: str = "") -> list[dict]:
     """The collections the frontend offers, and `showing` whether offered or not."""
-    return [row for row in get_collections_metadata()
-            if row["in_frontend"] or (showing and row["name"] == showing)]
+    return offered(get_collections_metadata(), showing)
 
 
 def save_filter_collection(

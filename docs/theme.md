@@ -992,7 +992,8 @@ The picker's items are the rows `get_collections_metadata` returns, with *All Ga
 first. Every item has a `label` to draw - the collection's name, or "All Games" in the
 player's language - and `showing` is true on the one the frontend is showing now, which
 is where the picker opens. *All Games* has an empty `name` and `image_url`, and its own
-`table_count` and `game_wheel_urls`. `vpin.openCollectionPicker()` returns the list, and
+`table_count` and `game_wheel_urls` - `null` and none on a device that reads its library
+from another. `vpin.openCollectionPicker()` returns the list, and
 its `items` are what to draw; it returns `null`, and opens nothing, when there are no
 collections to offer.
 
@@ -1394,8 +1395,8 @@ window is told through the `lifecycle.acting` event and cannot block it.
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `get_collections` | — | `array` | Returns list of collection names from `collections.ini`. |
-| `get_collections_metadata` | — | `array` | Returns the collections the frontend offers, in the order they are arranged, each with `name`, `type`, `is_filter`, `image`, `image_url`, `in_frontend`, `table_count` and `game_wheel_urls`. `image_url` is a theme-server URL such as `/collection_icons/favorites.png`, or an empty string when no image is set. `table_count` is how many entries the collection shows on this device, rules and limit included, or `null` against a remote library. `game_wheel_urls` is up to four wheel URLs of the games it holds, the same shape as `image_url`, for drawing a collection with no image of its own. A collection kept out of the frontend is left out unless it is the one showing, which comes with `in_frontend` false. |
+| `get_collections` | — | `array` | Returns the names of the collections `get_collections_metadata` returns. |
+| `get_collections_metadata` | — | `array` | Returns the collections the frontend offers, in the order they are arranged, each with `name`, `type`, `is_filter`, `image`, `image_url`, `in_frontend`, `table_count` and `game_wheel_urls`. `image_url` is a theme-server URL such as `/collection_icons/favorites.png`, or an empty string when no image is set. `table_count` is how many entries the collection shows, rules and limit included. `game_wheel_urls` is up to four wheel URLs of the games it holds, the same shape as `image_url`, for drawing a collection with no image of its own. A collection kept out of the frontend is left out unless it is the one showing, which comes with `in_frontend` false. On a device that reads its library from another (`network.library_url`), these are that device's collections, counted there, and both URLs are full URLs on it. |
 | `get_collection_image_url` | `collection` | `string` | Returns the image URL for one collection, or an empty string when no image is set. |
 | `set_tables_by_collection` | `collection` | — | Shows the named collection: what it holds, in the order it stores. Works for a hand-picked collection and a filter-based one alike. |
 | `save_filter_collection` | `name`, `letter`, `theme`, `table_type`, `manufacturer`, `year`, `sort_by`, `rating`, `rating_or_higher`, `order_by` | `object` | Saves the current filter settings as a named collection. `order_by` is `"Descending"` or `"Ascending"` and defaults to `"Descending"`. Returns `{success, message}`. |

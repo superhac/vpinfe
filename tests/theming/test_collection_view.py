@@ -223,16 +223,6 @@ class CabinetCollectionRowsTests(_Library):
 
         self.assertEqual([item["showing"] for item in items], [False, True])
 
-    def test_a_remote_library_counts_nothing_it_would_have_to_ask_for(self) -> None:
-        self.collections.add_collection("Short", ["mm"])
-        api = self._api()
-        api.library._remote = True
-
-        row = self._row(api.get_collections_metadata(), "Short")
-
-        self.assertIsNone(row["table_count"])
-        self.assertEqual(row["game_wheel_urls"], [])
-
 
 class CollectionGoneTests(_Library):
     """The collection on show is deleted from the Console while the cabinet shows it."""

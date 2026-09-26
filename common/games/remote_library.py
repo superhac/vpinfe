@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from typing import Any
-from urllib.parse import quote, urljoin
+from urllib.parse import quote, urlencode, urljoin
 
 from common import http_client
 from common.games.collection_resolver import Entry
@@ -117,3 +117,55 @@ def fetch_entries(library_url: str, collection: str = "",
     if not isinstance(rows, list):
         raise ValueError(f"{library_url} did not return an entry list")
     return [_entry_from_wire(row) for row in rows if isinstance(row, dict)]
+
+
+def _on(library_url: str, path: str) -> str:
+    return urljoin(library_url.rstrip("/") + "/", path.lstrip("/"))
+
+
+def fetch_collections(library_url: str, *,
+                      timeout: int = http_client.DEFAULT_TIMEOUT) -> list[dict[str, Any]]:
+    """Another install's collections as its API lists them, in its order. Raises when it
+    cannot be asked, like `fetch_entries`."""
+    payload = http_client.get_json(_on(library_url, "api/v1/collections"), timeout=timeout)
+    rows = payload.get("collections") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        raise ValueError(f"{library_url} did not return a collection list")
+    return [row for row in rows if isinstance(row, dict) and row.get("name")]
+
+
+def fetch_collection(library_url: str, name: str, *,
+                     timeout: int = http_client.DEFAULT_TIMEOUT) -> dict[str, Any]:
+    """One of another install's collections. Raises when it cannot be asked, and when
+    that install has no collection by that name."""
+    path = f"api/v1/collections/{quote(name, safe='')}"
+    row = http_client.get_json(_on(library_url, path), timeout=timeout)
+    if not isinstance(row, dict) or not row.get("name"):
+        raise ValueError(f"{library_url} did not return a collection")
+    return row
+
+
+def metadata_row(library_url: str, resource: dict[str, Any]) -> dict[str, Any]:
+    """One of another install's collections, shaped as `get_collections_metadata` shapes
+    a local one, with that install's count and whole URLs to its art."""
+    name = str(resource["name"])
+    is_filter = resource.get("type") == "filter"
+    image = str(resource.get("image") or "")
+    image_url = ""
+    if image:
+        version = resource.get("image_version")
+        query = f"?{urlencode({'v': version})}" if version else ""
+        image_url = _on(library_url,
+                        f"api/v1/collections/{quote(name, safe='')}/image{query}")
+    return {
+        "name": name,
+        "type": "filter" if is_filter else "vpsid",
+        "is_filter": is_filter,
+        "image": image,
+        "image_url": image_url,
+        "in_frontend": bool(resource.get("in_frontend", True)),
+        "game_count": resource.get("game_count"),
+        "table_count": resource.get("count"),
+        "game_wheel_urls": [_on(library_url, str(url))
+                            for url in resource.get("game_wheels") or []],
+    }
