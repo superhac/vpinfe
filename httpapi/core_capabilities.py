@@ -36,7 +36,7 @@ def _peripherals_available() -> bool | tuple[bool, str]:
 
 
 def _launch_available() -> bool | tuple[bool, str]:
-    """Whether this machine can actually start a game.
+    """Whether this device can actually start a game.
 
     Reading play state works without a launcher; starting one does not. Discovery
     has to say so, or an instance advertises a Play button that always fails.
@@ -60,7 +60,7 @@ def _launch_available() -> bool | tuple[bool, str]:
 
 
 def _rom_audit_available() -> bool | tuple[bool, str]:
-    """Whether this machine can run PinMAME's own ROM audit."""
+    """Whether this device can run PinMAME's own ROM audit."""
     try:
         from common.games import launchers
         from common.host import pinmame_catalog
@@ -101,23 +101,23 @@ def declare_core() -> None:
     capabilities.declare(capabilities.Capability(
         name="play",
         feature=capabilities.install_identity.FRONTEND,
-        description="Launch lifecycle state for this machine",
+        description="Launch lifecycle state for this device",
     ))
     capabilities.declare(capabilities.Capability(
         name="launch",
         feature=capabilities.install_identity.FRONTEND,
-        description="Starting a game on this machine",
+        description="Starting a game on this device",
         is_available=_launch_available,
     ))
     capabilities.declare(capabilities.Capability(
         name="metrics",
-        description="Live readings from this machine",
+        description="Live readings from this device",
         is_available=lambda: metrics.measurable(),
     ))
     capabilities.declare(capabilities.Capability(
         name="launchers",
         feature=capabilities.install_identity.FRONTEND,
-        description="The configured ways this machine runs a table",
+        description="The configured ways this device runs a table",
     ))
     capabilities.declare(capabilities.Capability(
         name="peripherals",

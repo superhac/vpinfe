@@ -3,6 +3,7 @@ from __future__ import annotations
 import functools
 import unittest
 from typing import Any
+from unittest.mock import patch
 
 from tests.support.catalogs import served
 
@@ -61,7 +62,8 @@ MEANT = {"cabinet": "the frontend", "machine": "a game, this device or a compute
          "build": "a table"}
 
 
-# What /api/v1/docs shows, keyed by where the string sits in the OpenAPI document.
+# What /api/v1/docs and discovery show, keyed by where the string sits: in the OpenAPI
+# document, or under `discovery.` in what GET /api/v1 answers.
 API_CABINET: dict[str, str] = {}
 
 API_MACHINE = {
@@ -146,10 +148,21 @@ def api_text(document: dict[str, Any]) -> dict[str, str]:
 
 
 @functools.cache
-def _served_api_text() -> dict[str, str]:
+def _served() -> tuple[dict[str, str], frozenset[str]]:
+    """The words, and the capabilities declared when they were read."""
     import httpapi
+    from httpapi import capabilities, instance
 
-    return api_text(httpapi.create_api_app().openapi())
+    document = api_text(httpapi.create_api_app().openapi())
+    declared = frozenset(capabilities._CAPABILITIES)
+    # Every capability, whichever features this config switches on.
+    with patch.object(capabilities, "_enabled_features", return_value=capabilities.FEATURES):
+        discovery = instance.discovery_payload(httpapi.API_PREFIX, httpapi.API_VERSION)
+    return {**document, **api_text({"discovery": discovery})}, declared
+
+
+def _served_api_text() -> dict[str, str]:
+    return _served()[0]
 
 
 class TheApiDocument(unittest.TestCase):
@@ -175,6 +188,13 @@ class TheApiDocument(unittest.TestCase):
         self.assertTrue(any(".get.summary" in site for site in sites))
         self.assertTrue(any(".parameters[" in site for site in sites))
         self.assertTrue(any(site.startswith("components.schemas.") for site in sites))
+
+    def test_the_sweep_reads_every_capability_discovery_can_serve(self) -> None:
+        text, declared = _served()
+        served = {site for site in text if site.startswith("discovery.")}
+        self.assertIn("discovery.capabilities[launch].description", served)
+        self.assertEqual({f"discovery.capabilities[{name}].description"
+                          for name in declared}, served)
 
     def test_it_reads_every_depth(self) -> None:
         document = {
