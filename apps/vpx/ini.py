@@ -278,13 +278,15 @@ def section_and_key(qualified: str) -> tuple[str, str]:
 
 
 def _section_end(lines: list[str], section: str) -> int | None:
-    """The line after the last one belonging to a section, or None if it has none."""
+    """The line after the last one belonging to a section that is not blank, or None if
+    it has none."""
     start = next((n for n, raw in enumerate(lines)
                   if (heading := _SECTION.match(raw.strip()))
                   and heading.group(1).strip() == section), None)
     if start is None:
         return None
-    for n in range(start + 1, len(lines)):
-        if _SECTION.match(lines[n].strip()):
-            return n
-    return len(lines)
+    end = next((n for n in range(start + 1, len(lines)) if _SECTION.match(lines[n].strip())),
+               len(lines))
+    while end > start + 1 and not lines[end - 1].strip():
+        end -= 1
+    return end

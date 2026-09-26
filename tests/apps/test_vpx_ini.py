@@ -252,12 +252,25 @@ class WriteTests(unittest.TestCase):
         self.assertEqual(out, "[Player]\nBGSet = 1\n")
 
     def test_a_key_added_then_removed_gives_the_file_back(self) -> None:
-        held = "[Player]\nBGSet = 1\n"
-        for key in ("Plugin.B2SLegacy.B2SHideGrill", "Player.FXAA"):
-            with self.subTest(key=key):
+        for held, key in (("[Player]\nBGSet = 1\n", "Plugin.B2SLegacy.B2SHideGrill"),
+                          ("[Player]\nBGSet = 1\n", "Player.FXAA"),
+                          ("[Player]\nBGSet = 1\n\n[DMD]\nLegacy = 1\n", "Player.FXAA")):
+            with self.subTest(held=held, key=key):
                 added = vini.written(vini.parse(held), {key: "1"})
 
                 self.assertEqual(vini.written(vini.parse(added), {}, remove=[key]), held)
+
+    def test_a_key_added_to_a_section_goes_above_its_trailing_blank_lines(self) -> None:
+        held = vini.parse("[Player]\nBGSet = 1\n\n\n[DMD]\nLegacy = 1\n")
+
+        self.assertEqual(vini.written(held, {"Player.FXAA": "1"}),
+                         "[Player]\nBGSet = 1\nFXAA = 1\n\n\n[DMD]\nLegacy = 1\n")
+
+    def test_a_key_added_to_the_last_section_goes_above_the_file_s_blank_end(self) -> None:
+        held = vini.parse("[Player]\nBGSet = 1\n\n")
+
+        self.assertEqual(vini.written(held, {"Player.FXAA": "1"}),
+                         "[Player]\nBGSet = 1\nFXAA = 1\n\n")
 
     def test_a_section_between_two_leaves_one_blank_line_between_them(self) -> None:
         held = vini.parse("[A]\nx = 1\n\n[B]\ny = 1\n\n[C]\nz = 1\n")
