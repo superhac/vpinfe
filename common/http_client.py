@@ -22,6 +22,8 @@ from urllib.parse import urlsplit
 
 import requests
 
+from common.i18n import t
+
 DEFAULT_TIMEOUT = 15
 DOWNLOAD_TIMEOUT = 60
 QUIET_SECONDS = 60.0
@@ -131,7 +133,7 @@ def get_json(
     try:
         return response.json()
     except json.JSONDecodeError as exc:
-        raise ValueError(f"Invalid JSON returned from {url}") from exc
+        raise ValueError(t("said.why.unreadable_at", host=_host(url))) from exc
 
 
 def put_json(url: str, payload: Any, *, timeout: int = DEFAULT_TIMEOUT,

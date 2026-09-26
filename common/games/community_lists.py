@@ -13,7 +13,9 @@ from urllib.parse import quote
 
 from common import events, paths, shutdown
 from common.atomic_write import write_atomic
+from common.failures import why
 from common.games import derived_tags, rankings
+from common.i18n import t
 from common.timestamps import utc_now_iso
 
 logger = logging.getLogger("vpinfe.common.games.community_lists")
@@ -111,11 +113,11 @@ def refresh(fetch: Fetch) -> bool:
         try:
             rows = (fetch(f"/ext/{extension}{listing.get('base') or ''}") or {}).get("rows")
             if not isinstance(rows, list):
-                raise ValueError("the list answered without rows")
+                raise ValueError(t("said.why.unreadable"))
         except Exception as exc:
             logger.warning("Could not read the Community list %s: %s", key, exc)
             if tagged:
-                derived_tags.failed(key, str(exc) or type(exc).__name__)
+                derived_tags.failed(key, why(exc))
             continue
         found = [one for one in rows if isinstance(one, dict)]
         changed = _keep(extension, listing["key"], found)[1] or changed

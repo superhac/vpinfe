@@ -2801,6 +2801,8 @@
   "said.why.timed_out_at": "{host} đîđ ñöţ àñšŵèř îñ ţîɱè",
   "said.why.unreachable": "Îţ çöûŀđ ñöţ ƀè řèàçĥèđ",
   "said.why.unreachable_at": "{host} çöûŀđ ñöţ ƀè řèàçĥèđ",
+  "said.why.unreadable": "Îţ šèñţ šöɱèţĥîñĝ ṼÞîñƑÈ çàññöţ řèàđ",
+  "said.why.unreadable_at": "{host} šèñţ šöɱèţĥîñĝ ṼÞîñƑÈ çàññöţ řèàđ",
   "size.bytes": "{value} Ɓ",
   "size.gigabytes": "{value} ĜƁ",
   "size.kilobytes": "{value} ĶƁ",

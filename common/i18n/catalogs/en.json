@@ -2801,6 +2801,8 @@
   "said.why.timed_out_at": "{host} did not answer in time",
   "said.why.unreachable": "It could not be reached",
   "said.why.unreachable_at": "{host} could not be reached",
+  "said.why.unreadable": "It sent something VPinFE cannot read",
+  "said.why.unreadable_at": "{host} sent something VPinFE cannot read",
   "size.bytes": "{value} B",
   "size.gigabytes": "{value} GB",
   "size.kilobytes": "{value} KB",
