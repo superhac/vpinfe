@@ -109,6 +109,7 @@ _SYNTHWAVE = """
   /* Darker than the page, because a picture reads best against something that is not
      competing with it. */
   --surface-art: #06030f;
+  --art-ground: var(--surface-art);
   /* Which way round the grid alternates. Dark grounds put the darker color under and
      the lighter stripe on top; Light has to do the reverse, or the grid is a grey slab
      next to a white page. */
@@ -215,7 +216,7 @@ _SYNTHWAVE = """
      surface in a neutral mode. */
   --header-bg: linear-gradient(135deg, var(--flair) 0%, #4a1e7c 50%,
                var(--surface-0) 100%);
-  /* Two colour pairs, one fade. The hues differ per pane on purpose; the stops do not -
+  /* Two color pairs, one fade. The hues differ per pane on purpose; the stops do not -
      0px, the 48px header's foot, the pane's surface 24px later. Each keeps only the
      tail its own pane needs. */
   --nav-bg: linear-gradient(180deg, var(--flair) 0px, #4a1e7c 48px, var(--surface-2) 72px,
@@ -286,6 +287,7 @@ _DARK = """
   --surface-work: #0a0b0e;
   --surface-viewer: #0a0b0e;
   --surface-art: #08090b;
+  --art-ground: var(--surface-art);
   --grid-ground: var(--surface-3);
   --grid-stripe: var(--surface-2);
   --row-select: #1b3a57;
@@ -402,6 +404,9 @@ _LIGHT = """
   --surface-work: #ffffff;
   --surface-viewer: #ffffff;
   --surface-art: #f1f3f6;
+  /* Dark on a light page too: the art beside a name in a list is drawn for a dark
+     frontend, and light art on a light ground is not there at all. */
+  --art-ground: #1b1e24;
   --grid-ground: var(--surface-1);
   --grid-stripe: #eceef2;
   --row-select: #dbe9fa;

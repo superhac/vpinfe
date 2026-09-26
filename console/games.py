@@ -15,7 +15,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common import config_schema
+from common import config_schema, icons
 from common.failures import why
 from common.games import asset_registry
 from common.i18n import t
@@ -29,6 +29,7 @@ from console import (
     deeplink,
     game_tables,
     grid,
+    list_art,
     media_ownership,
     mediaview,
     offload,
@@ -129,7 +130,7 @@ _TICK = {
 # to go and look at it.
 COLUMNS = [
     grid.identifier("name", t(_GAME), 280, pinned="left", group=t(_GAME),
-                subtitle="said",
+                subtitle="said", picture=list_art.FIELD, glyph=icons.GAMES,
                 help=t("console.games.game_library_names.help"),
                 **row_drag.source(row_drag.GAMES)),
     # Always, including 1: it is the only thing saying the row collapses its tables,
@@ -445,7 +446,7 @@ def grid_columns(rows: list[dict[str, Any]], kinds: list[str],
                  library: Any) -> list[dict[str, Any]]:
     """Every column the Games grid declares: a media column for every kind the library
     collects, whether or not any game has one yet. `kinds` are the ones some game has."""
-    return with_derived_facets(COLUMNS, rows) \
+    return grid.with_art(with_derived_facets(COLUMNS, rows), bool(library.list_art())) \
         + asset_columns(library.asset_keys()) \
         + media_columns(sorted(library.kept_kinds()["media"]),
                         shown=_collected(kinds, library))
@@ -908,6 +909,7 @@ TABLE_COLUMN_SECTIONS = {"settings": "table_settings", OWN_SETTINGS_COLUMN: "tab
 TABLE_COLUMNS = [
     grid.identifier("game", t(_TABLE), 300, pinned="left", group=t(_GAME),
                 subtitle=("said", "", "said_built"),
+                picture=list_art.FIELD, glyph=icons.TABLES,
                 help=t("console.games.game_this_table.help"),
                 **row_drag.source(row_drag.TABLES)),
     grid.column("version", t("word.version"), group=t(_TABLE),
@@ -1100,8 +1102,8 @@ def add_index(built: list[dict[str, Any]], game_id: str,
     transaction["addIndex"] = at + len(transaction.get("update", ()))
 
 
-def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """The API's tables, flattened for a grid.
+def table_rows(rows: list[dict[str, Any]], art: bool = False) -> list[dict[str, Any]]:
+    """The API's tables, flattened for a grid, each with its list art while `art`.
 
     `missing` rather than the API's `available`, so all three flags read the same way:
     true is the notable state and the tick means "this row is one of those". Sorting or
@@ -1146,7 +1148,8 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
              # null for all seven, and inventing False here would lose that.
              **{f"feature_{key}": (row.get("features") or {}).get(key)
                 for key in table_features.LABELS},
-             "default_state": _default_cell(row, held[str(row.get("game_id") or "")])}
+             "default_state": _default_cell(row, held[str(row.get("game_id") or "")]),
+             **({list_art.FIELD: list_art.address(row)} if art else {})}
             for row in rows]
 
 
@@ -1225,11 +1228,13 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     state = state if state is not None else {}
     tag_chips.install(library.tag_looks())
     renderers.install_setting_names(own_setting_names(library.setting_groups()))
-    built = table_rows(rows)
+    art_shown = bool(library.list_art())
+    built = table_rows(rows, art_shown)
     # Taken once, as the Games grid takes its own.
     arriving = setting_their_own(rows, str(state.pop("launcher", None) or ""),
                                  str(state.pop("sets", None) or ""))
-    table_columns = TABLE_COLUMNS + table_asset_columns(list(TABLE_ASSET_KEYS))
+    table_columns = grid.with_art(TABLE_COLUMNS, art_shown) \
+        + table_asset_columns(list(TABLE_ASSET_KEYS))
     fields = [definition["field"] for definition in table_columns]
 
     sections.metadata_line(library, state)
@@ -1392,7 +1397,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         # blanks four columns on exactly the rows just acted on.
         rows_now = await offload.io(library.load_tables)
         fresh = table_rows([item for item in rows_now
-                            if item.get("game_id") == game_id])
+                            if item.get("game_id") == game_id], art_shown)
         transaction = row_transaction(by_id, game_id, fresh)
         add_index(built, game_id, transaction)
         if transaction:

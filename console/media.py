@@ -16,9 +16,10 @@ from typing import Any
 
 from nicegui import ui
 
+from common import icons
 from common.i18n import t
 from common.media_specs import media_label_map
-from console import art_fill, grid, media_ownership, offload, panel, verbs, views
+from console import art_fill, grid, list_art, media_ownership, offload, panel, verbs, views
 from console.games import view_control
 from console.on_page import on_page
 
@@ -85,7 +86,7 @@ _SOURCE = "word.source"
 
 COLUMNS: list[dict[str, Any]] = [
     grid.identifier("game", t(_GAME), 240, pinned="left", group=t(_GAME),
-                subtitle="said",
+                subtitle="said", picture=list_art.FIELD, glyph=icons.GAMES,
                 help=t("console.media.game_folder_file_belongs.help")),
     grid.column("label", t("word.kind"), 160, group=t(_FILE),
                 help=t("console.media.twenty_media_kinds_row.help")),
@@ -165,6 +166,7 @@ def build(found: list[dict[str, Any]], library: Any,
     """The media lens: one row per file, and one per file that is not there."""
     state = state if state is not None else {}
     built = rows(found)
+    columns = grid.with_art(COLUMNS, bool(library.list_art()))
     selected: list[dict[str, Any]] = []
 
     # What is on screen, which on this page is rarely the whole library: the point of
@@ -186,7 +188,7 @@ def build(found: list[dict[str, Any]], library: Any,
                                   "console-panel console-grid-bar"):
         bar = panel.grid_bar()
         wire_views, _picker, showing, describe = view_control(library, SCOPE, VIEWS,
-                                                    _ALL, COLUMNS, bar=bar,
+                                                    _ALL, columns, bar=bar,
                                                     art_in_lists=True)
         describe()
         with bar.top, panel.bar_end():
@@ -232,10 +234,10 @@ def build(found: list[dict[str, Any]], library: Any,
                       lambda event: on_select(by_id.get(grid.focused_row(event))))
 
     async def on_header_context(col_id: str | None) -> None:
-        await grid.header_menu(menu, table, COLUMNS, col_id)
+        await grid.header_menu(menu, table, columns, col_id)
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table: ui.aggrid = grid.build(COLUMNS, built, SCOPE, on_select_rows,
+        table: ui.aggrid = grid.build(columns, built, SCOPE, on_select_rows,
                                       on_header_context=on_header_context,
                                       view_of=showing)
         menu: ui.context_menu = ui.context_menu()

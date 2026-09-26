@@ -50,6 +50,9 @@ class _Library:
     def forget_media(self, _game_id: str) -> None:
         pass
 
+    def list_art(self) -> str:
+        return ""
+
     def load_media_rows(self) -> list[dict]:
         return self.found
 

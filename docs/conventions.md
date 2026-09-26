@@ -537,7 +537,7 @@ like one product.
 
 Four modes: `synthwave` (the default), `dark`, `light`, and `system`, which follows the
 operating system and resolves to one of the two neutral palettes. Set with
-`[general] console_theme`.
+`console.theme`.
 
 A mode is a palette and nothing else. Structure, spacing and the type scale are shared, and
 a mode may not touch them: that is what keeps four modes from becoming four layouts. A
@@ -1080,6 +1080,16 @@ element.
   end (`console-file-name`), which is where two builds of one game differ.
   `tests/invariants/test_maker_and_year_are_joined_once.py` fails on a maker-year join
   written anywhere else.
+- **A game or table in a list carries its art when Art in Lists is on.** One 80 x 40
+  frame ahead of the name holds the chosen kind as the frontend shows it, on a ground
+  that is dark in every palette, or the row's own glyph where there is none. The row
+  stays its height. `console/list_art.py` draws the frame, and
+  `tests/invariants/test_list_art_is_drawn_once.py` fails on one drawn anywhere else. It
+  is not a control: no tooltip, no zoom, `alt=""`.
+- **Art in a list is still.** An animated file shows its first frame at list size.
+- **A missing picture is the thing's own glyph, never a broken image.** A game's, a
+  table's, a theme's palette. An empty box reads as a slot to drop something into, and
+  a broken image reads as a fault.
 - **A badge on every row is not a badge** — where the badge is *constant*. A chip reading
   the same thing on every row, or an action identical on all of them, says nothing and
   comes off. This does **not** cover a state that varies per row: that is data, and hiding

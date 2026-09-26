@@ -19,8 +19,9 @@ from typing import Any
 
 from nicegui import ui
 
+from common import icons
 from common.i18n import t
-from console import grid, media_ownership, offload, panel, views
+from console import grid, list_art, media_ownership, offload, panel, views
 from console.games import view_control
 
 logger = logging.getLogger("vpinfe.console.assets")
@@ -75,7 +76,7 @@ _SOURCE = "word.source"
 
 COLUMNS: list[dict[str, Any]] = [
     grid.identifier("game", t(_GAME), 240, pinned="left", group=t(_GAME),
-                subtitle="said",
+                subtitle="said", picture=list_art.FIELD, glyph=icons.GAMES,
                 help=t("console.assets.game_folder_file_belongs.help")),
     grid.column("label", t("word.kind"), 160, group=t(_FILE),
                 help=t("console.assets.what_file_backglass_vpx.help")),
@@ -136,6 +137,7 @@ def build(found: list[dict[str, Any]], library: Any,
     """The asset lens: one row per file, and one per file that is not there."""
     state = state if state is not None else {}
     built = rows(found)
+    columns = grid.with_art(COLUMNS, bool(library.list_art()))
     gaps = sum(1 for row in built if not row.get("present"))
     on_screen = {"rows": len(built)}
 
@@ -148,7 +150,7 @@ def build(found: list[dict[str, Any]], library: Any,
                                   "console-panel console-grid-bar"):
         bar = panel.grid_bar()
         wire_views, _picker, showing, describe = view_control(library, SCOPE, VIEWS,
-                                                    _ALL, COLUMNS, bar=bar,
+                                                    _ALL, columns, bar=bar,
                                                     art_in_lists=True)
         describe()
         with bar.top, panel.bar_end():
@@ -163,10 +165,10 @@ def build(found: list[dict[str, Any]], library: Any,
                       lambda event: on_select(by_id.get(grid.focused_row(event))))
 
     async def on_header_context(col_id: str | None) -> None:
-        await grid.header_menu(menu, table, COLUMNS, col_id)
+        await grid.header_menu(menu, table, columns, col_id)
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table = grid.build(COLUMNS, built, SCOPE,
+        table = grid.build(columns, built, SCOPE,
                            on_header_context=on_header_context, view_of=showing)
         menu = ui.context_menu()
     search.on_value_change(

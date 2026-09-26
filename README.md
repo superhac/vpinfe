@@ -221,7 +221,7 @@ VPinFE gets art for your games from [VPinMediaDB](https://github.com/superhac/vp
 
 Only the kinds your library collects are fetched, and the playfield comes in the variant and resolution you set.  Both are under **Settings > Library > Media**.
 
-The picture beside a game, table or collection's name in the Console's lists is **Art in Lists**, under **Settings > VPinFE > Console**.  It is the wheel unless you pick the backglass, the playfield, the logo or none, and it offers only the kinds your library collects.
+The picture beside a game, table or collection's name in the Console's lists is **Art in Lists**, under **Settings > VPinFE > Console**.  It is the wheel unless you pick the backglass, the playfield, the logo or none, and it offers only the kinds your library collects.  A game or table shows the art the frontend shows for it, and its icon where it has none.
 
 ## ManagerUI Guide
 

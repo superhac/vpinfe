@@ -104,7 +104,7 @@ class _Client:
     def media(self, game_id):
         return {"wheel": {"present": False}}
 
-    def all_tables(self):
+    def all_tables(self, art="", game=""):
         self.reads["tables"] += 1
         return [table("g1", False)]
 

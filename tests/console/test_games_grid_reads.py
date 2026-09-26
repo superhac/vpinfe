@@ -26,6 +26,7 @@ def _library() -> tuple[Library, Mock]:
     client.all_media.return_value = [
         {"id": "g-1:wheel:", "game_id": "g-1", "kind": "wheel", "present": True,
          "file": "wheel.png", "via": "game"}]
+    client.all_tables.return_value = [{"game_id": "g-1", **TABLE}]
     library = Library(client)
     library.games = [GAME]
     library.media = library._shared_media()
@@ -57,6 +58,7 @@ class TheGamesGridAfterAnImport(unittest.TestCase):
 
     def test_it_reads_nothing_when_it_holds_what_it_draws(self) -> None:
         library, _client = _library()
+        library.load_tables()
 
         self.assertIsNone(page.reads_before_drawing("games", library))
 
@@ -94,7 +96,7 @@ class ARowPutBackAfterAnImport(unittest.TestCase):
                 with holder:
                     games.build(self.library.game_rows(), self.library.kinds_present(),
                                 self.library, lambda _row: None, self.state)
-                await act()
+                    await act()
             finally:
                 core.loop = was
         asyncio.run(inside())

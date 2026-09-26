@@ -24,6 +24,7 @@ from common.i18n import t
 from console import (
     confirm,
     grid,
+    list_art,
     mediaview,
     offload,
     panel,
@@ -53,9 +54,12 @@ STATES = {
 MADE_FOR = {"cab": t("console.themes.cabinet"), "desktop": t("console.themes.desktop"),
             "both": t("console.themes.both")}
 
+# A theme's own glyph, where it has no preview.
+GLYPH = "palette"
+
 COLUMNS: list[dict[str, Any]] = [
     grid.identifier("name", t("console.themes.theme"), 320, subtitle="said",
-                    picture="preview"),
+                    picture="preview", glyph=GLYPH, frame=list_art.PREVIEW),
     grid.column("status", t("word.status"), 150,
                 **grid.choice_filter([{"value": key, "label": one["label"]}
                                       for key, one in STATES.items()], formatted=True),
@@ -258,7 +262,7 @@ async def details(context: dict[str, Any]) -> None:
                     .props("flat dense round size=sm") \
                     .classes("console-slot-zoom").tooltip(t("word.enlarge"))
             else:
-                ui.icon("image_not_supported").classes("console-theme-hero-empty")
+                ui.icon(GLYPH).classes("console-theme-hero-empty")
         entries: list[tuple[Any, Any]] = []
         if theme.get("description"):
             entries.append(panel.intro(str(theme["description"])))

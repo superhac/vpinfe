@@ -19,7 +19,7 @@ from nicegui import run, ui
 
 from common import i18n
 from common.i18n import t
-from console import offload, renderers
+from console import list_art, offload, renderers
 from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.grid")
@@ -612,17 +612,15 @@ _SUBTITLE_RENDERER = (
     " + '</span><span class=\"{cls}' + (file ? ' " + FILE_LINE_CLASS + "' : '')"
     " + '\">' + said + '</span>';"
     " const art = {picture};"
-    " if (art === null) return lines;"
-    " const shown = art ? '<img loading=\"lazy\" alt=\"\" src=\"' + esc(art) + '\">'"
-    " : '<i class=\"material-icons console-cell-noart\">image_not_supported</i>';"
-    " return '<span class=\"console-cell-pictured\"><span class=\"console-cell-art-box\">'"
-    " + shown + '</span><span class=\"console-cell-lines\">' + lines + '</span></span>'; }"
+    " if (art == null) return lines;"
+    " return {frame}; }"
 )
 
 
 def identifier(field: str, header: str, width: int = 0, help: str = "",
                subtitle: str | tuple[str, str, str] = "", link: str = "",
-               picture: str = "", **extra: Any) -> dict[str, Any]:
+               picture: str = "", glyph: str = "", frame: str = list_art.LIST,
+               **extra: Any) -> dict[str, Any]:
     """The column this grid's rows are scanned *by*, which is not their unique key.
 
     Exactly one per grid; `build` refuses anything else.
@@ -634,8 +632,9 @@ def identifier(field: str, header: str, width: int = 0, help: str = "",
     `link` makes the value an anchor on rows carrying `<link>_href`, titled `<link>_tip`.
     A row carrying a true `<built>_file` has a filename for its second part, and keeps
     the end of it when the line runs out.
-    `picture` names the field holding an image address drawn ahead of both lines. Both
-    need a subtitle to be drawn.
+    `picture` names the field holding an image address drawn in a `frame` ahead of both
+    lines, with `glyph` in it where the address is "". A row without the field draws no
+    frame. All of them need a subtitle to be drawn.
     """
     extra_classes = extra.pop("cellClass", "")
     classes = f"{extra_classes} {IDENTIFIER_CLASS}".strip() if extra_classes \
@@ -643,14 +642,17 @@ def identifier(field: str, header: str, width: int = 0, help: str = "",
     if subtitle:
         made, _, built = (subtitle if isinstance(subtitle, tuple)
                           else (subtitle, "", ""))
-        classes = f"{classes} {TWO_LINE_CLASS}" + (f" {PICTURED_CLASS}" if picture else "")
+        classes = f"{classes} {TWO_LINE_CLASS}" + (
+            f" {PICTURED_CLASS}" if picture and frame == list_art.PREVIEW else "")
         extra.setdefault(":cellRenderer", _SUBTITLE_RENDERER
-                         .replace("{picture}", f"(d['{picture}'] || '')" if picture else "null")
+                         .replace("{picture}", f"(d['{picture}'] ?? null)" if picture else "null")
                          .replace("{link}", link or "_")
                          .replace("{made}", made)
                          .replace("{built}", f"d['{built}'] || ''" if built else "''")
                          .replace("{file}", f"!!d['{built}_file']" if built else "false")
-                         .replace("{cls}", SUBTITLE_CLASS))
+                         .replace("{cls}", SUBTITLE_CLASS)
+                         .replace("{frame}", list_art.frame_js(glyph, frame)
+                                  if picture else "lines"))
     return column(field, header, width, help, cellClass=classes, **extra)
 
 
@@ -802,6 +804,16 @@ def base_row_px(columns: list[dict[str, Any]]) -> int:
     if PICTURED_CLASS in classes:
         return PICTURED_ROW_PX
     return TWO_LINE_ROW_PX if TWO_LINE_CLASS in classes else ONE_LINE_ROW_PX
+
+
+def with_art(columns: list[dict[str, Any]], shown: bool) -> list[dict[str, Any]]:
+    """`columns`, with the identifier declared wide enough for the art beside the name
+    while the list draws it."""
+    if not shown:
+        return columns
+    return [definition | {"width": definition["width"] + list_art.ROOM_PX}
+            if IDENTIFIER_CLASS in str(definition.get("cellClass") or "") else definition
+            for definition in columns]
 
 
 def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,

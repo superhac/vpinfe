@@ -145,9 +145,12 @@ class ApiClient:
     def game(self, game_id: str) -> dict:
         return self._get(f"/games/{game_id}")
 
-    def all_tables(self) -> list[dict]:
-        """Every table in the library, one row each, with its game's name on it."""
-        return list(self._get("/tables").get("tables") or [])
+    def all_tables(self, art: str = "", game: str = "") -> list[dict]:
+        """Every table in the library, or one game's, one row each, with its game's name
+        on it; with `art`, which file of that kind each one shows."""
+        query = urlencode({key: value for key, value in (("art", art), ("game", game))
+                           if value})
+        return list(self._get(f"/tables{'?' if query else ''}{query}").get("tables") or [])
 
     def all_media(self) -> list[dict]:
         """Every media file in the library, one row each, and one per file it lacks."""
