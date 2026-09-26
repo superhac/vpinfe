@@ -17,7 +17,13 @@ from typing import Any
 
 from common.i18n import t
 from tests.support.browser_session import BrowserSession
-from tests.theming.test_grid_selection_drive import API, HEADER_BOX, _heard, drive_page
+from tests.theming.test_grid_selection_drive import (
+    API,
+    HEADER_BOX,
+    _heard,
+    drive_page,
+    exit_with_parent,
+)
 
 SEARCH = "Alpha"
 FILLED = "alpha1:wheel:"
@@ -178,6 +184,7 @@ class MediaFillDrive(unittest.TestCase):
 
 if __name__ == "__main__":
     if sys.argv[1:2] == ["serve"]:
+        exit_with_parent()
         serve(int(sys.argv[2]))
     else:
         unittest.main()

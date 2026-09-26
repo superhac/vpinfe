@@ -9,10 +9,14 @@ Slow: serves a bare page holding one Console grid and drives it in a real browse
 from __future__ import annotations
 
 import asyncio
+import atexit
+import functools
 import json
 import os
+import signal
 import subprocess
 import sys
+import threading
 import time
 import unittest
 import urllib.request
@@ -85,6 +89,36 @@ def wait_for_page(port: int, page: subprocess.Popen, log: Path) -> None:
     raise AssertionError(f"the page never served:\n{log.read_text()}")
 
 
+def exit_with_parent() -> None:
+    """First thing in a page's `serve` entry. `start_page` holds the other end of stdin,
+    and this process exits the moment it closes."""
+    def orphaned() -> None:
+        sys.stdin.buffer.read()
+        os._exit(0)
+
+    threading.Thread(target=orphaned, daemon=True).start()
+
+
+def start_page(module: str, port: int, config: str) -> subprocess.Popen:
+    """`module`'s page on `port`, logging to `page.log` in `config`."""
+    with (Path(config) / "page.log").open("w") as out:
+        return subprocess.Popen([sys.executable, "-m", module, "serve", str(port)],
+                                cwd=REPO, stdin=subprocess.PIPE, stdout=out,
+                                stderr=subprocess.STDOUT, start_new_session=True,
+                                env={**os.environ, "VPINFE_CONFIG_DIR": config})
+
+
+def stop_page(page: subprocess.Popen) -> None:
+    page.terminate()
+    try:
+        page.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        page.kill()
+        page.wait()
+    if page.stdin:
+        page.stdin.close()
+
+
 def drive_page(module: str, drive: Callable[[str, int], Awaitable[dict]]) -> dict:
     """Serve `module`'s page, run `drive(browser binary, port)` against it, and stop it."""
     binary = chromium_path()
@@ -92,17 +126,15 @@ def drive_page(module: str, drive: Callable[[str, int], Awaitable[dict]]) -> dic
         raise unittest.SkipTest("no Chromium on this machine")
     port = free_port()
     with TemporaryDirectory() as config:
-        log = Path(config) / "page.log"
-        with log.open("w") as out:
-            page = subprocess.Popen([sys.executable, "-m", module, "serve", str(port)],
-                                    cwd=REPO, stdout=out, stderr=subprocess.STDOUT,
-                                    env={**os.environ, "VPINFE_CONFIG_DIR": config})
+        page = start_page(module, port, config)
+        stop = functools.partial(stop_page, page)
+        atexit.register(stop)
         try:
-            wait_for_page(port, page, log)
+            wait_for_page(port, page, Path(config) / "page.log")
             return asyncio.run(drive(binary, port))
         finally:
-            page.terminate()
-            page.wait(timeout=10)
+            stop()
+            atexit.unregister(stop)
 
 
 class SelectionDrive(unittest.TestCase):
@@ -176,8 +208,58 @@ class SelectionDrive(unittest.TestCase):
         self.assertEqual(back["hidden"], 0)
 
 
+DRIVE_MODULES = ("tests.theming.test_grid_selection_drive",
+                 "tests.theming.test_media_fill_drive")
+
+# Starts a page as a drive does, says the page's pid once it serves, then waits to be killed.
+PARENT = """
+import sys, time
+from pathlib import Path
+from tests.theming.test_grid_selection_drive import start_page, wait_for_page
+module, port, config = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+page = start_page(module, port, config)
+wait_for_page(port, page, Path(config) / "page.log")
+print(page.pid, flush=True)
+time.sleep(120)
+"""
+
+
+def _session_ended(session: int, within: float) -> bool:
+    deadline = time.monotonic() + within
+    while time.monotonic() < deadline:
+        try:
+            os.killpg(session, 0)
+        except ProcessLookupError:
+            return True
+        time.sleep(0.1)
+    return False
+
+
+@unittest.skipIf(sys.platform.startswith("win"), "POSIX sessions and signals")
+class PageServerTests(unittest.TestCase):
+    def test_a_killed_parent_leaves_no_server(self) -> None:
+        for module in DRIVE_MODULES:
+            with self.subTest(module=module), TemporaryDirectory() as config:
+                parent = subprocess.Popen(
+                    [sys.executable, "-c", PARENT, module, str(free_port()), config],
+                    cwd=REPO, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                try:
+                    said = parent.stdout.readline() if parent.stdout else ""
+                finally:
+                    parent.kill()
+                    _, err = parent.communicate()
+                self.assertTrue(said.strip(), err)
+
+                session = int(said)
+                ended = _session_ended(session, within=10)
+                if not ended:
+                    os.killpg(session, signal.SIGKILL)
+                self.assertTrue(ended, f"the page for {module} outlived its parent")
+
+
 if __name__ == "__main__":
     if sys.argv[1:2] == ["serve"]:
+        exit_with_parent()
         serve(int(sys.argv[2]))
     else:
         unittest.main()
