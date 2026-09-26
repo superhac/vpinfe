@@ -4486,6 +4486,8 @@ def _whose_value(held: dict, field: Any, app_name: str) -> str:
         return t("console.workbench.set_2")
     if held.get("scope"):
         return whose
+    if not held.get("value") and (said := getattr(field, "left_empty", "")):
+        return str(said)
     return t("console.workbench.app_default", app=app_name)
 
 

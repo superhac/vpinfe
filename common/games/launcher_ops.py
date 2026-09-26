@@ -288,7 +288,7 @@ def app_config(launcher_id: str, table: str = "",
                     "summarized": g.summarized, "rows": drawn(g, fields),
                     "read_only": g.read_only,
                     "curated": _curated(found.app, g, {f.key for f in fields}),
-                    "settings": [{**_described_field(found.app, f), "blank": blank(f.key),
+                    "settings": [{**_described_field(found.app, f), **blank(f.key),
                                   "named": named(f.key),
                                   "reported": list(reported.get(f.key, ())),
                                   "scopes": list(scopes_for(f.key))} for f in fields]}
@@ -306,13 +306,18 @@ def _scopes_for(config: Any) -> Callable[[str], tuple[str, ...]]:
     return answer if answer is not None else (lambda _key: tuple(config.scopes()))
 
 
-def _blank_words(app_id: str, config: Any) -> Callable[[str], str]:
+def _blank_words(app_id: str, config: Any) -> Callable[[str], dict[str, str]]:
     """What a blank value does, in the app's own words, where the app says it is not the
-    declared default. An app that does not say leaves every one empty."""
+    declared default: `blank` the word and `left_empty` its help. An app that does not
+    say leaves every one empty."""
     naming = getattr(config, "blank_words", None)
     words = dict(naming()) if naming is not None else {}
-    return lambda key: (i18n.literal_or("", f"app.{app_id}.{words[key]}")[0]
-                        if key in words else "")
+
+    def said(key: str) -> dict[str, str]:
+        word = f"app.{app_id}.{words[key]}" if key in words else ""
+        return {"blank": i18n.literal_or("", word)[0] if word else "",
+                "left_empty": i18n.literal_or("", f"{word}.help")[0] if word else ""}
+    return said
 
 
 def _named_values(app_id: str, config: Any) -> Callable[[str], list[list[str]]]:

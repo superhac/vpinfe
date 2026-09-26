@@ -428,7 +428,7 @@ class ClearingTests(_TableCase):
 
 
 class BlankWordsTests(_TableCase):
-    def test_a_window_size_left_blank_reads_from_the_screen(self) -> None:
+    def test_a_window_size_left_blank_reads_auto_from_the_screen(self) -> None:
         app_ini = pathlib.Path(self.tmp.name, "VPinballX.ini")
         app_ini.write_text("[Player]\n; Width: Width of the window [Default: 16384]\n"
                            "PlayfieldWidth =\nFXAA = 1\n")
@@ -439,8 +439,10 @@ class BlankWordsTests(_TableCase):
 
         offered = {f["key"]: f for g in got.json()["groups"] for f in g["settings"]}
         size = offered["Player.PlayfieldWidth"]
-        self.assertEqual((size["default"], size["blank"]), ("", "From the screen"))
-        self.assertEqual(offered["Player.FXAA"]["blank"], "")
+        self.assertEqual((size["default"], size["blank"], size["left_empty"]),
+                         ("", "Auto", "From the screen"))
+        self.assertEqual((offered["Player.FXAA"]["blank"], offered["Player.FXAA"]["left_empty"]),
+                         ("", ""))
 
 
 class NamedValuesTests(_TableCase):

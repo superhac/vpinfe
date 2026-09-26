@@ -1194,11 +1194,11 @@ _HEADING_WORD = re.compile(r"group\.([^.]+)\.(?:heading\.([^.]+)\.(?:label|note)
                            r"|pair\.([^.]+)\.(?:label|note|joiner))")
 
 
-def _asked_for(key: str, named: set[str]) -> bool:
+def _asked_for(key: str, named: set[str], blanks: tuple[str, ...] = ()) -> bool:
     """Whether the key is one the contract's lookups can form from something the app
-    names: a reason itself, a field's words or a choice's, a group's label, or a heading's
-    words or a pair's."""
-    if key in named:
+    names: a reason itself, a field's words or a choice's, a group's label, a heading's
+    words or a pair's, or the help of a word in `blanks`."""
+    if key in named or key in {f"{word}.help" for word in blanks}:
         return True
     found = (_CHOICE_WORD.fullmatch(key) or _FIELD_WORD.fullmatch(key)
              or _GROUP_WORD.fullmatch(key))
@@ -1247,8 +1247,10 @@ class TestEachAppKeepsItsOwnWords(unittest.TestCase):
     def test_no_entry_is_one_the_app_cannot_ask_for(self) -> None:
         for app in self.built_in:
             named = {f.key for f in app.fields} | _package_strings(app.id)
+            naming = getattr(app.config, "blank_words", None)
+            blanks = tuple(naming().values()) if naming is not None else ()
             spare = [key for key in _file(APPS / app.id / "i18n")
-                     if key != "name" and not _asked_for(key, named)]
+                     if key != "name" and not _asked_for(key, named, blanks)]
             with self.subTest(app=app.id):
                 self.assertEqual(spare, [], "nothing asks for these")
 

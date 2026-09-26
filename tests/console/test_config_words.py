@@ -9,6 +9,7 @@ either way.
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from console import workbench
@@ -145,6 +146,15 @@ class WhoseValueTests(unittest.TestCase):
 
     def test_followed_from_another_scope(self) -> None:
         self.assertEqual(self.whose(scope="launcher", value="0"), "All Tables")
+
+    def test_left_empty_says_what_its_blank_word_means(self) -> None:
+        field = SimpleNamespace(type="int", choices=(), default="", key="Player.PlayfieldWidth",
+                                blank="Auto", left_empty="From the screen")
+        whose = workbench._whose_value
+
+        self.assertEqual(whose({"value": ""}, field, "Visual Pinball X"), "From the screen")
+        self.assertEqual(whose({"scope": "launcher", "value": "1920"}, field,
+                               "Visual Pinball X"), "All Tables")
 
     def test_no_word_on_screen_is_the_wire_s(self) -> None:
         said = " ".join(workbench.CAME_FROM.values()).lower()

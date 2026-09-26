@@ -516,8 +516,9 @@ The settings in `groups` are read from VPX's own file rather than declared here,
 setting a later VPX adds appears without VPinFE changing. They are named `Section.Key`
 (`Player.FXAA`), because a key is only unique inside its section. Where VPX works out what
 a blank value means rather than using the default it declares, `default` is empty and
-`blank` says what it does instead: every window's size reads *From the screen*, and each
-view mode *The table's own*. `named` lists the values a number's app gives a meaning of
+`blank` names what it does instead, in a word that fits the box: every window's size reads
+*Auto* and each view mode *The table's own*. `left_empty` says it whole where the word does
+not, *From the screen* for a window's size, and is empty otherwise. `named` lists the values a number's app gives a meaning of
 their own, as `[value, label]` pairs in its words: Frame Limit's `-1` is *Match the
 Display* and its `0` *No Limit*, and any other value is a rate. `reported` lists the
 values the program itself last said it used, the most recent first: each window's

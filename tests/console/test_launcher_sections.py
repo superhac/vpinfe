@@ -421,9 +421,9 @@ class BlankValueTests(unittest.TestCase):
 
     def test_a_blank_its_app_works_out_says_so_in_the_control(self) -> None:
         field = SimpleNamespace(key="Player.PlayfieldWidth", type="int", label="Width",
-                                default="", choices=(), blank="From the screen")
+                                default="", choices=(), blank="Auto")
 
-        self.assertEqual(self._placeholder(workbench._as_option(field)), "From the screen")
+        self.assertEqual(self._placeholder(workbench._as_option(field)), "Auto")
 
     def test_a_choice_s_blank_is_an_option_named_by_it(self) -> None:
         field = SimpleNamespace(key="TableOverride.ViewCabMode", type="int",
@@ -439,9 +439,9 @@ class BlankValueTests(unittest.TestCase):
 
     def test_a_field_as_the_wire_sends_it_says_so_too(self) -> None:
         field = {"key": "Player.PlayfieldWidth", "type": "int", "label": "Width",
-                 "default": "", "blank": "From the screen"}
+                 "default": "", "blank": "Auto"}
 
-        self.assertEqual(self._placeholder(dict(field)), "From the screen")
+        self.assertEqual(self._placeholder(dict(field)), "Auto")
 
 
 class VariesControlTests(unittest.TestCase):
@@ -456,7 +456,7 @@ class VariesControlTests(unittest.TestCase):
 
     def test_a_number_is_blank_without_the_words_for_a_blank(self) -> None:
         with patch.object(settings.panel, "number") as number:
-            settings.control_for({"key": "k", "type": "int", "blank": "From the screen"},
+            settings.control_for({"key": "k", "type": "int", "blank": "Auto"},
                                  120, lambda _v: True, varies=True)
 
         self.assertEqual((number.call_args.args[0], number.call_args.kwargs["placeholder"]),

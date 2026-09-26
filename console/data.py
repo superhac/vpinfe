@@ -132,7 +132,7 @@ def config_groups(found: dict[str, Any]) -> list:
             choices=tuple(tuple(pair) for pair in f.get("choices") or ()),
             choice_help=dict(f.get("choice_help") or {}),
             minimum=f.get("minimum"), maximum=f.get("maximum"),
-            blank=f.get("blank", ""),
+            blank=f.get("blank", ""), left_empty=f.get("left_empty", ""),
             named=tuple(tuple(pair) for pair in f.get("named") or ()),
             reported=tuple(f.get("reported") or ()),
             per_table=bool(f.get("per_table")),
