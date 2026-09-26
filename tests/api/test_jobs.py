@@ -21,6 +21,13 @@ from common import jobs as job_registry
 from common.i18n import t
 
 
+def _held(job_id: str) -> jobs.Job:
+    found = jobs.get(job_id)
+    if found is None:
+        raise AssertionError(f"no job {job_id} is held")
+    return found
+
+
 class _Recorder:
     """Collects the bus traffic a remote subscriber would see."""
 
@@ -57,7 +64,8 @@ class TrackTests(unittest.TestCase):
 
     def test_a_starters_own_callbacks_still_fire(self) -> None:
         """The Manager UI keeps its progress bar; the bus is additive."""
-        seen, logged = [], []
+        seen: list[tuple[int, int, str]] = []
+        logged: list[str] = []
 
         with jobs.track("test.kind", progress_cb=lambda c, t, m: seen.append((c, t, m)),
                         log_cb=logged.append) as job:
@@ -144,15 +152,15 @@ class RegistryTests(unittest.TestCase):
 
         job = jobs.submit("test.kind", work)
         self.assertTrue(started.wait(5))
-        self.assertEqual(jobs.get(job.id).state, jobs.RUNNING, "returns before finishing")
+        self.assertEqual(_held(job.id).state, jobs.RUNNING, "returns before finishing")
 
         release.set()
         for _ in range(500):
-            if jobs.get(job.id).state != jobs.RUNNING:
+            if _held(job.id).state != jobs.RUNNING:
                 break
             threading.Event().wait(0.01)
 
-        finished = jobs.get(job.id)
+        finished = _held(job.id)
         self.assertEqual(finished.state, jobs.DONE)
         self.assertEqual(finished.pct, 100)
         self.assertIsNotNone(finished.finished_at)
@@ -164,12 +172,12 @@ class RegistryTests(unittest.TestCase):
         with self.assertLogs("vpinfe.common.jobs", level="ERROR"):
             job = jobs.submit("test.kind", work)
             for _ in range(500):
-                if jobs.get(job.id).state != jobs.RUNNING:
+                if _held(job.id).state != jobs.RUNNING:
                     break
                 threading.Event().wait(0.01)
 
-        self.assertEqual(jobs.get(job.id).state, jobs.FAILED)
-        self.assertEqual(jobs.get(job.id).error, "worker died")
+        self.assertEqual(_held(job.id).state, jobs.FAILED)
+        self.assertEqual(_held(job.id).error, "worker died")
 
     def test_a_job_outlived_by_a_reset_frees_only_its_own_slot(self) -> None:
         release = threading.Event()

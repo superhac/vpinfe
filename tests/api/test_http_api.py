@@ -27,12 +27,12 @@ class ManufacturerEndpointTests(unittest.TestCase):
         """
         from pathlib import Path
         from tempfile import TemporaryDirectory
-        from types import SimpleNamespace
         from unittest.mock import patch
 
+        from common.games.game import Game
         from common.shared_assets import configure_shared_assets
 
-        def _game(folder: str, manufacturer: str) -> SimpleNamespace:
+        def _game(folder: str, manufacturer: str) -> Game:
             return fake_game(f"/games/{folder}", folder,
                              meta={"Info": {"Manufacturer": manufacturer}})
 

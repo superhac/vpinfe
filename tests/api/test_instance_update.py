@@ -11,17 +11,13 @@ import unittest
 from unittest.mock import patch
 
 import requests
+from starlette.testclient import TestClient
 
 import httpapi
 from common import lifecycle
 from common.host import launch_state
 from common.i18n import t
 from common.online import app_updater
-
-try:
-    from starlette.testclient import TestClient
-except ImportError:  # pragma: no cover
-    TestClient = None
 
 SUPPORTED = {"supported": True, "reason": None, "triplet": "linux-x64",
              "current_version": "v3.0.0", "install_root": "/opt/vpinfe",
@@ -30,20 +26,19 @@ SOURCE_BUILD = {**SUPPORTED, "supported": False, "reason": "source_build"}
 PREPARED = {"latest_version": "v3.1.0", "zip_path": "/tmp/x.zip"}
 
 
-@unittest.skipIf(TestClient is None, "starlette test client unavailable")
 class PerformUpdateTests(unittest.TestCase):
     def setUp(self) -> None:
         launch_state.clear()
         lifecycle.reset_for_tests()
         self.addCleanup(launch_state.clear)
         self.addCleanup(lifecycle.reset_for_tests)
-        self.performed = []
+        self.performed: list[tuple[str, str]] = []
         for scope in (lifecycle.TABLE, lifecycle.VPINFE):
             lifecycle.register_performer(
                 scope, lifecycle.STOP,
                 lambda request: self.performed.append(request.pair))
-        self.launched = []
-        self.forced = []
+        self.launched: list[dict] = []
+        self.forced: list[bool] = []
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
 
     def _updater(self, context=None, prepare=None):
@@ -154,7 +149,6 @@ class PerformUpdateTests(unittest.TestCase):
         self.assertEqual(self.forced, [True])
 
 
-@unittest.skipIf(TestClient is None, "starlette test client unavailable")
 class UpdateCheckTests(unittest.TestCase):
     ANSWER = {"update_available": True, "current_version": "v3.0.0",
               "latest_version": "v3.1.0", "update_supported": False,
