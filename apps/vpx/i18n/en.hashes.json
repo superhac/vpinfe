@@ -74,6 +74,7 @@
   "field.ScoreView.ScoreViewFullScreen.help": "62b63d877b6c",
   "field.ScoreView.ScoreViewOutput.help": "a9a7ce5d0d56",
   "field.TableOverride.Difficulty.help": "0779b24c6717",
+  "field.TableOverride.Difficulty.label": "f6178ff79946",
   "field.TableOverride.Exposure.help": "c0fc0d780a79",
   "field.TableOverride.ToneMapper.help": "87d663d9f666",
   "field.TableOverride.ViewCabMode.choice.0.help": "b716e6625b10",

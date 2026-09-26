@@ -1197,6 +1197,20 @@ class SchemaTests(_Case):
             self.assertEqual((words["label"], words["label_key"]),
                              ("Enable", "app.vpx.enable"), key)
 
+    def test_a_setting_commonly_set_per_table_labeled_by_its_key_is_named_from_the_catalog(
+            self) -> None:
+        self.app_ini.write_text(APP_INI + "\n[TableOverride]\n"
+                                "; Difficulty: Overall difficulty (affects slope, flipper size, "
+                                "ball trajectories scattering,...) [Default: 1.0 in 0.0 .. 1.0]\n"
+                                "Difficulty = \n")
+        field = next(f for g in self.config.groups(self.settings) for f in g.settings
+                     if f.key == "TableOverride.Difficulty")
+        words = apps.field_words("vpx", field)
+
+        self.assertTrue(field.per_table)
+        self.assertEqual((words["label"], words["label_key"]),
+                         ("Difficulty", "app.vpx.field.TableOverride.Difficulty.label"))
+
     def test_what_vpx_wrote_about_itself_is_not_offered_as_a_setting(self) -> None:
         offered = {f.key for g in self.config.groups(self.settings) for f in g.settings}
 

@@ -74,6 +74,7 @@
   "field.ScoreView.ScoreViewFullScreen.help": "Windowed, or filling the display",
   "field.ScoreView.ScoreViewOutput.help": "Whether this window appears, on its own or inside the playfield",
   "field.TableOverride.Difficulty.help": "Slope, flipper size and scatter together",
+  "field.TableOverride.Difficulty.label": "Difficulty",
   "field.TableOverride.Exposure.help": "How bright the table renders",
   "field.TableOverride.ToneMapper.help": "How colors too bright for the screen are handled",
   "field.TableOverride.ViewCabMode.choice.0.help": "The old projection, which stretches the table",
