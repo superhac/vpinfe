@@ -139,18 +139,24 @@ class TestRegistriesHoldNoWords(unittest.TestCase):
                           "ConfigGroup(label='ROM')"])
 
 
-# Modules whose words a surface shows, and which ways out each is read for.
-EVERY_WAY = frozenset({"return", "reason", "raise"})
-SPEAKS_TO_A_SURFACE = {
-    "common/path_checks.py": EVERY_WAY,
-    "common/feature_checks.py": EVERY_WAY,
-    "common/host/metrics.py": EVERY_WAY,
-    "common/host/pinmame_catalog.py": EVERY_WAY,
-    "common/host/action_ops.py": EVERY_WAY,
-    "common/extensions/games.py": EVERY_WAY,
-    "common/uploads/upload_ops.py": EVERY_WAY,
-    "httpapi/capabilities.py": EVERY_WAY,
-    "httpapi/core_capabilities.py": EVERY_WAY,
+# Every module under these is read for every way out, unless it is named below.
+READ_WHOLE = ("common", "httpapi")
+EVERY_WAY = frozenset({"return", "reason", "raise", "refusal"})
+NOT_ITS_REFUSALS = EVERY_WAY - {"refusal"}
+NOT_WHAT_IT_RAISES = EVERY_WAY - {"raise", "refusal"}
+
+# Modules nothing a person reads comes from, and why.
+NOT_READ = {
+    "common/games/revert_3x.py": "a command-line tool",
+    "common/online/update_scripts.py": "writes the scripts an update runs",
+    "common/host/dof_service_worker.py": "answers the DOF service, which logs what it says",
+    "common/host/display_service.py": "a monitor's name is the frontend API's, which themes "
+                                      "read, and stays as it is until display detection "
+                                      "is settled",
+}
+
+# Modules read for fewer ways than every one, and the ones outside those read at all.
+READ_FOR = {
     "common/device_client.py": frozenset({"reason", "raise"}),
     "common/uploads/asset_import_service.py": frozenset({"reason", "raise", "refusal"}),
     "common/uploads/upload_session_service.py": frozenset({"raise", "refusal"}),
@@ -177,13 +183,53 @@ SPEAKS_TO_A_SURFACE = {
     "frontend/metadata_build_service.py": frozenset({"return"}),
     "common/games/identity_claims.py": frozenset({"return"}),
     "common/host/about.py": frozenset({"return"}),
+    # What these refuse is said to an extension's author, as the extension registers.
+    "common/apps/__init__.py": NOT_ITS_REFUSALS,
+    "common/extensions/catalogs.py": NOT_ITS_REFUSALS,
+    "common/extensions/contributions.py": NOT_ITS_REFUSALS,
+    "common/extensions/games.py": NOT_ITS_REFUSALS,
+    "common/extensions/provided_apps.py": NOT_ITS_REFUSALS,
+    "common/extensions/services.py": NOT_ITS_REFUSALS,
+    "common/i18n/__init__.py": NOT_ITS_REFUSALS,
+    "common/tokens.py": NOT_ITS_REFUSALS,
+    # What these refuse is a declaration in this tree, or a name only calling code makes up.
+    "common/games/library_policy.py": NOT_ITS_REFUSALS,
+    "common/media_specs.py": NOT_WHAT_IT_RAISES,
+    "httpapi/auth.py": NOT_ITS_REFUSALS,
+    "httpapi/capabilities.py": NOT_ITS_REFUSALS,
+    # Every pair it allows is named from the catalog; one it does not is said in the
+    # caller's own codes.
+    "common/lifecycle.py": frozenset({"reason", "raise"}),
+    # What these raise, their callers log, and say in their own words where a person sees.
+    "common/games/remote_library.py": NOT_WHAT_IT_RAISES,
+    "common/games/score_parser.py": NOT_WHAT_IT_RAISES,
+    "common/jdiff_patch.py": NOT_WHAT_IT_RAISES,
+    "common/online/pinmame_score_parser_updater.py": NOT_WHAT_IT_RAISES,
+    # What this refuses, only the Manager UI shows.
+    "common/host/dof_service.py": NOT_ITS_REFUSALS,
 }
 
-# Functions in those modules whose words are only ever logged or recorded, never shown.
+
+def _modules_under(roots: tuple[str, ...]) -> list[str]:
+    return [path.relative_to(ROOT).as_posix()
+            for root in roots for path in sorted((ROOT / root).rglob("*.py"))
+            if "__pycache__" not in path.parts]
+
+
+SPEAKS_TO_A_SURFACE = {**{name: EVERY_WAY for name in _modules_under(READ_WHOLE)
+                          if name not in NOT_READ},
+                       **READ_FOR}
+
+# Functions in those modules whose words reach only the log, a program, the command line
+# or the Manager UI.
 SAID_TO_THE_LOG = {
     "common/online/themes.py": frozenset({"_validate_manifest"}),
     "common/online/theme_registry_client.py": frozenset({"fetch_json"}),
     "common/device_client.py": frozenset({"perform_action"}),
+    "common/games/info_maintenance.py": frozenset({"_upgrade_summary", "_restore_summary",
+                                                   "_games", "_files"}),
+    "httpapi/actions.py": frozenset({"perform_action"}),
+    "httpapi/events.py": frozenset({"_frame"}),
 }
 
 # Names a person reads the same in every language: products, and the systems they run on.
@@ -198,13 +244,12 @@ def _logged_lines(name: str) -> set[int]:
             for line in range(node.lineno, (node.end_lineno or node.lineno) + 1)}
 
 
-# Said to whoever wrote the calling code, which has a bug to fix rather than a person
-# something to do.
+# Said to whoever wrote the calling code, which has a bug to fix, or set a developer's
+# switch, rather than to a person with something to do.
 SAID_TO_A_DEVELOPER = {"AttributeError", "ContractError", "ImportError",
                        "ModuleNotFoundError", "NotThisDeviceError", "NotVPinFEError",
-                       "RuntimeError", "TypeError"}
-# A value refused, which a module's caller may show as it was said. One that does lists
-# `refusal`.
+                       "OfflineError", "RuntimeError", "TypeError"}
+# A value refused, which a module's caller may show as it was said.
 REFUSED = "ValueError"
 
 
@@ -296,13 +341,15 @@ def _handed_back(source: str) -> list[tuple[str, ast.expr]]:
 
 
 def _built_into_what_is_returned(tree: ast.Module) -> list[ast.expr]:
-    """Each value a function puts into a name it returns: assigned, added or appended."""
+    """Each value a function puts into a name it returns, bare or inside what it returns:
+    assigned, added or appended."""
     values: dict[int, ast.expr] = {}
     for function in ast.walk(tree):
         if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
-        returned = {node.value.id for node in ast.walk(function)
-                    if isinstance(node, ast.Return) and isinstance(node.value, ast.Name)}
+        returned = {piece.id for node in ast.walk(function)
+                    if isinstance(node, ast.Return) and node.value is not None
+                    for piece in _pieces(node.value, {}) if isinstance(piece, ast.Name)}
         for node in ast.walk(function):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
                     and node.func.attr in ("append", "extend", "insert") and node.args \
@@ -322,13 +369,30 @@ def _only_names(said: str) -> bool:
     return bool(words) and set(words) <= NAMES
 
 
+def _built_not_said(glued: str) -> bool:
+    """`{name} {count}`, `{prefix}/media`, `Key{letter}`: no word outside the fields, or
+    no space in what is typed."""
+    return not re.search(r"[A-Za-z]{2,}", glued) or not any(c.isspace() for c in glued)
+
+
+def _one_token(said: str) -> bool:
+    """`pinmame/altsound`, `7z`, `MP4`: a path or key, or one case throughout. A word said
+    alone, `Unknown`, is neither."""
+    body = said.strip()
+    if not body or any(c.isspace() for c in body):
+        return False
+    return bool(re.search(r"\w[/.:=?&#]\w", body)) or body in (body.upper(), body.lower())
+
+
 def _not_looked_up(kind: str, one: ast.expr) -> bool:
     if isinstance(one, ast.JoinedStr):
         glued = _glued_words(one)
-        return not _is_identifier(glued) and not _only_names(glued)
+        return not _built_not_said(glued) and not _is_identifier(glued) \
+            and not _only_names(glued)
     if isinstance(one, ast.Constant) and isinstance(one.value, str):
         said = one.value.strip()
-        return _words(said) and said not in SOURCE and not _only_names(said)
+        return _words(said) and not _one_token(said) and said not in SOURCE \
+            and not _only_names(said)
     return kind == "reason" and isinstance(one, ast.Call) and _named(one.func) == "str"
 
 
@@ -396,7 +460,10 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                   '    held = [{"heading": "Machine", "facts": [("Host", host or "Unknown")]}]\n'
                   '    held += [(t(KEY), f"macOS {version}")]\n'
                   '    held.extend([(f"about.{root}.label", str(root or "Not set"))])\n'
-                  "    return held\n")
+                  "    return held\n"
+                  "def gpus(cards):\n"
+                  '    found = [{"name": card or f"GPU {at}"} for at, card in enumerate(cards)]\n'
+                  '    return {"gpus": found}\n')
 
         said = sorted(f"{kind} {ast.unparse(one)}" for kind, one in _handed_back(source)
                       if _not_looked_up(kind, one))
@@ -413,7 +480,28 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                                 "return 'Not set'",
                                 "return 'Nothing performs that.'",
                                 "return 'Unknown'",
+                                "return f'GPU {at}'",
                                 "return f'{basis} says how nothing is known'"])
+
+    def test_a_value_built_rather_than_said_passes_by_its_shape(self) -> None:
+        source = ("def built(prefix, name, count, n):\n"
+                  '    return [f"{prefix}/media", f"{name} {count}", f"E{n}", f"Key{name}",\n'
+                  '            "pinmame/altsound", "7z", "MP4",\n'
+                  '            f"{name} was copied", "Copied"]\n')
+
+        said = [ast.unparse(one) for kind, one in _handed_back(source)
+                if _not_looked_up(kind, one)]
+
+        self.assertEqual(said, ["f'{name} was copied'", "'Copied'"])
+
+    def test_every_module_is_read_or_named(self) -> None:
+        for name in _modules_under(READ_WHOLE):
+            self.assertIn(name, {**SPEAKS_TO_A_SURFACE, **NOT_READ}, name)
+        self.assertEqual(NOT_READ.keys() & READ_FOR.keys(), set())
+        for name in {**NOT_READ, **READ_FOR}:
+            self.assertTrue((ROOT / name).is_file(), f"{name} names nothing")
+        for name, why in NOT_READ.items():
+            self.assertTrue(why.strip(), f"{name} is left out without a reason")
 
 
 CAUGHT_WHOLE = {"Exception", "BaseException"}
