@@ -105,7 +105,7 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/devices/{id}/probe` | Ask one device the same, answering with that one probe. For showing each device as it answers rather than all of them once the slowest has |
 | DELETE | `/api/v1/devices/{id}` | Forget one |
 | GET | `/api/v1/devices/{id}/games` | What a VPX Mobile device is carrying, asked of the device every time |
-| POST | `/api/v1/devices/{id}/games` | Send games to it, `{"games": [...]}` or `{"everything": true}`. Returns `202` and a job |
+| POST | `/api/v1/devices/{id}/games` | Send games to it, `{"games": [...], "everything": false}`: each game's default table and what it needs, or with `everything` its whole folder. Returns `202` and a job |
 | DELETE | `/api/v1/devices/{id}/games/{name}` | Remove a game from it. `204` |
 | GET | `/api/v1/actions` | What this install can be asked to do to itself. Every pair the build has, with `available` saying which are wired up here. One that is not carries `reason`, in this install's language, and `reason_key`, the catalog key it was read from |
 | POST | `/api/v1/actions` | Do one. `{"scope","action","reason"}`. One that takes this process or this device down answers before it goes, so `performed` means the work was handed over |
@@ -206,7 +206,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/about` | What this install and this device *are* - version, build, OS, browser, and where files live. `text` is the same answer as something to paste into a report |
 | GET | `/api/v1/config/schema` | Every setting this install has. An option's `group` is a token (`navigation`, `local_services`...) and `group_label` beside it is the heading in this install's language. A window the active theme declares beyond the three every theme has is a `windows.<name>` section of its own, with the `screen_id` it opens on, after `windows.score_view` |
 | GET | `/api/v1/config` | What this install is set to, by section and key |
-| PUT | `/api/v1/config` | Change settings, `{"values": {section: {key: value}}}`. A patch: only what is sent is written |
+| PUT | `/api/v1/config` | Change settings, `{section: {key: value}}`. A patch: only what is sent is written |
 | GET | `/api/v1/config/paths` | Whether each path setting finds anything on this device |
 | GET | `/api/v1/preferences/{scope}` | A stored UI arrangement |
 | PUT | `/api/v1/preferences/{scope}` | Store one. The body is the whole value |

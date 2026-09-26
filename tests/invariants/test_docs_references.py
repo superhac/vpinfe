@@ -16,12 +16,19 @@ first segment has to be a real top-level directory before a missing file counts.
 
 from __future__ import annotations
 
+import ast
 import functools
+import inspect
 import json
 import re
 import subprocess
+import textwrap
+import typing
 import unittest
 from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -278,6 +285,151 @@ class EndpointTableTests(unittest.TestCase):
                           if (method, shape) not in declared and (method, shape) not in own
                           for where in places)
         self.assertEqual(unserved, [], "\n".join(unserved))
+
+
+@functools.cache
+def _api_routes() -> dict[tuple[str, str], Any]:
+    import httpapi
+    from httpapi.auth import iter_api_routes
+
+    return {(method, _route_shape(path)): route
+            for path, route in iter_api_routes(httpapi.create_api_app())
+            for method in route.methods or ()}
+
+
+BODY = re.compile(r"`(\{[^`]*\})`")
+BODY_TOKEN = re.compile(r'"([^"]*)"|([{}\[\]:,])')
+
+
+def body_keys(text: str) -> list[tuple[tuple[str, ...], str]]:
+    """Each key an example body names, after the keys of the objects it sits in.
+
+    `{"slots": [{"game_id", "kind"}]}` names `slots`, then `game_id` and `kind` in it.
+    A quoted string after a colon is a value, and a bare word is a stand-in.
+    """
+    found = []
+    opened: list[tuple[str, str | None]] = []
+    key: str | None = None
+    before = ""
+    for string, mark in BODY_TOKEN.findall(text):
+        if mark in ("{", "["):
+            opened.append((mark, key if before == ":" else None))
+            key = None
+        elif mark in ("}", "]"):
+            if opened:
+                opened.pop()
+        elif not mark and opened and opened[-1][0] == "{" and before in ("{", ","):
+            key = string
+            found.append((tuple(under for _, under in opened if under), string))
+        before = mark or '"'
+    return found
+
+
+def _model_of(annotation: Any) -> type[BaseModel] | None:
+    """The model a body or field holds, through `| None` and `list[...]`."""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return annotation
+    if typing.get_origin(annotation) is dict:
+        return None
+    return next(filter(None, map(_model_of, typing.get_args(annotation))), None)
+
+
+def _fields(annotation: Any) -> dict[str, Any] | None:
+    model = _model_of(annotation)
+    if model is None:
+        return None
+    return {field.alias or name: field.annotation for name, field in model.model_fields.items()}
+
+
+def _read_keys(function: Any, name: str, hops: int = 1) -> set[str]:
+    """The keys `function` reads off its argument `name`, and those its callees read off
+    it, `hops` calls deep."""
+    def is_it(node: ast.AST, called: str) -> bool:
+        return isinstance(node, ast.Name) and node.id == called
+
+    read = set()
+    for node in ast.walk(ast.parse(textwrap.dedent(inspect.getsource(function)))):
+        if isinstance(node, ast.Subscript) and is_it(node.value, name) and isinstance(
+                node.slice, ast.Constant):
+            read.add(str(node.slice.value))
+        if not isinstance(node, ast.Call):
+            continue
+        if (isinstance(node.func, ast.Attribute) and node.func.attr == "get"
+                and is_it(node.func.value, name) and node.args
+                and isinstance(node.args[0], ast.Constant)):
+            read.add(str(node.args[0].value))
+        scope = function.__globals__
+        callee = (scope.get(node.func.id) if isinstance(node.func, ast.Name)
+                  else getattr(scope.get(node.func.value.id), node.func.attr, None)
+                  if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+                  else None)
+        if not hops or not inspect.isfunction(callee):
+            continue
+        params = list(inspect.signature(callee).parameters)
+        handed = [params[at] for at, arg in enumerate(node.args)
+                  if is_it(arg, name) and at < len(params)]
+        handed += [kw.arg for kw in node.keywords if kw.arg and is_it(kw.value, name)]
+        for inner in handed:
+            read |= _read_keys(callee, inner, hops - 1)
+    return read
+
+
+def _body_fields(route: Any) -> dict[str, Any]:
+    """The keys a route's request body can hold, each with what it holds."""
+    params = route.dependant.body_params
+    if not params:
+        return {}
+    if len(params) > 1 or getattr(params[0].field_info, "embed", False):
+        return {param.alias: param.field_info.annotation for param in params}
+    held = _fields(params[0].field_info.annotation)
+    if held is not None:
+        return held
+    return dict.fromkeys(_read_keys(route.endpoint, params[0].name), Any)
+
+
+def unread_body_keys(lines: list[str]) -> list[str]:
+    """Each body key an endpoint row names that its route does not read."""
+    routes = _api_routes()
+    unread = []
+    for number, line in enumerate(lines, 1):
+        found = EndpointTableTests.ROW.match(line)
+        if not found:
+            continue
+        asked = line.split("→", 1)[0]
+        for method in found.group(1).split("/"):
+            route = routes.get((method, _route_shape(found.group(2) or "")))
+            if method == "GET" or route is None:
+                continue
+            for body in BODY.findall(asked):
+                for path, key in body_keys(body):
+                    fields: dict[str, Any] | None = _body_fields(route)
+                    for step in path:
+                        fields = _fields(fields[step]) if fields and step in fields else None
+                    if fields is not None and key not in fields:
+                        unread.append(f"{API_DOC.name}:{number} {method} "
+                                      f"/api/v1{found.group(2)}: {'.'.join((*path, key))}")
+    return unread
+
+
+class EndpointBodyTests(unittest.TestCase):
+    """A request body key the endpoint table names is one the route reads."""
+
+    def test_every_body_key_a_row_names_is_one_its_route_reads(self) -> None:
+        unread = unread_body_keys(API_DOC.read_text(encoding="utf-8").splitlines())
+
+        self.assertEqual(unread, [], "\n".join(unread))
+
+    def test_the_check_can_fail(self) -> None:
+        doctored = [
+            '| PUT | `/api/v1/games/{id}/rating` | Rate a game, `{"stars": 3}` |',
+            '| POST | `/api/v1/library/media/fill` | `{"slots": [{"game_id", "size"}]}` |',
+            '| PUT | `/api/v1/locations/{id}` | Add one, `{"path", "label"}` |',
+            '| GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count"}` |',
+            '| POST | `/api/v1/uploads` | Begin one → `{"id": ...}` |',
+        ]
+
+        self.assertEqual([one.rsplit(": ", 1)[1] for one in unread_body_keys(doctored)],
+                         ["stars", "slots.size", "label"])
 
 
 class CitedMarkdownTests(unittest.TestCase):
