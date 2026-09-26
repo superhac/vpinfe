@@ -57,6 +57,9 @@ CURATED: dict[str, tuple[Heading, ...]] = {
                      "Player.MSAASamples", "Player.FXAA", "Player.Sharpen",
                      "Player.PFReflection", "Player.ShowFPS")),
     ),
+    REST: (
+        _window("vr_preview", "PlayerVR.Preview", ("Display", "FullScreen")),
+    ),
 }
 
 
@@ -245,7 +248,7 @@ def plugin_order(plugin: str, installed: Mapping[str, Plugin] | None) -> str:
     return ((said.name if said else "") or plugin).lower()
 
 
-_CURATED_KEYS = frozenset({key for headings in CURATED.values() for heading in headings
+_CURATED_KEYS = frozenset({key for area in AREAS for heading in CURATED.get(area, ())
                            for key in heading.keys}
                           | {key for keys in PLUGIN_ROWS.values() for key in keys})
 

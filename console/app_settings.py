@@ -180,24 +180,25 @@ def _whole(group: Any, keys: set[str]) -> set[str]:
 
 
 def named_pairs(groups: Sequence[Any]) -> list[Any]:
-    """Each pair, named as a row is away from its heading: by its plugin, or by its
-    window where another pair in its area shares its label."""
+    """Each pair, named as it is away from its heading: by its plugin, or by its window
+    where the heading has a name."""
     names = workbench._plugin_names(groups)
     found = []
     for group in groups:
-        held = [(heading, pair) for heading in group.curated
-                for pair in getattr(heading, "pairs", ())]
-        for heading, pair in held:
-            section = workbench._section_of(pair.keys[0])
-            if section.startswith(workbench.PLUGIN_SECTION):
-                label = workbench.plugin_row(section, pair.label, names)
-            elif sum(other.label == pair.label for _, other in held) > 1:
-                label = t("console.app_settings.window_row", window=heading.label,
-                          label=pair.label)
-            else:
-                label = pair.label
-            found.append(SimpleNamespace(**{**vars(pair), "label": label}))
+        for heading in group.curated:
+            for pair in getattr(heading, "pairs", ()):
+                found.append(SimpleNamespace(**{**vars(pair),
+                                                "label": _pair_name(heading, pair, names)}))
     return found
+
+
+def _pair_name(heading: Any, pair: Any, names: dict[str, str]) -> str:
+    section = workbench._section_of(pair.keys[0])
+    if section.startswith(workbench.PLUGIN_SECTION):
+        return workbench.plugin_row(section, pair.label, names)
+    if heading.label:
+        return t("console.app_settings.window_row", window=heading.label, label=pair.label)
+    return pair.label
 
 
 def _differs(held: dict[str, Any]) -> bool:

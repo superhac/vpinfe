@@ -545,7 +545,8 @@ every member, and `curated` names the few a client draws first, under headings:
   its two `keys` in order and a `joiner`, what stands between the two values. Each VPX
   window pairs its `FSWidth` and `FSHeight` as *Video Mode*, its `WndX` and `WndY` as
   *Position*, joined by a comma, and its `Width` and `Height` as *Size*, the two sizes
-  joined by a times sign. B2S and B2SLegacy pair the DMD box drawn on
+  joined by a times sign. The VR preview is a window too, the one heading in `more`,
+  which no page draws first. B2S and B2SLegacy pair the DMD box drawn on
   the backglass art the same way, `BackglassDMDX` and `Y` as *DMD Position* and `W` and
   `H` as *DMD Size*. A pair is listed only where the scope shows both of its keys.
 - `switched` names rows of `keys` that change nothing while another of them is off, each

@@ -475,6 +475,22 @@ class AreaTests(_Case):
         self.assertEqual([pair.key for pair in topper.pairs], ["position"])
         self.assertIn("Topper.TopperWidth", topper.keys)
 
+    def test_the_vr_preview_pairs_its_rows_in_the_rest_and_none_is_common_at_a_table(
+            self) -> None:
+        parts = ("Display", "FullScreen", "FSWidth", "FSHeight", "WndX", "WndY", "Width",
+                 "Height")
+        self.app_ini.write_text("[PlayerVR]\n" + "".join(f"Preview{part} = 0\n"
+                                                         for part in parts))
+        rest = {g.key: g for g in self.config.groups(self.settings)}[areas.REST]
+        preview = next(h for h in rest.curated if h.key == "vr_preview")
+
+        self.assertEqual(
+            [(pair.key, pair.keys) for pair in preview.pairs],
+            [("video_mode", ("PlayerVR.PreviewFSWidth", "PlayerVR.PreviewFSHeight")),
+             ("position", ("PlayerVR.PreviewWndX", "PlayerVR.PreviewWndY")),
+             ("size", ("PlayerVR.PreviewWidth", "PlayerVR.PreviewHeight"))])
+        self.assertEqual([f.key for f in rest.settings if f.per_table], [])
+
     def test_the_point_of_view_is_summarized(self) -> None:
         self.assertTrue(self.groups[areas.POINT_OF_VIEW].summarized)
         self.assertEqual(self.members(areas.POINT_OF_VIEW), {"TableOverride.ViewCabFOV"})

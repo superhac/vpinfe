@@ -1259,19 +1259,19 @@ class TablePairTests(unittest.TestCase):
         self.assertEqual([(f.key, f.label) for f in found[0][1]],
                          [(self.SIZE[0], "Width"), (self.SIZE[1], "Height")])
 
-    def test_a_pair_is_named_by_its_plugin_or_by_its_window_where_its_label_is_shared(
+    def test_a_pair_is_named_by_its_plugin_or_by_its_window_shared_label_or_not(
             self) -> None:
         self.assertEqual([pair.label for pair in app_settings.named_pairs(
                              [self.DISPLAYS, self.PLUGINS])],
-                         ["Video Mode", "Backglass Size", "Topper Size",
+                         ["Backglass Video Mode", "Backglass Size", "Topper Size",
                           t("console.app_settings.plugin_row", plugin="B2S",
                             label="DMD Position")])
 
     def test_add_a_setting_offers_a_pair_once_by_its_name(self) -> None:
         self.assertEqual([(str(field.label), field.key) for field, _ in
                           app_settings.addable([self.DISPLAYS], {}, ())],
-                         [("Video Mode", self.MODE[0]), ("Backglass Size", self.SIZE[0]),
-                          ("Topper Size", self.TOPPER[0])])
+                         [("Backglass Video Mode", self.MODE[0]),
+                          ("Backglass Size", self.SIZE[0]), ("Topper Size", self.TOPPER[0])])
 
     def test_and_not_once_either_of_its_rows_is_drawn(self) -> None:
         offered = app_settings.addable([self.DISPLAYS], {self.SIZE[1]: self.SET},
