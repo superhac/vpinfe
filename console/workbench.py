@@ -998,7 +998,7 @@ async def _file_settings_block(context: dict[str, Any]) -> None:
             t("console.workbench.writes_to_tables", count=len(shared)),
             hint="\n".join(_table_line(one["table"], inner["tables"]) for one in shared)))
     with ui.column().classes("gap-0 console-form"):
-        _rows(ui, entries)
+        panel.facts(ui, entries)
 
 
 # The kinds VPX finds by name, which a file can be placed as and removed from.
@@ -4603,7 +4603,7 @@ async def _config_rows(context: dict[str, Any], group: Any) -> None:
             t("console.workbench.more_in_all_settings", count=rest),
             lambda: _open_all_settings(context, area=group.key), icon=verbs.DRILL)))
     with ui.column().classes("gap-0 console-form"):
-        _rows(ui, entries)
+        panel.facts(ui, entries)
 
 
 async def _every_row(context: dict[str, Any], group: Any) -> None:
@@ -4616,7 +4616,7 @@ async def _every_row(context: dict[str, Any], group: Any) -> None:
     blocks = [(_section_label(section, group.label) if titled else "", "", list(fields))
               for section, fields in groupby(group.settings, lambda f: _section_of(f.key))]
     with ui.column().classes("gap-0 console-form"):
-        _rows(ui, await _setting_entries(context, blocks))
+        panel.facts(ui, await _setting_entries(context, blocks))
 
 
 def curated_blocks(group: Any, values: dict[str, Any]) -> list[tuple[Any, list[Any]]]:
@@ -5083,7 +5083,7 @@ async def _all_settings(context: dict[str, Any]) -> None:
             pairs=curated_pairs(groups))
         results.clear()
         with results, ui.column().classes("gap-0 console-form"):
-            _rows(ui, entries if found else [panel.intro(
+            panel.facts(ui, entries if found else [panel.intro(
                 t("console.workbench.no_setting_matches"))])
 
     async def narrow(key: str, value: Any) -> None:

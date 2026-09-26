@@ -949,7 +949,7 @@ class BackglassFileTests(unittest.IsolatedAsyncioTestCase):
 
         with patch.object(workbench, "_config_values", AsyncMock(return_value={})), \
                 patch.object(workbench, "_setting_entries", AsyncMock(return_value=[])), \
-                patch.object(workbench, "_rows") as rows, patch.object(workbench, "ui"), \
+                patch.object(workbench.panel, "facts") as rows, patch.object(workbench, "ui"), \
                 patch.object(workbench.panel, "intro") as intro:
             await workbench._file_settings_block({"file_settings": found})
 
@@ -2171,6 +2171,32 @@ class SettingNamesTests(unittest.TestCase):
                                     plugin="Pin Up Player", label="Main Volume"),
             "Plugin.DOF.Enable": t("console.app_settings.plugin_row", plugin="DOF",
                                    label="Enable")})
+
+
+class CatalogLabelTests(unittest.IsolatedAsyncioTestCase):
+    PIN2DMD = SimpleNamespace(key="Plugin.DMDUtil.PIN2DMD", type="bool", label="PIN2DMD",
+                              default="", description="", choices=(), scopes=("launcher",),
+                              help="")
+
+    async def test_pin2dmd_is_not_cased_as_a_word(self) -> None:
+        curated = _group("plugins", self.PIN2DMD,
+                         curated=[_heading("dmdutil", self.PIN2DMD.key, label="DMDUtil")])
+        for group in (curated, _group("plugins", self.PIN2DMD)):
+            with self.subTest(curated=bool(group.curated)):
+                context = {"library": Mock(), "config_scope": "launcher", "config_table": "",
+                           "launcher": {"launcher_id": "probe", "app_name": "VPX"},
+                           "rebuild": AsyncMock(), "config_groups": [group]}
+                with patch.object(workbench, "ui"), \
+                        patch.object(workbench, "_config_values",
+                                     new=AsyncMock(return_value={})), \
+                        patch.object(workbench, "_set_by_tables",
+                                     new=AsyncMock(return_value=[])), \
+                        patch.object(workbench.settings_page, "control_for"), \
+                        patch.object(workbench.panel, "search"), \
+                        patch.object(workbench.panel, "facts") as facts:
+                    await workbench._config_rows(context, group)
+
+                self.assertIn("PIN2DMD", [label for label, _ in facts.call_args.args[1]])
 
 
 class TablesSetTheirOwnTests(unittest.IsolatedAsyncioTestCase):

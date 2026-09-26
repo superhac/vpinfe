@@ -579,7 +579,7 @@ class _BackglassPanel(_TableCase, unittest.IsolatedAsyncioTestCase):
                                                  [self.BACKGLASS], self.TABLES)
         assert context is not None
         context["rebuild"] = AsyncMock()
-        with patch.object(workbench, "ui"), patch.object(workbench, "_rows"), \
+        with patch.object(workbench, "ui"), patch.object(workbench.panel, "facts"), \
                 patch.object(workbench.settings_page, "control_for") as control_for, \
                 patch.object(workbench, "_marked") as marked:
             await workbench._file_settings_block({"file_settings": context})
