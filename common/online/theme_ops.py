@@ -278,6 +278,8 @@ def save_options(key: str, values: dict[str, Any]) -> dict[str, Any]:
         raise service_errors.NotFoundError(t("error.themes.not_installed", key=(key)))
     try:
         theme_service.save_theme_option_values(key, dict(values or {}), registry)
+    except ValueError as exc:
+        raise service_errors.RefusedError(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise service_errors.RefusedError(
             t("error.themes.could_not_save_settings", exc=(exc))) from exc

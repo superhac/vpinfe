@@ -18,6 +18,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from common.i18n import t
 from common.paths import CONFIG_DIR
 
 logger = logging.getLogger("vpinfe.common.theme_options")
@@ -115,7 +116,7 @@ def save(folder: str, values: dict[str, Any], source: str = "") -> Path:
     """
     path = path_for(folder)
     if path is None:
-        raise ValueError(f"Theme folder name is unusable as a filename: {folder!r}")
+        raise ValueError(t("error.themes.folder_name_unusable", folder=folder))
     existing = _read(path)
     payload = {SOURCE_KEY: source or existing.get(SOURCE_KEY, ""),
                VALUES_KEY: dict(values)}

@@ -15,7 +15,9 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
-from common import theme_options
+from common import service_errors, theme_options
+from common.i18n import t
+from common.online import theme_ops, theme_service
 from common.online.theme_installer import ThemeInstallStore
 from tests.support.library import TempTree
 
@@ -71,6 +73,46 @@ class UserOptionStoreTests(_Base):
         (theme_options.USER_OPTIONS_DIR / "Reference.json").write_text("{ broken",
                                                                        encoding="utf-8")
         self.assertEqual(theme_options.load("Reference"), {})
+
+    def test_a_folder_name_with_nothing_usable_is_refused_in_words(self) -> None:
+        with self.assertRaises(ValueError) as raised:
+            theme_options.save("???", {"showFlags": True})
+
+        self.assertEqual(str(raised.exception),
+                         t("error.themes.folder_name_unusable", folder="???"))
+
+
+class RefusedSettingTests(_Base):
+    def setUp(self) -> None:
+        super().setUp()
+        _installed(self.root)
+        patcher = mock.patch.object(theme_service, "THEMES_DIR", self.root)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_a_value_a_setting_cannot_take_is_refused_in_words(self) -> None:
+        with self.assertRaises(ValueError) as raised:
+            theme_service.save_theme_option_values("Reference", {"wheelSpan": "lots"})
+
+        self.assertEqual(str(raised.exception),
+                         t("error.themes.option_takes_number", name="Wheel span"))
+
+    def test_a_theme_with_no_settings_says_so(self) -> None:
+        with self.assertRaises(ValueError) as raised:
+            theme_service.save_theme_option_values("Elsewhere", {"wheelSpan": 2})
+
+        self.assertEqual(str(raised.exception),
+                         t("error.themes.no_settings", key="Elsewhere"))
+
+    def test_saving_passes_the_refusal_on_as_it_was_said(self) -> None:
+        registry = mock.Mock()
+        registry.get_installed_folder.return_value = "Reference"
+        with mock.patch.object(theme_ops, "_loaded", return_value=registry), \
+                self.assertRaises(service_errors.RefusedError) as raised:
+            theme_ops.save_options("Reference", {"wheelSpan": "lots"})
+
+        self.assertEqual(str(raised.exception),
+                         t("error.themes.option_takes_number", name="Wheel span"))
 
 
 class MigrationTests(_Base):

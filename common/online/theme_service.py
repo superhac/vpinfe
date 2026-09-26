@@ -15,6 +15,7 @@ from typing import Any
 from common import theme_options
 from common.config_access import cfg_get, cfg_set
 from common.config_store import ConfigStore
+from common.i18n import t
 from common.online.themes import ThemeRegistry
 from common.paths import THEMES_DIR, VPINFE_INI_PATH
 
@@ -225,7 +226,7 @@ def _coerce_theme_option_value(option: dict[str, Any], raw_value: Any) -> Any:
         try:
             number = float(raw_value)
         except (TypeError, ValueError) as exc:
-            raise ValueError(f'{option["name"]} expects a number.') from exc
+            raise ValueError(t("error.themes.option_takes_number", name=option["name"])) from exc
         return int(number) if number.is_integer() else number
 
     if option_type == "json":
@@ -236,7 +237,7 @@ def _coerce_theme_option_value(option: dict[str, Any], raw_value: Any) -> Any:
         try:
             return json.loads(str(raw_value))
         except json.JSONDecodeError as exc:
-            raise ValueError(f'{option["name"]} expects valid JSON.') from exc
+            raise ValueError(t("error.themes.option_not_json", name=option["name"])) from exc
 
     if option_type == "select":
         allowed_values = []
@@ -248,7 +249,7 @@ def _coerce_theme_option_value(option: dict[str, Any], raw_value: Any) -> Any:
         if raw_value in ("", None):
             return option.get("default") if "default" in option else ""
         if allowed_values and raw_value not in allowed_values:
-            raise ValueError(f'{option["name"]} must be one of the configured options.')
+            raise ValueError(t("error.themes.option_no_such_choice", name=option["name"]))
         return raw_value
 
     if raw_value is None:
@@ -262,12 +263,12 @@ def save_theme_option_values(
     registry: ThemeRegistry | None = None,
 ) -> Path:
     if not isinstance(values, dict):
-        raise ValueError("Theme option values must be a mapping.")
+        raise TypeError("Theme option values must be a mapping.")
 
     schema = load_theme_option_schema(theme_key, registry)
     theme_dir = get_installed_theme_dir(theme_key, registry)
     if schema is None or theme_dir is None:
-        raise ValueError(f'Theme "{theme_key}" does not expose configurable options.')
+        raise ValueError(t("error.themes.no_settings", key=theme_key))
 
     # Written outside the theme, because an update deletes the package: values saved
     # into it were reset by the next update, every time, with no backup and no warning.
