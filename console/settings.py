@@ -38,9 +38,7 @@ RAIL_PX = 230
 
 # What switching one off does, and the two things it deliberately does not do. Said
 # where it applies to every switch on the page rather than repeated under each.
-KEPT_NOTE = ("What this library collects. Turning one off stops this install showing and "
-             "counting it; the files stay where they are, and a table that will not "
-             "launch still says so.")
+KEPT_NOTE = t("console.settings.kinds_note")
 
 # Every source that ships is listed, switched off included: "why is that catalog not
 # coming up" is answered by seeing it sitting there off.

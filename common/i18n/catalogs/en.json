@@ -1354,6 +1354,7 @@
   "console.settings.group_vpinfe": "VPinFE",
   "console.settings.heading_kinds": "Kinds",
   "console.settings.heading_online_sources": "Online Sources",
+  "console.settings.kinds_note": "Turning one off stops it being shown or counted. Its files stay where they are.",
   "console.settings.last_checked": "Last checked",
   "console.settings.not_built_yet": "Not built yet",
   "console.settings.note_chromium": "Flags handed to the browser the frontend runs in, one per line. Wrong ones stop it starting.",
