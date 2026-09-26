@@ -504,7 +504,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         with bar.bottom, panel.bar_end():
             # The selection count sits with the total: it is the same fact - how much am I
             # looking at - and it costs no vertical space of its own.
-            count = ui.label(t("console.games.games", len=(len(rows)))) \
+            count = ui.label(t("console.games.games", count=len(rows))) \
                 .classes("text-xs console-label")
             actions = ui.button(icon=verbs.MORE).props("flat round dense") \
                 .tooltip(t("console.games.actions_selected_games"))
@@ -519,10 +519,10 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     def said() -> str:
         if selected:
             return grid.selection_said(table, len(selected), t(
-                "console.games.selected", len=len(selected), len2=shown["rows"]))
+                "console.games.selected", picked=len(selected), shown=shown["rows"]))
         if shown["rows"] != len(rows):
-            return t("console.games.games_of", value=shown["rows"], len=len(rows))
-        return t("console.games.games", len=len(rows))
+            return t("console.games.games_of", shown=shown["rows"], count=len(rows))
+        return t("console.games.games", count=len(rows))
 
     def on_select_rows(rows_selected: list[dict[str, Any]]) -> None:
         selected[:] = rows_selected
@@ -1189,9 +1189,9 @@ def _default_cell(row: dict[str, Any], held: int) -> str:
 
 def _tables_said(built: list[dict[str, Any]], shown: int) -> str:
     if shown == len(built):
-        return t("console.games.tables_games", len=len(built),
-                 len2=len({row["game_id"] for row in built}))
-    return t("console.games.tables_of", value=shown, len=len(built))
+        return t("console.games.tables_games", count=len(built),
+                 games=len({row["game_id"] for row in built}))
+    return t("console.games.tables_of", shown=shown, count=len(built))
 
 
 def build_tables(rows: list[dict[str, Any]], library: Any,
@@ -1295,7 +1295,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     def said() -> str:
         if selected:
             return grid.selection_said(table, len(selected), t(
-                "console.games.selected", len=len(selected), len2=displayed["rows"]))
+                "console.games.selected", picked=len(selected), shown=displayed["rows"]))
         return _tables_said(built, displayed["rows"])
 
     def on_select_rows(rows_selected: list[dict[str, Any]]) -> None:

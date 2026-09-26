@@ -175,11 +175,11 @@ def build(found: list[dict[str, Any]], library: Any,
     def said(picked: int) -> str:
         if picked:
             return grid.selection_said(table, picked, t(
-                "console.media.selected", picked=(picked), value=(on_screen['rows'])))
+                "console.media.selected", picked=(picked), shown=on_screen["rows"]))
         if on_screen["rows"] == len(built):
             return t("console.media.media_missing", count=(len(built)),
                      gaps=(sum(1 for row in built if not row.get("present"))))
-        return t("console.media.media", value=(on_screen['rows']), len=(len(built)))
+        return t("console.media.media", shown=on_screen["rows"], count=len(built))
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
                                   "console-panel console-grid-bar"):

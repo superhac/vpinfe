@@ -142,7 +142,7 @@ def build(found: list[dict[str, Any]], library: Any,
     def said() -> str:
         if on_screen["rows"] == len(built):
             return t("console.assets.assets_missing", count=(len(built)), gaps=(gaps))
-        return t("console.assets.assets", value=(on_screen['rows']), len=(len(built)))
+        return t("console.assets.assets", shown=on_screen["rows"], count=len(built))
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
                                   "console-panel console-grid-bar"):

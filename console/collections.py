@@ -298,10 +298,10 @@ def build(collections: list[dict[str, Any]], library: Any,
     def said() -> str:
         if picked:
             return grid.selection_said(table, len(picked), t(
-                "console.collections.selected", len=len(picked), len2=shown["rows"]))
+                "console.collections.selected", picked=len(picked), shown=shown["rows"]))
         if shown["rows"] != len(built):
-            return t("console.collections.collections_of", value=shown["rows"],
-                     len=len(built))
+            return t("console.collections.collections_of", shown=shown["rows"],
+                     count=len(built))
         return t("console.collections.collections", count=len(built))
 
     def on_selected(rows_selected: list[dict[str, Any]]) -> None:
@@ -463,7 +463,7 @@ async def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> N
         return
     # Eight, then a count: the list is here to say which ones, and a hundred names is
     # a dialog nobody reads to the end of.
-    shown = names[:8] + ([t("said.and_more", value=(len(names) - 8))]
+    shown = names[:8] + ([t("said.and_more", count=len(names) - 8)]
             if len(names) > 8 else [])
     if await confirm.ask(t("console.collections.delete_collections", count=len(names)),
                          detail=await what_deleting_leaves(library, names),

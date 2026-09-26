@@ -226,7 +226,7 @@ def _digest(records: list[dict[str, Any]]) -> None:
 
     ordered = sorted(grouped.items(),
                      key=lambda item: (-_rank(item[1]["level"]), -item[1]["count"]))
-    ui.label(t("console.logs.distinct_records", len=(len(ordered)), len2=(len(records)))) \
+    ui.label(t("console.logs.distinct_records", count=len(ordered), records=len(records))) \
         .classes("console-help px-3 pb-1")
     for (source, first_line), found in ordered:
         tone = devices_page.LOG_LEVELS.get(str(found["level"] or ""),
@@ -236,8 +236,8 @@ def _digest(records: list[dict[str, Any]]) -> None:
                 .style("min-width:4ch; text-align:right")
             with ui.column().classes("gap-0 grow min-w-0"):
                 ui.label(first_line).classes(f"truncate {tone}")
-                ui.label(t("console.logs.first_last", source=(source), value=(found['first']),
-                        value2=(found['last']))) \
+                ui.label(t("console.logs.first_last", source=(source), first=found["first"],
+                        last=found["last"])) \
                     .classes("console-log-source")
 
 

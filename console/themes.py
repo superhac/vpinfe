@@ -230,7 +230,7 @@ async def _fill(library: Library, state: dict[str, Any],
 def _themes_said(shown: int, total: int) -> str:
     if shown == total:
         return t("console.themes.themes", count=total)
-    return t("console.themes.themes_of", value=shown, len=total)
+    return t("console.themes.themes_of", shown=shown, count=total)
 
 
 def _found(context: dict[str, Any]) -> dict[str, Any]:

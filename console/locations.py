@@ -167,7 +167,7 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
             bulk.set_visibility(bool(rows_selected))
             count.text = (grid.selection_said(table, len(rows_selected), t(
                               "console.locations.selected",
-                              len=(len(rows_selected)), len2=(len(built))))
+                              picked=len(rows_selected), shown=len(built)))
                           if rows_selected
                           else t("console.locations.location", count=len(built)))
 
@@ -200,7 +200,7 @@ async def _remove_many(picked: list[dict[str, Any]], library: Library,
         return
     names = [str(row.get("name") or "") for row in picked]
     one = len(names) == 1
-    shown = [] if one else names[:8] + ([t("said.and_more", value=(len(names) - 8))]
+    shown = [] if one else names[:8] + ([t("said.and_more", count=len(names) - 8)]
             if len(names) > 8 else [])
     if not await confirm.ask(
             t("console.locations.stop_looking", value=(names[0])) if one

@@ -138,7 +138,7 @@ class MediaFillDrive(unittest.TestCase):
             await browser.wait_for(
                 "[...document.querySelectorAll('.console-grid-bar .console-label')]"
                 ".some(el => el.textContent.trim() === "
-                f"{json.dumps(t('console.media.selected', picked=10, value=10))})")
+                f"{json.dumps(t('console.media.selected', picked=10, shown=10))})")
             before = await looking()
             await browser.evaluate(
                 "[...document.querySelectorAll('.console-grid-bar .q-btn')]"
@@ -178,7 +178,7 @@ class MediaFillDrive(unittest.TestCase):
                          [one for one in self.seen["before"]["selected"] if one != FILLED])
 
     def test_the_count_says_what_is_selected(self) -> None:
-        self.assertIn(t("console.media.selected", picked=9, value=9),
+        self.assertIn(t("console.media.selected", picked=9, shown=9),
                       self.seen["after"]["count"])
 
 
