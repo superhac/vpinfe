@@ -489,7 +489,7 @@ def acts(library: Any, state: dict[str, Any], name: str,
             ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         copy = str(made.get("name") or "")
-        ui.notify(t("console.collections.created", strip=copy), type="positive")
+        ui.notify(t("console.collections.created", name=copy), type="positive")
         await after(copy)
 
     async def delete() -> None:

@@ -338,7 +338,7 @@ async def copy_dialog(library: Library, state: dict[str, Any], launcher: dict) -
 
     picked: set[str] = set()
     with frame.opened(t("console.launchers.copy_to_devices",
-                        value=launcher["display_name"])) as box:
+                        name=launcher["display_name"])) as box:
         ui.label(t("console.launchers.arrives_same_name_same")).classes("console-help px-3")
         with ui.column().classes("gap-1 px-3"):
             for one in reachable:
@@ -435,7 +435,7 @@ async def remove(library: Library, state: dict[str, Any], redraw: Callable[[], N
         return
     detail, lines = removal_words(found)
     if not await confirm.ask(
-            t("console.launchers.remove", value=(launcher['display_name'])),
+            t("console.launchers.remove", name=launcher["display_name"]),
             detail=detail, lines=lines, confirm=t("word.remove"), icon=verbs.REMOVE):
         return
     try:

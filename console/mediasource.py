@@ -95,7 +95,7 @@ async def confirm_replace(label: str, going: list[str]) -> bool:
     the .png with it and the user never named that file.
     """
     return await confirm.ask(t("console.mediasource.replace",
-            lower=(label.lower())),
+            kind=label.lower()),
                              detail=t("console.mediasource.replaced_files_deleted_not"),
                              lines=going, confirm=t("word.replace"), icon=verbs.REPLACE)
 
@@ -344,11 +344,11 @@ class _Sources:
                     shown += 1
                 if not shown:
                     ui.label(t("console.mediasource.nothing_use",
-                            lower=(self.label.lower()))) \
+                            kind=self.label.lower())) \
                         .classes("console-help")
                 elif len(here["entries"]) > _LIST_MAX:
                     ui.label(t("console.mediasource.more_not_shown",
-                            value=(len(here['entries']) - _LIST_MAX))) \
+                            count=len(here["entries"]) - _LIST_MAX)) \
                         .classes("console-help")
 
     def _trail(self, path: str) -> str:
@@ -678,8 +678,8 @@ class _Slot(_OneFile):
         """
         for kind, entry in (self.context.get("media") or {}).items():
             if entry.get("file") == name:
-                return t("console.mediasource.already", lower=(media_label_map().get(kind,
-                        kind).lower()))
+                return t("console.mediasource.already",
+                         kind=media_label_map().get(kind, kind).lower())
         return ""
 
     # --- from the online catalogs --------------------------------------------

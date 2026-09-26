@@ -293,21 +293,21 @@ def _report(body: Any, job: dict, under: str) -> None:
                              if isinstance(value, (int, str))])
         held = list(result.get("already_here") or [])
         if held:
-            panel.facts(ui, [(panel.HEADING, t("console.ext_action.already", len=len(held)))])
+            panel.facts(ui, [(panel.HEADING, t("console.ext_action.already", count=len(held)))])
             for row in held[:20]:
                 name = row.get("name") or row.get("key")
-                ui.label(t("console.ext_action.matched", value=name, value2=row["how"])
+                ui.label(t("console.ext_action.matched", name=name, how=row["how"])
                          if row.get("how") else str(name)).classes("console-help px-3")
             if len(held) > 20:
                 ui.label(t("console.ext_action.more",
-                        value=(len(held) - 20))).classes("console-help px-3")
+                        count=len(held) - 20)).classes("console-help px-3")
         missed = [row for row in (result.get("rows") or []) if row.get("error")]
         if missed:
             panel.facts(ui, [(panel.HEADING,
-                              t("console.ext_action.not_come_across", len=len(missed)))])
+                              t("console.ext_action.not_come_across", count=len(missed)))])
             for row in missed[:20]:
-                ui.label(t("console.ext_action.missed", value=(row.get("name") or row.get("key")),
+                ui.label(t("console.ext_action.missed", name=(row.get("name") or row.get("key")),
                            error=row["error"])).classes("console-help px-3")
             if len(missed) > 20:
                 ui.label(t("console.ext_action.more",
-                        value=(len(missed) - 20))).classes("console-help px-3")
+                        count=len(missed) - 20)).classes("console-help px-3")

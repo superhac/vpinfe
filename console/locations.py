@@ -203,8 +203,8 @@ async def _remove_many(picked: list[dict[str, Any]], library: Library,
     shown = [] if one else names[:8] + ([t("said.and_more", count=len(names) - 8)]
             if len(names) > 8 else [])
     if not await confirm.ask(
-            t("console.locations.stop_looking", value=(names[0])) if one
-            else t("console.locations.stop_looking_in", len=(len(names))),
+            t("console.locations.stop_looking", name=names[0]) if one
+            else t("console.locations.stop_looking_in", count=len(names)),
             detail=t("console.locations.games_leave_library_nothing") if one
             else t("console.locations.games_leave_library_folders"),
             lines=shown, confirm=t("word.remove"), icon=verbs.REMOVE):
@@ -306,7 +306,7 @@ async def remove(library: Library, row: dict[str, Any]) -> bool:
     """Asked about first. The games in it leave the library, and their records go with
     them - which is where they live, so they are there again if it comes back."""
     if not await confirm.ask(
-            t("console.locations.stop_looking", value=row["name"]) if row.get("name")
+            t("console.locations.stop_looking", name=row["name"]) if row.get("name")
             else t("console.locations.stop_looking_here"),
             detail=t("console.locations.games_leave_library_nothing"),
             confirm=t("word.remove"), icon=verbs.REMOVE):

@@ -741,8 +741,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         badge.text = str(len(waiting))
         badge.set_visibility(True)
         badge.tooltip(t("console.page.update_waiting",
-                join=(', '.join(waiting))) if len(waiting) <= 3
-                      else t("console.page.devices_update_waiting", len=(len(waiting))))
+                devices=", ".join(waiting)) if len(waiting) <= 3
+                      else t("console.page.devices_update_waiting", count=len(waiting)))
 
     ui.timer(0.1, _look_for_update, once=True)
 

@@ -86,10 +86,10 @@ async def send(games: list[dict[str, Any]], device: dict[str, Any],
         job = await run.io_bound(client.send_to_device, str(device["device_id"]),
                                  [str(one["id"]) for one in games])
     except Exception as exc:
-        ui.notify(t("console.send_to_device.failed", name_of=name_of(device)),
+        ui.notify(t("console.send_to_device.failed", device=name_of(device)),
                   caption=why(exc), type="negative")
         return
-    ui.notify(t("console.send_to_device.sending", len=(len(games)), name_of=(name_of(device))),
+    ui.notify(t("console.send_to_device.sending", count=len(games), device=name_of(device)),
             type="positive")
     watch = (state or {}).get("watch_jobs")
     if callable(watch):
@@ -103,7 +103,7 @@ async def send(games: list[dict[str, Any]], device: dict[str, Any],
         if found.get("state") == "running":
             continue
         if found.get("state") == "failed":
-            ui.notify(t("console.send_to_device.failed", name_of=name_of(device)),
+            ui.notify(t("console.send_to_device.failed", device=name_of(device)),
                       caption=str(found.get("error") or ""), type="negative")
         return
 

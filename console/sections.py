@@ -297,8 +297,8 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
         _metadata_row(
             not unreadable, t("console.sections.readable"),
             t("console.sections.every_folder_s_metadata") if not unreadable
-            else t("console.sections.could_not_read_games", len=(len(unreadable)),
-                    join=_first_of([str(one.get("name") or "?") for one in unreadable], 4)))
+            else t("console.sections.could_not_read_games", count=len(unreadable),
+                    names=_first_of([str(one.get("name") or "?") for one in unreadable], 4)))
 
         # Only when it is true. A row saying "nothing here was written by a newer build"
         # is a sentence about a thing that has never happened to most installs.
@@ -339,7 +339,7 @@ def _scripts_said(found: dict[str, Any]) -> tuple[bool, str]:
     checked = int(found.get("checked") or 0)
     already = int(found.get("already") or 0)
     if offered:
-        return False, t("console.sections.can_take_published_fix", len=(len(offered)),
+        return False, t("console.sections.can_take_published_fix", count=len(offered),
                 checked=(checked), shown=_first_of(offered, 3))
     running = t("console.sections.already_run_one", already=(already)) if already else ""
     return True, t("console.sections.nothing_published_matches_tables", checked=(checked),

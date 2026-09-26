@@ -415,7 +415,7 @@ async def _launch(games: list[dict[str, Any]]) -> None:
         ui.notify(t("console.games.select_single_game_launch"), type="warning")
         return
     await run.io_bound(ApiClient().launch, games[0]["id"])
-    ui.notify(t("console.games.launching", get=(games[0].get('name'))), type="positive")
+    ui.notify(t("console.games.launching", name=games[0].get("name")), type="positive")
 
 
 def media_zoomed(state: dict[str, Any], event: Any) -> Any:

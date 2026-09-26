@@ -192,7 +192,7 @@ async def _make_collection(library: Library, title: str, filters: dict[str, Any]
         ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
         return
     name = str(made.get("name") or "")
-    ui.notify(t("console.collections.created", strip=name), type="positive")
+    ui.notify(t("console.collections.created", name=name), type="positive")
     ui.navigate.to(_collection_address(name))
 
 

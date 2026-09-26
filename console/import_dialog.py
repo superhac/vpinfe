@@ -140,7 +140,7 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
 
 def dropped_title(source: str, file_count: int) -> str:
     if source:
-        return t("console.import_dialog.import_2", value=source)
+        return t("console.import_dialog.import_2", name=source)
     if file_count > 1:
         return t("console.import_dialog.import_files", count=file_count)
     return t("console.import_dialog.import_drop")
@@ -188,7 +188,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         rows = ui.column().classes("gap-0 w-full console-import-rows px-3")
 
         if blocked:
-            with panel.disclosure(t("console.import_dialog.not_imported", len=(len(blocked)))) \
+            with panel.disclosure(t("console.import_dialog.not_imported", count=len(blocked))) \
                     .classes("console-import-blocked px-3"):
                 for one in blocked:
                     ui.label(not_imported(one)).classes("console-help")
@@ -199,7 +199,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
             wanted = sum(1 for value in chosen.values() if value)
             count.text = ("" if single else
                           t("console.import_dialog.imported", wanted=(wanted),
-                                  len=(len(items))))
+                                  count=len(items)))
 
         def draw(shown: dict[str, Any]) -> None:
             rows.clear()

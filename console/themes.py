@@ -385,7 +385,7 @@ async def _activate(library: Library, theme: dict[str, Any], again: Callable[[],
     doing on another screen.
     """
     if not await confirm.ask(
-            t("console.themes.make_active_theme", value=(theme['name'])),
+            t("console.themes.make_active_theme", name=theme["name"]),
             detail=t("console.themes.takes_effect_next_time"),
             confirm=t("word.make_active"), icon=verbs.ACTIVATE, danger=False):
         return
@@ -395,7 +395,7 @@ async def _activate(library: Library, theme: dict[str, Any], again: Callable[[],
         ui.notify(t("console.themes.could_not_make_active"), caption=why(exc),
                   type="negative")
         return
-    ui.notify(t("console.themes.plays_frontend_next_starts", value=(theme['name'])),
+    ui.notify(t("console.themes.plays_frontend_next_starts", name=theme["name"]),
             type="positive")
     await again()
 
@@ -403,7 +403,7 @@ async def _activate(library: Library, theme: dict[str, Any], again: Callable[[],
 async def _uninstall(library: Library, theme: dict[str, Any],
                      again: Callable[[], Any]) -> None:
     if not await confirm.ask(
-            t("console.themes.uninstall", value=(theme['name'])),
+            t("console.themes.uninstall", name=theme["name"]),
             detail=t("console.themes.files_deleted_can_installed"),
             confirm=t("word.uninstall"), icon=verbs.UNINSTALL):
         return
@@ -412,7 +412,7 @@ async def _uninstall(library: Library, theme: dict[str, Any],
     except Exception as exc:  # noqa: BLE001
         ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
         return
-    ui.notify(t("console.themes.uninstalled", value=(theme['name'])), type="positive")
+    ui.notify(t("console.themes.uninstalled", name=theme["name"]), type="positive")
     await again()
 
 
@@ -484,7 +484,7 @@ def _saver(option: dict[str, Any], wanted: dict[str, Any],
             try:
                 wanted[key] = json.loads(text) if text else None
             except json.JSONDecodeError as exc:
-                ui.notify(t("console.themes.not_json", value=(option.get('name') or key)),
+                ui.notify(t("console.themes.not_json", name=option.get("name") or key),
                           caption=why(exc), type="warning")
                 return False
         else:
@@ -522,7 +522,7 @@ def _expected(option: dict[str, Any], kind: str) -> str:
             return t("console.themes.expected_number_between", low=(low), high=(high))
         return t("console.themes.expected_number")
     if kind == "select":
-        return t("console.themes.expected_one_choices", len=(len(option.get('options') or [])))
+        return t("console.themes.expected_one_choices", count=len(option.get("options") or []))
     if kind == "textarea":
         return t("console.themes.expected_text_many_lines")
     if kind == "json":

@@ -682,7 +682,7 @@ def ask_new(library: Any, made: Callable[[str], Awaitable[Any]], *,
             ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         if announce:
-            ui.notify(t("console.collections.created", strip=wanted), type="positive")
+            ui.notify(t("console.collections.created", name=wanted), type="positive")
         await made(str(created.get("name") or wanted))
 
     with frame.opened(t("console.collections.new_collection")) as dialog:

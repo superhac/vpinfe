@@ -27,7 +27,7 @@ class TheTitleTests(unittest.TestCase):
 
     def test_a_drop_with_a_name_is_named(self) -> None:
         self.assertEqual(import_dialog.dropped_title("Medieval Madness", 3),
-                         t("console.import_dialog.import_2", value="Medieval Madness"))
+                         t("console.import_dialog.import_2", name="Medieval Madness"))
 
     def test_a_drop_with_neither_is_this_drop(self) -> None:
         self.assertEqual(import_dialog.dropped_title("", 0),
