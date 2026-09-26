@@ -250,8 +250,6 @@ def start(game_ids: Iterable[str] | None = None, kinds: Iterable[str] | None = N
     `game_ids` None is the whole library and `kinds` None every kept kind. A kind the
     library does not keep is never fetched. Raises BlockedError while a fill runs.
     """
-    from common import service_errors
-
     kept = kept_kinds()
     picked: dict[str, set[str]] = {}
     for game_id, kind in slots:
@@ -268,10 +266,7 @@ def start(game_ids: Iterable[str] | None = None, kinds: Iterable[str] | None = N
         return {**_fill_games(targets, live, job.reporter(), lambda: not shutdown.requested()),
                 "unreachable": _unanswered(live)}
 
-    try:
-        return jobs.submit(jobs.KIND_MEDIA_FILL, work)
-    except jobs.JobBusyError as exc:
-        raise service_errors.BlockedError(t("error.media_fill.busy")) from exc
+    return jobs.submit(jobs.KIND_MEDIA_FILL, work)
 
 
 def request(folders: Iterable[str | Path]) -> None:

@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 
 import requests
 
-from common import device_client, events
+from common import device_client, events, service_errors
 from common.i18n import t
 
 logger = logging.getLogger("vpinfe.common.jobs")
@@ -64,7 +64,7 @@ _BUSY = {KIND_LIBRARY_SCAN: "error.jobs.library_busy",
          KIND_MEDIA_FILL: "error.media_fill.busy"}
 
 
-class JobBusyError(RuntimeError):
+class JobBusyError(service_errors.BlockedError):
     """Work of this kind is already running."""
 
 

@@ -277,6 +277,35 @@ class ErrorEnvelopeTests(unittest.TestCase):
         self.assertEqual(error["code"], "internal_error")
         self.assertNotIn("secret internal detail", response.text)
 
+    def test_something_in_the_way_is_a_conflict_in_its_own_words(self) -> None:
+        """A busy job, a device that will not answer and an update that cannot be taken
+        are raised far from any route, and reach it without a handler on the way."""
+        from common import jobs
+        from common.games import mobile_transfer
+        from common.online import app_updater
+
+        def raising(refusal: Exception):
+            def route() -> None:
+                raise refusal
+            return route
+
+        api = httpapi.create_api_app()
+        refusals = {"raises-busy": jobs.JobBusyError(t("error.jobs.busy")),
+                    "raises-away": mobile_transfer.DeviceUnreachableError(
+                        t("device.reason.timed_out")),
+                    "raises-latest": app_updater.UpdateError(
+                        t("error.instance.already_latest"))}
+        for path, refusal in refusals.items():
+            api.add_api_route(f"/{path}", raising(refusal))
+        client = TestClient(api, raise_server_exceptions=False)
+
+        for path, refusal in refusals.items():
+            with self.subTest(path):
+                response = client.get(f"/{path}")
+
+                self.assertEqual(response.status_code, 409)
+                self.assertEqual(self._envelope(response)["message"], str(refusal))
+
 
 class OpenApiTests(unittest.TestCase):
     def test_spec_is_served_and_scoped_to_the_mount(self) -> None:

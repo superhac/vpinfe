@@ -34,6 +34,7 @@ from urllib.parse import quote, urlparse
 from common.device_client import why_not
 from common.games.export_bundle import bundle_paths, prune_info
 from common.i18n import t
+from common.service_errors import BlockedError
 
 logger = logging.getLogger("vpinfe.common.games.mobile_transfer")
 
@@ -50,7 +51,7 @@ SEND_SECONDS = 300
 Progress = Callable[[int, int, str], None]
 
 
-class DeviceUnreachableError(RuntimeError):
+class DeviceUnreachableError(BlockedError):
     """The device did not answer. Its own words where it gave any."""
 
 

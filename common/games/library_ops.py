@@ -15,7 +15,6 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from common import jobs as job_registry
-from common import service_errors
 from common.games import (
     derived_tags,
     entry_lens,
@@ -37,10 +36,7 @@ from common.games.tables import table_entries
 
 def start(kind: str, work: Callable[[job_registry.Job], object]) -> job_registry.Job:
     """Put a library-wide pass on the queue, or refuse because one is already running."""
-    try:
-        return job_registry.submit(kind, work)
-    except job_registry.JobBusyError as exc:
-        raise service_errors.BlockedError(str(exc)) from exc
+    return job_registry.submit(kind, work)
 
 
 def filter_axes() -> dict[str, Any]:
@@ -189,11 +185,8 @@ def auto_match(game_ids: Iterable[str]) -> dict[str, int]:
 
     held = game_repository.catalog()
     games = [held[one] for one in dict.fromkeys(game_ids) if one in held]
-    try:
-        with job_registry.track(job_registry.KIND_LIBRARY_SCAN):
-            counts, moved = matching.match_again(games)
-    except job_registry.JobBusyError as exc:
-        raise service_errors.BlockedError(str(exc)) from exc
+    with job_registry.track(job_registry.KIND_LIBRARY_SCAN):
+        counts, moved = matching.match_again(games)
     for game in moved:
         game_repository.refresh_game(Path(str(game.full_path_game)))
     return counts

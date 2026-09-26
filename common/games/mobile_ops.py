@@ -19,10 +19,7 @@ from common.i18n import t
 def carried_by(device_id: str) -> dict[str, Any]:
     """It is a short question and the answer is only true at the moment it is given."""
     device = device_ops.mobile_or_refuse(device_id)
-    try:
-        found = mobile_transfer.carried(device.address, device.port)
-    except mobile_transfer.DeviceUnreachableError as exc:
-        raise service_errors.BlockedError(str(exc)) from exc
+    found = mobile_transfer.carried(device.address, device.port)
     return {"device_id": device_id, "count": len(found), "games": found}
 
 
@@ -59,18 +56,12 @@ def send(device_id: str, game_ids: Iterable[str],
                           t("said.sent_games_to", count=len(folders),
                             device=device.display_name or device_id))
 
-    try:
-        return job_registry.submit(job_registry.KIND_DEVICE_SEND, work)
-    except job_registry.JobBusyError as exc:
-        raise service_errors.BlockedError(str(exc)) from exc
+    return job_registry.submit(job_registry.KIND_DEVICE_SEND, work)
 
 
 def remove(device_id: str, name: str) -> None:
     device = device_ops.mobile_or_refuse(device_id)
-    try:
-        mobile_transfer.remove(name, device.address, device.port)
-    except mobile_transfer.DeviceUnreachableError as exc:
-        raise service_errors.BlockedError(str(exc)) from exc
+    mobile_transfer.remove(name, device.address, device.port)
 
 
 def _folder_or_refuse(game_id: str) -> Path:

@@ -17,7 +17,7 @@ from pathlib import Path
 
 import requests
 
-from common import timestamps
+from common import service_errors, timestamps
 from common.http_client import download_file, get_json, unreachable
 from common.i18n import t
 from common.online.update_scripts import (
@@ -40,7 +40,7 @@ RETRY_AFTER_FAILURE_SECONDS = 60 * 60
 _checking = threading.Lock()
 
 
-class UpdateError(RuntimeError):
+class UpdateError(service_errors.BlockedError):
     """Raised when an update cannot be prepared or applied."""
 
 
@@ -627,7 +627,7 @@ def take_published(*, stop_table: bool = False) -> dict:
     unavailable update costs nobody their game. Only once there is a verified package does
     a running table get closed.
     """
-    from common import device_client, lifecycle, service_errors
+    from common import device_client, lifecycle
     from common.host import launch_state
 
     context = get_install_context()
@@ -641,10 +641,7 @@ def take_published(*, stop_table: bool = False) -> dict:
         raise service_errors.BlockedError(t("error.instance.table_running"),
                                           details={"game_name": playing.game_name})
 
-    try:
-        prepared = prepare_update()
-    except UpdateError as exc:
-        raise service_errors.BlockedError(str(exc)) from exc
+    prepared = prepare_update()
 
     stopped_table = None
     if playing.launching and device_client.local().request(
