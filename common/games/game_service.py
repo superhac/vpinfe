@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from common import jobs
+from common.atomic_write import naming_folder
 from common.config_access import SettingsConfig
 from common.config_store import ConfigStore
 from common.games import game_index_service, game_repository, info_maintenance, metadata_service
@@ -364,8 +365,9 @@ def _find_ini_file(game_dir: Path, preferred_stem: str = "") -> Path | None:
 def _write_replace(dest_file: Path, content: bytes) -> None:
     ensure_dir(dest_file.parent)
     tmp_file = dest_file.with_name(f".{dest_file.name}.uploading")
-    tmp_file.write_bytes(content)
-    os.replace(tmp_file, dest_file)
+    with naming_folder(dest_file):
+        tmp_file.write_bytes(content)
+        os.replace(tmp_file, dest_file)
 
 
 def replace_table(game_dir: Path, filename: str, content: bytes, file_kind: str,
@@ -390,9 +392,11 @@ def replace_table(game_dir: Path, filename: str, content: bytes, file_kind: str,
             _write_replace(new_vpx, content)
         else:
             tmp_file = new_vpx.with_name(f".{new_vpx.name}.uploading")
-            tmp_file.write_bytes(content)
+            with naming_folder(new_vpx):
+                tmp_file.write_bytes(content)
             old_vpx.unlink()
-            os.replace(tmp_file, new_vpx)
+            with naming_folder(new_vpx):
+                os.replace(tmp_file, new_vpx)
 
         renamed_b2s = ""
         if old_b2s and old_b2s.exists():

@@ -12,6 +12,7 @@ import tempfile
 from pathlib import Path
 
 from common import service_errors
+from common.atomic_write import naming_folder
 from common.games import asset_lens, game_lens, media_ops, media_placement, table_lens
 from common.games.asset_registry import spec_for
 from common.games.asset_resolver import VPX_ASSET_KINDS, AssetKind
@@ -113,15 +114,17 @@ def place_file(game_id: str, kind: str, table_id: str, source: Path,
     going = _here(game_dir, target.name)
     # Written beside the target and renamed over it, so a copy that fails part way
     # leaves the old file rather than half of a new one.
-    with tempfile.NamedTemporaryFile(dir=game_dir, prefix=".vpinfe-", suffix=".part",
-                                     delete=False) as staged:
+    with naming_folder(target), tempfile.NamedTemporaryFile(
+            dir=game_dir, prefix=".vpinfe-", suffix=".part", delete=False) as staged:
         staging = Path(staged.name)
     try:
-        shutil.copyfile(source, staging)
+        with naming_folder(target):
+            shutil.copyfile(source, staging)
         for other in going:
             if other != target.name:
                 (game_dir / other).unlink()
-        os.replace(staging, target)
+        with naming_folder(target):
+            os.replace(staging, target)
     finally:
         staging.unlink(missing_ok=True)
     media_placement.record_origin(game_dir, target)

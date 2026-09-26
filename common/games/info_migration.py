@@ -23,7 +23,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from common.atomic_write import write_atomic
+from common.atomic_write import naming_folder, write_atomic
 from common.games.tables import TABLES_KEY, parse_authors
 from common.timestamps import iso_from_asctime, iso_from_authored_date
 
@@ -266,15 +266,17 @@ def replace_atomic(source: str | Path, path: str | Path) -> None:
     A plain copy truncates first, and restore does that once per game across the library.
     """
     directory = os.path.dirname(path) or "."
-    handle_fd, tmp = tempfile.mkstemp(dir=directory, prefix=".vpinfe_write_", suffix=".tmp")
-    os.close(handle_fd)
-    try:
-        shutil.copy2(source, tmp)
-        os.replace(tmp, path)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp)
-        raise
+    with naming_folder(path):
+        handle_fd, tmp = tempfile.mkstemp(dir=directory, prefix=".vpinfe_write_",
+                                          suffix=".tmp")
+        os.close(handle_fd)
+        try:
+            shutil.copy2(source, tmp)
+            os.replace(tmp, path)
+        except BaseException:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp)
+            raise
 
 
 
@@ -305,10 +307,11 @@ def write_backup(info_path: str | Path, original_text: str,
     """
     json.loads(original_text)
     path = _free_backup_path(info_path, when)
-    with open(path, "w", encoding="utf-8") as handle:
-        handle.write(original_text)
-    with open(path, encoding="utf-8") as handle:
-        json.load(handle)
+    with naming_folder(info_path):
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(original_text)
+        with open(path, encoding="utf-8") as handle:
+            json.load(handle)
     return path
 
 
@@ -319,5 +322,6 @@ def copy_aside(info_path: str | Path, when: datetime | None = None) -> str:
     is broken.
     """
     path = _free_backup_path(info_path, when)
-    shutil.copy2(info_path, path)
+    with naming_folder(info_path):
+        shutil.copy2(info_path, path)
     return path

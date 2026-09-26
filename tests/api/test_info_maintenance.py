@@ -259,7 +259,8 @@ class MetadataOutcomeTests(unittest.TestCase):
     def test_the_folder_it_could_not_write_is_named_with_why_on_hover(self) -> None:
         _, drawn = self._upgrade()
 
-        self.assertTrue(drawn.get(LOCKED, "").startswith(t("said.why.no_permission")), drawn)
+        self.assertEqual(drawn.get(LOCKED),
+                         t("said.why.no_permission_at", path=str(self.root / LOCKED)))
 
     def test_a_restore_names_what_it_could_not_put_back(self) -> None:
         self._job(upgrade_library)
@@ -269,7 +270,8 @@ class MetadataOutcomeTests(unittest.TestCase):
 
         self.assertIn((t("console.sections.restored_some", done=1, total=2), "", "warning"),
                       said)
-        self.assertIn(LOCKED, drawn)
+        self.assertEqual(drawn.get(LOCKED),
+                         t("said.why.no_permission_at", path=str(self.root / LOCKED)))
 
     def test_a_job_that_fails_leads_with_words_and_its_reason(self) -> None:
         self.root.chmod(0o000)
