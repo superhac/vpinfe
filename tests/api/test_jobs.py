@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 import httpapi
 from common import events, jobs
 from common import jobs as job_registry
+from common.i18n import t
 
 
 class _Recorder:
@@ -100,9 +101,11 @@ class TrackTests(unittest.TestCase):
     def test_one_kind_at_a_time(self) -> None:
         """Two library scans would interleave writes to the same .info files."""
         with jobs.track("test.kind"):
-            with self.assertRaises(jobs.JobBusyError):
+            with self.assertRaises(jobs.JobBusyError) as raised:
                 with jobs.track("test.kind"):
                     pass
+
+        self.assertEqual(str(raised.exception), t("error.jobs.busy"))
 
     def test_different_kinds_do_not_block_each_other(self) -> None:
         with jobs.track("test.one"), jobs.track("test.two"):
@@ -269,6 +272,7 @@ class JobEndpointTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["error"]["code"], "conflict")
+        self.assertEqual(response.json()["error"]["message"], t("error.jobs.library_busy"))
 
     def test_discovery_advertises_the_jobs_collection(self) -> None:
         links = self.client.get("/").json()["links"]

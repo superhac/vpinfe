@@ -164,6 +164,7 @@ SPEAKS_TO_A_SURFACE = {
     "common/games/info_file.py": frozenset({"refusal"}),
     "common/games/game_service.py": frozenset({"raise", "refusal"}),
     "common/games/mobile_transfer.py": frozenset({"raise", "refusal"}),
+    "common/jobs.py": frozenset({"raise"}),
 }
 
 # Said to whoever wrote the calling code, which has a bug to fix rather than a person

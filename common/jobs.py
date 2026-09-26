@@ -27,6 +27,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 from common import events
+from common.i18n import t
 
 logger = logging.getLogger("vpinfe.common.jobs")
 
@@ -55,8 +56,18 @@ KIND_MEDIA_FILL = "library.media_fill"
 _HISTORY_LIMIT = 20
 
 
+_BUSY = {KIND_LIBRARY_SCAN: "error.jobs.library_busy",
+         KIND_VPS_ROLLUP: "error.jobs.vps_count_busy",
+         KIND_DEVICE_SEND: "error.jobs.sending_busy",
+         KIND_MEDIA_FILL: "error.media_fill.busy"}
+
+
 class JobBusyError(RuntimeError):
     """Work of this kind is already running."""
+
+
+def _busy(kind: str) -> JobBusyError:
+    return JobBusyError(t(_BUSY.get(kind, "error.jobs.busy")))
 
 
 @dataclass
@@ -182,7 +193,7 @@ def track(kind: str, *, progress_cb: ProgressCallback | None = None,
     job = Job(id=uuid.uuid4().hex, kind=kind, progress_cb=progress_cb, log_cb=log_cb)
     with _lock:
         if kind in _active:
-            raise JobBusyError(f"{kind} is already running")
+            raise _busy(kind)
         _active[kind] = job
     try:
         yield job
@@ -200,7 +211,7 @@ def submit(kind: str, work: Callable[[Job], object], *,
     job = Job(id=uuid.uuid4().hex, kind=kind, progress_cb=progress_cb, log_cb=log_cb)
     with _lock:
         if kind in _active:
-            raise JobBusyError(f"{kind} is already running")
+            raise _busy(kind)
         _active[kind] = job
 
     def _run() -> None:
