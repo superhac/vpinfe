@@ -94,8 +94,7 @@ async def confirm_replace(label: str, going: list[str]) -> bool:
     count hides: a whole family goes at this tier, so a .mp4 arriving over a .png takes
     the .png with it and the user never named that file.
     """
-    return await confirm.ask(t("console.mediasource.replace",
-            kind=label.lower()),
+    return await confirm.ask(t("console.mediasource.replace", kind=label),
                              detail=t("console.mediasource.replaced_files_deleted_not"),
                              lines=going, confirm=t("word.replace"), icon=verbs.REPLACE)
 
@@ -343,8 +342,7 @@ class _Sources:
                         continue
                     shown += 1
                 if not shown:
-                    ui.label(t("console.mediasource.nothing_use",
-                            kind=self.label.lower())) \
+                    ui.label(t("console.mediasource.nothing_use", kind=self.label)) \
                         .classes("console-help")
                 elif len(here["entries"]) > _LIST_MAX:
                     ui.label(t("console.mediasource.more_not_shown",
@@ -678,8 +676,7 @@ class _Slot(_OneFile):
         """
         for kind, entry in (self.context.get("media") or {}).items():
             if entry.get("file") == name:
-                return t("console.mediasource.already",
-                         kind=media_label_map().get(kind, kind).lower())
+                return t("console.mediasource.already", kind=media_label_map().get(kind, kind))
         return ""
 
     # --- from the online catalogs --------------------------------------------

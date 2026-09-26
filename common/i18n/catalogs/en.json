@@ -1082,7 +1082,7 @@
   },
   "console.mediasource.add_launcher": "Add a Launcher…",
   "console.mediasource.add_table_to": "Add a Table to “{name}”",
-  "console.mediasource.already": "already the {kind}",
+  "console.mediasource.already": "Already the {kind}",
   "console.mediasource.choose_file": "Choose a file",
   "console.mediasource.choose_files": "Choose files",
   "console.mediasource.choose_folder": "Choose a folder",

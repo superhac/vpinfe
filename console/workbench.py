@@ -904,9 +904,9 @@ async def _asset_file_block(context: dict[str, Any]) -> None:
                 ui.icon(_asset_icon(kind)).classes("console-slot-blank-icon")
         with ui.column().classes("w-full gap-0 console-slot-facts"):
             if not present:
-                ui.label(t("console.workbench.no_kind_for_table", kind=label.lower())
+                ui.label(t("console.workbench.no_kind_for_table", kind=label)
                          if context["lens"]
-                         else t("console.workbench.no_kind_for_game", kind=label.lower())) \
+                         else t("console.workbench.no_kind_for_game", kind=label)) \
                     .classes("console-help")
             else:
                 with ui.row().classes("items-start gap-2 w-full no-wrap"):
@@ -1739,7 +1739,7 @@ def _preview(src: str, kind: str, label: str) -> None:
     else:
         # A rule sheet is a document; there is no element that previews one usefully
         # in a panel this size, and a broken <img> would say it is missing.
-        panel.link_out(t("console.workbench.open", kind=label.lower()), to=src)()
+        panel.link_out(t("console.workbench.open", kind=label), to=src)()
 
 
 def _kept_kinds(context: dict[str, Any], family: str) -> set[str] | None:
@@ -1949,9 +1949,9 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                     ui.label(matched).classes("console-help")
                 _outside_lines(links)
             else:
-                ui.label(t("console.workbench.no_kind_for_table", kind=label.lower())
+                ui.label(t("console.workbench.no_kind_for_table", kind=label)
                          if table_id
-                         else t("console.workbench.no_kind_for_game", kind=label.lower())) \
+                         else t("console.workbench.no_kind_for_game", kind=label)) \
                     .classes("console-help")
 
         # Only when there is more than one, because with one the sentence above has
@@ -3989,10 +3989,9 @@ async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
     """
     library = context["library"]
     records, empty, reason = await _listed_by_vps(
-        context, t("console.workbench.vps_lists_none_for_game", kind=label.lower()),
-        listed_as)
+        context, t("console.workbench.vps_lists_none_for_game", kind=label), listed_as)
 
-    with frame.opened(t("console.workbench.published", kind=label.lower()), wide=True,
+    with frame.opened(t("console.workbench.published", kind=label), wide=True,
                       persistent=True) as box:
         ui.label(path).classes("console-help px-3")
         with ui.column().classes("w-full gap-0 console-source-list console-pick-list px-3"):
