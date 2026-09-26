@@ -323,7 +323,7 @@ async def _took_a_drop(
     """
     from console import import_dialog, uploads
 
-    game_id, game_dir, media_kind = _drop_target(library, state, drop)
+    game_id, game_dir, media_kind = await offload.io(_drop_target, library, state, drop)
 
     # A slot drop is not analyzed at all, and that is the whole point of one: the cell
     # said which game and which slot, so any image belongs on an image slot and is
@@ -370,7 +370,8 @@ async def _took_a_drop(
 
 
 def _drop_target(library: Library, state: dict, drop: Any) -> tuple[str, str, str]:
-    """(game id, game folder, media kind) for where a drop landed.
+    """(game id, game folder, media kind) for where a drop landed. Off the loop: the
+    grid's rows are read again if a write has let them go.
 
     The row id is the id of whatever that grid's rows are about - a game under Games, a
     table under Tables - so which grid you are on decides how to read it, and the grid
@@ -381,13 +382,13 @@ def _drop_target(library: Library, state: dict, drop: Any) -> tuple[str, str, st
     if drop.target == uploads.TARGET_LIBRARY or not drop.row_id:
         return "", "", ""
     game_id = drop.row_id
-    if state.get("view") in ("tables", "media", "assets"):
+    view = state.get("view")
+    if view in ("tables", "media", "assets"):
         # These rows are about a file, and carry the game they belong to.
-        row = next((one for one in library.table_rows()
-                    if str(one.get("id")) == drop.row_id), None)
-        if row is None:
-            row = next((one for one in library.media_rows()
-                        if str(one.get("id")) == drop.row_id), None)
+        rows = (library.load_tables() if view == "tables"
+                else library.load_media_rows() if view == "media"
+                else library.load_asset_rows())
+        row = next((one for one in rows if str(one.get("id")) == drop.row_id), None)
         game_id = str((row or {}).get("game_id") or "")
     found = next((one for one in library.games if str(one.get("id")) == game_id), None)
     return game_id, str((found or {}).get("folder") or ""), drop.media_kind

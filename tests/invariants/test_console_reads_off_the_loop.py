@@ -27,7 +27,6 @@ Place = tuple[str, str, str]
 # (module, function making the call, read): why that read may stay on the loop.
 ALLOWED: dict[Place, str] = {
     ("mediasource", "_host_name", "discovery"): "not off the loop yet",
-    ("page", "_drop_target", "media_rows"): "not off the loop yet",
     ("page", "render", "asset_rows"): "not off the loop yet",
     ("page", "render", "media_rows"): "not off the loop yet",
     ("sections", "overview", "kept_kinds"): "not off the loop yet",

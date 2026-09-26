@@ -56,6 +56,7 @@ class MatchingAFileTests(unittest.TestCase):
         client = Mock()
         client.all_tables.return_value = []
         client.all_media.return_value = []
+        client.all_assets.return_value = []
         client.tables.return_value = []
         client.games.return_value = []
         client.library_policy.return_value = {}

@@ -979,10 +979,10 @@ class Library:
 
     def load_asset_rows(self) -> list[dict[str, Any]]:
         """Read the asset lens, and the kept kinds it is filtered by. Off the loop."""
-        if self._asset_rows is None:
-            self._asset_rows = self._client.all_assets()
-        self.kept_kinds()
-        return self._asset_rows
+        rows = self._asset_rows
+        if rows is None:
+            rows = self._asset_rows = self._client.all_assets()
+        return self._kept_assets(rows)
 
     def asset_rows(self) -> list[dict[str, Any]]:
         """The asset lens, filtered to the kinds this library collects.
