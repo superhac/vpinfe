@@ -83,7 +83,8 @@ NUMBERED_SETS = (
       "anaglyph_glasses.custom_1", "anaglyph_glasses.custom_2", "anaglyph_glasses.custom_3",
       "anaglyph_glasses.custom_4")),
 )
-DEFAULT_CAMERA = {"DefaultCamera.Desktop": "desktop", "DefaultCamera.FSS": "fss"}
+DEFAULT_CAMERA = {"DefaultCamera.Desktop": "default_camera.desktop",
+                  "DefaultCamera.FSS": "default_camera.fss"}
 
 # The views a table starts in, by its View Mode. At 0 a flag inside the table picks
 # Full Single Screen or Desktop.
@@ -573,9 +574,8 @@ class VPXConfig:
         for pattern, names in NUMBERED_SETS:
             if (found := pattern.match(key)) and 0 < int(found[1]) <= len(names):
                 return names[int(found[1]) - 1]
-        view = next((view for prefix, view in DEFAULT_CAMERA.items()
+        return next((word for prefix, word in DEFAULT_CAMERA.items()
                      if key.startswith(prefix)), "")
-        return f"group.{areas.POINT_OF_VIEW}.heading.{view}.label" if view else ""
 
     def named_values(self) -> dict[str, tuple[tuple[str, str], ...]]:
         """By key, the values the program gives a meaning of their own, each with the word

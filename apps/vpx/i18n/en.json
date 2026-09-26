@@ -17,6 +17,8 @@
   "anaglyph_glasses.green_magenta": "Anaglyph Green/Magenta",
   "anaglyph_glasses.magenta_green": "Anaglyph Magenta/Green",
   "anaglyph_glasses.red_cyan": "Anaglyph Red/Cyan",
+  "default_camera.desktop": "Default Camera: Desktop",
+  "default_camera.fss": "Default Camera: Full Single Screen",
   "dmd_profile.generic_led": "DMD: Generic LED",
   "dmd_profile.generic_plasma": "DMD: Generic Plasma",
   "dmd_profile.green_led": "DMD: Green LED",

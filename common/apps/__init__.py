@@ -145,7 +145,8 @@ def field_words(app_id: str, field: Field) -> dict[str, str]:
     among = grouping(field.key) if grouping is not None else ""
     named_set = i18n.literal_or("", f"app.{app_id}.{among}")[0] if among else ""
     if named_set:
-        label, label_key = i18n.t("launcher.label_in_set", label=label, set=named_set), ""
+        label, label_key = i18n.t("launcher.label_in_set", label=label,
+                                  set_name=named_set), ""
     return {"label": label, "label_key": label_key,
             "description": leaf("description", field.description, "")[0]}
 

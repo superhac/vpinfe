@@ -1284,7 +1284,8 @@ class NumberedSetTests(_Case):
                          {"DMD.Profile2DiffuseGlow": ("DMD Diffuse Glow (DMD: Neon Plasma)", ""),
                           "Alpha.Profile2Color": ("Color (Alpha: Blue VFD)", ""),
                           "Player.Anaglyph10Filter": ("Anaglyph Filter (Anaglyph Custom 4)", ""),
-                          "DefaultCamera.FSSCamX": ("Camera X (Full Single Screen)", "")})
+                          "DefaultCamera.FSSCamX":
+                              ("Camera X (Default Camera: Full Single Screen)", "")})
 
     def test_a_profile_the_program_has_not_named_keeps_its_label(self) -> None:
         said = self._labels("[DMD]\n; Dot Tint: Color of lit dots [Default: 0]\n"
