@@ -138,7 +138,8 @@ def _one(ctx: Any, source_id: str, game: SourceGame, kinds: tuple[str, ...],
     try:
         game_id = ctx.games.create(name, location)
     except Exception as exc:
-        row["error"] = str(exc)
+        ctx.logger.warning("No folder for %s: %s", name, exc)
+        row["error"] = ctx.t("error.no_folder")
         return row
 
     row["game_id"] = game_id
@@ -158,7 +159,8 @@ def _one(ctx: Any, source_id: str, game: SourceGame, kinds: tuple[str, ...],
             row["companions"] = len(landed["companions"])
             rom = landed.get("rom", "")
         except Exception as exc:
-            row["error"] = ctx.t("error.game_file", error=exc)
+            ctx.logger.warning("%s: the game file did not come across: %s", name, exc)
+            row["error"] = ctx.t("error.game_file")
 
     for kind, path in mapping.media_for(source_id, game, kinds):
         try:
@@ -201,7 +203,8 @@ def _another_build(ctx: Any, game: SourceGame, name: str, game_id: str) -> Adopt
         row["table"] = True
         row["companions"] = len(landed["companions"])
     except Exception as exc:
-        row["error"] = ctx.t("error.game_file", error=exc)
+        ctx.logger.warning("%s: the game file did not come across: %s", name, exc)
+        row["error"] = ctx.t("error.game_file")
     return row
 
 

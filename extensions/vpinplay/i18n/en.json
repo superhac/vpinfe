@@ -35,5 +35,5 @@
   "community.tables.view.last_played.help": "What was played last, anywhere",
   "community.tables.view.players.name": "Most Installed",
   "community.tables.view.players.help": "What the most players have",
-  "error.no_answer": "{endpoint} did not answer: {error}"
+  "error.no_answer": "{endpoint} did not answer"
 }

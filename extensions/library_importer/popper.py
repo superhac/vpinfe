@@ -187,8 +187,9 @@ def read(root: Path | str,
     try:
         db = _open(path)
     except sqlite3.Error as exc:
+        logger.warning("Could not open %s: %s", path, exc)
         return SourceLibrary(source_id=SOURCE_ID, root=str(root),
-                             notes=(t("note.unopened", file=DATABASE, error=exc),))
+                             notes=(t("note.unopened", file=DATABASE),))
 
     try:
         emulators = list(db.execute(
@@ -236,7 +237,8 @@ def read(root: Path | str,
             # somebody who set Future Pinball up wants to know it was seen and left.
             notes.append(t("note.not_played", systems=", ".join(sorted(skipped_systems))))
     except sqlite3.Error as exc:
-        notes.append(t("note.read_stopped", file=DATABASE, error=exc))
+        logger.warning("Could not read %s to the end: %s", path, exc)
+        notes.append(t("note.read_stopped", file=DATABASE))
     finally:
         db.close()
 

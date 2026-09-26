@@ -139,8 +139,9 @@ def read(root: Path | str,
     try:
         tree = ElementTree.parse(path).getroot()
     except (OSError, ElementTree.ParseError) as exc:
+        logger.warning("Could not read %s: %s", path, exc)
         return SourceLibrary(source_id=SOURCE_ID, root=str(root),
-                             notes=(t("note.unreadable", file=GAMELIST, error=exc),))
+                             notes=(t("note.unreadable", file=GAMELIST),))
 
     games, skipped = [], 0
     for element in tree.iter("game"):

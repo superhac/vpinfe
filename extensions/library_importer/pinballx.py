@@ -113,15 +113,17 @@ def read_config(root: Path | str) -> tuple[list[dict], list[str]]:
         return [], [t("note.no_config", config=os.path.join(*CONFIG_RELATIVE),
                       settings=PINBALLY_SETTINGS)]
 
-    text, notes = "", []
+    text, failed = "", ""
     for encoding in ("utf-16", "utf-8-sig", "utf-8"):
         try:
             text = path.read_text(encoding=encoding)
             break
         except (UnicodeError, OSError) as exc:
-            notes = [t("note.unreadable", file=path.name, error=exc)]
+            failed = str(exc)
     if not text:
-        return [], notes
+        if failed:
+            logger.warning("Could not read %s: %s", path, failed)
+        return [], [t("note.unreadable", file=path.name)] if failed else []
 
     parser = configparser.ConfigParser(strict=False, interpolation=None)
     # Assignment is configparser's own way to keep key case; typeshed says method.
@@ -129,7 +131,8 @@ def read_config(root: Path | str) -> tuple[list[dict], list[str]]:
     try:
         parser.read_string(text)
     except configparser.Error as exc:
-        return [], [t("note.unparsed", file=path.name, error=exc)]
+        logger.warning("Could not parse %s: %s", path, exc)
+        return [], [t("note.unparsed", file=path.name)]
 
     found = []
     for section in parser.sections():
@@ -215,7 +218,8 @@ def read_pinbally_config(path: Path) -> tuple[list[dict], list[str]]:
     try:
         text = path.read_text(encoding="utf-8-sig", errors="replace")
     except OSError as exc:
-        return [], [t("note.unreadable", file=path.name, error=exc)]
+        logger.warning("Could not read %s: %s", path, exc)
+        return [], [t("note.unreadable", file=path.name)]
 
     systems: dict[str, dict[str, str]] = {}
     for line in text.splitlines():
@@ -363,7 +367,8 @@ def _database_text(path: Path) -> tuple[str | None, list[str]]:
     try:
         raw = path.read_bytes()
     except OSError as exc:
-        return None, [t("note.unreadable", file=path.name, error=exc)]
+        logger.warning("Could not read %s: %s", path, exc)
+        return None, [t("note.unreadable", file=path.name)]
 
     for encoding in ("utf-8-sig", "utf-8"):
         try:
@@ -387,7 +392,8 @@ def read_database(path: Path | str, tables_dir: str = "",
     try:
         root = ElementTree.fromstring(text)
     except ElementTree.ParseError as exc:
-        return [], [*notes, t("note.unreadable", file=path.name, error=exc)]
+        logger.warning("Could not read %s: %s", path, exc)
+        return [], [*notes, t("note.unreadable", file=path.name)]
 
     tables = _table_index(Path(tables_dir), plays) if tables_dir else ({}, {})
     found, skipped = [], 0

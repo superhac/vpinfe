@@ -103,7 +103,8 @@ def read_text(path: Path | str) -> tuple[str, str]:
         except UnicodeError:
             continue
         except OSError as exc:
-            return "", t("note.unreadable", file=path.name, error=exc)
+            logger.warning("Could not read %s: %s", path, exc)
+            return "", t("note.unreadable", file=path.name)
     return "", t("note.no_encoding", file=path.name)
 
 

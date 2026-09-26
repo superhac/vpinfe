@@ -23,16 +23,6 @@ TEXT = {"args", "msg", "message", "strerror", "reason"}
 
 SLOT = re.compile(r"\{exc(?:[.!:\[][^}]*)?\}")
 
-NOT_YET: frozenset[str] = frozenset({
-    "extensions/library_importer/adopt.py",
-    "extensions/library_importer/emulationstation.py",
-    "extensions/library_importer/gamestats.py",
-    "extensions/library_importer/pinballx.py",
-    "extensions/library_importer/popper.py",
-    "extensions/library_importer/registry.py",
-    "extensions/vpinplay/community.py",
-})
-
 
 def _named(node: ast.expr) -> str:
     return getattr(node, "id", None) or getattr(node, "attr", None) or ""
@@ -114,24 +104,11 @@ class TheExceptionGoesUnderTheWords(unittest.TestCase):
     def test_no_message_carries_an_exception(self) -> None:
         found = [f"{path.relative_to(ROOT).as_posix()}:{line} {said}"
                  for path in _sources()
-                 if path.relative_to(ROOT).as_posix() not in NOT_YET
                  for line, said in offenders(path.read_text(encoding="utf-8"))]
         self.assertEqual(found, [], "the lead-in is the message; why() goes in the caption")
 
     def test_no_entry_has_a_slot_for_one(self) -> None:
-        sweeping = [(ROOT / name).read_text(encoding="utf-8") for name in NOT_YET]
-
-        def named(key: str) -> bool:
-            own = key.split(".", 2)[-1] if key.startswith(("app.", "ext.")) else key
-            return any(f'"{own}"' in text for text in sweeping)
-
-        self.assertEqual(sorted(key for key, value in served().items()
-                                if _slots(value) and not named(key)), [])
-
-    def test_the_paths_still_to_sweep_are_not_already_clean(self) -> None:
-        clean = sorted(name for name in NOT_YET
-                       if not offenders((ROOT / name).read_text(encoding="utf-8")))
-        self.assertEqual(clean, [])
+        self.assertEqual(sorted(key for key, value in served().items() if _slots(value)), [])
 
     def test_each_way_is_read(self) -> None:
         source = ("def save(client):\n"

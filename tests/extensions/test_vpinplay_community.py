@@ -91,8 +91,7 @@ class Rows(unittest.TestCase):
                           side_effect=urllib.error.URLError("refused")):
             response = TestClient(app).get("/community/tables")
 
-        self.assertEqual((502, "https://vpinplay.example did not answer: "
-                               "<urlopen error refused>"),
+        self.assertEqual((502, "https://vpinplay.example did not answer"),
                          (response.status_code, response.json()["detail"]))
 
 

@@ -111,7 +111,6 @@ def router(endpoint_of: Any) -> APIRouter:
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             logger.warning("VPinPlay did not answer at %s: %s", endpoint, exc)
             raise HTTPException(status_code=502,
-                                detail=t("error.no_answer", endpoint=endpoint,
-                                         error=exc)) from exc
+                                detail=t("error.no_answer", endpoint=endpoint)) from exc
 
     return reading

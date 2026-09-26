@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,6 +21,7 @@ from typing import Any
 
 from common.extensions.contract import words
 
+logger = logging.getLogger(__name__)
 t = words("library_importer")
 
 STATS_FILE = "GameStats.csv"
@@ -70,7 +72,8 @@ def read(path: Path | str) -> tuple[list[Played], list[str]]:
     try:
         raw = path.read_bytes()
     except OSError as exc:
-        return [], [t("note.unreadable", file=path.name, error=exc)]
+        logger.warning("Could not read %s: %s", path, exc)
+        return [], [t("note.unreadable", file=path.name)]
 
     text, note = _text(raw, path.name)
     found = []
