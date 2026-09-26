@@ -1540,6 +1540,8 @@ class MediaTier(ApiModel):
     tier: str
     file: str
     wins: bool
+    # How many of the game's tables are shown this file, whichever lens asked.
+    serves: int = 0
 
 
 class MediaDetail(ApiModel):

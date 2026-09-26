@@ -177,6 +177,27 @@ class DetailTests(PlacementTests):
         self.assertEqual([tier for tier, _, _ in self._tiers("tbl0000002")],
                          ["table", "game", "default"])
 
+    def test_each_file_is_shown_to_as_many_tables_from_every_lens_as_the_media_view_says(
+            self) -> None:
+        own = self.folder / "medias" / f"(Playfield) {FOLDER} - VR.png"
+        own.write_bytes(b"\x89PNG")
+        for shared in (True, False):
+            game_file = self.folder / "medias" / f"(Playfield) {FOLDER}.png"
+            if shared:
+                game_file.write_bytes(b"\x89PNG")
+            else:
+                game_file.unlink()
+            listing = self.client.get("/media", params={"game": GAME_ID,
+                                                        "kind": "playfield"})
+            counted = {row["file"]: row["serves"] for row in listing.json()["media"]}
+            for table in ("", "tbl0000001", "tbl0000002"):
+                with self.subTest(shared=shared, table=table):
+                    at = f"/tables/{table}" if table else ""
+                    tiers = self.client.get(
+                        f"/games/{GAME_ID}{at}/media/playfield/detail").json()["tiers"]
+                    self.assertEqual({item["file"]: counted[item["file"]] for item in tiers},
+                                     {item["file"]: item.get("serves") for item in tiers})
+
 
 class ListingTests(PlacementTests):
     def test_a_file_named_as_the_folder_is_one_row_serving_every_table(self) -> None:

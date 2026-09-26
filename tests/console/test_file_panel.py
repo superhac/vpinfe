@@ -50,6 +50,15 @@ class WhoUsesIt(unittest.TestCase):
                          [workbench._file_tier({"via": via})
                           for via in ("table", "default", "orphan")])
 
+    def test_a_file_under_a_slot_says_what_its_media_row_says(self) -> None:
+        for tier, serves, via in (("game", 1, "game"), ("default", 1, "default"),
+                                  ("default", 0, "unused"), ("set:classic", 0, "unused")):
+            with self.subTest(tier=tier, serves=serves):
+                self.assertEqual(
+                    workbench._file_tier({"via": via, "serves": serves}),
+                    media_ownership.key_of(workbench._used_as(
+                        {"tier": tier, "file": "bg.png", "wins": False, "serves": serves})))
+
     def test_an_asset_named_for_the_folder_that_nothing_loads_is_unused(self) -> None:
         self.assertEqual(media_ownership.UNUSED, workbench._file_tier(
             {"binding": "game", "present": True, "serves": 0}))

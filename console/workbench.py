@@ -1835,6 +1835,13 @@ def _removal(context: dict[str, Any], tiers: list[dict[str, Any]] | None,
                    else "console.workbench.remove_asset.table_only")
 
 
+def _used_as(candidate: dict[str, Any]) -> str:
+    """Who a file in a slot's detail answers for: its own tier while some table is shown
+    it, otherwise Unused."""
+    return str(candidate.get("tier") or "") if candidate.get("serves") \
+        else media_ownership.UNUSED
+
+
 def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
           detail: dict[str, Any] | None, draw: Any,
           differing: list[dict[str, Any]] | None = None, *,
@@ -1943,11 +1950,6 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
         # Only when there is more than one, because with one the sentence above has
         # already said where it is. Two is the case worth a list: the second file is
         # why an edit appeared to do nothing.
-        #
-        # Labelled for what they are rather than for the tier their names put them at.
-        # A losing file's tier says who *would* use it, and nothing does - so a file
-        # sitting under the one in use would read "All tables" here while the media lens
-        # calls the same file Unused, which is one of them being wrong.
         if len(also_here) > 1:
             with ui.column().classes("w-full gap-0 console-slot-others"):
                 ui.label(t("console.workbench.not_used")).classes("console-slot-others-title")
@@ -1956,7 +1958,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                         continue
                     with ui.row().classes("items-center gap-2 w-full no-wrap"):
                         ui.label(item.get("file") or "").classes("console-slot-other-file")
-                        media_ownership.badge(media_ownership.UNUSED)
+                        media_ownership.badge(_used_as(item))
                 ui.label(t("console.workbench.each_resolves_file_above")) \
                     .classes("console-help")
 
