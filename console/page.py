@@ -382,7 +382,8 @@ async def _took_a_drop(
     done = await workbench.after_a_row_drop(library, state, game_id, redraw) if adds \
         else redraw
     await uploads.confirmed_import(
-        library, drop.upload_id, analysis, source=drop.name, on_done=done,
+        library, drop.upload_id, analysis, source=drop.name, file_count=drop.count,
+        on_done=done,
         game_id=game_id, game_dir=game_dir, allow_new_game=new_game,
         media_kind=media_kind, location_id=where, asset_kind=drop.asset_kind,
         add_table=adds)

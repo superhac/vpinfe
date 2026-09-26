@@ -49,6 +49,7 @@ class Drop:
     asset_kind: str = ""
     upload_id: str = ""
     name: str = ""
+    count: int = 0
 
 
 # Adapted from the drag-and-drop the Manager UI already ships, with one simplification
@@ -137,7 +138,8 @@ if (!window.__consoleDnd) {
       }
       say({status: 'progress', done: 0, total: files.length, name: ''});
       const uploadId = await upload(files, say);
-      say({status: 'done', upload_id: uploadId, name: named(files), ...where});
+      say({status: 'done', upload_id: uploadId, name: named(files), count: files.length,
+           ...where});
     } catch (err) {
       say({status: 'error', message: String((err && err.message) || err)});
     }
@@ -147,7 +149,7 @@ if (!window.__consoleDnd) {
     if (files.length === 1) return files[0].relpath;
     const first = files[0].relpath;
     const cut = first.indexOf('/');
-    return cut > 0 ? first.slice(0, cut) : files.length + ' files';
+    return cut > 0 ? first.slice(0, cut) : '';
   }
 
   // Where the pointer is decides the target, and it beats any checked selection: a
@@ -311,7 +313,8 @@ async def _handle(state: dict[str, Any], payload: dict[str, Any],
                      media_kind=str(payload.get("media_kind") or ""),
                      asset_kind=str(payload.get("asset_kind") or ""),
                      upload_id=str(payload.get("upload_id") or ""),
-                     name=str(payload.get("name") or ""))
+                     name=str(payload.get("name") or ""),
+                     count=int(payload.get("count") or 0))
         with client:
             answer = on_drop(found)
             if asyncio.iscoroutine(answer):
@@ -339,7 +342,8 @@ async def analyzed(library: Any, upload_id: str) -> dict[str, Any] | None:
 
 
 async def confirmed_import(library: Any, upload_id: str, analysis: dict[str, Any], *,
-                           source: str, on_done: Callable[[], Any], game_id: str = "",
+                           source: str, on_done: Callable[[], Any], file_count: int = 0,
+                           game_id: str = "",
                            game_dir: str = "", allow_new_game: bool = False,
                            media_kind: str = "", location_id: str = "",
                            asset_kind: str = "", add_table: bool = False) -> None:
@@ -375,7 +379,8 @@ async def confirmed_import(library: Any, upload_id: str, analysis: dict[str, Any
             await answer
 
     await import_dialog.open_for(
-        library, upload_id, plan, source=source, game_dir=game_dir, rom_name=rom_name,
+        library, upload_id, plan, source=source, file_count=file_count, game_dir=game_dir,
+        rom_name=rom_name,
         allow_new_game=allow_new_game, media_kind=media_kind, location_id=location_id,
         asset_kind=asset_kind, add_table=add_table, declared=_declared(analysis, game_id),
         on_done=done)

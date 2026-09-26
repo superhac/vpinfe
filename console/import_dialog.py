@@ -135,8 +135,17 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
     return said
 
 
+def dropped_title(source: str, file_count: int) -> str:
+    if source:
+        return t("console.import_dialog.import_2", value=source)
+    if file_count > 1:
+        return t("console.import_dialog.import_files", count=file_count)
+    return t("console.import_dialog.import_drop")
+
+
 async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
-                   source: str = "", game_dir: str = "", rom_name: str = "",
+                   source: str = "", file_count: int = 0, game_dir: str = "",
+                   rom_name: str = "",
                    allow_new_game: bool = False, media_kind: str = "",
                    location_id: str = "", asset_kind: str = "", add_table: bool = False,
                    declared: dict | None = None,
@@ -158,8 +167,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
     named: dict[str, Any] = {"folder": new_folder, "vps_id": ""}
 
     with frame.opened(
-            (t("console.import_dialog.import_2", value=source) if source
-             else t("console.import_dialog.import_drop")) if new_folder
+            dropped_title(source, file_count) if new_folder
             else t("console.import_dialog.import_3",
                    name=Path(str(plan.get("game_dir") or "")).name),
             wide=True, persistent=True, classes="console-import-card") as dialog:

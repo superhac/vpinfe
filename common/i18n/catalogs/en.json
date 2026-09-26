@@ -878,6 +878,10 @@
   "console.import_dialog.import_2": "Import from “{value}”",
   "console.import_dialog.import_3": "Import into “{name}”",
   "console.import_dialog.import_drop": "Import from this drop",
+  "console.import_dialog.import_files": {
+    "one": "Import {count} file",
+    "other": "Import {count} files"
+  },
   "console.import_dialog.imported": "{wanted} of {len} will be imported",
   "console.import_dialog.imported_could_not_match": "Imported, but could not match it: {value}",
   "console.import_dialog.imported_item": {

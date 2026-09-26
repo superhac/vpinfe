@@ -878,7 +878,7 @@ class _Folder(_Sources):
         card.on("drop", heard, js_handler=_MANY)
 
     async def arrived(self, drop: uploads.Drop) -> None:
-        await self._import(drop.upload_id, drop.name)
+        await self._import(drop.upload_id, drop.name, drop.count)
 
     async def _take(self, path: str) -> None:
         try:
@@ -888,7 +888,7 @@ class _Folder(_Sources):
             return
         await self._import(upload_id, PurePosixPath(path).name)
 
-    async def _import(self, upload_id: str, source: str) -> None:
+    async def _import(self, upload_id: str, source: str, file_count: int = 0) -> None:
         if self._busy:
             ui.notify(t("console.uploads.finish_one_already_open"), type="warning")
             await run.io_bound(self.library.abort_upload, upload_id)
@@ -899,7 +899,7 @@ class _Folder(_Sources):
             if analysis is not None:
                 await uploads.confirmed_import(
                     self.library, upload_id, analysis, source=source,
-                    on_done=self._imported, game_id=self.game_id,
+                    file_count=file_count, on_done=self._imported, game_id=self.game_id,
                     game_dir=self.game_dir, asset_kind=self.narrows_to,
                     add_table=self.adds_table)
         finally:

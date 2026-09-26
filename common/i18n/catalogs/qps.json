@@ -878,6 +878,10 @@
   "console.import_dialog.import_2": "Îɱþöřţ ƒřöɱ “{value}”",
   "console.import_dialog.import_3": "Îɱþöřţ îñţö “{name}”",
   "console.import_dialog.import_drop": "Îɱþöřţ ƒřöɱ ţĥîš đřöþ",
+  "console.import_dialog.import_files": {
+    "one": "Îɱþöřţ {count} ƒîŀè",
+    "other": "Îɱþöřţ {count} ƒîŀèš"
+  },
   "console.import_dialog.imported": "{wanted} öƒ {len} ŵîŀŀ ƀè îɱþöřţèđ",
   "console.import_dialog.imported_could_not_match": "Îɱþöřţèđ, ƀûţ çöûŀđ ñöţ ɱàţçĥ îţ: {value}",
   "console.import_dialog.imported_item": {
