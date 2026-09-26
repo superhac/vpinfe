@@ -15,6 +15,7 @@ import re
 from pathlib import Path
 
 from common import i18n
+from common.labels import ACRONYMS
 
 from .contract import (
     App,
@@ -165,10 +166,25 @@ def choice_help(app_id: str, field: Field) -> dict[str, str]:
 _WORD_START = re.compile(r"(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 
 
+_CAPITALS = re.compile(r"\b[A-Z0-9]{4,}\b")
+
+
 def humanized(key: str) -> str:
     """A key nobody gave words to, as near to words as it goes: its last part, split
-    where its capitals start words."""
-    return _WORD_START.sub(" ", key.rsplit(".", 1)[-1])
+    where its capitals start words and where a run of them is acronyms end to end."""
+    said = _WORD_START.sub(" ", key.rsplit(".", 1)[-1])
+    return _CAPITALS.sub(lambda run: " ".join(_acronyms(run.group(0)) or [run.group(0)]),
+                         said)
+
+
+def _acronyms(run: str) -> list[str] | None:
+    """`B2SDMD` as `["B2S", "DMD"]`; None unless every part is one of `ACRONYMS`."""
+    if run.lower() in ACRONYMS:
+        return [run]
+    for cut in range(len(run) - 1, 1, -1):
+        if run[:cut].lower() in ACRONYMS and (rest := _acronyms(run[cut:])):
+            return [run[:cut], *rest]
+    return None
 
 
 def group_words(app_id: str, group: ConfigGroup) -> dict[str, str]:

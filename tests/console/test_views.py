@@ -2,6 +2,7 @@
 
 import unittest
 
+from common import apps
 from common.games import asset_registry
 from common.i18n import t
 from common.labels import field_label
@@ -255,6 +256,15 @@ class LabelCasingTests(unittest.TestCase):
                            ("Clear NVRAM on exit", "Clear NVRAM on Exit")):
             with self.subTest(text=text):
                 self.assertEqual(field_label(text), said)
+
+    def test_a_key_nobody_named_splits_a_run_of_acronyms(self) -> None:
+        for key, said in (("Plugin.B2SLegacy.B2SDMDWidth", "B2S DMD Width"),
+                          ("Plugin.B2SLegacy.B2SHideB2SDMD", "B2S Hide B2S DMD"),
+                          ("B2SHideGrill", "B2S Hide Grill"),
+                          ("PIN2DMD", "PIN2DMD"),
+                          ("UseNVRAM", "Use NVRAM")):
+            with self.subTest(key=key):
+                self.assertEqual(apps.humanized(key), said)
 
     def test_it_takes_a_key_or_a_phrase(self) -> None:
         self.assertEqual(field_label("last_played"), "Last Played")
