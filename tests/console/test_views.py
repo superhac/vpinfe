@@ -247,6 +247,15 @@ class LabelCasingTests(unittest.TestCase):
         self.assertEqual(field_label("Made by"), "Made By")
         self.assertEqual(field_label("of the year"), "Of the Year")
 
+    def test_a_small_word_inside_a_name_keeps_its_capital(self) -> None:
+        for text, said in (("Pin Up Player", "Pin Up Player"),
+                           ("Legacy Fly Over Mode", "Legacy Fly Over Mode"),
+                           ("Field Of View (overall scale)", "Field of View (Overall Scale)"),
+                           ("Copy Into This Game", "Copy into This Game"),
+                           ("Clear NVRAM on exit", "Clear NVRAM on Exit")):
+            with self.subTest(text=text):
+                self.assertEqual(field_label(text), said)
+
     def test_it_takes_a_key_or_a_phrase(self) -> None:
         self.assertEqual(field_label("last_played"), "Last Played")
         self.assertEqual(field_label("Last played"), "Last Played")

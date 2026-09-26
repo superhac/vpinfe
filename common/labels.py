@@ -29,6 +29,8 @@ SMALL_WORDS = frozenset({
     "with", "yet",
 })
 
+PARTICLES = frozenset({"in", "on", "over", "up"})
+
 
 def field_label(text: str) -> str:
     """A label as a person reads it: title case, acronyms as acronyms.
@@ -54,14 +56,15 @@ def field_label(text: str) -> str:
 
 
 def _titled(word: str, *, lead_or_close: bool, shouting: bool) -> str:
-    """One word of a title. A small word stays down unless it leads or closes, and a
-    word with capitals after its first letter is written as its source writes it, unless
-    the whole phrase is in capitals."""
+    """One word of a title. A small word stays down unless it leads or closes or is a
+    particle its source capitalizes, and a word with capitals after its first letter is
+    written as its source writes it, unless the whole phrase is in capitals."""
     if word.lower() in ACRONYMS:
         return word.upper()
     if not shouting and any(one.isupper() for one in word[1:]):
         return word
-    if word.lower() in SMALL_WORDS and not lead_or_close:
+    named = not shouting and word[:1].isupper() and word.lower() in PARTICLES
+    if word.lower() in SMALL_WORDS and not lead_or_close and not named:
         return word.lower()
     return word[:1].upper() + word[1:].lower()
 
