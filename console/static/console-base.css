@@ -2203,7 +2203,7 @@ body.console-dragging-rows .q-drawer--mini .console-rail-drops {
 }
 /* Empty, it says what the program does instead, and the words are not cropped. */
 .console-fact-edit .q-field--dense input[type="number"]:placeholder-shown {
-  max-width: var(--blank, 6ch);
+  max-width: calc(max(var(--blank, 0ch), 6ch) + 16px);
 }
 .console-fact-edit .q-input:has(input[type="number"]) {
   width: auto;
