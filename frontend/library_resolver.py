@@ -14,7 +14,13 @@ from typing import Any
 from urllib.parse import quote
 
 from common.config_access import ConfigSource, NetworkConfig
-from common.games import collection_resolver, game_identity, rankings, remote_library
+from common.games import (
+    collection_filters,
+    collection_resolver,
+    game_identity,
+    rankings,
+    remote_library,
+)
 from common.games.collection_store import (
     BUILTIN_ALL,
     DEFAULT_DIRECTION,
@@ -190,7 +196,8 @@ class LibraryResolver:
 
         A remote library's are that install's answer, kept as it arrived: the resolver
         reads a game's table dicts out of its `.info` and those stayed over there, so
-        re-resolving here would quietly produce an empty wheel.
+        re-resolving here would quietly produce an empty wheel. Criteria are matched
+        against each entry instead.
 
         `criteria` is the filter menu's controls, which make a collection out of the
         library rather than narrowing one - so they only arrive with `builtin:all`.
@@ -199,7 +206,8 @@ class LibraryResolver:
             if collection != self._held:
                 self.all_games = self._load(public_name(collection))
                 self._held = collection
-            return list(self.all_games)
+            return [entry for entry in self.all_games
+                    if collection_filters.matches(criteria, entry.game)]
         store = self.collections()
         if criteria:
             store.set_view_filters(criteria)

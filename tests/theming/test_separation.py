@@ -344,6 +344,24 @@ class SeparationTests(TempTree):
         self.assertEqual(refreshed, ["Twilight Zone", "Attack from Mars", "Medieval Madness"])
         self.assertEqual(failures, [])
 
+    def test_a_device_s_filter_narrows_the_hub_s_library(self) -> None:
+        with LiveInstance(self.library_root) as library:
+            library.wait_for_api()
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+
+            with LiveInstance(self.device_root,
+                              extra_settings={("network", "library_url"): library_api}) as device:
+                device.wait_for_api()
+                device.library_assets_port = library.ports["assets"]
+
+                (count, shown), failures = self._evaluate(device, (
+                    "vpin.callInternal('apply_filters', 'T', 'All', 'All', 'All', 'All',"
+                    " 'All', false)",
+                    f"{SHOWN}()"))
+
+        self.assertEqual((count, shown), (1, ["Twilight Zone"]))
+        self.assertEqual(failures, [])
+
     def _evaluate(self, device: LiveInstance, steps: tuple[str | Callable[[], object], ...]):
         """Open the device's playfield window and take each step, in order, once the
         theme is ready: a string is evaluated in the page, anything else is called here."""
