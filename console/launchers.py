@@ -290,7 +290,7 @@ async def ask_name(title: str, answer: str, names: list[str],
             await write(name, {one["key"]: str(fields[one["key"]].value or "").strip()
                                for one in asked or ()})
         except Exception as exc:  # noqa: BLE001 - said where it can be put right
-            refused(str(exc))
+            refused(why(exc))
             return
         box.submit(True)
 
@@ -385,8 +385,8 @@ async def _do_copy(library: Library, launcher: dict, devices: list[dict],
 
     outcomes = await offload.io(launcher_copy.copy_to, devices, [launcher],
                                   mappings, client_for=client_for)
-    said = launcher_copy.said(outcomes)
-    ui.notify(said, type="positive" if all(one.ok for one in outcomes) else "warning")
+    ui.notify(launcher_copy.said(outcomes), caption=launcher_copy.trouble(outcomes),
+              type="positive" if all(one.ok for one in outcomes) else "warning")
 
 
 def acts(library: Library, state: dict[str, Any], launcher: dict, count: int,

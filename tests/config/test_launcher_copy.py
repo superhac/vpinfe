@@ -112,7 +112,8 @@ class CopyTests(unittest.TestCase):
             [_launcher("x", "VPX")], client_for=client_for)
 
         self.assertEqual([one.ok for one in found], [True, False, True])
-        self.assertIn("no route to host", found[1].error)
+        self.assertEqual((found[1].error, found[1].reason),
+                         (t("said.not_reached"), "no route to host"))
 
     def test_a_launcher_that_does_not_arrive_stops_that_device(self) -> None:
         """And says which one. Carrying on would leave a device holding half a set with
@@ -161,8 +162,9 @@ class RefusedTests(unittest.TestCase):
     def test_a_different_launcher_under_a_name_in_use_is_refused_and_named(self) -> None:
         found = self._copy(_launcher("there", "vpx"))
 
-        self.assertIn("vpx did not arrive", found.error)
-        self.assertIn(t("error.launchers.name_taken", name="vpx"), found.error)
+        self.assertEqual((found.error, found.reason),
+                         (t("said.did_not_arrive", name="vpx"),
+                          t("error.launchers.name_taken", name="vpx")))
         self.assertIsNone(self.store.get("there"))
 
     def test_the_same_launcher_arriving_again_updates_it(self) -> None:
@@ -184,8 +186,8 @@ class RefusedTests(unittest.TestCase):
         found = launcher_copy.copy_to([_device("cab", "Cab")], [_launcher("a", "VPX")],
                                       client_for=lambda _d: _Refusing())[0]
 
-        self.assertEqual(found.error,
-                         "VPX did not arrive: Another launcher is already called VPX.")
+        self.assertEqual((found.error, found.reason),
+                         ("VPX did not arrive", "Another launcher is already called VPX."))
 
 
 class SaidTests(unittest.TestCase):
@@ -194,25 +196,28 @@ class SaidTests(unittest.TestCase):
     def test_all_good_is_a_count(self) -> None:
         found = [launcher_copy.Outcome("a", "Cab A"), launcher_copy.Outcome("b", "Cab B")]
 
-        self.assertEqual(launcher_copy.said(found), "Copied to 2 devices.")
+        self.assertEqual((launcher_copy.said(found), launcher_copy.trouble(found)),
+                         ("Copied to 2 devices", ""))
 
     def test_one_device_is_not_pluralised(self) -> None:
         self.assertEqual(launcher_copy.said([launcher_copy.Outcome("a", "Cab A")]),
-                         "Copied to 1 device.")
+                         "Copied to 1 device")
 
-    def test_a_failure_is_named(self) -> None:
+    def test_a_failure_is_named_under_the_count(self) -> None:
         found = [launcher_copy.Outcome("a", "Cab A"),
-                 launcher_copy.Outcome("b", "Cab B", error="asleep")]
+                 launcher_copy.Outcome("b", "Cab B", error="VPX did not arrive",
+                                       reason="Nothing answers at cab-b.local"),
+                 launcher_copy.Outcome("c", "Cab C", error="asleep")]
 
-        said = launcher_copy.said(found)
-
-        self.assertIn("1 of 2", said)
-        self.assertIn("Cab B - asleep", said)
+        self.assertEqual((launcher_copy.said(found), launcher_copy.trouble(found)),
+                         ("Copied to 1 of 3",
+                          "Cab B - VPX did not arrive. Nothing answers at cab-b.local; "
+                          "Cab C - asleep"))
 
     def test_all_bad_does_not_claim_a_partial_success(self) -> None:
         found = [launcher_copy.Outcome("b", "Cab B", error="asleep")]
 
-        self.assertTrue(launcher_copy.said(found).startswith("Nothing was copied."))
+        self.assertEqual(launcher_copy.said(found), "Nothing was copied")
 
 
 if __name__ == "__main__":

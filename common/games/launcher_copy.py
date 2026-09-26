@@ -26,6 +26,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from common.failures import why
 from common.i18n import t
 
 logger = logging.getLogger("vpinfe.common.games.launcher_copy")
@@ -67,7 +68,8 @@ class LauncherWriter(Protocol):
 
 @dataclass(frozen=True)
 class Outcome:
-    """What happened for one device. `error` is empty where it worked.
+    """What happened for one device. `error` is empty where it worked; `reason` is the
+    device's own answer, or `why(exc)`.
 
     Reported per device rather than as one verdict: copying to three cabinets and having
     the second one asleep is a partial success, and a caller that says only "failed"
@@ -79,6 +81,7 @@ class Outcome:
     launchers: int = 0
     mappings: int = 0
     error: str = ""
+    reason: str = ""
 
     @property
     def ok(self) -> bool:
@@ -117,7 +120,8 @@ def _send(device: dict[str, Any], sending: list[dict[str, Any]],
     try:
         client = client_for(device)
     except Exception as exc:  # noqa: BLE001 - a device that cannot be addressed is news
-        return Outcome(device_id, name, error=f"could not be reached: {exc}")
+        logger.warning("Could not reach %s: %s", name, exc)
+        return Outcome(device_id, name, error=t("said.not_reached"), reason=why(exc))
 
     sent = 0
     for one in sending:
@@ -127,7 +131,8 @@ def _send(device: dict[str, Any], sending: list[dict[str, Any]],
             logger.warning("Could not copy launcher %s to %s: %s",
                            one.get("display_name"), name, exc)
             return Outcome(device_id, name, launchers=sent,
-                           error=f"{one.get('display_name')} did not arrive: {_reason(exc)}")
+                           error=t("said.did_not_arrive", name=one.get("display_name")),
+                           reason=_reason(exc))
         sent += 1
 
     mapped = 0
@@ -137,7 +142,7 @@ def _send(device: dict[str, Any], sending: list[dict[str, Any]],
         except Exception as exc:  # noqa: BLE001
             logger.warning("Could not copy a mapping to %s: %s", name, exc)
             return Outcome(device_id, name, launchers=sent, mappings=mapped,
-                           error=f"the launchers arrived, the assignments did not: {exc}")
+                           error=t("said.assignments_did_not_arrive"), reason=why(exc))
         mapped += 1
 
     return Outcome(device_id, name, launchers=sent, mappings=mapped)
@@ -150,7 +155,7 @@ def _reason(exc: Exception) -> str:
         said = response.json()["error"]["message"] if response is not None else ""
     except Exception:  # noqa: BLE001 - a response without a message
         said = ""
-    return str(said or exc)
+    return str(said) if said else why(exc)
 
 
 def _body(launcher: dict[str, Any]) -> dict[str, Any]:
@@ -164,16 +169,22 @@ def _body(launcher: dict[str, Any]) -> dict[str, Any]:
 
 
 def said(outcomes: Iterable[Outcome]) -> str:
-    """One sentence for a notification, naming what did not work.
-
-    Counts where it all worked, names where it did not: "3 devices" is enough when the
-    answer is yes, and a person whose cabinet was asleep needs to know which one.
-    """
-    good = [one for one in outcomes if one.ok]
-    bad = [one for one in outcomes if not one.ok]
-    if not bad:
-        return t("said.copied_to_devices", count=len(good))
-    trouble = "; ".join(t("said.device_failed", name=one.name, error=one.error) for one in bad)
+    """A notification's message: how many devices it reached."""
+    found = list(outcomes)
+    good = sum(one.ok for one in found)
+    if good == len(found):
+        return t("said.copied_to_devices", count=good)
     if not good:
-        return t("said.nothing_was_copied", trouble=trouble)
-    return t("said.copied_to_some", count=len(good), total=len(good) + len(bad), trouble=trouble)
+        return t("said.nothing_was_copied")
+    return t("said.copied_to_some", count=good, total=len(found))
+
+
+def trouble(outcomes: Iterable[Outcome]) -> str:
+    """Its caption: each device that did not take the copy, and why.
+
+    Names the device, because a person whose cabinet was asleep needs to know which one.
+    """
+    return "; ".join(t("said.device_failed_because", name=one.name, error=one.error,
+                       reason=one.reason) if one.reason
+                     else t("said.device_failed", name=one.name, error=one.error)
+                     for one in outcomes if not one.ok)
