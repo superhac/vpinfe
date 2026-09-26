@@ -921,6 +921,17 @@ class FloatTests(_Case):
                           for key in ("ScreenWidth", "CameraY", "Tilt")},
                          {"ScreenWidth": "95.89", "CameraY": "370.54193", "Tilt": "0"})
 
+    def test_a_value_a_file_holds_reads_as_the_fewest_digits_too(self) -> None:
+        self.app_ini.write_text(FLOATS_INI.replace("ScreenWidth =", "ScreenWidth = 95.889999")
+                                .replace("CameraY =", "CameraY = 370.541931"))
+        self.table_file("[Player]\nCameraY = 0.800000\n")
+
+        width, camera = (self.at(SCOPE_ENTRY, key=f"Player.{key}")
+                         for key in ("ScreenWidth", "CameraY"))
+
+        self.assertEqual((width.value, camera.value, camera.fallback),
+                         ("95.89", "0.8", "370.54193"))
+
     def test_a_table_given_that_float32_holds_nothing(self) -> None:
         cleared = self.config.write(SCOPE_ENTRY, str(self.table),
                                     {"Player.ScreenWidth": "95.89"}, self.settings)

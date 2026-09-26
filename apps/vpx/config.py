@@ -354,6 +354,13 @@ def _colors(app: vini.Ini) -> frozenset[str]:
                      if _type_of(one) == vini.KIND_COLOR)
 
 
+def _numbers(app: vini.Ini) -> frozenset[str]:
+    return frozenset(key for key, one in app.settings.items()
+                     if _type_of(one) == vini.KIND_NUMBER) | frozenset(
+        key for key, kind in TYPES.items()
+        if kind == vini.KIND_NUMBER and key not in app.settings)
+
+
 def _type_of(one: vini.Setting) -> str:
     """What the program says it is, and what the file implies only where it has not said.
 
@@ -436,6 +443,7 @@ class VPXConfig:
         table_scope = _scope_of(winning, target, settings)
         beneath = _beneath(target, winning)
         colors = _colors(app)
+        numbers = _numbers(app)
 
         found: dict[str, ConfigValue] = {}
         for qualified in sorted(set(app.settings) | set(table.settings) | set(mine.settings)):
@@ -456,6 +464,8 @@ class VPXConfig:
                                                 table_scope, beneath if last else vini.Ini())
             if qualified in colors:
                 effective, fallback = web_color(effective), web_color(fallback)
+            elif qualified in numbers:
+                effective, fallback = _shortest(effective), _shortest(fallback)
             found[qualified] = ConfigValue(
                 value=effective, scope=source, set_here=set_here,
                 # Three ways it is the one in force: nothing is set here to be
