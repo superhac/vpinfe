@@ -4755,6 +4755,7 @@ async def _setting_entries(context: dict[str, Any],
     redraws: list[Callable[[], None]] = []
     shown = dict(values)
     pending = {"written": ""}
+    reads = {"begun": 0, "shown": 0}
     in_turn = asyncio.Lock()
 
     async def settle() -> None:
@@ -4791,6 +4792,8 @@ async def _setting_entries(context: dict[str, Any],
             if cut := (wrote or {}).get("cut"):
                 no_longer_reads_game(cut, context.get("tables"))
             context.pop("config_values", None)
+            reads["begun"] += 1
+            mine = reads["begun"]
             try:
                 fresh = await _config_values(context)
             except Exception:  # noqa: BLE001
@@ -4809,6 +4812,9 @@ async def _setting_entries(context: dict[str, Any],
                 asyncio.create_task(saved())
             if more is not None:
                 await more.ready(fresh)
+            if mine < reads["shown"]:
+                return True
+            reads["shown"] = mine
             shown.update(fresh)
             for other, held in rows.items():
                 held.clear()

@@ -1569,6 +1569,37 @@ class SetForAllTests(unittest.TestCase):
         self.assertEqual([call.args[0] for call in more.ready.await_args_list],
                          [before, after])
 
+    def test_a_write_typed_while_the_first_one_reads_them_is_the_one_held(self) -> None:
+        unset = {"Player.X": {**self.SET, "set_here": False, "scope": "launcher"}}
+        typed = [{"Player.X": {**self.SET, "value": value}} for value in ("2", "23")]
+        first_read = asyncio.Event()
+
+        async def ready(values: dict) -> None:
+            if values is typed[0]:
+                await first_read.wait()
+
+        context = {"library": Mock(), "launcher": {"launcher_id": "probe"},
+                   "config_scope": "entry", "config_table": "t1", "rebuild": AsyncMock(),
+                   "config_more": Mock(ready=AsyncMock(side_effect=ready), return_value=None)}
+
+        async def drive() -> dict:
+            with patch.object(workbench, "ui"), \
+                    patch.object(workbench, "_marked") as marked, \
+                    patch.object(workbench, "_config_values",
+                                 new=AsyncMock(side_effect=[unset, *typed])), \
+                    patch.object(workbench.run, "io_bound", new=AsyncMock(return_value={})), \
+                    patch.object(workbench.settings_page, "control_for") as control_for:
+                await workbench._setting_entries(context, [("", "", [self.FIELD])])
+                save = control_for.call_args.args[2]
+                first = asyncio.create_task(save("2"))
+                await asyncio.sleep(0)
+                await save("23")
+                first_read.set()
+                await first
+            return marked.call_args.args[0][0][1]
+
+        self.assertEqual(asyncio.run(drive())["value"], "23")
+
     def test_the_tables_cut_off_the_game_s_file_are_named_a_line_each(self) -> None:
         cut = [{"id": "b", "name": "Addams Family, The"}, {"id": "c", "name": "Other"}]
         with patch.object(workbench, "ui") as ui, \
