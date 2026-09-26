@@ -141,6 +141,23 @@ class AllSettingsTests(unittest.TestCase):
         self.assertEqual(self._found(values, differs=True),
                          [("Backglass", ["Backglass.BackglassOutput"])])
 
+    def test_a_pair_is_found_whole_where_either_of_its_rows_is(self) -> None:
+        video_mode = SimpleNamespace(key="video_mode", keys=("Topper.TopperFSWidth",
+                                                             "Topper.TopperFSHeight"))
+        groups = [_group("displays", _setting("Topper.TopperFullScreen", "Fullscreen"),
+                         _setting("Topper.TopperFSWidth", "Width", default="1920"),
+                         _setting("Topper.TopperFSHeight", "Height", default="1080"),
+                         curated=[_heading("topper", "Topper.TopperFullScreen",
+                                           *video_mode.keys, pairs=[video_mode])])]
+        values = {"Topper.TopperFSHeight": {"value": "1200", "set_here": True}}
+        pair = [("Topper", ["Topper.TopperFSWidth", "Topper.TopperFSHeight"])]
+
+        for wanted in ({"query": "height"}, {"set_here": True}, {"differs": True}):
+            with self.subTest(**wanted):
+                self.assertEqual([(section, [f.key for f in fields]) for section, fields in
+                                  workbench.found_settings(groups, values, wanted)], pair)
+        self.assertEqual(workbench.curated_pairs(groups), [video_mode])
+
     def test_a_section_reads_as_words(self) -> None:
         self.assertEqual(workbench.section_title("ScoreView", {}), "Score View")
         self.assertEqual(workbench.section_title("DMD", {}), "DMD")

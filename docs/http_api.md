@@ -543,12 +543,14 @@ every member, and `curated` names the few a client draws first, under headings:
   other's. A rival is listed only where it is itself a heading's switch at this scope.
 - `pairs` names two of `keys` drawn as one row, each with a `key`, a `label`, a `note`,
   its two `keys` in order and a `joiner`, what stands between the two values. Each VPX
-  window pairs its `WndX` and `WndY` as *Position*, joined by a comma, and its `Width` and
-  `Height` as *Size*, joined by a times sign. B2S and B2SLegacy pair the DMD box drawn on
+  window pairs its `FSWidth` and `FSHeight` as *Video Mode*, its `WndX` and `WndY` as
+  *Position*, joined by a comma, and its `Width` and `Height` as *Size*, the two sizes
+  joined by a times sign. B2S and B2SLegacy pair the DMD box drawn on
   the backglass art the same way, `BackglassDMDX` and `Y` as *DMD Position* and `W` and
   `H` as *DMD Size*. A pair is listed only where the scope shows both of its keys.
 - `switched` names rows of `keys` that change nothing while another of them is off, each
-  with its switch as `enabled_by` and those rows as `keys`. B2S and B2SLegacy switch the
+  with its switch as `enabled_by` and those rows as `keys`. Each VPX window switches its
+  `FSWidth` and `FSHeight` by its `FullScreen`. B2S and B2SLegacy switch the
   backglass DMD's `BackglassDMDAutoPos`, `X`, `Y`, `W` and `H` by `BackglassDMDOverlay`,
   and `ScoreViewDMDAutoPos` by `ScoreViewDMDOverlay`. One is listed only where the scope
   shows its switch, with the rows it shows.

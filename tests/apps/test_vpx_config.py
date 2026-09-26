@@ -440,12 +440,31 @@ class AreaTests(_Case):
         self.assertEqual(playfield.keys, ("Player.PlaySound",))
         self.assertNotIn("backglass", [h.key for h in self.groups[areas.SOUND].curated])
 
-    def test_a_window_s_position_and_size_are_each_a_pair(self) -> None:
+    def test_a_window_s_video_mode_position_and_size_are_each_a_pair(self) -> None:
         topper = next(h for h in areas.CURATED[areas.DISPLAYS] if h.key == "topper")
 
         self.assertEqual([(pair.key, pair.keys) for pair in topper.pairs],
-                         [("position", ("Topper.TopperWndX", "Topper.TopperWndY")),
+                         [("video_mode", ("Topper.TopperFSWidth", "Topper.TopperFSHeight")),
+                          ("position", ("Topper.TopperWndX", "Topper.TopperWndY")),
                           ("size", ("Topper.TopperWidth", "Topper.TopperHeight"))])
+
+    def test_a_window_s_video_mode_follows_fullscreen_and_is_drawn_after_it(self) -> None:
+        for window in (h for h in areas.CURATED[areas.DISPLAYS] if h.key != "cabinet"):
+            fullscreen = next(key for key in window.keys if key.endswith("FullScreen"))
+            video_mode = next(pair.keys for pair in window.pairs if pair.key == "video_mode")
+            with self.subTest(window.key):
+                self.assertEqual([(one.enabled_by, one.keys) for one in window.switched],
+                                 [(fullscreen, video_mode)])
+                self.assertEqual(window.keys[window.keys.index(fullscreen) + 1:][:2],
+                                 video_mode)
+
+    def test_a_window_s_video_mode_is_not_switched_where_fullscreen_is_not_offered(self) -> None:
+        self.app_ini.write_text("[Topper]\nTopperFSWidth = 1920\nTopperFSHeight = 1080\n")
+        displays = {g.key: g for g in self.config.groups(self.settings)}[areas.DISPLAYS]
+        topper = next(h for h in displays.curated if h.key == "topper")
+
+        self.assertEqual(([pair.key for pair in topper.pairs], topper.switched),
+                         (["video_mode"], ()))
 
     def test_a_pair_the_file_holds_half_of_is_left_out(self) -> None:
         self.app_ini.write_text("[Topper]\nTopperWndX = 0\nTopperWndY = 0\n"

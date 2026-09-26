@@ -77,6 +77,8 @@
   "group.displays.pair.position.note": "On the display it opens on",
   "group.displays.pair.size.joiner": "×",
   "group.displays.pair.size.label": "Size",
+  "group.displays.pair.video_mode.joiner": "×",
+  "group.displays.pair.video_mode.label": "Video Mode",
   "group.graphics.label": "Graphics",
   "group.more.label": "Other",
   "group.plugins.heading.AlphaDMD.label": "AlphaDMD",

@@ -25,10 +25,14 @@ AREAS = (DISPLAYS, SOUND, GRAPHICS, PLUGINS)
 
 
 def _window(key: str, prefix: str, parts: tuple[str, ...]) -> Heading:
+    video_mode = (f"{prefix}FSWidth", f"{prefix}FSHeight")
     return Heading(key, tuple(f"{prefix}{part}" for part in
-                              (*parts, "WndX", "WndY", "Width", "Height")),
-                   pairs=(Pair("position", (f"{prefix}WndX", f"{prefix}WndY")),
-                          Pair("size", (f"{prefix}Width", f"{prefix}Height"))))
+                              (*parts, "FSWidth", "FSHeight", "WndX", "WndY", "Width",
+                               "Height")),
+                   pairs=(Pair("video_mode", video_mode),
+                          Pair("position", (f"{prefix}WndX", f"{prefix}WndY")),
+                          Pair("size", (f"{prefix}Width", f"{prefix}Height"))),
+                   switched=(Switched(f"{prefix}FullScreen", video_mode),))
 
 
 CURATED: dict[str, tuple[Heading, ...]] = {

@@ -4990,7 +4990,8 @@ async def _all_settings(context: dict[str, Any]) -> None:
     async def draw() -> None:
         found = found_settings(groups, await _config_values(context), wanted)
         entries = await _setting_entries(
-            context, [(section_title(section, names), "", fields) for section, fields in found])
+            context, [(section_title(section, names), "", fields) for section, fields in found],
+            pairs=curated_pairs(groups))
         results.clear()
         with results, ui.column().classes("gap-0 console-form"):
             _rows(ui, entries if found else [panel.intro(
@@ -5012,20 +5013,29 @@ def found_settings(groups: Sequence[Any], values: dict[str, Any],
     """What All Settings lists: each setting under its source section, the sections in
     the order the areas first reach them."""
     terms = str(wanted.get("query") or "").lower().split()
+
+    def wanted_here(field: Any) -> bool:
+        held = values.get(field.key) or {}
+        return not ((wanted.get("set_here") and not held.get("set_here"))
+                    or (wanted.get("differs") and not differs_from_default(field, held))
+                    or (terms and not _says_all(field, terms)))
+
+    listed = [field for group in groups
+              if not wanted.get("area") or group.key == wanted["area"]
+              for field in group.settings]
+    kept = {field.key for field in listed if wanted_here(field)}
+    kept.update(key for pair in curated_pairs(groups) if not kept.isdisjoint(pair.keys)
+                for key in pair.keys)
     found: dict[str, list[Any]] = {}
-    for group in groups:
-        if wanted.get("area") and group.key != wanted["area"]:
-            continue
-        for field in group.settings:
-            held = values.get(field.key) or {}
-            if wanted.get("set_here") and not held.get("set_here"):
-                continue
-            if wanted.get("differs") and not differs_from_default(field, held):
-                continue
-            if terms and not _says_all(field, terms):
-                continue
+    for field in listed:
+        if field.key in kept:
             found.setdefault(_section_of(field.key), []).append(field)
     return list(found.items())
+
+
+def curated_pairs(groups: Sequence[Any]) -> list[Any]:
+    return [pair for group in groups for heading in getattr(group, "curated", ())
+            for pair in getattr(heading, "pairs", ())]
 
 
 def _says_all(field: Any, terms: Sequence[str]) -> bool:
