@@ -311,7 +311,7 @@ def build(ctx: Any) -> None:
             "ready": bool(going),
             "reason": "" if going else ctx.t("reason.nothing_left"),
             "summary": rows,
-            "notes": found["notes"],
+            "notes": [*found["notes"], *made.notes],
             "confirm": ctx.t("wizard.summary.confirm", count=going),
         }
 

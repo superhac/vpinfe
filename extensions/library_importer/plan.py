@@ -24,7 +24,7 @@ from typing import Any
 from common.extensions.contract import words
 
 from . import gamestats, mapping
-from .source import SourceGame, SourceLibrary
+from .source import Note, SourceGame, SourceLibrary
 
 t = words("library_importer")
 
@@ -87,6 +87,8 @@ class Plan:
     sources: list[Source] = field(default_factory=list)
     matches: list[Match] = field(default_factory=list)
     on_existing: str = DEFAULT_ON_EXISTING
+    history: dict[str, gamestats.Played] = field(default_factory=dict)
+    notes: list[Note] = field(default_factory=list)
 
     @property
     def new(self) -> list[Match]:
@@ -299,8 +301,25 @@ def build(library: SourceLibrary, existing: list[dict], chosen: dict | None = No
           folder_name_for: Callable[[str], str] | None = None,
           source_id: str = "", kinds: tuple[str, ...] = (),
           companions_of: Callable[..., Any] | None = None) -> Plan:
-    return Plan(sources=derive_sources(library, chosen),
+    sources = derive_sources(library, chosen)
+    history, notes = _history(next((one.path for one in sources if one.key == "history"),
+                                   ""))
+    return Plan(sources=sources,
                 matches=match_existing(library, existing, systems, folder_name_for,
                                        source_id, kinds, companions_of),
                 on_existing=on_existing if on_existing in ON_EXISTING
-                else DEFAULT_ON_EXISTING)
+                else DEFAULT_ON_EXISTING,
+                history=history, notes=notes)
+
+
+def _history(path: str) -> tuple[dict[str, gamestats.Played], list[Note]]:
+    """What the source remembers, by the name it files a game under.
+
+    Keyed on the display name because that is what the stats file writes - the same name
+    the artwork is filed under, not the table's filename. Folded, because two frontends
+    disagree about case and nobody typed either of them twice.
+    """
+    if not path:
+        return {}, []
+    found, notes = gamestats.read(path)
+    return {one.name.strip().lower(): one for one in found}, notes

@@ -7,6 +7,7 @@ library goes through what it was handed, which is the guarantee the whole model 
 
 from __future__ import annotations
 
+import shutil
 import tempfile
 import unittest
 import unittest.mock
@@ -141,6 +142,26 @@ class ImportTests(AdoptCase):
         self.assertEqual(failed["error"]["text"], "no folder could be made for it")
         self.assertEqual(f"Something is already at {self.library / 'Taxi (Williams 1988)'}",
                          failed["error"]["detail"])
+
+    def test_what_the_source_remembers_about_playing_comes_across(self) -> None:
+        from vpinfe_ext_library_importer import adopt, pinballx, plan
+
+        source = self.root / "source"
+        shutil.copytree(FIXTURE, source)
+        (source / "GameStats.csv").write_bytes(
+            "Game,Play Count\nTaxi (Williams 1988).Visual Pinball X,33\n".encode("utf-16"))
+        self._ctx.files.set_roots([str(source)])
+        library = pinballx.read(source)
+        made = plan.build(library, [], systems=[VPX],
+                          folder_name_for=self._ctx.games.folder_name_for,
+                          source_id=library.source_id, kinds=self._ctx.games.kinds())
+
+        report = adopt.run(self._ctx, library, [VPX], "", made)
+
+        taxi = next(row for row in report["rows"] if row["key"] == "Taxi")
+        self.assertEqual(taxi["history"], 1)
+        game = self.client.get(f"/games/{taxi['game_id']}").json()
+        self.assertEqual(game["user"]["play_count"], 33)
 
     def test_running_it_twice_creates_nothing_the_second_time(self) -> None:
         """It only ever creates, so the second run has nowhere to put anything rather

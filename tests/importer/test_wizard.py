@@ -244,6 +244,17 @@ class SummaryShapeTests(WizardCase):
         self.assertEqual("Line 2 is not written as it should be",
                          hovers["Visual Pinball X.xml could not be read"])
 
+    def test_what_reading_the_play_history_said_is_on_the_summary(self) -> None:
+        source = self.root / "pinballx"
+        shutil.copytree(FIXTURE, source)
+        (source / "GameStats.csv").write_bytes(
+            b"Game,Play Count\nCaf\xe9.Visual Pinball X,33\n")
+
+        found = self._check(source)
+
+        self.assertIn("GameStats.csv is in no encoding this reads cleanly, so some "
+                      "characters may be wrong", found["notes"])
+
 
 if __name__ == "__main__":
     unittest.main()

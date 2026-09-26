@@ -208,21 +208,6 @@ def _another_build(ctx: Any, game: SourceGame, name: str, game_id: str) -> Adopt
     return row
 
 
-def _history(path: str) -> dict:
-    """What the source remembers, by the name it files a game under.
-
-    Keyed on the display name because that is what the stats file writes - the same name
-    the artwork is filed under, not the table's filename. Folded, because two frontends
-    disagree about case and nobody typed either of them twice.
-    """
-    if not path:
-        return {}
-    from . import gamestats
-
-    found, _notes = gamestats.read(path)
-    return {one.name.strip().lower(): one for one in found}
-
-
 def run(ctx: Any, library: SourceLibrary, systems: list[str], location: str = "",
         plan: Any = None) -> dict:
     """Convert the chosen systems. Answers with a row per game and the counts.
@@ -240,7 +225,7 @@ def run(ctx: Any, library: SourceLibrary, systems: list[str], location: str = ""
               if not systems or system.name in systems]
     held = {one.key: one for one in (plan.matches if plan else [])}
     sources = {one.key: one.path for one in (plan.sources if plan else ()) if one.active}
-    history = _history(sources.get("history", ""))
+    history = plan.history if plan else {}
     fill = bool(plan and plan.on_existing == "fill")
 
     rows, skipped = [], []
