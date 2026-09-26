@@ -149,7 +149,7 @@ SPEAKS_TO_A_SURFACE = {
     "httpapi/capabilities.py": EVERY_WAY,
     "httpapi/core_capabilities.py": EVERY_WAY,
     "common/device_client.py": frozenset({"reason", "raise"}),
-    "common/uploads/asset_import_service.py": frozenset({"reason"}),
+    "common/uploads/asset_import_service.py": frozenset({"reason", "raise", "refusal"}),
     "common/games/locations.py": frozenset({"reason"}),
     "console/metrics.py": frozenset({"reason"}),
     "common/games/config_backups.py": frozenset({"raise", "refusal"}),
@@ -158,9 +158,12 @@ SPEAKS_TO_A_SURFACE = {
 }
 
 # Said to whoever wrote the calling code, which has a bug to fix rather than a person
-# something to do. A module whose caller shows one anyway lists `refusal`.
+# something to do.
 SAID_TO_A_DEVELOPER = {"AttributeError", "ContractError", "NotThisDeviceError",
-                       "NotVPinFEError", "TypeError", "ValueError"}
+                       "NotVPinFEError", "RuntimeError", "TypeError"}
+# A value refused, which a module's caller may show as it was said. One that does lists
+# `refusal`.
+REFUSED = "ValueError"
 
 
 def _pieces(node: ast.expr, held: dict[str, ast.expr]) -> list[ast.expr]:
@@ -222,8 +225,8 @@ def _handed_back(source: str) -> list[tuple[str, ast.expr]]:
                 if isinstance(key, ast.Constant) and key.value == "reason":
                     add("reason", value)
         elif isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call) \
-                and node.exc.args:
-            add("refusal" if _named(node.exc.func) in SAID_TO_A_DEVELOPER else "raise",
+                and node.exc.args and _named(node.exc.func) not in SAID_TO_A_DEVELOPER:
+            add("refusal" if _named(node.exc.func) == REFUSED else "raise",
                 node.exc.args[0])
         elif isinstance(node, ast.Assign):
             for target in node.targets:
@@ -281,6 +284,8 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                   "    raise UnavailableError(NOT_WIRED)\n"
                   "def contract():\n"
                   '    raise ContractError("not inside a folder it declared")\n'
+                  "def folder(name):\n"
+                  '    raise ValueError(f"Table folder already exists: {name}")\n'
                   "def row(found):\n"
                   '    found["reason"] = "Copied"\n'
                   "    return t(KEY)\n"
@@ -300,7 +305,7 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                                 "reason 'Drop it on a game'",
                                 "reason 'Nothing performs that.'",
                                 "reason str(exc)",
-                                "refusal 'not inside a folder it declared'"])
+                                "refusal f'Table folder already exists: {name}'"])
 
 
 # Pages where a caught exception reaches the screen only through the function named,

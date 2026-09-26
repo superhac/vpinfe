@@ -141,6 +141,27 @@ class PatchAssetTests(unittest.TestCase):
                                               "hash": hashlib.sha256(b"ABCDEF").hexdigest()})
             self.assertEqual(source["patch"]["format"], "jojodiff")
 
+    def test_a_patch_made_for_another_table_says_which_table_it_tried(self):
+        import tempfile
+        import zipfile
+
+        from common.jdiff_patch import EQL, ESC
+        with tempfile.TemporaryDirectory() as tmp:
+            game_dir = Path(tmp) / "Foo (Bar 1999)"
+            game_dir.mkdir()
+            (game_dir / "Table.vpx").write_bytes(b"ABCDEF")
+            zip_path = Path(tmp) / "mod.zip"
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                archive.writestr("Mod.dif", bytes([ESC, EQL, 50]))  # longer than the base
+
+            plan = build_import_plan(analyze_path(zip_path), game_dir=game_dir)
+            with self.assertRaises(ValueError) as caught:
+                execute_import_plan(plan, zip_path)
+
+            self.assertEqual(str(caught.exception),
+                             t("error.uploads.patch_does_not_apply", table="Table.vpx"))
+            self.assertFalse((game_dir / "Mod.vpx").exists())
+
     def test_the_patched_table_is_parsed_when_it_is_made(self):
         """Otherwise it sits with no version, ROM or authors until the next metadata
         game file - and it can be the folder's default straight away."""

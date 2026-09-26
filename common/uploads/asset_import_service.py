@@ -40,6 +40,7 @@ from common.uploads.asset_analyzer_service import (
     DetectedAsset,
     SourceEntry,
     open_source,
+    rar_tool_hint,
 )
 
 logger = logging.getLogger("vpinfe.common.uploads.asset_import_service")
@@ -90,12 +91,12 @@ def _safe_dest(base_dir: Path, relative: str) -> Path:
     rel = PurePosixPath(relative)
     drive_letter = len(relative) >= 2 and relative[1] == ":"
     if rel.is_absolute() or ".." in rel.parts or drive_letter:
-        raise ValueError(f"Unsafe path: {relative}")
+        raise ValueError(t("error.uploads.unsafe_path", path=relative))
     dest = (base_dir / Path(*rel.parts)).resolve()
     try:
         dest.relative_to(base_dir.resolve())
     except ValueError as exc:
-        raise ValueError(f"Unsafe path: {relative}") from exc
+        raise ValueError(t("error.uploads.unsafe_path", path=relative)) from exc
     return dest
 
 
@@ -193,7 +194,7 @@ def _in_game(kind: str, base: Path, rom: str = "") -> Path:
     """
     found = folder_for(kind, base, rom)
     if found is None:
-        raise ValueError(f"{kind} has no folder inside a game")
+        raise RuntimeError(f"{kind} has no folder inside a game")
     return found
 
 
@@ -342,7 +343,7 @@ def build_media_slot_plan(source_path: Path, *, game_dir: Path, media_kind: str)
     """
     canonical = _MEDIA_FILENAMES.get(media_kind)
     if canonical is None:
-        raise ValueError(f"Unknown media kind: {media_kind}")
+        raise ValueError(t("error.uploads.no_slot_called", media_kind=media_kind))
     src = Path(source_path)
     try:
         size = src.stat().st_size
@@ -451,7 +452,7 @@ def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
     new_name = (sanitize_dir_name(new_game_dir_name) if new_game_dir_name is not None
                 else plan.new_game_dir_name)
     if not new_name:
-        raise ValueError("Table folder name required")
+        raise ValueError(t("error.uploads.folder_needs_name"))
     if new_name == plan.new_game_dir_name:
         return replace(plan, items=chosen)
 
@@ -540,7 +541,7 @@ def _import_game_info(source: AssetSource, asset: DetectedAsset, base: Path) -> 
         source.extract_member(entry.path, staged)
         incoming = json.loads(staged.read_text(encoding="utf-8"))
     if not isinstance(incoming, dict):
-        raise ValueError("Bundle .info is not valid metadata")
+        raise ValueError(t("error.uploads.info_unreadable"))
 
     dest = base / f"{base.name}.info"
     if dest.exists():
@@ -583,7 +584,7 @@ def _replace_vpx_from_file(source: AssetSource, asset: DetectedAsset,
     entry = asset.entries[0]
     safe = _safe_upload_name(_basename(entry.arcname))
     if not safe.lower().endswith(".vpx"):
-        raise ValueError("Only .vpx files can update the table file")
+        raise ValueError(t("error.uploads.only_vpx_replaces_table"))
     new_vpx = base / safe
     old_vpx = replaced_table(base)
     old_b2s = _find_directb2s_file(base, old_vpx.stem) if old_vpx else None
@@ -706,7 +707,7 @@ def _apply_patch(source: AssetSource, asset: DetectedAsset, base: Path,
     candidates = sorted(base.glob("*.vpx"), key=lambda p: p.stat().st_size, reverse=True)
     candidates = [c for c in candidates if c != dest]
     if not candidates:
-        raise ValueError("No table in this folder to patch")
+        raise ValueError(t("error.uploads.no_table_to_patch"))
     original = candidates[0]
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".dif") as tmp:
@@ -718,9 +719,9 @@ def _apply_patch(source: AssetSource, asset: DetectedAsset, base: Path,
                 apply_patch(src, pat, out)
             except PatchError as exc:
                 dest.unlink(missing_ok=True)
-                raise ValueError(
-                    f"Patch does not apply to \"{original.name}\". A .dif is built against "
-                    f"one exact table; this is probably not that table. ({exc})") from exc
+                logger.warning("Patch does not apply to %s: %s", original.name, exc)
+                raise ValueError(t("error.uploads.patch_does_not_apply",
+                                   table=original.name)) from exc
         base_hash = _sha256(original)
         logger.info("Patched %s -> %s (base sha256 %s)", original.name, dest.name,
                     base_hash[:16])
@@ -749,7 +750,7 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
     base = Path(plan.game_dir)
     if plan.new_game_dir_name:
         if base.exists():
-            raise ValueError(f"Table folder already exists: {base.name}")
+            raise ValueError(t("error.uploads.folder_already_there", name=base.name))
         base.mkdir(parents=True)
 
     source = open_source(Path(source_path))
@@ -781,12 +782,11 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
                 _import_media(source, item.asset, base)
                 media_kinds.append(item.asset.media_kind)
             else:
-                raise ValueError(f"Unknown import action: {item.action}")
+                raise RuntimeError(f"Unknown import action: {item.action}")
             imported.append(item.asset.kind)
     except Exception as exc:
         if _is_rar_exec_error(exc):
-            raise ValueError(
-                "RAR extraction requires the 'unar' or 'unrar' tool to be installed") from exc
+            raise ValueError(rar_tool_hint()) from exc
         raise
     finally:
         source.close()
