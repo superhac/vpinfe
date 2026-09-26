@@ -11,6 +11,7 @@ are empty, so a blank is the normal case rather than a malformed row.
 
 from __future__ import annotations
 
+import codecs
 import csv
 import io
 import logging
@@ -38,6 +39,10 @@ PLAY_TIME = "Play Time"
 FAVORITE = "Is Favorite"
 RATING = "Rating"
 CATEGORIES = "Categories"
+
+MARKS = ((codecs.BOM_UTF8, "utf-8-sig"), (codecs.BOM_UTF16_LE, "utf-16"),
+         (codecs.BOM_UTF16_BE, "utf-16"))
+UNMARKED = ("utf-8", "utf-16-le", "utf-16-be")
 
 
 @dataclass(frozen=True)
@@ -87,14 +92,25 @@ def read(path: Path | str) -> tuple[list[Played], list[Note]]:
 
 
 def _text(raw: bytes, name: str) -> tuple[str, Note]:
-    """The file as text. UTF-16 first because that is what it is written in, and the
-    others because a file somebody converted should still be read."""
-    for encoding in ("utf-16", "utf-8-sig", "utf-8"):
+    """The file as text, and a note when some of it may be wrong."""
+    marked = next((encoding for mark, encoding in MARKS if raw.startswith(mark)), "")
+    if marked:
         try:
-            return raw.decode(encoding), ""
+            return raw.decode(marked), ""
         except UnicodeDecodeError:
+            return raw.decode(marked, "replace"), t("note.bytes_lost", file=name)
+    for encoding in UNMARKED:
+        try:
+            text = raw.decode(encoding)
+            header = next(csv.reader(io.StringIO(text)), [])
+        except (UnicodeDecodeError, csv.Error):
             continue
-    return raw.decode("cp1252", "replace"), t("note.bytes_lost", file=name)
+        if KEY in header:
+            return text, ""
+    try:
+        return raw.decode("utf-8"), ""
+    except UnicodeDecodeError:
+        return raw.decode("cp1252", "replace"), t("note.bytes_lost", file=name)
 
 
 def _played(row: dict) -> Played | None:

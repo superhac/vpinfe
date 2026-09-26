@@ -8,6 +8,7 @@ is empty, and reading an empty cell as a zero would overwrite what is already he
 
 from __future__ import annotations
 
+import codecs
 import tempfile
 import unittest
 from pathlib import Path
@@ -102,6 +103,60 @@ class ReadTests(unittest.TestCase):
         found, notes = gamestats.read(Path("/nowhere/GameStats.csv"))
 
         self.assertEqual((found, notes), ([], []))
+
+
+class EncodingTests(unittest.TestCase):
+    TEXT = f"{HEADER}\nCafé (Williams 1988).Visual Pinball X,20221211012447,33,9191\n"
+    ROWS = [("Café (Williams 1988)", 33)]
+
+    def _read(self, data: bytes) -> tuple[list[tuple[str, int | None]], list]:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / gamestats.STATS_FILE
+        path.write_bytes(data)
+        found, notes = gamestats.read(path)
+        return [(one.name, one.play_count) for one in found], notes
+
+    def _sized(self, encoding: str, even: bool, text: str = TEXT) -> bytes:
+        data = text.encode(encoding)
+        return data if (len(data) % 2 == 0) == even else (text + "\n").encode(encoding)
+
+    def test_every_encoding_it_meets_keeps_its_rows(self) -> None:
+        lost = [gamestats.t("note.bytes_lost", file=gamestats.STATS_FILE)]
+        cases = {
+            "UTF-8, even": (self._sized("utf-8", True), []),
+            "UTF-8, odd": (self._sized("utf-8", False), []),
+            "UTF-8 with a mark, even": (self._sized("utf-8-sig", True), []),
+            "UTF-8 with a mark, odd": (self._sized("utf-8-sig", False), []),
+            "UTF-16 with a mark": (self.TEXT.encode("utf-16"), []),
+            "UTF-16 BE with a mark": (codecs.BOM_UTF16_BE + self.TEXT.encode("utf-16-be"),
+                                      []),
+            "UTF-16 LE without a mark": (self.TEXT.encode("utf-16-le"), []),
+            "UTF-16 BE without a mark": (self.TEXT.encode("utf-16-be"), []),
+            "Windows-1252, even": (self._sized("cp1252", True), lost),
+            "Windows-1252, odd": (self._sized("cp1252", False), lost),
+        }
+        for said, (data, notes) in cases.items():
+            with self.subTest(said):
+                self.assertEqual(self._read(data), (self.ROWS, notes))
+
+    def test_a_file_longer_than_a_csv_field_keeps_its_rows(self) -> None:
+        text = HEADER + "\n" + "".join(
+            f"Café {n} (Williams 1988).Visual Pinball X,20221211012447,{n},9191\n"
+            for n in range(5000))
+        for encoding in ("cp1252", "utf-16-be"):
+            with self.subTest(encoding):
+                found, _ = self._read(self._sized(encoding, True, text))
+                self.assertEqual((len(found), found[-1]),
+                                 (5000, ("Café 4999 (Williams 1988)", 4999)))
+
+    def test_a_file_cut_short_after_its_mark_keeps_the_rows_before_the_cut(self) -> None:
+        self.assertEqual(self._read(self.TEXT.encode("utf-16") + b"\x00"),
+                         (self.ROWS, [gamestats.t("note.bytes_lost",
+                                                  file=gamestats.STATS_FILE)]))
+
+    def test_an_empty_file_says_nothing(self) -> None:
+        self.assertEqual(self._read(b""), ([], []))
 
 
 if __name__ == "__main__":
