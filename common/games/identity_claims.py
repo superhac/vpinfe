@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from common.i18n import t
+
 # VPinFE built the file from a known base and a known patch.
 CONSTRUCTION = "construction"
 # Something fetched the file from a named upstream record and said which.
@@ -63,14 +65,15 @@ class DeclaredIdentity:
         found = []
         basis = str(self.confirmed_by or "").strip().lower()
         if basis and basis not in ACCEPTED_FROM_CALLERS:
-            found.append(f"confirmed_by must be one of {', '.join(ACCEPTED_FROM_CALLERS)}"
-                         f" - there is no value for an inferred identity")
+            found.append(t("error.identity.basis_not_accepted", basis="confirmed_by",
+                           join=", ".join(ACCEPTED_FROM_CALLERS)))
         if self.names_a_record and not basis:
-            found.append("naming an upstream record needs confirmed_by to say how it is known")
+            found.append(t("error.identity.record_needs_basis", basis="confirmed_by"))
         if basis and not (self.names_a_record or self.game_id or self.table_id):
-            found.append("confirmed_by without an identity says how nothing is known")
+            found.append(t("error.identity.basis_without_identity", basis="confirmed_by"))
         if self.vps_file_id and not self.host_item_id:
-            found.append("vps_file_id needs host_item_id: one record can front many files")
+            found.append(t("error.identity.file_needs_item", file_id="vps_file_id",
+                           item_id="host_item_id"))
         return found
 
 

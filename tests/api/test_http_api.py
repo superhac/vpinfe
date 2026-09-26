@@ -412,6 +412,15 @@ class DeclaredIdentityEndpointTests(unittest.TestCase):
         response = self._import({"backglass.png": {"confirmed_by": "auto", "game_id": "g"}})
         self.assertIn("backglass.png", response.text)
 
+    def test_every_refused_file_is_in_the_details(self) -> None:
+        response = self._import({
+            "a.vpx": {"confirmed_by": "auto", "game_id": "g"},
+            "b.png": {"vps_file_id": "f", "confirmed_by": "declared"}})
+        error = response.json()["error"]
+        self.assertIn("a.vpx", error["message"])
+        self.assertEqual([r["file"] for r in error["details"]["refused"]], ["a.vpx", "b.png"])
+        self.assertIn("host_item_id", error["details"]["refused"][1]["why"])
+
     def test_a_well_formed_claim_gets_past_validation(self) -> None:
         """It fails on the unknown upload session, not on the declaration."""
         response = self._import(

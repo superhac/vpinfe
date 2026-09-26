@@ -326,16 +326,19 @@ def _declared_identities(declared: Mapping[str, Any] | None) -> dict:
     """
     if not declared:
         return {}
-    out, problems = {}, []
+    out, refused = {}, []
     for name, sent in declared.items():
         identity = identity_claims.DeclaredIdentity(
             vps_file_id=sent.vps_file_id, host_item_id=sent.host_item_id,
             host=sent.host, game_id=sent.game_id, table_id=sent.table_id,
             confirmed_by=sent.confirmed_by)
-        problems += [f"{name}: {why}" for why in identity.problems()]
+        refused += [{"file": name, "why": why} for why in identity.problems()]
         out[name] = identity
-    if problems:
-        raise service_errors.RefusedError("; ".join(problems))
+    if refused:
+        first = refused[0]
+        raise service_errors.RefusedError(
+            t("error.uploads.declared_identity_refused", file=first["file"], why=first["why"]),
+            details={"refused": refused})
     return out
 
 
