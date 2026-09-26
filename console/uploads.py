@@ -106,21 +106,31 @@ if (!window.__consoleDnd) {
     return collected;
   }
 
+  const ask = (url, options) => fetch(url, options).catch(() => {
+    throw {unreached: window.location.hostname};
+  });
+
+  async function refused(said) {
+    let words = '';
+    try { words = (await said.json()).error.message || ''; } catch (e) {}
+    return {said: words};
+  }
+
   async function upload(files, say) {
-    const begin = await fetch('/api/v1/uploads', {method: 'POST'});
+    const begin = await ask('/api/v1/uploads', {method: 'POST'});
+    if (!begin.ok) throw await refused(begin);
     const uploadId = (await begin.json()).id;
     let done = 0;
     for (const item of files) {
       const form = new FormData();
       form.append('relpath', item.relpath);
       form.append('file', item.file, item.file.name);
-      const said = await fetch(`/api/v1/uploads/${uploadId}/files`,
-                               {method: 'POST', body: form});
+      const said = await ask(`/api/v1/uploads/${uploadId}/files`,
+                             {method: 'POST', body: form});
       if (!said.ok) {
-        let message = '';
-        try { message = (await said.json()).error.message || message; } catch (e) {}
-        await fetch(`/api/v1/uploads/${uploadId}`, {method: 'DELETE'});
-        throw new Error(message);
+        const why = await refused(said);
+        await ask(`/api/v1/uploads/${uploadId}`, {method: 'DELETE'}).catch(() => {});
+        throw why;
       }
       done += 1;
       say({status: 'progress', done: done, total: files.length, name: item.relpath});
@@ -142,7 +152,8 @@ if (!window.__consoleDnd) {
       say({status: 'done', upload_id: uploadId, name: named(files), count: files.length,
            ...where});
     } catch (err) {
-      say({status: 'error', message: String((err && err.message) || err)});
+      say({status: 'error', said: (err && err.said) || '',
+           unreached: (err && err.unreached) || ''});
     }
   }
 
@@ -273,7 +284,7 @@ def listener(on_arrival: Callable[[Drop], Any]) -> Callable[[Any], None]:
             if payload.get("empty"):
                 ui.notify(t("console.uploads.nothing_to_upload"), type="warning")
             else:
-                ui.notify(str(payload.get("message") or t("console.uploads.not_work")),
+                ui.notify(t("console.uploads.could_not_read"), caption=_stopped(payload),
                           type="negative")
         elif status == "done":
             _clear(state)
@@ -285,6 +296,15 @@ def listener(on_arrival: Callable[[Drop], Any]) -> Callable[[Any], None]:
             asyncio.create_task(_handle(state, payload, on_arrival))
 
     return said
+
+
+def _stopped(payload: dict[str, Any]) -> str:
+    """Why an upload stopped, as far as the page could tell, or "" when it could not."""
+    if payload.get("said"):
+        return str(payload["said"])
+    if payload.get("unreached"):
+        return t("said.why.unreachable_at", host=str(payload["unreached"]))
+    return ""
 
 
 def _progress(state: dict[str, Any], text: str) -> None:
