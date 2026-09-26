@@ -1275,6 +1275,7 @@ class Library:
         self.table_media.clear()
         self._overrides.clear()
         self.tables.clear()
+        self.read_metadata_state()
 
     def _forget_games(self) -> None:
         """Re-read the whole list, for a write that touched more of it than one game.

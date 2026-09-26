@@ -8,6 +8,7 @@ caller is handed something to watch.
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 import unittest
 from pathlib import Path
@@ -23,7 +24,7 @@ from common.games.info_maintenance import restore_library, upgrade_library
 from common.i18n import t
 from console import sections
 from console.data import Library
-from tests.support.library import write_game
+from tests.support.library import game_info, write_game
 from tests.support.skips import needs_posix_permissions
 
 try:
@@ -150,6 +151,23 @@ class MetadataCardTests(unittest.TestCase):
         self.assertIn(one, _card({"pending_upgrade": 1}))
         self.assertIn(two, _card({"pending_upgrade": 2}))
         self.assertNotEqual(one, two.replace("2", "1"))
+
+    def test_a_folder_fixed_and_rescanned_is_no_longer_named(self) -> None:
+        name = "Malformed Info (Original 2024)"
+        with TemporaryDirectory() as tmp:
+            info = write_game(tmp, name) / f"{name}.info"
+            info.write_text('{"Info": {"Title": "broken",,,}', encoding="utf-8")
+            client = mock.Mock()
+            client.info_maintenance.side_effect = lambda: {
+                "unreadable": GameParser(tmp).get_unreadable_games()}
+            library = Library(client)
+            library.read_metadata_state()
+            named = name in _card(library.metadata_state())
+            info.write_text(json.dumps(game_info(name)), encoding="utf-8")
+
+            library.refresh_after_import()
+
+        self.assertEqual((True, False), (named, name in _card(library.metadata_state())))
 
 
 LEGACY = {"Info": {"Title": "Sample Game", "Rom": "sample"},
