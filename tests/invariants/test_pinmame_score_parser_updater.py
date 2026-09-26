@@ -22,23 +22,6 @@ class _FakeConfigStore:
             self.config.write(fh)
 
 
-class _FakeStreamResponse:
-    def __init__(self, payload: bytes) -> None:
-        self._payload = payload
-
-    def raise_for_status(self) -> None:
-        return None
-
-    def iter_content(self, chunk_size: int = 1024 * 1024):
-        yield self._payload
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        return False
-
-
 class TestPinmameScoreParserUpdater(unittest.TestCase):
     def test_ensure_latest_roms_json_downloads_and_tracks_release_digest(self) -> None:
         roms_bytes = json.dumps({"foo": {"scoretype": "HIGH SCORE"}}).encode("utf-8")
@@ -60,9 +43,8 @@ class TestPinmameScoreParserUpdater(unittest.TestCase):
             with mock.patch.object(updater, "CONFIG_DIR", temp_path), \
                 mock.patch.object(updater, "ROMS_JSON_PATH", temp_path / "roms.json"), \
                 mock.patch.object(updater, "_request_json", return_value=release_payload), \
-                mock.patch.object(updater, "requests") as mock_requests:
-                mock_requests.get.return_value = _FakeStreamResponse(roms_bytes)
-
+                mock.patch.object(updater.http_client, "download_file",
+                                  side_effect=lambda url, dest, **_: dest.write_bytes(roms_bytes)):
                 result = updater.ensure_latest_roms_json(ini)
 
             self.assertEqual(result["status"], "downloaded")
@@ -94,8 +76,8 @@ class TestPinmameScoreParserUpdater(unittest.TestCase):
             with mock.patch.object(updater, "CONFIG_DIR", temp_path), \
                 mock.patch.object(updater, "ROMS_JSON_PATH", temp_path / "roms.json"), \
                 mock.patch.object(updater, "_request_json", return_value=release_payload), \
-                mock.patch.object(updater, "requests") as mock_requests:
+                mock.patch.object(updater.http_client, "download_file") as download:
                 result = updater.ensure_latest_roms_json(ini)
 
             self.assertEqual(result["status"], "up_to_date")
-            mock_requests.get.assert_not_called()
+            download.assert_not_called()

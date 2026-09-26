@@ -35,6 +35,13 @@ if not os.environ.get("VPINFE_CONFIG_DIR", "").strip():
     os.environ["VPINFE_CONFIG_DIR"] = _TEST_CONFIG_DIR
     atexit.register(shutil.rmtree, _TEST_CONFIG_DIR, ignore_errors=True)
 
+# Nor against any host outside this machine: http_client refuses them as an offline
+# machine would. A test of the transport stubs it; one that needs the real network is
+# a bug in the test.
+from common.http_client import OFFLINE as _OFFLINE  # noqa: E402
+
+os.environ.setdefault(_OFFLINE, "1")
+
 # Nor against the machine's own VPinballX.ini, which an empty Settings File stands for:
 # a launcher-scope write would change it. Assigned, not a started patch, which any
 # test's `patch.stopall()` would lift.

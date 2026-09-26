@@ -7,8 +7,10 @@ before the time it said to wait.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
+import os
 import threading
 import time
 from collections.abc import Callable
@@ -23,6 +25,9 @@ import requests
 DEFAULT_TIMEOUT = 15
 DOWNLOAD_TIMEOUT = 60
 QUIET_SECONDS = 60.0
+
+# Set to refuse every host but this machine, as an offline machine would.
+OFFLINE = "VPINFE_OFFLINE"
 
 logger = logging.getLogger("vpinfe.common.http_client")
 
@@ -39,12 +44,26 @@ class HostQuietError(requests.RequestException):
         super().__init__(f"{host} asked to wait until {_clock(until)}", **kwargs)
 
 
+class OfflineError(requests.ConnectionError):
+    """A host outside this machine, asked while OFFLINE is set."""
+
+
 def _clock(when: float) -> str:
     return datetime.fromtimestamp(when).strftime("%H:%M:%S")
 
 
 def _host(url: str) -> str:
     return urlsplit(url).netloc.lower()
+
+
+def _loopback(url: str) -> bool:
+    name = (urlsplit(url).hostname or "").lower()
+    if name == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(name).is_loopback
+    except ValueError:
+        return False
 
 
 def _number(value: str | None) -> float | None:
@@ -82,6 +101,8 @@ def _wait_until(response: requests.Response, now: float) -> float | None:
 def _asked(verb: Callable[..., requests.Response], url: str,
            **kwargs: Any) -> requests.Response:
     host = _host(url)
+    if os.environ.get(OFFLINE, "").strip() and not _loopback(url):
+        raise OfflineError(f"{host} is outside this machine and {OFFLINE} is set")
     now = time.time()
     with _quiet_lock:
         until = _quiet.get(host, 0.0)

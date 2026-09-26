@@ -7,8 +7,7 @@ import logging
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-import requests
-
+from common import http_client
 from common.config_store import ConfigStore
 from common.paths import CONFIG_DIR, USER_ROMS_PATH
 
@@ -27,7 +26,7 @@ def get_user_roms_path() -> Path:
 
 
 def _request_json(url: str) -> dict:
-    response = requests.get(
+    payload = http_client.get_json(
         url,
         timeout=15,
         headers={
@@ -35,8 +34,6 @@ def _request_json(url: str) -> dict:
             "User-Agent": USER_AGENT,
         },
     )
-    response.raise_for_status()
-    payload = response.json()
     if not isinstance(payload, dict):
         raise ValueError(f"Expected JSON object from {url}, got {type(payload).__name__}")
     return payload
@@ -51,17 +48,7 @@ def _sha256_file(path: Path) -> str:
 
 
 def _download_file(url: str, dest: Path) -> None:
-    with requests.get(
-        url,
-        timeout=60,
-        headers={"User-Agent": USER_AGENT},
-        stream=True,
-    ) as response:
-        response.raise_for_status()
-        with open(dest, "wb") as fh:
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    fh.write(chunk)
+    http_client.download_file(url, dest, timeout=60, headers={"User-Agent": USER_AGENT})
 
 
 def _find_release_asset(release_payload: dict) -> dict:

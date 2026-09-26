@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import unittest
 from email.utils import formatdate
 from typing import Any
@@ -30,6 +31,7 @@ class GateTest(unittest.TestCase):
         self.now = NOW
         self.asked: list[str] = []
         patches: list[Any] = [
+            mock.patch.dict(os.environ, {http_client.OFFLINE: ""}),
             mock.patch.dict(http_client._quiet, clear=True),
             mock.patch.object(http_client.time, "time", side_effect=lambda: self.now),
         ]
@@ -110,6 +112,33 @@ class GateTest(unittest.TestCase):
         self._closed_until(_answer(429))
         with self._transport(_answer(200)):
             self.assertEqual(http_client.get_json("https://raw.githubusercontent.com/x"), {})
+
+
+class OfflineTest(unittest.TestCase):
+    """VPINFE_OFFLINE refuses every host but this machine, before any request."""
+
+    def _asked(self, url: str) -> bool:
+        with mock.patch.dict(os.environ, {http_client.OFFLINE: "1"}), \
+                mock.patch.object(http_client.requests, "get",
+                                  return_value=_answer(200)) as get:
+            try:
+                http_client.get_json(url)
+            except http_client.OfflineError:
+                pass
+        return get.called
+
+    def test_the_suite_runs_with_it_set(self) -> None:
+        self.assertTrue(os.environ.get(http_client.OFFLINE))
+
+    def test_a_host_outside_is_refused_as_a_connection_error(self) -> None:
+        self.assertTrue(issubclass(http_client.OfflineError, requests.ConnectionError))
+        for url in (URL, "http://192.168.1.20:8001/api/v1/update", "http://cab.lan/"):
+            self.assertFalse(self._asked(url), url)
+
+    def test_this_machine_is_asked(self) -> None:
+        for url in ("http://127.0.0.1:8001/api/v1", "http://localhost:8001/",
+                    "http://[::1]:8001/", "http://127.0.0.2/"):
+            self.assertTrue(self._asked(url), url)
 
 
 if __name__ == "__main__":

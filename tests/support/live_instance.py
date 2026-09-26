@@ -24,7 +24,7 @@ from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common import discovery
+from common import discovery, http_client
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 HARNESS_THEME = REPO_ROOT / "tests" / "fixtures" / "theme-harness"
@@ -97,7 +97,7 @@ class LiveInstance:
             # announced itself would turn up in the device list of whatever install is
             # already running here, which is exactly what its own config dir prevents.
             env={**os.environ, "VPINFE_CONFIG_DIR": str(self.config_dir),
-                 discovery.OFF: "1", "PYTHONUNBUFFERED": "1"},
+                 discovery.OFF: "1", http_client.OFFLINE: "1", "PYTHONUNBUFFERED": "1"},
             stdout=self._log, stderr=subprocess.STDOUT, text=True)
 
     def _stop(self) -> None:
