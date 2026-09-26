@@ -409,9 +409,8 @@ def _metadata_rows(state: dict[str, Any], on_start: Callable[[str], Any],
         when = _stamp(str(state.get("newest_backup") or ""))
         _metadata_row(
             not not_restored, t("console.sections.backups"),
-            (t("console.sections.games_saved_copy_from", restorable=(restorable),
-               when=(when)) if when
-             else t("console.sections.games_saved_copy", restorable=(restorable))),
+            (t("console.sections.games_saved_copy_from", count=restorable, when=when)
+             if when else t("console.sections.games_saved_copy", count=restorable)),
             (t("word.restore"), lambda: on_start("restore")),
             lines=_folder_lines(not_restored))
 

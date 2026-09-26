@@ -153,6 +153,17 @@ class MetadataCardTests(unittest.TestCase):
         self.assertIn(two, _card({"pending_upgrade": 2}))
         self.assertNotEqual(one, two.replace("2", "1"))
 
+    def test_one_game_with_a_saved_copy_reads_as_one(self) -> None:
+        for key, stamp in (("games_saved_copy", ""),
+                           ("games_saved_copy_from", "20260909T110917Z")):
+            with self.subTest(key=key):
+                said = {n: t(f"console.sections.{key}", count=n, when="2026-09-09")
+                        for n in (1, 2)}
+
+                for n, line in said.items():
+                    self.assertIn(line, _card({"restorable": n, "newest_backup": stamp}))
+                self.assertNotEqual(said[1], said[2].replace("2 ", "1 ", 1))
+
     def test_a_folder_fixed_and_rescanned_is_no_longer_named(self) -> None:
         name = "Malformed Info (Original 2024)"
         with TemporaryDirectory() as tmp:

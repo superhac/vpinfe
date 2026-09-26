@@ -1349,8 +1349,14 @@
   "console.sections.format": "Format",
   "console.sections.frontend_nothing_show_game": "The frontend has nothing to show for this game on the playfield screen.",
   "console.sections.games": "games",
-  "console.sections.games_saved_copy": "{restorable} games have a saved copy, taken before an upgrade",
-  "console.sections.games_saved_copy_from": "{restorable} games have a saved copy from {when}, taken before an upgrade",
+  "console.sections.games_saved_copy": {
+    "one": "1 game has a saved copy, taken before an upgrade",
+    "other": "{count} games have a saved copy, taken before an upgrade"
+  },
+  "console.sections.games_saved_copy_from": {
+    "one": "1 game has a saved copy from {when}, taken before an upgrade",
+    "other": "{count} games have a saved copy from {when}, taken before an upgrade"
+  },
   "console.sections.held_of_games": "{held} of {total}",
   "console.sections.index_could_not_reached": "The index could not be reached, so nothing has been checked",
   "console.sections.known_here": "known here",
