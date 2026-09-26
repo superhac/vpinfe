@@ -352,6 +352,9 @@ def _fault(path, call, kwarg, node) -> list[str]:
                         if isinstance(v, ast.Constant) and isinstance(v.value, str))
         if any(c.isalpha() for c in words) and len(words.strip()) > 2:
             return [f"{where} {shown}f{words.strip()[:46]!r}...)"]
+        slots = sum(isinstance(v, ast.FormattedValue) for v in node.values)
+        if slots > 1 and words.strip():
+            return [f"{where} {shown}f{words!r})"]
     return []
 
 

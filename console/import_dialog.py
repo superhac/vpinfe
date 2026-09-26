@@ -28,6 +28,12 @@ logger = logging.getLogger("vpinfe.console.import_dialog")
 STOP_ASKING = {"updates": {"ask_where_new_games_go": False}}
 
 
+def not_imported(one: dict[str, Any]) -> str:
+    return t("console.import_dialog.not_imported_row",
+             kind=t(f"asset.kind.{one.get('kind') or ''}.label"),
+             reason=one.get("reason") or "")
+
+
 def _size(count: int) -> str:
     size = float(count or 0)
     for unit in ("B", "KB", "MB"):
@@ -180,8 +186,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
                     .props("dense dense-toggle") \
                     .classes("console-disclosure console-import-blocked px-3"):
                 for one in blocked:
-                    kind = t(f"asset.kind.{one.get('kind') or ''}.label")
-                    ui.label(f"{kind} - {one.get('reason') or ''}").classes("console-help")
+                    ui.label(not_imported(one)).classes("console-help")
 
         count = ui.label("").classes("console-help px-3")
 

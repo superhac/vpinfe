@@ -3482,13 +3482,13 @@ def _feature_chips(features: dict[str, Any]) -> None:
 
 
 async def _script_act(context: dict[str, Any], call: Any, table_id: str,
-                      done: str, failed: str) -> None:
+                      done: str, failed: Callable[[Exception], str]) -> None:
     """Run one script act and redraw. The panel is showing which script runs, so it is
     exactly what the act changes."""
     try:
         await run.io_bound(call, context["game_id"], table_id)
     except Exception as exc:
-        ui.notify(f"{failed}: {exc}", type="negative")
+        ui.notify(failed(exc), type="negative")
         return
     ui.notify(done, type="positive")
     await context["rebuild"]()
@@ -3499,7 +3499,7 @@ async def _extract_script(context: dict[str, Any], table: dict[str, Any]) -> Non
     the Delete beside it."""
     await _script_act(context, context["library"].extract_script,
                       table.get("id") or "", t("console.workbench.extracted_table_now_runs"),
-                      t("console.workbench.could_not_extract_script"))
+                      lambda exc: t("console.workbench.could_not_extract_script", exc=exc))
 
 
 async def _drop_script(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -3512,7 +3512,7 @@ async def _drop_script(context: dict[str, Any], table: dict[str, Any]) -> None:
         return
     await _script_act(context, context["library"].delete_script,
                       table.get("id") or "", t("console.workbench.deleted_table_runs_own"),
-                      t("console.workbench.could_not_delete_script"))
+                      lambda exc: t("console.workbench.could_not_delete_script", exc=exc))
 
 
 async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
