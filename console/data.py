@@ -193,6 +193,7 @@ class Library:
         self._config_schema: list[dict[str, Any]] | None = None
         self._launch_apps: list[dict[str, Any]] | None = None
         self._kept: dict[str, set[str]] | None = None
+        self._discovery: dict[str, Any] = {}
         self._hidden_checks: set[str] | None = None
         self._tags: list[dict[str, Any]] = []
 
@@ -207,6 +208,7 @@ class Library:
         self.games = self._client.games()
         self.media = self._shared_media()
         self.load_kept_kinds()
+        self._discovery = self._client.discovery()
         self.read_metadata_state()
         self.read_tags()
         # Info only when it took long enough to be worth knowing. This runs on every
@@ -550,7 +552,8 @@ class Library:
         return self._client.devices()
 
     def discovery(self) -> dict:
-        return self._client.discovery()
+        """What `load` read, or nothing before it. Asks nothing, so a draw may call it."""
+        return self._discovery
 
     def play_state(self) -> dict:
         return self._client.play_state()

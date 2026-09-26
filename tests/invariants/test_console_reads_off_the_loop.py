@@ -25,9 +25,7 @@ FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
 Place = tuple[str, str, str]
 
 # (module, function making the call, read): why that read may stay on the loop.
-ALLOWED: dict[Place, str] = {
-    ("mediasource", "_host_name", "discovery"): "not off the loop yet",
-}
+ALLOWED: dict[Place, str] = {}
 
 
 def _methods(path: str, name: str) -> dict[str, ast.FunctionDef]:
@@ -290,11 +288,11 @@ class ConsoleReadsOffTheLoop(unittest.TestCase):
             "    render()\n"
             "class Sources:\n"
             "    def _host(self):\n"
-            "        return self.library.discovery()\n"
+            "        return self.library.devices()\n"
             "    async def open(self):\n"
             "        self._host()\n")
         self.assertEqual(self._found(page=page),
-                         ["page.open > _host > discovery (line 7)",
+                         ["page.open > _host > devices (line 7)",
                           "page.show > render > library_policy (line 3)"])
 
     def test_the_check_sees_a_request_through_a_client_made_in_place(self) -> None:

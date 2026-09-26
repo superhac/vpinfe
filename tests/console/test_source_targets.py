@@ -12,6 +12,7 @@ from common import i18n
 from common.games.collections_service import IMAGE_EXTENSIONS
 from common.media_specs import IMAGE_FAMILY
 from console import mediasource
+from console.data import Library
 
 LIBRARY = SimpleNamespace(placements=None, displaced_by=None, place_media=None,
                           import_media=None, asset_placements=None,
@@ -165,6 +166,21 @@ class WhereItWent(unittest.TestCase):
             said = _slot("", "").said_where("Wheel saved")
 
         self.assertEqual("for every table in this game: Wheel saved", said)
+
+
+class TheHostTab(unittest.TestCase):
+    def test_it_is_named_from_what_the_page_load_read(self) -> None:
+        client = mock.Mock()
+        client.games.return_value = []
+        client.all_media.return_value = []
+        client.library_policy.return_value = {}
+        client.discovery.return_value = {"display_name": "Garage"}
+        library = Library(client)
+        library.load()
+
+        named = mediasource._host_name(library)
+
+        self.assertEqual((named, client.discovery.call_count), ("Garage", 1))
 
 
 if __name__ == "__main__":
