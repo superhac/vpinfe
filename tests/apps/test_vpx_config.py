@@ -1386,6 +1386,19 @@ class WritingLikeTheProgramTests(_Case):
         self.assertEqual(cleared, frozenset())
         self.assertIn("BackglassOutput = 1", (self.game / "MM (VPW 1.2).ini").read_text())
 
+    def test_so_is_every_plugin_s_switch(self) -> None:
+        switches = ("Plugin.B2S.Enable", "Plugin.Unheard.Enable")
+        self.app_ini.write_text(APP_INI + "\n[Plugin.B2S]\nEnable = 1\n\n"
+                                "[Plugin.Unheard]\nEnable = 1\n")
+
+        cleared = self.config.write(SCOPE_ENTRY, str(self.table),
+                                    dict.fromkeys(switches, "1"), self.settings)
+
+        self.assertEqual(cleared, frozenset())
+        for key in switches:
+            found = self.at(SCOPE_ENTRY, key=key)
+            self.assertEqual((found.value, found.set_here), ("1", True), key)
+
     def test_the_application_layer_may_hold_any_value(self) -> None:
         """There is nothing above it to match, so nothing to be redundant against."""
         self.config.write("launcher", str(self.table), {KEY: "1"}, self.settings)

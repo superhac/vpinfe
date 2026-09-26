@@ -637,8 +637,12 @@ def _inherited(scope: str, values: Mapping[str, str],
         return frozenset()
     app = _read(settings_file(settings))
     return frozenset(key for key, value in values.items()
-                     if str(value) != "" and key not in CONTEXTUAL
+                     if str(value) != "" and not _contextual(key)
                      and _alike(key, _given(app, key), str(value)))
+
+
+def _contextual(key: str) -> bool:
+    return key in CONTEXTUAL or areas.is_plugin_switch(key)
 
 
 def _given(app: vini.Ini, key: str) -> str | None:
