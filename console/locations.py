@@ -151,7 +151,7 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
                 bulk.set_visibility(False)
                 panel.add_action(
                     [(t("console.locations.add_location"),
-                      (lambda: _ask_new(library, state, rerender)))],
+                      (lambda: _ask_new(library, state, rerender, on_select)))],
                     empty=not built)
 
         if not built:
@@ -233,7 +233,8 @@ def _sort_it(found: dict[str, Any], state_now: str, said: str) -> str:
 
 
 def _ask_new(library: Library, state: dict[str, Any],
-             rerender: Callable[[], None] | None) -> None:
+             rerender: Callable[[], None] | None,
+             on_select: Callable[[dict | None], Any]) -> None:
     """The folder, asked before the row exists.
 
     Not a placeholder row to edit afterwards, which is how Launchers adds one: a
@@ -259,7 +260,7 @@ def _ask_new(library: Library, state: dict[str, Any],
             held["folder"].props["error-message"] = t("console.locations.name_a_folder")
             return
         box.close()
-        await _create(library, state, rerender, found["kind"], wanted)
+        await _create(library, state, rerender, on_select, found["kind"], wanted)
 
     with frame.opened(t("console.locations.add_location")) as box:
         panel.facts(ui, [(t("word.folder"), draw_folder)])
@@ -272,7 +273,7 @@ def _ask_new(library: Library, state: dict[str, Any],
 
 
 async def _create(library: Library, state: dict[str, Any], rerender: Callable[[], None] | None,
-                  kind: str, path: str) -> None:
+                  on_select: Callable[[dict | None], Any], kind: str, path: str) -> None:
     made = model.mint_location_id()
     try:
         await run.io_bound(library.put_location, made, {"path": path, "kind": kind})
@@ -280,8 +281,10 @@ async def _create(library: Library, state: dict[str, Any], rerender: Callable[[]
         ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
         return
     state["location"] = made
+    grid.land_on(SCOPE, {"id": made})
     if rerender is not None:
         rerender()
+    await on_select({"id": made})
 
 
 def acts(library: Library, state: dict[str, Any], row: dict[str, Any],

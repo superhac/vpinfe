@@ -251,6 +251,7 @@ async def duplicate(library: Library, state: dict[str, Any], redraw: Callable[[]
 async def _open(state: dict[str, Any], redraw: Callable[[], None], made: str) -> None:
     """The grid drawn again with it, and it in the workbench."""
     state["launcher"] = made
+    grid.land_on(SCOPE, {"id": made})
     redraw()
     show = state.get("show_launcher")
     if callable(show):
