@@ -215,7 +215,7 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
         return PlannedItem(asset, str(dest), game_kind_action)
     if kind == "game_info":
         # Always written as <folder>.info — the parser matches it by folder name.
-        return PlannedItem(asset, str(base / f"{base.name}.info"), "write_info")
+        return PlannedItem(asset, str(_info_path(base)), "write_info")
     own = PurePosixPath(_basename(asset.entries[0].arcname))
     stem = sidecar_stem or vpx_stem or own.stem
     if kind == "backglass":
@@ -247,6 +247,10 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
     if kind == "media":
         return _plan_media(asset, base)
     return BlockedItem(asset, t("error.uploads.cannot_import_kind"))
+
+
+def _info_path(base: Path) -> Path:
+    return base / f"{base.name}.info"
 
 
 def _plan_media(asset: DetectedAsset, base: Path) -> PlannedItem:
@@ -454,10 +458,17 @@ def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
         return replace(plan, items=chosen)
 
     old_base = plan.game_dir
-    new_base = str(Path(old_base).parent / new_name)
-    rebased = tuple(replace(item, destination=item.destination.replace(old_base, new_base, 1))
-                    for item in chosen)
-    return replace(plan, game_dir=new_base, new_game_dir_name=new_name, items=rebased)
+    new_base = Path(old_base).parent / new_name
+    rebased = tuple(_moved(item, old_base, new_base) for item in chosen)
+    return replace(plan, game_dir=str(new_base), new_game_dir_name=new_name, items=rebased)
+
+
+def _moved(item: PlannedItem, old_base: str, new_base: Path) -> PlannedItem:
+    if item.action == "replace_media":
+        return replace(item, destination=_plan_media(item.asset, new_base).destination)
+    if item.action == "write_info":
+        return replace(item, destination=str(_info_path(new_base)))
+    return replace(item, destination=item.destination.replace(old_base, str(new_base), 1))
 
 
 # Medias stays listed although nothing writes it any more: an imported .info written by
@@ -540,7 +551,7 @@ def _import_game_info(source: AssetSource, asset: DetectedAsset, base: Path) -> 
     if not isinstance(incoming, dict):
         raise ValueError(t("error.uploads.info_unreadable"))
 
-    dest = base / f"{base.name}.info"
+    dest = _info_path(base)
     if dest.exists():
         try:
             existing = json.loads(dest.read_text(encoding="utf-8"))

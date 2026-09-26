@@ -97,6 +97,31 @@ class GameInfoImportTests(unittest.TestCase):
                 data = json.loads(dest.read_text())
                 self.assertEqual(data["User"]["Rating"], 5)
 
+    def test_a_renamed_plan_names_the_files_the_import_writes(self):
+        import zipfile
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with mock.patch.object(asset_import_service, "refresh_game"):
+            with TemporaryDirectory() as tmp:
+                zip_path = self._bundle(tmp, {"Info": {"VPSId": "abc"}})
+                with zipfile.ZipFile(zip_path, "a") as archive:
+                    archive.writestr("wheel.png", b"x")
+                    archive.writestr("Old Name (Mfg 1999).directb2s", b"x")
+                plan = build_import_plan(analyze_path(zip_path), allow_new_game=True,
+                                         games_path=tmp)
+                plan = select_plan_items(plan, None, "New Name (Mfg 2000)")
+                shown = {item.asset.kind: Path(item.destination).name for item in plan.items}
+                before = {path for path in Path(tmp).rglob("*")}
+                execute_import_plan(plan, zip_path)
+                written = {path.name for path in Path(tmp).rglob("*") if path not in before}
+
+                self.assertEqual(shown["media"], "(Wheel) New Name (Mfg 2000).png")
+                self.assertEqual(shown["game_info"], "New Name (Mfg 2000).info")
+                self.assertEqual(shown["backglass"], "Old Name (Mfg 1999).directb2s")
+                for kind, name in shown.items():
+                    with self.subTest(kind=kind):
+                        self.assertIn(name, written)
+
     def test_existing_game_merges_and_backs_up(self):
         import json
         from pathlib import Path
