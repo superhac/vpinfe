@@ -553,6 +553,8 @@ class _BackglassPanel(_TableCase, unittest.IsolatedAsyncioTestCase):
         api._session = _Wire(self.client, "http://testserver/api/v1")  # type: ignore[assignment]
         self.library = data.Library(api)
         self.enterContext(patch.object(workbench.run, "io_bound", new=_off_the_loop))
+        self.enterContext(patch.object(workbench.ui, "context"))
+        self.enterContext(patch.object(workbench, "_keeping_place", new=AsyncMock()))
 
     async def _panel(self) -> tuple[Any, Any]:
         context = await workbench._file_settings(self.library, self.BACKGLASS,
@@ -725,7 +727,7 @@ class SharedBackglassPanelTests(_BackglassPanel):
         said = [call for call in self.notify.call_args_list
                 if call.kwargs.get("type") == "warning"]
         self.assertEqual([call.args[0] for call in said],
-                         ["afm, afm2 no longer read this game's own settings"])
+                         ["2 tables no longer read this game's own settings:\nafm\nafm2"])
 
 
 class SharedWithGameTests(_TableCase):
