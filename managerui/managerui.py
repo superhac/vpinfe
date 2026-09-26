@@ -16,6 +16,7 @@ import threading
 
 from nicegui import app, context, ui
 
+from common.failures import why
 from common.online.app_updater import (
     check_now,
     force_exit_after_handoff,
@@ -102,6 +103,30 @@ def check_for_updates() -> dict:
     return _update_check_cache
 
 
+async def _run_update_install(page_client):
+    from nicegui import run
+    if _update_action_state['busy']:
+        with page_client:
+            ui.notify('An update is already in progress', type='warning')
+        return
+
+    _update_action_state['busy'] = True
+    try:
+        with page_client:
+            ui.notify('Downloading update package...', type='info')
+        prepared = await run.io_bound(prepare_update)
+        await run.io_bound(lambda: launch_prepared_update(prepared))
+        with page_client:
+            ui.notify('Update staged. Restarting VPinFE...', type='positive')
+            force_exit_after_handoff()
+            await app_control.quit_app()
+    except Exception as e:
+        with page_client:
+            ui.notify('Update failed', caption=why(e), type='negative')
+    finally:
+        _update_action_state['busy'] = False
+
+
 _PAGE_RENDERERS = {
     'games': tab_games.render_panel,
     'collections': tab_collections.render_panel,
@@ -143,29 +168,6 @@ def header():
             ui.icon('sell', size='18px').style('color: var(--ink-muted);')
             ui.label(f'Version: {current_version}').classes('text-sm').style('color: var(--ink-muted); font-weight: 500;')
 
-            async def run_update_install():
-                from nicegui import run
-                if _update_action_state['busy']:
-                    with page_client:
-                        ui.notify('An update is already in progress', type='warning')
-                    return
-
-                _update_action_state['busy'] = True
-                try:
-                    with page_client:
-                        ui.notify('Downloading update package...', type='info')
-                    prepared = await run.io_bound(prepare_update)
-                    await run.io_bound(lambda: launch_prepared_update(prepared))
-                    with page_client:
-                        ui.notify('Update staged. Restarting VPinFE...', type='positive')
-                        force_exit_after_handoff()
-                        await app_control.quit_app()
-                except Exception as e:
-                    with page_client:
-                        ui.notify(f'Update failed: {e}', type='negative')
-                finally:
-                    _update_action_state['busy'] = False
-
             def show_update_dialog(result: dict):
                 with ui.dialog() as dialog, ui.card().classes('p-6 w-[28rem]').style('background: var(--bg); border: 1px solid var(--neon-purple); box-shadow: var(--glow-purple);'):
                     ui.label(f"Update to {result.get('latest_version', 'latest')}?").classes('text-lg font-bold').style('color: var(--ink);')
@@ -178,7 +180,8 @@ def header():
                         ui.button(
                             'Update Now',
                             icon='system_update_alt',
-                            on_click=lambda: (dialog.close(), asyncio.create_task(run_update_install())),
+                            on_click=lambda: (dialog.close(),
+                                              asyncio.create_task(_run_update_install(page_client))),
                         ).props('unelevated color=amber')
                 dialog.open()
 
