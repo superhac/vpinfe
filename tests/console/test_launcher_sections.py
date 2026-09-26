@@ -15,7 +15,7 @@ from typing import Any
 from unittest.mock import ANY, AsyncMock, Mock, patch
 from urllib.parse import parse_qs
 
-from common import path_checks
+from common import i18n, path_checks
 from common.i18n import t
 from console import app_settings, data, deeplink, games, page, panel, renderers, settings, workbench
 
@@ -2163,6 +2163,24 @@ class SettingNamesTests(unittest.TestCase):
 
         self.assertEqual(names, {"Player.PlayfieldWidth": "Player Width",
                                  "Backglass.BackglassWidth": "Backglass Width"})
+
+    def test_a_translation_orders_the_heading_and_the_label(self) -> None:
+        self.addCleanup(i18n.set_language, i18n.language())
+        i18n.set_language("xx")
+        width = (_setting("Player.PlayfieldWidth", "Width"),
+                 _setting("Backglass.BackglassWidth", "Width"))
+        headed = [_heading("playfield", "Player.PlayfieldWidth"),
+                  _heading("backglass", "Backglass.BackglassWidth")]
+        with patch.dict(i18n._catalogs, {"xx": {
+                "console.app_settings.heading_row": "{label} ({heading})"}}):
+            names = [workbench.setting_names([_group("displays", *width, curated=curated)])
+                     for curated in (headed, ())]
+
+        self.assertEqual(names, [
+            {"Player.PlayfieldWidth": "Width (Playfield)",
+             "Backglass.BackglassWidth": "Width (Backglass)"},
+            {"Player.PlayfieldWidth": "Width (Player)",
+             "Backglass.BackglassWidth": "Width (Backglass)"}])
 
     def test_a_plugin_s_setting_is_led_by_its_plugin_as_a_table_s_settings_lead_it(
             self) -> None:

@@ -5094,7 +5094,8 @@ def setting_names(groups: Sequence[Any]) -> dict[str, str]:
             return field.label
         heading = next((one.label for one in getattr(group, "curated", ())
                         if field.key in one.keys and one.label), "")
-        return f"{heading or _section_label(section, group.label)} {field.label}"
+        return t("console.app_settings.heading_row",
+                 heading=heading or _section_label(section, group.label), label=field.label)
 
     names = {field.key: named(group, field) for group, field in fields}
     read = Counter(name.casefold() for name in names.values())
