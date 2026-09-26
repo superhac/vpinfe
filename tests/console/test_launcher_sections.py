@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
@@ -1373,7 +1374,30 @@ class SetForAllTests(unittest.TestCase):
     FIELD = _field("Player.X")
 
     def _verb(self, *others: dict, offered=frozenset({"Player.X"})):
-        return app_settings._for_all({"playing": False}, list(others), False, [], offered)
+        return app_settings.ForAll({"playing": False}, list(others), False, [], offered,
+                                   AsyncMock(), read=True)
+
+    def _unread(self, library: Any) -> app_settings.ForAll:
+        return app_settings.ForAll({"playing": False, "library": library},
+                                   [{"table": {"id": "b"}, "launcher_id": "l1"}], False, [],
+                                   frozenset({"Player.X"}), AsyncMock())
+
+    def test_the_other_tables_are_read_once_a_value_here_could_offer_it(self) -> None:
+        game = _Game(_other("b", "1"))
+        game.launcher_config = Mock(wraps=game.launcher_config)  # type: ignore[method-assign]
+        more = self._unread(game)
+        with patch.object(app_settings.offload, "io",
+                          new=AsyncMock(side_effect=lambda call, *args: call(*args))):
+            asyncio.run(more.ready({"Player.X": {**self.SET, "set_here": False}}))
+            self.assertEqual(game.launcher_config.call_count, 0)
+            asyncio.run(more.ready({"Player.X": self.SET}))
+            asyncio.run(more.ready({"Player.X": self.SET}))
+
+        self.assertEqual(game.launcher_config.call_count, 1)
+        self.assertIsNotNone(more(self.SET, self.FIELD))
+
+    def test_nothing_is_offered_before_they_are_read(self) -> None:
+        self.assertIsNone(self._unread(_Game(_other("b", "1")))(self.SET, self.FIELD))
 
     def test_it_is_offered_where_another_table_does_not_use_the_value(self) -> None:
         self.assertIsNotNone(self._verb(_other("b", "2"), _other("c", "1"))(
@@ -1478,7 +1502,8 @@ class SetForAllTests(unittest.TestCase):
         game = _Game(other)
         inner = {"playing": False, "library": game, "rebuild": AsyncMock()}
         with patch.object(app_settings.panel, "action") as action:
-            app_settings._for_all(inner, [other], False, [], self.BOTH)(
+            app_settings.ForAll(inner, [other], False, [], self.BOTH, inner["rebuild"],
+                                read=True)(
                 dict(self.SET), self.FIELD, (dict(self.SET), self.HEIGHT))
         with patch.object(app_settings, "ui"), \
                 patch.object(workbench, "no_longer_reads_game") as warned, \
@@ -1489,6 +1514,44 @@ class SetForAllTests(unittest.TestCase):
         self.assertEqual({key: one["value"] for key, one in game.held["b"]["values"].items()},
                          {"Player.X": "2", "Player.Y": "2"})
         warned.assert_called_once()
+
+    def test_every_setting_draws_itself_again_and_not_the_section_under_it(self) -> None:
+        other = _other("b", "1")
+        section, dialog = AsyncMock(), AsyncMock()
+        inner = {"playing": False, "library": _Game(other), "rebuild": section}
+        more = app_settings.ForAll(inner, [other], False, [], frozenset({"Player.X"}),
+                                   section, read=True)
+        with patch.object(app_settings.panel, "action") as action:
+            replace(more, rebuild=dialog)(dict(self.SET), self.FIELD)
+        with patch.object(app_settings, "ui"), \
+                patch.object(app_settings.offload, "io",
+                             new=AsyncMock(side_effect=lambda call: call())):
+            asyncio.run(action.call_args.args[1]())
+
+        dialog.assert_awaited_once()
+        section.assert_not_awaited()
+
+    def test_a_table_reads_them_at_its_draw_and_again_after_a_write(self) -> None:
+        before = {"Player.X": {**self.SET, "set_here": False, "scope": "launcher"}}
+        after = {"Player.X": self.SET}
+        more = Mock(ready=AsyncMock(), return_value=None)
+        context = {"library": Mock(), "launcher": {"launcher_id": "probe"},
+                   "config_scope": "entry", "config_table": "t1", "rebuild": AsyncMock(),
+                   "config_more": more}
+
+        async def drive() -> None:
+            with patch.object(workbench, "ui"), \
+                    patch.object(workbench, "_config_values",
+                                 new=AsyncMock(side_effect=[before, after])), \
+                    patch.object(workbench.run, "io_bound", new=AsyncMock(return_value={})), \
+                    patch.object(workbench.settings_page, "control_for") as control_for:
+                await workbench._setting_entries(context, [("", "", [self.FIELD])])
+                await control_for.call_args.args[2]("2")
+
+        asyncio.run(drive())
+
+        self.assertEqual([call.args[0] for call in more.ready.await_args_list],
+                         [before, after])
 
     def test_the_tables_cut_off_the_game_s_file_are_named_a_line_each(self) -> None:
         cut = [{"id": "b", "name": "Addams Family, The"}, {"id": "c", "name": "Other"}]

@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Awaitable, Callable, Collection, Sequence
+from dataclasses import dataclass, replace
 from functools import partial
 from types import SimpleNamespace
 from typing import Any
@@ -112,14 +113,9 @@ async def _program_entries(context: dict[str, Any],
     if reach := dict(found.get("from_game") or {}):
         entries += _from_game_entries(inner, reach)
     if others := _others(context, table, launcher):
-        try:
-            others = await offload.io(_read_all, library, others)
-        except Exception:  # noqa: BLE001 - without them the page offers no Set for All
-            others = []
-    if others:
-        inner["config_more"] = _for_all(inner, others, bool(found.get("shared_with_game")),
-                                        list(context.get("tables") or []),
-                                        _for_every_table(groups))
+        inner["config_more"] = ForAll(inner, others, bool(found.get("shared_with_game")),
+                                      list(context.get("tables") or []),
+                                      _for_every_table(groups), inner["rebuild"])
     added = _added(context["state"], table_id)
     blocks = differences(groups, values, added)
     view = point_of_view(groups, values, added)
@@ -433,6 +429,8 @@ async def _every_setting(context: dict[str, Any], table: dict[str, Any],
                 await workbench._all_settings(every)
 
         every["rebuild"] = redraw
+        if (more := inner.get("config_more")) is not None:
+            every["config_more"] = replace(more, rebuild=redraw)
         await redraw()
         with frame.footer():
             frame.answer(t("word.done"), dialog.close, icon=verbs.DONE)
@@ -518,28 +516,51 @@ def already_uses(other: dict[str, Any], field: Any, value: str, shares_here: boo
     return workbench._same_value(field, str(held.get("value") or ""), value)
 
 
-def _for_all(inner: dict[str, Any], others: list[dict[str, Any]], shares_here: bool,
-             tables: list[dict[str, Any]],
-             offered: frozenset[str]) -> Callable[[dict, Any], Callable[[], None] | None]:
+@dataclass
+class ForAll:
     """Set for All N Tables, beside a value this table sets itself that another of its
     game's tables does not use. A pair's row hands in its other rows as `paired`, and
-    each of them set here is written with it."""
-    count = len(others) + 1
+    each of them set here is written with it. `rebuild` draws again whatever offered it.
 
-    def verb(held: dict, field: Any, *paired: tuple[dict, Any]) -> Callable[[], None] | None:
+    Nothing is offered until `ready` has read the other tables."""
+
+    inner: dict[str, Any]
+    others: list[dict[str, Any]]
+    shares_here: bool
+    tables: list[dict[str, Any]]
+    offered: frozenset[str]
+    rebuild: Callable[[], Awaitable[Any]]
+    read: bool = False
+
+    def _own(self, key: str, held: dict) -> bool:
+        return key in self.offered and bool(held.get("set_here")) \
+            and bool(held.get("in_effect", True))
+
+    async def ready(self, values: dict[str, Any]) -> None:
+        """Reads the other tables, once, when one of `values` is this table's own."""
+        if self.read or not any(self._own(key, held or {}) for key, held in values.items()):
+            return
+        self.read = True
+        try:
+            await offload.io(_read_all, self.inner["library"], self.others)
+        except Exception:  # noqa: BLE001 - without them the page offers no Set for All
+            self.others = []
+
+    def __call__(self, held: dict, field: Any,
+                 *paired: tuple[dict, Any]) -> Callable[[], None] | None:
         own = [(one, str(said.get("value") or "")) for said, one in ((held, field), *paired)
-               if one.key in offered and said.get("set_here") and said.get("in_effect", True)]
-        if all(already_uses(other, one, value, shares_here)
-               for other in others for one, value in own):
+               if self._own(one.key, said)]
+        if not self.read or all(already_uses(other, one, value, self.shares_here)
+                                for other in self.others for one, value in own):
             return None
-        playing = bool(inner.get("playing"))
+        playing = bool(self.inner.get("playing"))
         return panel.action(
-            t("console.app_settings.set_for_all", count=count),
-            partial(_set_for_all, inner, others, own, shares_here, tables),
+            t("console.app_settings.set_for_all", count=len(self.others) + 1),
+            partial(_set_for_all, self.inner, self.others, own, self.shares_here,
+                    self.tables, self.rebuild),
             icon=verbs.SHARE, inline=True, enabled=not playing,
             hint=t(workbench.PLAYING_NOTE) if playing
             else t("console.app_settings.set_for_all.help"))
-    return verb
 
 
 def write_for_all(library: Any, others: list[dict[str, Any]], field: Any, value: str,
@@ -608,7 +629,8 @@ def write_shared(library: Any, targets: list[dict[str, Any]], groups: Sequence[A
 
 async def _set_for_all(inner: dict[str, Any], others: list[dict[str, Any]],
                        own: Sequence[tuple[Any, str]], shares_here: bool,
-                       tables: list[dict[str, Any]]) -> None:
+                       tables: list[dict[str, Any]],
+                       rebuild: Callable[[], Awaitable[Any]]) -> None:
     try:
         cut = await offload.io(lambda: [
             table for field, value in own
@@ -620,4 +642,4 @@ async def _set_for_all(inner: dict[str, Any], others: list[dict[str, Any]],
                   type="positive")
         if cut:
             workbench.no_longer_reads_game(cut, tables)
-    await inner["rebuild"]()
+    await rebuild()

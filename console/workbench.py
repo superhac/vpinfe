@@ -4699,6 +4699,8 @@ async def _setting_entries(context: dict[str, Any],
     scope = str(context.get("config_scope") or "launcher")
     table = str(context.get("config_table") or "")
     their_own = await _set_by_tables(context) if scope == "launcher" and not table else []
+    if (more := context.get("config_more")) is not None:
+        await more.ready(values)
     groups = context.get("config_groups") or []
     clashing = conflicts(groups, values)
     redraw_on = {*redraw_on, *rival_switches(groups),
@@ -4760,6 +4762,8 @@ async def _setting_entries(context: dict[str, Any],
             saved = context.get("saved")
             if callable(saved) and _whose(shown, key) != _whose(fresh, key):
                 asyncio.create_task(saved())
+            if more is not None:
+                await more.ready(fresh)
             shown.update(fresh)
             for other, held in rows.items():
                 held.clear()
@@ -4820,7 +4824,7 @@ async def _setting_entries(context: dict[str, Any],
                 else None, clear=clear(keys), playing=playing)))
             entries.append((panel.ASIDE, _beside(
                 partial(marks, parts, pair.joiner if pair else ""), parts[0][1], field,
-                redraws, context.get("config_more"),
+                redraws, more,
                 _in_turn(*(_conflict(clashing[key]) for key in keys if key in clashing),
                          _tables_of_their_own(launcher, keys, owned) if owned else None),
                 paired=[(held, one) for _, held, one in parts[1:]])))
