@@ -27,6 +27,7 @@ from nicegui import context, run, ui
 from common.failures import why
 from common.i18n import t
 from console import import_dialog, offload
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.uploads")
 
@@ -348,6 +349,7 @@ async def _handle(state: dict[str, Any], payload: dict[str, Any],
         state["busy"] = False
 
 
+@on_page
 async def analyzed(library: Any, upload_id: str) -> dict[str, Any] | None:
     """What the install makes of what arrived, or None once it has said why not and let
     the files go."""
@@ -363,6 +365,7 @@ async def analyzed(library: Any, upload_id: str) -> dict[str, Any] | None:
     return analysis
 
 
+@on_page
 async def confirmed_import(library: Any, upload_id: str, analysis: dict[str, Any], *,
                            source: str, on_done: Callable[[], Any], file_count: int = 0,
                            game_id: str = "",

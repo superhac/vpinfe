@@ -7,6 +7,7 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 from console import locations
+from tests.support.clicks import press
 
 
 async def _now(callback: Any, *args: Any, **kwargs: Any) -> Any:
@@ -24,8 +25,8 @@ class RemoveSelected(unittest.IsolatedAsyncioTestCase):
                                        new=AsyncMock(return_value=True)))
 
     async def remove(self, *ids: str) -> None:
-        await locations._remove_many([{"id": one, "name": one} for one in ids],
-                                     self.library, self.redrawn)
+        await press(locations._remove_many, [{"id": one, "name": one} for one in ids],
+                    self.library, self.redrawn)
 
     async def test_every_location_picked_goes(self) -> None:
         await self.remove("first", "second", "third")

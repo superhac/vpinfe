@@ -22,6 +22,7 @@ from common.failures import why
 from common.i18n import t
 from console import ext_action, offload, panel, verbs
 from console.api import ApiClient
+from console.on_page import on_page
 
 
 def build(extension: dict, back: Any) -> None:
@@ -89,6 +90,7 @@ def _control(client: Any, base: str, key: str, field: dict,
     kind = str(field.get("type") or "string")
     value = field.get("value")
 
+    @on_page
     async def save(new_value: Any) -> None:
         try:
             await run.io_bound(client.ext_put, base, {"values": {key: new_value}})
@@ -155,6 +157,7 @@ def _state(name: str, surfaces: dict) -> None:
 
 
 def _row(client: Any, base: str, row: dict, redraw: Callable[[], Awaitable[None]]) -> None:
+    @on_page
     async def press(key: str) -> None:
         try:
             await run.io_bound(client.ext_post, f"{base}/{key}",

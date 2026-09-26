@@ -19,6 +19,7 @@ from nicegui import ui
 
 from common.i18n import t
 from console import theme
+from console.on_page import on_page
 
 # The name each mode goes by on screen. Its order is the order on the page: the two
 # neutral ones together, the deliberate one first because it is the default, and the
@@ -96,6 +97,7 @@ def tiles(option: dict[str, Any], value: Any, save: Callable[[Any], Any], *,
 
         with ui.element("div").classes("console-swatches"):
             for mode in theme.MODES:
+                @on_page
                 async def pick(mode: str = mode) -> None:
                     if mode == held["mode"] or not await save(mode):
                         return

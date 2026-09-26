@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 from console import launchers, locations
+from tests.support.clicks import press
 
 
 class LocationAdded(unittest.IsolatedAsyncioTestCase):
@@ -23,9 +24,8 @@ class LocationAdded(unittest.IsolatedAsyncioTestCase):
         self.shown = AsyncMock(side_effect=lambda _row: self.order.append("show"))
 
     async def add(self) -> None:
-        await locations._create(Mock(), self.state,
-                                lambda: self.order.append("redraw"), self.shown,
-                                "root", "/games")
+        await press(locations._create, Mock(), self.state,
+                    lambda: self.order.append("redraw"), self.shown, "root", "/games")
 
     async def test_the_new_row_is_landed_on_before_the_grid_is_drawn_again(self) -> None:
         await self.add()

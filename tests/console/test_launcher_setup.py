@@ -7,6 +7,7 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 from console import workbench
+from tests.support.clicks import press
 
 LAUNCHER = {"launcher_id": "wide", "display_name": "VPX (4K)", "app_name": "Visual Pinball X",
             "app": "vpx", "enabled": True, "settings": {}, "fields": []}
@@ -68,7 +69,7 @@ class Rename(unittest.IsolatedAsyncioTestCase):
     async def test_the_next_write_carries_the_new_name(self) -> None:
         async with Details() as setup:
             await setup.rename("Wide")
-            await setup.flip(Mock(value=True))
+            await press(setup.flip, Mock(value=True))
         self.assertEqual([one["display_name"] for one in setup.sent()], ["Wide", "Wide"])
 
     async def test_the_grid_and_the_title_follow_it(self) -> None:
@@ -99,7 +100,7 @@ class Rename(unittest.IsolatedAsyncioTestCase):
 class Default(unittest.IsolatedAsyncioTestCase):
     async def test_turning_it_on_makes_it_the_default(self) -> None:
         async with Details() as setup:
-            await setup.default.args[1](Mock(value=True))
+            await press(setup.default.args[1], Mock(value=True))
         self.assertEqual(setup.put.await_args.args,
                          (setup.context["library"].make_launcher_default, "wide"))
         setup.refresh.assert_awaited_once()

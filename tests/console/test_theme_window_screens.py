@@ -20,6 +20,7 @@ from common.i18n import t
 from console import panel, settings
 from console.data import Library
 from frontend import theme_windows
+from tests.support.clicks import press
 
 WIDE = Monitor(x=0, y=0, width=2560, height=1440, width_mm=597, height_mm=336,
                name="DP-1", is_primary=True)
@@ -194,7 +195,7 @@ class DrawnOnDisplaysTests(ATheme, unittest.IsolatedAsyncioTestCase):
     async def test_a_pick_there_is_the_screen_the_frontend_opens_it_on(self) -> None:
         _, picker = self._under(await self._drawn(), "Topper")
 
-        await picker.pick(SimpleNamespace(value="1"))
+        await press(picker.pick, SimpleNamespace(value="1"))
 
         self.assertEqual(
             DisplayConfig.from_config(ConfigStore(self.ini)).window_screen_id(

@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from common.i18n import t
 from console import workbench
+from tests.support.clicks import press
 
 
 async def _now(callback: Any, *args: Any, **kwargs: Any) -> Any:
@@ -33,7 +34,7 @@ class OpenOnThis(unittest.IsolatedAsyncioTestCase):
         _, changed, _, context = self._drawn(name, opens_on)
         with patch.object(workbench.run, "io_bound", new=_now), \
                 patch.object(workbench, "_written", new=AsyncMock()) as written:
-            await changed(SimpleNamespace(value=value))
+            await press(changed, SimpleNamespace(value=value))
         context["written"] = written
         return context
 

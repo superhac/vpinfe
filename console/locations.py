@@ -25,6 +25,7 @@ from common.i18n import t
 from console import dialog as frame
 from console import offload, verbs, views
 from console.data import Library
+from console.on_page import on_page
 
 from . import confirm, grid, panel
 
@@ -192,6 +193,7 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
         wire_views(table)
 
 
+@on_page
 async def _remove_many(picked: list[dict[str, Any]], library: Library,
                        rerender: Callable[[], None] | None) -> None:
     """Several at once, asked once. One selected is named rather than counted - the
@@ -273,6 +275,7 @@ def _ask_new(library: Library, state: dict[str, Any],
     box.open()
 
 
+@on_page
 async def _create(library: Library, state: dict[str, Any], rerender: Callable[[], None] | None,
                   on_select: Callable[[dict | None], Any], kind: str, path: str) -> None:
     made = model.mint_location_id()
@@ -302,6 +305,7 @@ def acts(library: Library, state: dict[str, Any], row: dict[str, Any],
     return [panel.Verb(t("word.remove"), go, danger=True)]
 
 
+@on_page
 async def remove(library: Library, row: dict[str, Any]) -> bool:
     """Asked about first. The games in it leave the library, and their records go with
     them - which is where they live, so they are there again if it comes back."""

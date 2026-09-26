@@ -24,6 +24,7 @@ from common.failures import why
 from common.i18n import t
 from console import dialog as frame
 from console import game_tables, offload, panel, verbs
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.import_dialog")
 
@@ -56,6 +57,7 @@ def _where(plan: dict[str, Any], item: dict[str, Any]) -> str:
     return f"{rel.parent.as_posix()}/"
 
 
+@on_page
 async def ask_where(library: Any) -> str | None:
     """Which location a new game goes to. "" means the one already marked for it, and
     None means do not import at all.
@@ -100,6 +102,7 @@ async def _which_destination(library: Any, found: dict[str, Any],
     return await _pick(library, "", [marked, *others], offer_remember=True)
 
 
+@on_page
 async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
                 *, offer_remember: bool) -> str | None:
     holds = {"id": str(offered[0].get("location_id") or ""), "stop_asking": False}
@@ -146,6 +149,7 @@ def dropped_title(source: str, file_count: int) -> str:
     return t("console.import_dialog.import_drop")
 
 
+@on_page
 async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
                    source: str = "", file_count: int = 0, game_dir: str = "",
                    rom_name: str = "",
@@ -335,6 +339,7 @@ def _following(library: Any, upload_id: str, asked: dict[str, Any], named: dict[
     return ui.timer(0.3, look)
 
 
+@on_page
 async def _match(library: Any, named: dict[str, Any], field: Any) -> None:
     """Offer what the catalog has for this name, and take the folder name from it."""
     term = str(field.value or "").split("(")[0].strip()

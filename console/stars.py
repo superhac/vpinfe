@@ -16,6 +16,7 @@ from nicegui import run, ui
 from common.failures import why
 from common.i18n import t
 from console import grid
+from console.on_page import on_page
 
 MOST = 5
 # The character *is* the control. In a tooltip it measures zero and cannot be clicked,
@@ -92,6 +93,7 @@ def rating_handler(held: list[dict[str, Any]], rows_by_id: dict[str, Any],
 
     `grid_of` rather than the grid, because a caller wires this before the grid exists.
     """
+    @on_page
     async def rate(event: Any) -> None:
         args = event.args if isinstance(event.args, dict) else {}
         game_id = str(args.get("game") or "")

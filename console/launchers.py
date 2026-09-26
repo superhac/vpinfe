@@ -26,6 +26,7 @@ from common.i18n import t
 from console import confirm, grid, offload, panel, verbs, views
 from console import dialog as frame
 from console.data import Library
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.launchers")
 
@@ -199,6 +200,7 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
         state["refresh_launchers"] = refresh_launchers
 
 
+@on_page
 async def _add(library: Library, state: dict[str, Any], redraw: Callable[[], None],
                app: dict) -> None:
     """A new launcher for an app: its name, and the paths the app declares.
@@ -223,6 +225,7 @@ async def _add(library: Library, state: dict[str, Any], redraw: Callable[[], Non
         await _open(state, redraw, made)
 
 
+@on_page
 async def duplicate(library: Library, state: dict[str, Any], redraw: Callable[[], None],
                      launcher: dict) -> None:
     """A copy, which is the case this feature exists for: change one thing - usually the
@@ -319,6 +322,7 @@ def copy_targets(known: list[dict], install_id: str) -> list[dict]:
             and str(one.get("device_id") or "") != install_id]
 
 
+@on_page
 async def copy_dialog(library: Library, state: dict[str, Any], launcher: dict) -> None:
     """Pick the devices, see what it will do, then do it.
 
@@ -363,6 +367,7 @@ async def copy_dialog(library: Library, state: dict[str, Any], launcher: dict) -
                    bool(also.value))
 
 
+@on_page
 async def _do_copy(library: Library, launcher: dict, devices: list[dict],
                    with_mappings: bool) -> None:
     from common.games import launcher_copy
@@ -425,6 +430,7 @@ def removal_words(found: dict[str, Any]) -> tuple[str, list[str]]:
              for one in goes])
 
 
+@on_page
 async def remove(library: Library, state: dict[str, Any], redraw: Callable[[], None],
                   launcher: dict) -> None:
     """Asked about first, because it is the destructive one and it takes assignments

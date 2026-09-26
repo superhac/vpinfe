@@ -18,6 +18,7 @@ from urllib.parse import parse_qs
 from common import i18n, path_checks
 from common.i18n import t
 from console import app_settings, data, deeplink, games, page, panel, renderers, settings, workbench
+from tests.support.clicks import press
 
 
 def _launcher(state: str, *, has_config: bool = True) -> dict:
@@ -572,7 +573,7 @@ class ReportedNameTests(unittest.IsolatedAsyncioTestCase):
         await workbench._setting_entries(context, [("", "", [self.FIELD])])
 
         self.assertEqual(control_for.call_args.kwargs["check"]["state"], "missing")
-        await control_for.call_args.args[2]("Built-in Display")
+        await press(control_for.call_args.args[2], "Built-in Display")
         await asyncio.sleep(0)
 
         rebuild.assert_awaited_once()
@@ -636,7 +637,7 @@ class ClearTests(unittest.IsolatedAsyncioTestCase):
         marked = self.enterContext(patch.object(workbench, "_marked"))
         await workbench._setting_entries(context, [("", "", [self.FIELD])])
 
-        await marked.call_args.kwargs["clear"]()
+        await press(marked.call_args.kwargs["clear"])
 
         workbench.run.io_bound.assert_awaited_once_with(
             library.write_launcher_config, "probe", {"Player.BGSet": ""}, table="t1",
@@ -763,7 +764,7 @@ class PairTests(unittest.IsolatedAsyncioTestCase):
                 _, marked, library = await self._entries(
                     {"Player.PlayfieldWidth": self.SET, "Player.PlayfieldHeight": height})
 
-                await marked.call_args.kwargs["clear"]()
+                await press(marked.call_args.kwargs["clear"])
 
                 workbench.run.io_bound.assert_awaited_once_with(
                     library.write_launcher_config, "probe", written, table="",
@@ -1574,7 +1575,7 @@ class SetForAllTests(unittest.TestCase):
                 patch.object(workbench, "no_longer_reads_game") as warned, \
                 patch.object(app_settings.offload, "io",
                              new=AsyncMock(side_effect=lambda call: call())):
-            asyncio.run(action.call_args.args[1]())
+            asyncio.run(press(action.call_args.args[1]))
 
         self.assertEqual({key: one["value"] for key, one in game.held["b"]["values"].items()},
                          {"Player.X": "2", "Player.Y": "2"})
@@ -1591,7 +1592,7 @@ class SetForAllTests(unittest.TestCase):
         with patch.object(app_settings, "ui"), \
                 patch.object(app_settings.offload, "io",
                              new=AsyncMock(side_effect=lambda call: call())):
-            asyncio.run(action.call_args.args[1]())
+            asyncio.run(press(action.call_args.args[1]))
 
         dialog.assert_awaited_once()
         section.assert_not_awaited()
@@ -1606,7 +1607,7 @@ class SetForAllTests(unittest.TestCase):
                 patch.object(workbench, "_keeping_place", new=AsyncMock()) as kept, \
                 patch.object(app_settings.offload, "io",
                              new=AsyncMock(side_effect=lambda call: call())):
-            asyncio.run(action.call_args.args[1]())
+            asyncio.run(press(action.call_args.args[1]))
 
         kept.assert_awaited_once_with(ANY, inner["rebuild"], "Player.X")
 
@@ -1625,7 +1626,7 @@ class SetForAllTests(unittest.TestCase):
                     patch.object(workbench.run, "io_bound", new=AsyncMock(return_value={})), \
                     patch.object(workbench.settings_page, "control_for") as control_for:
                 await workbench._setting_entries(context, [("", "", [self.FIELD])])
-                await control_for.call_args.args[2]("2")
+                await press(control_for.call_args.args[2], "2")
 
         asyncio.run(drive())
 
@@ -1654,9 +1655,9 @@ class SetForAllTests(unittest.TestCase):
                     patch.object(workbench.settings_page, "control_for") as control_for:
                 await workbench._setting_entries(context, [("", "", [self.FIELD])])
                 save = control_for.call_args.args[2]
-                first = asyncio.create_task(save("2"))
+                first = asyncio.create_task(press(save, "2"))
                 await asyncio.sleep(0)
-                await save("23")
+                await press(save, "23")
                 first_read.set()
                 await first
             return marked.call_args.args[0][0][1]
@@ -1761,7 +1762,7 @@ class CopyFromGameTests(unittest.IsolatedAsyncioTestCase):
                                             new=AsyncMock(return_value={})))
         self.enterContext(patch.object(app_settings, "ui"))
 
-        await app_settings._copy_from_game(inner, self.REACH)
+        await press(app_settings._copy_from_game, inner, self.REACH)
 
         io.assert_awaited_once_with(inner["library"].write_launcher_config, "l1",
                                     self.REACH, table="t1", scope="entry")
@@ -1818,10 +1819,10 @@ class TypedRedrawTests(unittest.IsolatedAsyncioTestCase):
         row = ui.row.return_value.classes.return_value.__enter__.return_value
         event, leave = row.on.call_args.args
 
-        await save(4)
+        await press(save, 4)
         await asyncio.sleep(0)
         rebuild.assert_not_awaited()
-        await leave()
+        await press(leave)
 
         self.assertEqual(event, "focusout")
         rebuild.assert_awaited_once()
@@ -1837,14 +1838,14 @@ class TypedRedrawTests(unittest.IsolatedAsyncioTestCase):
 
         _, _, save, _ = await self._drawn("int")
         with patch.object(workbench.run, "io_bound", new=slower_first):
-            await asyncio.gather(save(4), save(40), save(409))
+            await asyncio.gather(press(save, 4), press(save, 40), press(save, 409))
 
         self.assertEqual(landed, ["4", "40", "409"])
 
     async def test_a_switch_is_drawn_again_at_once(self) -> None:
         _, rebuild, save, _ = await self._drawn("bool")
 
-        await save(True)
+        await press(save, True)
         await asyncio.sleep(0)
 
         rebuild.assert_awaited_once()
@@ -1855,10 +1856,10 @@ class TypedRedrawTests(unittest.IsolatedAsyncioTestCase):
         entries[0][1]()
         row = ui.row.return_value.classes.return_value.__enter__.return_value
         _, leave = row.on.call_args.args
-        await typed(4)
-        await leave()
+        await press(typed, 4)
+        await press(leave)
         _, _, switched, _ = await self._drawn("bool")
-        await switched(True)
+        await press(switched, True)
         await asyncio.sleep(0)
 
         self.assertEqual([call.args[1:] for call in kept.await_args_list],
@@ -1869,7 +1870,7 @@ class TypedRedrawTests(unittest.IsolatedAsyncioTestCase):
         kept = self.enterContext(patch.object(workbench, "_keeping_place", new=AsyncMock()))
         marked = self.enterContext(patch.object(workbench, "_marked"))
         _, rebuild, _, _ = await self._drawn("int")
-        await marked.call_args.kwargs["clear"]()
+        await press(marked.call_args.kwargs["clear"])
 
         kept.assert_awaited_once_with(ANY, rebuild, "Player.SoundVolume")
 
@@ -1929,7 +1930,7 @@ class GridBehindTests(unittest.IsolatedAsyncioTestCase):
         control_for = self.enterContext(patch.object(workbench.settings_page, "control_for"))
         await workbench._setting_entries(context, [("", "", [field])])
 
-        await control_for.call_args.args[2](True)
+        await press(control_for.call_args.args[2], True)
         await asyncio.sleep(0)
 
         rebuild.assert_not_awaited()

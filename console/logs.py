@@ -31,6 +31,7 @@ from common.i18n import t
 from console import devices as devices_page
 from console import offload, panel, verbs
 from console.data import Library
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.logs")
 
@@ -69,6 +70,7 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
         viewport = ui.column().classes(
             "w-full grow min-h-0 overflow-auto gap-0 console-log")
 
+    @on_page
     async def load() -> None:
         try:
             found = await offload.io(library.logs, RECORDS, held["level"],
@@ -153,6 +155,7 @@ def _draw_bar(bar: Any, held: dict[str, Any], reload: Callable[[], Any],
                        classes="console-help truncate max-w-xs")
 
 
+@on_page
 async def _draw(viewport: Any, held: dict[str, Any]) -> None:
     # Only when already at the bottom. A tail that yanks you away from the line you are
     # reading is worse than no tail at all.

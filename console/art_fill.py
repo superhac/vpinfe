@@ -20,6 +20,7 @@ from common.media_specs import media_label_map
 from console import confirm, offload, remembered, verbs
 from console import dialog as frame
 from console.api import ApiClient
+from console.on_page import on_page
 
 TICKS = "art_fill.kinds"
 _POLL_S = 1.0
@@ -60,6 +61,7 @@ def outcome(result: dict[str, Any]) -> tuple[str, Literal["positive", "warning",
     return t("console.art_fill.got_nothing"), "info"
 
 
+@on_page
 async def ask(game_ids: list[str] | None, state: dict[str, Any],
               then: Callable[[], Any], name: str = "") -> None:
     """Which kinds to get for these games, then get them. `None` is every game, and
@@ -77,6 +79,7 @@ async def ask(game_ids: list[str] | None, state: dict[str, Any],
         await get(lambda: ApiClient().fill_media(game_ids, kinds), state, then)
 
 
+@on_page
 async def confirm_slots(rows: list[dict[str, Any]], state: dict[str, Any],
                         then: Callable[[], Any]) -> None:
     """Get art for exactly these media rows, the ones among them that have no file."""
@@ -94,6 +97,7 @@ async def confirm_slots(rows: list[dict[str, Any]], state: dict[str, Any],
     await get(lambda: ApiClient().fill_media(slots=slots), state, then)
 
 
+@on_page
 async def confirm_kind(game_ids: list[str], kind: str, state: dict[str, Any],
                        then: Callable[[], Any]) -> None:
     """Get one kind for these games, asked as a plain question with no choices."""
@@ -204,6 +208,7 @@ def _kind_row(row: dict[str, Any], label: str, chosen: dict[str, bool],
         .classes("console-member-qualifier")
 
 
+@on_page
 async def get(start: Callable[[], dict], state: dict[str, Any],
               then: Callable[[], Any]) -> None:
     """Start the fill and say what it got once it ends; the footer line reports it

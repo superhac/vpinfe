@@ -45,6 +45,7 @@ from console import (
     verbs,
 )
 from console import dialog as frame
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.mediasource")
 
@@ -614,6 +615,7 @@ class _Slot(_OneFile):
                     if item.get("table") == self.table_id), None)
         return not self.destination and not (own or {}).get("displaces")
 
+    @on_page
     async def confirmed(self, filename: str) -> bool:
         """Ask before a write that deletes something, naming what goes.
 
@@ -638,6 +640,7 @@ class _Slot(_OneFile):
         candidates.row(src, name, meta, tag, take, family=self.target.family,
                        line=not self.target.family, current=current)
 
+    @on_page
     async def took(self, name: str, data: bytes) -> None:
         if not await self.confirmed(name):
             return
@@ -651,6 +654,7 @@ class _Slot(_OneFile):
         await self.finish(t("console.mediasource.label_saved", label=self.label))
 
     def file_row(self, item: dict[str, Any]) -> None:
+        @on_page
         async def take() -> None:
             if not await self.confirmed(item["name"]):
                 return
@@ -798,6 +802,7 @@ class _Slot(_OneFile):
                    vps_id: str) -> None:
         size = str(offer.get("size") or "")
 
+        @on_page
         async def take() -> None:
             if not await self.confirmed(str(offer.get("name") or "")):
                 return
@@ -882,6 +887,7 @@ class _Folder(_Sources):
     async def arrived(self, drop: uploads.Drop) -> None:
         await self._import(drop.upload_id, drop.name, drop.count)
 
+    @on_page
     async def _take(self, path: str) -> None:
         try:
             upload_id = await offload.io(self.library.upload_from_path, path)
@@ -890,6 +896,7 @@ class _Folder(_Sources):
             return
         await self._import(upload_id, PurePosixPath(path).name)
 
+    @on_page
     async def _import(self, upload_id: str, source: str, file_count: int = 0) -> None:
         if self._busy:
             ui.notify(t("console.uploads.finish_one_already_open"), type="warning")
@@ -1042,6 +1049,7 @@ class _Table(_Folder):
         if said:
             await self._chosen(said)
 
+    @on_page
     async def _chosen(self, path: str) -> None:
         adds = (self.library.import_table_file if self.copies
                 else self.library.add_referenced_table)
@@ -1094,6 +1102,7 @@ class _Table(_Folder):
             rows.append((t("word.id"), draw_id))
             panel.facts(ui, rows)
 
+            @on_page
             async def add() -> None:
                 said = str(held["typed"].value or "").strip()
                 if not said:
@@ -1120,6 +1129,7 @@ class _Table(_Folder):
                 panel.action(t("word.add"), add, icon=verbs.ADD)()
             held["typed"].on("keydown.enter", add)
 
+    @on_page
     async def _add_launcher(self, apps: list[str]) -> None:
         """A launcher for the program that takes an ID, opened on the Launchers page to
         be named and pointed at its program."""
@@ -1162,6 +1172,7 @@ class _Image(_OneFile):
         return item.get("family") == "image"
 
     def file_row(self, item: dict[str, Any]) -> None:
+        @on_page
         async def take() -> None:
             try:
                 data = await offload.io(self.library.browsed_file, item["path"])
@@ -1214,6 +1225,7 @@ class _Image(_OneFile):
         table_id = str((entry.get("table") or {}).get("id") or "")
         name = str(game.get("name") or "")
 
+        @on_page
         async def take() -> None:
             try:
                 data, served = await offload.io(self.library.media_file, game_id, table_id,
@@ -1228,6 +1240,7 @@ class _Image(_OneFile):
                        game_tables.made(game), "", take,
                        peek=art.media(game_id, "wheel", table_id, size=art.PANEL))
 
+    @on_page
     async def took(self, name: str, data: bytes) -> None:
         try:
             await offload.io(self.library.set_collection_image, self.name, name, data)

@@ -40,6 +40,7 @@ from console import (
 )
 from console import commands as commands_help
 from console.data import Library
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.settings")
 
@@ -60,6 +61,7 @@ SOURCES_NOTE = (t("console.settings.online_catalogs_searched_artwork"))
 CHECKS_NOTE = t("console.settings.checks_note")
 
 
+@on_page
 async def _write(library: Library, section: str, key: str, value: Any) -> bool:
     """One setting, written when it is set.
 
@@ -330,6 +332,7 @@ async def _fill_kinds(library: Library, rerender: Callable[[], None], body: Any,
 
     on = set(known) - _listed(policy.get(key))
 
+    @on_page
     async def flip(name: str, wanted_on: bool) -> None:
         after = (on | {name}) if wanted_on else (on - {name})
         store = sorted(set(known) - after)
@@ -380,6 +383,7 @@ async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tupl
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         return [panel.intro(t("console.settings.could_not_read_sync"), hint=why(exc))]
 
+    @on_page
     async def now() -> None:
         # Held: an ongoing notification never times out on its own.
         checking = ui.notification(t("console.settings.checking_vpsdb"), spinner=True, timeout=None)
@@ -421,6 +425,7 @@ async def _themes_foot(library: Library, rerender: Callable[[], None]) -> list[t
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         return [panel.intro(t("console.settings.could_not_read_themes"), hint=why(exc))]
 
+    @on_page
     async def now() -> None:
         checking = ui.notification(t("console.settings.checking_themes"), spinner=True,
                                    timeout=None)
@@ -998,10 +1003,10 @@ async def _suggestions(library: Library, schema: list[dict],
     Asked for only where a setting on this page declares one, so opening Displays does
     not go and look at the network.
     """
-    on_page = [option for block in schema if str(block.get("name")) in sections
-               for option in block.get("options") or []]
-    wanted = {str(option.get("suggest") or "") for option in on_page}
-    editors = {str(option.get("editor") or "") for option in on_page}
+    here = [option for block in schema if str(block.get("name")) in sections
+            for option in block.get("options") or []]
+    wanted = {str(option.get("suggest") or "") for option in here}
+    editors = {str(option.get("editor") or "") for option in here}
     offered: dict[str, Any] = {}
 
     if config_schema.EDITOR_LIST_ART in editors:
@@ -1069,6 +1074,7 @@ async def _identity_page(library: Library, reported: str,
     async def rename(text: str) -> None:
         await _write(library, "install", "display_name", text.strip())
 
+    @on_page
     async def flip(name: str, wanted_on: bool) -> None:
         # Switching the last one off is allowed. An install for nothing is a real state
         # and this page is still here in it: everything you need to make it for
@@ -1087,6 +1093,7 @@ async def _identity_page(library: Library, reported: str,
 
     language = config_schema.option("install", "language")
 
+    @on_page
     async def relanguage(event: Any) -> None:
         if await _write(library, "install", "language", event.value):
             _take_the_page_again()

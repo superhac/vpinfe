@@ -21,6 +21,7 @@ from common.i18n import t
 from console import confirm, offload, panel, verbs
 from console import dialog as frame
 from console.api import ApiClient
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.send_to_device")
 
@@ -43,6 +44,7 @@ def name_of(device: dict[str, Any]) -> str:
     return str(device.get("display_name") or "").strip() or t("console.send_to_device.device")
 
 
+@on_page
 async def ask_where(games: list[dict[str, Any]],
                     state: dict[str, Any] | None = None) -> None:
     """Choose a device, say what will happen, and start it.
@@ -77,6 +79,7 @@ async def ask_where(games: list[dict[str, Any]],
     await send(games, picked, state)
 
 
+@on_page
 async def send(games: list[dict[str, Any]], device: dict[str, Any],
                state: dict[str, Any] | None = None) -> None:
     """Start the transfer, and say so if it fails. The drawer's job line says how it is

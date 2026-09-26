@@ -25,6 +25,7 @@ from common.i18n import literal_or, t
 from console import dialog as frame
 from console import offload, panel, verbs
 from console.api import ApiClient
+from console.on_page import on_page
 
 # How often to ask a running job how it is doing. A job here is minutes of copying, so a
 # tighter loop would be a question asked hundreds of times for the same answer.
@@ -80,6 +81,7 @@ def _aside(text: str) -> Any:
     return draw
 
 
+@on_page
 async def open_action(extension: str, action: dict) -> None:
     """Run one action: ask what it asks, in as many steps as it asks it, then do it.
 
@@ -134,6 +136,7 @@ async def open_action(extension: str, action: dict) -> None:
                 else:
                     frame.answer(t("word.next"), _next, icon=verbs.NEXT)
 
+        @on_page
         async def _next() -> None:
             try:
                 found = await offload.io(
@@ -154,6 +157,7 @@ async def open_action(extension: str, action: dict) -> None:
             step_now["found"] = history.pop()
             draw(step_now["found"])
 
+        @on_page
         async def _start() -> None:
             try:
                 started = await offload.io(client.ext_post, f"{base}/run",

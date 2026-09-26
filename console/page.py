@@ -48,6 +48,7 @@ from console import settings as settings_page
 from console import themes as themes_page
 from console.api import ApiClient
 from console.data import Library
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.page")
 
@@ -332,6 +333,7 @@ def _read_hub() -> dict[str, Any]:
 # Five minutes to reconnect, not the default three seconds: a suspended background tab
 # goes quiet for longer than that, and a page deleted under one comes back as a reload.
 # On each route, because the timeout is the page's and these are two pages.
+@on_page
 async def _took_a_drop(
         library: Library, state: dict, redraw: Callable[[], None], drop: Any) -> None:
     """What a drop meant, and the conversation that follows it.
@@ -750,6 +752,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
 
     ui.timer(0.1, _look_for_update, once=True)
 
+    @on_page
     async def _rescan() -> None:
         """Scan, and say what came of it however long it took.
 
@@ -788,6 +791,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 redraw()
             return
 
+    @on_page
     async def _open_to_match(game_id: str) -> None:
         """The game's Game Details, whose first row is its match."""
         if not await may_leave(state, "games"):
@@ -938,6 +942,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
 
     splitter.on_value_change(remember_width)
 
+    @on_page
     async def show_game(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about.
 
@@ -957,6 +962,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                               state["table"])
         deeplink.sync(state)
 
+    @on_page
     async def show_slot(row: dict | None) -> None:
         """The address keeps the game, the table and the kind, which is all a link to a
         file carries; the panel finds the row again from those."""
@@ -970,6 +976,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                                    state["view"])
         deeplink.sync(state)
 
+    @on_page
     async def show_device(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about - the same rule
         every other subject follows, so the panel needs no control of its own.
@@ -999,6 +1006,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         await workbench.build_theme(panel, workbench_title, library, state["theme_key"],
                                     state)
 
+    @on_page
     async def _probe_devices() -> None:
         """Ask every device again, on demand. The page's own pass runs once on load;
         this is for when you have just gone and switched one on."""
@@ -1007,6 +1015,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             ui.notify(t("console.page.could_not_ask_devices"), caption=why(failed[0]),
                       type="negative")
 
+    @on_page
     async def show_collection(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about - the same rule
         Games follows, so the panel never needs a control of its own."""
@@ -1023,6 +1032,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         state["tag"] = (row or {}).get("id") or None
         await workbench.build_tag(panel, workbench_title, library, state["tag"], state)
 
+    @on_page
     async def show_launcher(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about, the same rule
         every other subject follows."""
@@ -1418,6 +1428,7 @@ def leave_for(state: dict[str, Any], view: str) -> None:
     remembered.put("section", view)
 
 
+@on_page
 async def may_leave(state: dict[str, Any], view: str) -> bool:
     """Whether to go to `view`: asked first where that would drop rules nobody saved,
     and the rules dropped on a yes."""
@@ -1437,6 +1448,7 @@ async def may_leave(state: dict[str, Any], view: str) -> bool:
 def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render: Callable[..., Any],
               labels: list, destinations: dict, badges: dict, nested: bool = False,
               held: list | None = None) -> None:
+    @on_page
     async def choose() -> None:
         if not await may_leave(state, key):
             return
@@ -1493,6 +1505,7 @@ def read_failure(job: dict[str, Any]) -> tuple[str, str]:
     return t("console.page.scan_failed"), str(job.get("error") or "")
 
 
+@on_page
 async def _read_the_library() -> dict | None:
     """Start a re-read of the library and hand back the job to watch.
 

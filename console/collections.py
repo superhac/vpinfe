@@ -22,6 +22,7 @@ from common.games.collection_store import DIRECTION_WORDS, MANUAL_ORDER, SORT_LA
 from common.i18n import t
 from console import art, collection_adds, community, confirm, grid, offload, panel, verbs, views
 from console.games import view_control
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.collections")
 
@@ -247,6 +248,7 @@ def build(collections: list[dict[str, Any]], library: Any,
     built = rows(collections, library.opens_on(), state.get("unsaved_rules") or set())
     fields = [definition["field"] for definition in COLUMNS]
 
+    @on_page
     async def act(what: Callable, *args: Any, said: str = "") -> None:
         try:
             await run.io_bound(what, *args)
@@ -395,6 +397,7 @@ def build(collections: list[dict[str, Any]], library: Any,
             order.insert(order.index(shown[at + 1]) + 1, name)
         return order
 
+    @on_page
     async def arrange(order: list[str], focus: str = "") -> None:
         try:
             await run.io_bound(library.arrange_collections, order)
@@ -402,6 +405,7 @@ def build(collections: list[dict[str, Any]], library: Any,
             ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
         await reread(focus)
 
+    @on_page
     async def dragged() -> None:
         drawn = await ui.run_javascript(_ARRANGEMENT % table.id)
         await arrange(list((drawn or {}).get("shown") or []))
@@ -422,6 +426,7 @@ def build(collections: list[dict[str, Any]], library: Any,
         lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                       search.value or ""))
 
+    @on_page
     async def reread(focus: str = "") -> None:
         fresh = rows(await offload.io(library.load_collections), library.opens_on(),
                      state.get("unsaved_rules") or set())
@@ -480,6 +485,7 @@ def acts(library: Any, state: dict[str, Any], name: str,
 
     No Rename: the name is a field in the panel's Details, beside the description, and
     a name editable in two places is two answers."""
+    @on_page
     async def duplicate() -> None:
         try:
             taken = {str(one.get("name") or "")
@@ -492,6 +498,7 @@ def acts(library: Any, state: dict[str, Any], name: str,
         ui.notify(t("console.collections.created", name=copy), type="positive")
         await after(copy)
 
+    @on_page
     async def delete() -> None:
         # Asked, because a manual collection is somebody's hand-picked list and there
         # is no undo behind this.

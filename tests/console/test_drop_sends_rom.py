@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from common.i18n import t
 from console import import_dialog, mediasource, page, uploads
+from tests.support.clicks import press
 
 WITH_ROM = {"id": "g-1", "name": "Medieval Madness", "folder": "/games/Medieval Madness",
             "rom": "mm_109c"}
@@ -50,7 +51,8 @@ class _Dropping(unittest.IsolatedAsyncioTestCase):
 
 class ThePlanNamesTheGamesRom(_Dropping):
     async def _confirmed(self, game: dict[str, Any] | None) -> None:
-        await uploads.confirmed_import(
+        await press(
+            uploads.confirmed_import,
             self.library, "u-1", {}, source="mm_109c.cRZ", on_done=AsyncMock(),
             game_id=str((game or {}).get("id") or ""),
             game_dir=str((game or {}).get("folder") or ""),
@@ -82,7 +84,7 @@ class EveryWayOntoAGameSendsIt(_Dropping):
     async def _dropped_on_the_grid(self, **where: Any) -> None:
         drop = uploads.Drop(target=uploads.TARGET_GAME, upload_id="u-1",
                             name="mm_109c.cRZ", **where)
-        await page._took_a_drop(self.library, {"view": "games"}, Mock(), drop)
+        await press(page._took_a_drop, self.library, {"view": "games"}, Mock(), drop)
 
     async def test_a_games_row(self) -> None:
         await self._dropped_on_the_grid(row_id="g-1")
@@ -98,7 +100,7 @@ class EveryWayOntoAGameSendsIt(_Dropping):
         context = {"library": self.library, "game_id": "g-1", "game": WITH_ROM}
         sources = mediasource._Folder(context, "alt_color", "Alt Color", AsyncMock())
 
-        await sources.arrived(uploads.Drop(upload_id="u-1", name="mm_109c.cRZ"))
+        await press(sources.arrived, uploads.Drop(upload_id="u-1", name="mm_109c.cRZ"))
 
         self.assertEqual(("mm_109c", "mm_109c"), (self.planned_rom(), self.imported_rom()))
 

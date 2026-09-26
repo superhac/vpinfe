@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 from common.i18n import t
 from console import game_tables, workbench
+from tests.support.clicks import press
 
 FOLDER_NAMED = "Multi VPX (Original 2024).vpx"
 ALT = "Multi VPX (Original 2024) - alt.vpx"
@@ -40,7 +41,7 @@ class DeleteConfirmTests(unittest.IsolatedAsyncioTestCase):
     async def _detail(self, table: dict[str, Any]) -> str:
         ask = AsyncMock(return_value=False)
         with patch.object(workbench.confirm, "ask", ask):
-            await workbench._drop_script({"library": None}, table)
+            await press(workbench._drop_script, {"library": None}, table)
         ask.assert_awaited_once()
         assert ask.await_args is not None
         return str(ask.await_args.kwargs["detail"])

@@ -32,6 +32,7 @@ from common.i18n import t
 from common.labels import humanize
 from console import game_tables, offload, stars, theme, verbs
 from console.api import ApiClient, ApiError, local_base_url
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.remote")
 
@@ -560,6 +561,7 @@ def _now(state: dict[str, Any],
 
 def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target: Callable[[], Any],
              redraw: Callable[[], None]) -> None:
+    @on_page
     async def quit_table() -> None:
         try:
             await run.io_bound(client_for_target().stop_play)
@@ -590,6 +592,7 @@ def _idle(state: dict[str, Any], redraw: Callable[[], None]) -> None:
             ui.label(t("console.remote.nothing_playing")).classes("remote-headline")
         return
 
+    @on_page
     async def rate(value: int) -> None:
         try:
             await run.io_bound(ApiClient().rate, game["id"], value)
@@ -699,6 +702,7 @@ def _play(state: dict[str, Any],
         state["find"] = str(event.value or "")
         listed()
 
+    @on_page
     async def narrow(event: Any) -> None:
         name = str(event.value or "")
         # Taken before anything is awaited, so the frontend's own report of this switch
@@ -778,6 +782,7 @@ def _game_row(game: dict[str, Any], state: dict[str, Any], client_for_target: Ca
     """
     game_id = str(game.get("id") or "")
 
+    @on_page
     async def tapped(_event: Any = None) -> None:
         showing = state.get("frontend")
         if mirroring(showing) and game_id != wheel_id(showing):
@@ -825,6 +830,7 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target: 
         if made:
             ui.label(made).classes("remote-note")
 
+        @on_page
         async def write(call: Any, *args: Any) -> bool:
             try:
                 await run.io_bound(call, *args)
@@ -865,6 +871,7 @@ def _launch_button(game: dict[str, Any], state: dict[str, Any],
                    cls: str, then: Callable[[], Any] = lambda: None) -> None:
     """Launch, at the foot of the sheet and beside the game on the wheel alike. Once it
     has started, Now is where the table is quit from."""
+    @on_page
     async def launch() -> None:
         try:
             await run.io_bound(client_for_target().launch, game["id"])
@@ -895,6 +902,7 @@ def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet: Any,
             .tooltip(t("console.remote.no_hand_picked_yet"))
         return
 
+    @on_page
     async def add(name: str) -> None:
         if await write(ApiClient().add_to_collection, name, game["id"]):
             ui.notify(t("console.remote.added", name=(name)), type="positive")

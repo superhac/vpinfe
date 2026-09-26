@@ -11,6 +11,7 @@ from nicegui import ui
 
 from common.failures import why
 from common.i18n import t
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.undo")
 
@@ -55,6 +56,7 @@ def offer(said: str, reverse: Callable[[], Awaitable[Any]], *, warn: bool = Fals
                icon=icon)
 
 
+@on_page
 async def _undo(reverse: Callable[[], Awaitable[Any]], done: str = "") -> None:
     try:
         await reverse()

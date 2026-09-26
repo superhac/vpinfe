@@ -21,6 +21,7 @@ from common import icons
 from common.failures import why
 from common.i18n import t
 from console import candidates, dialog, game_tables, offload, panel, verbs
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.vps_match")
 
@@ -30,6 +31,7 @@ CLEARED = "\x00none"
 STOPPED = "\x00stopped"
 
 
+@on_page
 async def ask(library: Any, game: dict[str, Any], place: str = "",
               walking: bool = False) -> str | None:
     """Ask which VPS entry this game is. The caller writes; this only asks.
@@ -138,6 +140,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
     return await box
 
 
+@on_page
 async def walk(library: Any, games: list[dict[str, Any]]) -> None:
     """Work through several games' matches, one picker at a time.
 

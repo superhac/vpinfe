@@ -13,6 +13,7 @@ from common.i18n import t
 from console import collection_rules, deeplink, grid, offload, panel, tag_chips, verbs, views, when
 from console.api import ApiClient, ApiError
 from console.data import Library, read_state, sources_of
+from console.on_page import on_page
 
 PREFIX = "community:"
 ICON = "extension"
@@ -183,6 +184,7 @@ def _collection_address(name: str) -> str:
     return "/console?" + deeplink.query({"view": "collections", "collection": name})
 
 
+@on_page
 async def _make_collection(library: Library, title: str, filters: dict[str, Any]) -> None:
     collections = await offload.io(library.load_collections)
     try:
@@ -248,6 +250,7 @@ def build(extension: dict[str, Any], declared: dict[str, Any], library: Library)
     ui.timer(0.01, lambda: _fill(extension, declared, library, body), once=True)
 
 
+@on_page
 async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Library,
                 body: Any) -> None:
     from .games import view_control
@@ -365,6 +368,7 @@ async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Li
             lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                           search.value or ""))
 
+    @on_page
     async def read_again(asked: bool = False) -> None:
         again.disable()
         fresh = await offload.io(read, name, key, fetch)

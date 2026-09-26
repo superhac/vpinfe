@@ -83,6 +83,7 @@ from console import locations as locations_page
 from console import settings as settings_page
 from console import themes as themes_page
 from console.data import Library, config_groups, read_state, tag_source
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.workbench")
 
@@ -633,6 +634,7 @@ async def _tag_changed(context: dict[str, Any], name: str | None) -> None:
 async def _tag_details(context: dict[str, Any]) -> None:
     library, name, look = context["library"], context["name"], context["tag"]
 
+    @on_page
     async def rename(value: str) -> None:
         said = " ".join(str(value or "").split())
         if not said or said == name:
@@ -650,6 +652,7 @@ async def _tag_details(context: dict[str, Any]) -> None:
             return
         await _tag_changed(context, said)
 
+    @on_page
     async def describe(value: str) -> None:
         try:
             await run.io_bound(library.put_tag, name, {"description": value})
@@ -681,6 +684,7 @@ def _swatches(context: dict[str, Any]) -> None:
     library, name, look = context["library"], context["name"], context["tag"]
     chosen = str(look.get("color") or "") if look.get("chosen") else ""
 
+    @on_page
     async def pick(color: str) -> None:
         try:
             await run.io_bound(library.put_tag, name, {"color": color})
@@ -1058,6 +1062,7 @@ def _folder_actions(context: dict[str, Any], kind: str, label: str, present: boo
                 .classes("console-action console-action--danger")
 
 
+@on_page
 async def _remove_asset(context: dict[str, Any], kind: str, path: str, tier: str,
                         files: int | None = None) -> None:
     falls_back = any(one.key == kind and one.folder_fallback for one in VPX_ASSET_KINDS)
@@ -1099,6 +1104,7 @@ def _asset_spec(detail: dict[str, Any]) -> str:
     return " \u00b7 ".join(parts)
 
 
+@on_page
 async def _open_whole(context: dict[str, Any], path: str, label: str) -> None:
     try:
         found = await offload.io(context["library"].asset_detail, context["game_id"], path, 0)
@@ -1870,6 +1876,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
     file_name = detail.get("file") or entry.get("file") or ""
     also_here = list(detail.get("tiers") or [])
 
+    @on_page
     async def remove() -> None:
         taken = _removal(context, detail.get("tiers"), entry, detail.get("after_remove"))
         if taken is not None and not await confirm.ask(
@@ -1893,6 +1900,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
     # to say which one would get it. That one needs a decision, not a default.
     can_share = present and table_id and str(entry.get("via") or "") == "table"
 
+    @on_page
     async def share() -> None:
         """The table's own file takes the folder's name, so every table resolves it."""
         try:
@@ -2100,6 +2108,7 @@ async def _release_match(context: dict[str, Any],
     return rows + [(FULL, _change_match(pick, matched=True))]
 
 
+@on_page
 async def _write(context: dict[str, Any], call: Callable[..., Any],
                  *args: Any, shape: bool = True) -> None:
     """One write, off the loop, then put right whatever it changed.
@@ -2118,6 +2127,7 @@ async def _write(context: dict[str, Any], call: Callable[..., Any],
     await (context["rebuild"]() if shape else context["saved"]())
 
 
+@on_page
 async def _save_overrides(context: dict[str, Any], changes: dict[str, Any], *,
                           table: bool) -> None:
     """Write one field and rebuild. Off the loop: this is an HTTP call to our own
@@ -2375,6 +2385,7 @@ def _game_play_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     """The game's own record."""
     record = context["game"].get("user") or {}
 
+    @on_page
     async def reset() -> None:
         if not await confirm.ask(
                 t("console.workbench.reset_game_s_play"),
@@ -2393,6 +2404,7 @@ def _table_play_rows(context: dict[str, Any],
     record = table.get("user") or {}
     table_id = str(table.get("id") or "")
 
+    @on_page
     async def reset() -> None:
         if not await confirm.ask(
                 t("console.workbench.reset_table_s_play"),
@@ -2457,6 +2469,7 @@ def _collection_row(context: dict[str, Any], one: dict[str, Any]) -> None:
     name = str(one.get("name") or "")
     how = str(one.get("how") or "")
 
+    @on_page
     async def act() -> None:
         if how != "taken_out":
             await collection_adds.remove(library, name, [game_id],
@@ -2571,6 +2584,7 @@ def _as_sent(guides: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{"url": one["url"], "hidden": bool(one.get("hidden"))} for one in guides]
 
 
+@on_page
 async def _save_guides(context: dict[str, Any], guides: list[dict[str, Any]]) -> None:
     try:
         await run.io_bound(context["library"].set_game_guides, context["game_id"], guides)
@@ -3120,6 +3134,7 @@ def _change_match(pick: Callable[[], Any], *, matched: bool) -> Callable[[], Non
     return draw
 
 
+@on_page
 async def _pick_a_match(context: dict[str, Any]) -> None:
     """Ask which catalog entry this game is, and write the answer.
 
@@ -3349,6 +3364,7 @@ def _hidden_row(context: dict[str, Any], table: dict[str, Any]) -> tuple[Any, An
     """Whether the frontend offers this table."""
     table_id = str(table.get("id") or "")
 
+    @on_page
     async def hide(event: Any) -> None:
         hidden = bool(event.value)
         try:
@@ -3377,6 +3393,7 @@ def _play_action(context: dict[str, Any], table: dict[str, Any]) -> Callable[[],
     """Play this one, not the game's default - the panel is about this entry."""
     filename = game_tables.native_key(table)
 
+    @on_page
     async def go() -> None:
         try:
             await run.io_bound(context["library"].launch, context["game_id"], filename)
@@ -3488,6 +3505,7 @@ def _launcher_pick(context: dict[str, Any], table: dict[str, Any]) -> Callable[[
             field.disable()
             field.tooltip(t("console.workbench.device_no_launcher"))
 
+        @on_page
         async def changed() -> None:
             try:
                 await run.io_bound(context["library"].assign_launcher,
@@ -3532,6 +3550,7 @@ def _feature_chips(features: dict[str, Any]) -> None:
             ui.label(label).classes(f"console-tier {state.chip}").tooltip(state.noun)
 
 
+@on_page
 async def _script_act(context: dict[str, Any], call: Any, table_id: str,
                       done: str, failed: str) -> None:
     """Run one script act and redraw. The panel is showing which script runs, so it is
@@ -3553,6 +3572,7 @@ async def _extract_script(context: dict[str, Any], table: dict[str, Any]) -> Non
                       t("console.workbench.could_not_extract_script"))
 
 
+@on_page
 async def _drop_script(context: dict[str, Any], table: dict[str, Any]) -> None:
     """Confirmed: whatever the sidecar held goes with it, and a patched table quietly
     becomes an unpatched one."""
@@ -3570,6 +3590,7 @@ async def _drop_script(context: dict[str, Any], table: dict[str, Any]) -> None:
                       t("console.workbench.could_not_delete_script"))
 
 
+@on_page
 async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
     """Drop a gone table's record, once the user says it is not coming back.
 
@@ -3643,6 +3664,7 @@ async def after_a_row_drop(library: Library, state: dict[str, Any], game_id: str
     return _after_an_add(context)
 
 
+@on_page
 async def _table_added(context: dict[str, Any], held: set[str],
                        was: dict[str, Any] | None) -> None:
     try:
@@ -3710,6 +3732,7 @@ async def _table_list_changed(context: dict[str, Any]) -> None:
     await context["rebuild"]()
 
 
+@on_page
 async def _contain_table(context: dict[str, Any], table: dict[str, Any]) -> None:
     """Copy a referenced file into the game folder, so the entry stops depending on
     somewhere else being there.
@@ -3981,6 +4004,7 @@ def _match_button(context: dict[str, Any], kind: str, label: str,
     button.tooltip(t("console.workbench.match_game_vps_first_2"))
 
 
+@on_page
 async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
                          path: str, bound: str,
                          redraw: Callable[[], None]) -> None:
@@ -4054,6 +4078,7 @@ def _in_place_of_list(line: str, reason: str) -> None:
         panel.line(line, hint=reason)
 
 
+@on_page
 async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> None:
     """Bind this table to one of the entry's builds, or take the binding back.
 
@@ -4201,6 +4226,7 @@ def _launch_button(context: dict[str, Any], table: dict[str, Any]) -> None:
     target would be implicit."""
     filename = game_tables.native_key(table)
 
+    @on_page
     async def go() -> None:
         try:
             await run.io_bound(context["library"].launch, context["game_id"], filename)
@@ -4246,6 +4272,7 @@ def _lock_button(context: dict[str, Any], table: dict[str, Any],
         .props("flat dense round size=sm").tooltip(hint)
 
 
+@on_page
 async def _lock_default(context: dict[str, Any], table: dict[str, Any], *,
                         lock: bool) -> None:
     try:
@@ -4260,6 +4287,7 @@ async def _lock_default(context: dict[str, Any], table: dict[str, Any], *,
     await context["rebuild"]()
 
 
+@on_page
 async def _make_default(context: dict[str, Any], table: dict[str, Any]) -> None:
     """Hand the game a different default. Everything downstream that follows the game
     rather than one table moves with it, which is the point of following."""
@@ -4842,6 +4870,7 @@ async def _setting_entries(context: dict[str, Any],
                             table=table, scope=scope)
 
     def clear(keys: Sequence[str]) -> Callable[[], Awaitable[None]]:
+        @on_page
         async def wipe() -> None:
             try:
                 async with in_turn:
@@ -4854,6 +4883,7 @@ async def _setting_entries(context: dict[str, Any],
         return wipe
 
     def save(key: str, typed: bool) -> Callable[[Any], Awaitable[bool]]:
+        @on_page
         async def write(value: Any) -> bool:
             try:
                 async with in_turn:
@@ -5266,6 +5296,7 @@ def _as_option(field: Any) -> dict[str, Any]:
     return option
 
 
+@on_page
 async def _agreed_to_switch_off(library: Any, launcher: dict[str, Any]) -> bool:
     try:
         found = await offload.io(library.launcher_fallback, launcher["launcher_id"])
@@ -5338,6 +5369,7 @@ async def _launcher_details(context: dict[str, Any]) -> None:
                 await again()
         return ""
 
+    @on_page
     async def write(**changes: Any) -> bool:
         refused = await put(changes)
         if refused:
@@ -5354,6 +5386,7 @@ async def _launcher_details(context: dict[str, Any]) -> None:
             retitle(wanted)
         return refused
 
+    @on_page
     async def flip(on: bool) -> None:
         if not on and not await _agreed_to_switch_off(library, launcher):
             await rebuild()
@@ -5361,6 +5394,7 @@ async def _launcher_details(context: dict[str, Any]) -> None:
         if await write(enabled=on):
             await rebuild()
 
+    @on_page
     async def make_default(on: bool) -> None:
         if on and not is_default:
             try:
@@ -5452,6 +5486,7 @@ async def _config_backups(context: dict[str, Any]) -> None:
     named = list((found.get("files") or {}).values())
     playing = bool(context.get("playing"))
 
+    @on_page
     async def take() -> None:
         try:
             await run.io_bound(library.take_config_backup, launcher["launcher_id"], "")
@@ -5517,6 +5552,7 @@ async def _restore_dialog(held: list[dict], context: dict[str, Any],
     library = context["library"]
     launcher_id = context["launcher"]["launcher_id"]
 
+    @on_page
     async def put_back(name: str, dialog: Any) -> None:
         dialog.close()
         if not await confirm.ask(
@@ -5565,6 +5601,7 @@ async def _location_details(context: dict[str, Any]) -> None:
     library = context["library"]
     rebuild = context["rebuild"]
 
+    @on_page
     async def write(**changes: Any) -> None:
         body = {"path": row["path"], "kind": row["kind"], **changes}
         try:
@@ -5617,6 +5654,7 @@ def _location_priority(context: dict[str, Any],
     order = [one["location_id"] for one in held]
     place = order.index(row["location_id"]) if row["location_id"] in order else 0
 
+    @on_page
     async def move(by: int) -> None:
         wanted = list(order)
         wanted.insert(place + by, wanted.pop(place))
@@ -5683,6 +5721,7 @@ async def _shadowed_block(context: dict[str, Any], row: dict[str, Any]) -> None:
                 .classes("console-member-table")
 
 
+@on_page
 async def _adopt_shadowed(context: dict[str, Any], one: dict[str, Any]) -> None:
     """Settle one of them by giving this folder an id of its own.
 
@@ -5722,6 +5761,7 @@ def _location_write_to(context: dict[str, Any],
     if row["write_to"]:
         return panel.state(t("word.created_here"), "on")
 
+    @on_page
     async def choose() -> None:
         try:
             await run.io_bound(context["library"].set_location_write_to,
@@ -5771,6 +5811,7 @@ def _text_control(context: dict[str, Any], row: dict[str, Any], field: str,
     makes that safe: nicegui's model is only current if every keystroke reaches it, and
     reading it on blur without that gets whatever the last sync happened to hold.
     """
+    @on_page
     async def save(value: str) -> None:
         if value == (row.get(field) or ""):
             return
@@ -5799,6 +5840,7 @@ def _text_control(context: dict[str, Any], row: dict[str, Any], field: str,
     return draw
 
 
+@on_page
 async def _rename(context: dict[str, Any], wanted: str) -> None:
     old = _collection(context)["name"]
     try:
@@ -5839,6 +5881,7 @@ def _opens_on_switch(context: dict[str, Any], row: dict[str, Any]) -> Callable[[
     now = str(behavior.get("startup_collection") or "").strip()
     here = bool(name) and now == name
 
+    @on_page
     async def changed(event: Any) -> None:
         if bool(event.value) == here:
             return
@@ -6234,6 +6277,7 @@ def _many_values(context: dict[str, Any], field: collection_rules.Field, value: 
     control.on("popup-hide", hidden)
 
 
+@on_page
 async def _save_rules(context: dict[str, Any]) -> None:
     """Write the rule and nothing else, then stop drafting."""
     row, library = _collection(context), context["library"]
@@ -6262,6 +6306,7 @@ async def _cancel_rules(context: dict[str, Any]) -> None:
     await context["rebuild"]()
 
 
+@on_page
 async def _convert(context: dict[str, Any]) -> None:
     row = _collection(context)
     name = row["name"]
@@ -6274,6 +6319,7 @@ async def _convert(context: dict[str, Any]) -> None:
     await _keep_what_it_found(context)
 
 
+@on_page
 async def _keep_what_it_found(context: dict[str, Any]) -> None:
     name = _collection(context)["name"]
     try:
@@ -6286,6 +6332,7 @@ async def _keep_what_it_found(context: dict[str, Any]) -> None:
     await _written(context)
 
 
+@on_page
 async def _take_rules_away(context: dict[str, Any]) -> None:
     row = _collection(context)
     name = row["name"]
@@ -6452,6 +6499,7 @@ async def _set_order(context: dict[str, Any], changes: dict[str, Any]) -> None:
     await context["rebuild"]()
 
 
+@on_page
 async def _patch(context: dict[str, Any], changes: dict[str, Any]) -> None:
     library = context["library"]
     try:
@@ -6557,6 +6605,7 @@ async def member_moved(state: dict[str, Any], moved: Any) -> None:
         await _reorder(held[0], held[1], moved)
 
 
+@on_page
 async def _reorder(context: dict[str, Any], members: list[dict], moved: Any) -> None:
     """Put one game where it was dropped.
 
@@ -6694,6 +6743,7 @@ def _table_choice(context: dict[str, Any], member: dict[str, Any],
         line.on("click", lambda: _fill_table_menu(context, member, table, holder))
 
 
+@on_page
 async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
                            table: dict[str, Any], holder: Any) -> None:
     """This game's tables, read when asked for rather than with every row.
@@ -6780,6 +6830,7 @@ def _table_menu_item(context: dict[str, Any], member: dict[str, Any], table_id: 
 
     `under` names what the game's default is today, so choosing it is not a blind pick.
     """
+    @on_page
     async def pick() -> None:
         if chosen or blocked:
             return
@@ -6827,6 +6878,7 @@ def _add_table_item(context: dict[str, Any], member: dict[str, Any],
     game = str(member.get("game") or "")
     playing = member.get("tables") or [{}]
 
+    @on_page
     async def add() -> None:
         try:
             if member.get("origin") == "filter":
@@ -6865,6 +6917,7 @@ def _member_action(context: dict[str, Any], member: dict[str, Any],
     library = context["library"]
     name = _collection(context)["name"]
 
+    @on_page
     async def put_back() -> None:
         row = collection_adds.row_of(member)
         try:
@@ -6933,6 +6986,7 @@ def _collection_verbs(context: dict[str, Any]) -> list[panel.Verb]:
 
     state = context["state"]
 
+    @on_page
     async def after(then: str | None) -> None:
         if then:
             state["collection"] = then

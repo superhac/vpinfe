@@ -13,6 +13,7 @@ import requests
 from common.i18n import t
 from common.online import app_updater
 from console import devices, verbs
+from tests.support.clicks import press
 
 UPDATE = {"latest_version": "v3.1.0"}
 
@@ -23,7 +24,7 @@ class UpdateConfirm(unittest.IsolatedAsyncioTestCase):
         with patch.object(devices.offload, "io", new=AsyncMock(return_value=playing)), \
                 patch.object(devices.confirm, "ask", new=ask), \
                 patch.object(devices.ui, "notify", new=Mock()):
-            await devices._confirm_update(Mock(), "Basement", UPDATE)
+            await press(devices._confirm_update, Mock(), "Basement", UPDATE)
         return ask
 
     async def test_with_nothing_running_it_asks_to_update(self) -> None:
@@ -179,7 +180,7 @@ class CheckNow(unittest.IsolatedAsyncioTestCase):
         io = AsyncMock(side_effect=lambda call, *args: call(*args))
         with patch.object(devices.offload, "io", new=io), \
                 patch.object(devices.ui, "notification", new=Mock()):
-            await devices._check_now({"rebuild": rebuild}, ask)()
+            await press(devices._check_now({"rebuild": rebuild}, ask))
 
         ask.assert_called_once_with(True)
         rebuild.assert_awaited_once()
@@ -189,8 +190,8 @@ class CheckNow(unittest.IsolatedAsyncioTestCase):
         with patch.object(devices.offload, "io", new=AsyncMock(side_effect=OSError("down"))), \
                 patch.object(devices.ui, "notification", new=Mock()), \
                 patch.object(devices.ui, "notify", new=notify):
-            await devices._check_now({"rebuild": rebuild, "device": {"name": "Basement"}},
-                                     Mock())()
+            await press(devices._check_now({"rebuild": rebuild, "device": {"name": "Basement"}},
+                                           Mock()))
 
         rebuild.assert_not_awaited()
         self.assertEqual(notify.call_args.kwargs["type"], "negative")

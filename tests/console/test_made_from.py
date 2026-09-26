@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 from console import game_tables, import_dialog, workbench
+from tests.support.clicks import press
 
 BASE_ID, MADE_ID = "tblBase", "tblMade"
 
@@ -86,7 +87,7 @@ class Forget(unittest.IsolatedAsyncioTestCase):
         tables = _tables(_base(available=False))
         ask = AsyncMock(return_value=False)
         with patch.object(workbench.confirm, "ask", ask):
-            await workbench._forget_table({"tables": tables}, tables[1])
+            await press(workbench._forget_table, {"tables": tables}, tables[1])
 
         self.assertEqual("Made from it: " + game_tables.name_among(tables[0], tables),
                          ask.call_args.kwargs["lines"][-1])
@@ -95,7 +96,7 @@ class Forget(unittest.IsolatedAsyncioTestCase):
         tables = _tables(_base(available=False))
         ask = AsyncMock(return_value=False)
         with patch.object(workbench.confirm, "ask", ask):
-            await workbench._forget_table({"tables": tables}, tables[0])
+            await press(workbench._forget_table, {"tables": tables}, tables[0])
 
         self.assertEqual(1, len(ask.call_args.kwargs["lines"]))
 

@@ -21,6 +21,7 @@ from common.i18n import t
 from console import confirm, grid, offload, panel, renderers, tag_chips, verbs, views
 from console import dialog as frame
 from console.data import Library
+from console.on_page import on_page
 
 SUBJECT = "tag"
 LABEL = t("console.tageditor.tags")
@@ -88,6 +89,7 @@ def build(rows: list[dict[str, Any]], library: Any,
           rerender: Callable[[], None] | None = None) -> None:
     """The editor. The duplicates lead, because they are what somebody came here for."""
     tag_chips.install(library.tag_looks())
+    @on_page
     async def sweep(call: Callable[..., Any], *args: Any, said: str = "") -> None:
         try:
             changed = await offload.io(call, *args)
@@ -99,6 +101,7 @@ def build(rows: list[dict[str, Any]], library: Any,
         if rerender is not None:
             rerender()
 
+    @on_page
     async def merge(group: list[dict[str, Any]]) -> None:
         into = str(group[0].get("tag") or "")
         others = [str(r.get("tag")) for r in group[1:]]
@@ -130,6 +133,7 @@ def build(rows: list[dict[str, Any]], library: Any,
                         .props("flat dense no-caps size=sm") \
                         .classes("console-action console-action--inline")
 
+    @on_page
     async def write_down() -> None:
         wanted = await _new_tag(library)
         if not wanted:
@@ -274,6 +278,7 @@ def acts(library: Any, tag: str, games: int,
     others = sorted((one for one in library.tag_looks() if one != tag and one not in derived),
                     key=str.casefold)
 
+    @on_page
     async def rename() -> None:
         said = await _ask_for_a_name(tag)
         if not said or said == tag:
@@ -286,6 +291,7 @@ def acts(library: Any, tag: str, games: int,
         ui.notify(t("console.tageditor.renamed", said=(said)), type="positive")
         await after(said)
 
+    @on_page
     async def merge(into: str) -> None:
         if not await confirm.ask(t("console.tageditor.merge", into=into),
                                  detail=t("console.tageditor.every_game_carrying_one"),
@@ -302,6 +308,7 @@ def acts(library: Any, tag: str, games: int,
         ui.notify(t("console.tageditor.merged", into=(into)), type="positive")
         await after(into)
 
+    @on_page
     async def delete() -> None:
         if not await confirm.ask(t("console.tageditor.delete", tag=tag),
                                  detail=t("console.tageditor.delete_detail", count=games),

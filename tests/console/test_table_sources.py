@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from common.i18n import t
 from console import import_dialog, mediasource, page, uploads, workbench
+from tests.support.clicks import press
 
 
 async def _now(callback: Any, *args: Any, **kwargs: Any) -> Any:
@@ -31,7 +32,7 @@ class CopyOrUseWhereItIs(unittest.IsolatedAsyncioTestCase):
             self.addCleanup(patched.stop)
 
     async def test_a_copy_is_the_tables_import(self) -> None:
-        await self.sources._chosen("/share/Other.vpx")
+        await press(self.sources._chosen, "/share/Other.vpx")
 
         self.library.import_table_file.assert_called_once_with("g-1", "/share/Other.vpx")
         self.library.add_referenced_table.assert_not_called()
@@ -40,7 +41,7 @@ class CopyOrUseWhereItIs(unittest.IsolatedAsyncioTestCase):
     async def test_use_it_where_it_is_points_at_it(self) -> None:
         self.sources.copies = False
 
-        await self.sources._chosen("/share/Other.vpx")
+        await press(self.sources._chosen, "/share/Other.vpx")
 
         self.library.add_referenced_table.assert_called_once_with("g-1", "/share/Other.vpx")
         self.library.import_table_file.assert_not_called()
@@ -48,7 +49,7 @@ class CopyOrUseWhereItIs(unittest.IsolatedAsyncioTestCase):
     async def test_a_refusal_adds_nothing(self) -> None:
         self.library.import_table_file.side_effect = RuntimeError("not readable")
 
-        await self.sources._chosen("/elsewhere/Other.vpx")
+        await press(self.sources._chosen, "/elsewhere/Other.vpx")
 
         self.done.assert_not_awaited()
 
@@ -64,7 +65,7 @@ class Uploaded(unittest.IsolatedAsyncioTestCase):
 
     async def _dropped(self) -> dict[str, Any]:
         sources = mediasource._Table(_context(Mock()), self.done)
-        await sources.arrived(uploads.Drop(upload_id="u-1", name="Other.vpx"))
+        await press(sources.arrived, uploads.Drop(upload_id="u-1", name="Other.vpx"))
         return self.confirmed.await_args.kwargs
 
     async def test_it_joins_the_game_rather_than_replacing_its_table(self) -> None:
@@ -76,7 +77,7 @@ class Uploaded(unittest.IsolatedAsyncioTestCase):
     async def test_a_drop_on_the_panel_finishes_with_no_dialog_to_close(self) -> None:
         asked = await self._dropped()
 
-        await asked["on_done"]()
+        await press(asked["on_done"])
 
         self.done.assert_awaited_once()
 
@@ -101,7 +102,7 @@ class ADropOnAGamesRow(unittest.IsolatedAsyncioTestCase):
                        media_kind: str = "") -> dict[str, Any]:
         drop = uploads.Drop(target=target, row_id="g-1", media_kind=media_kind,
                             upload_id="u-1", name="Other.vpx")
-        await page._took_a_drop(self.library, {"view": "games"}, Mock(), drop)
+        await press(page._took_a_drop, self.library, {"view": "games"}, Mock(), drop)
         return self.confirmed.await_args.kwargs
 
     async def test_it_joins_that_game_rather_than_replacing_its_table(self) -> None:
@@ -121,7 +122,7 @@ class ADropOnAGamesRow(unittest.IsolatedAsyncioTestCase):
             {"id": "t-1", "version": "0.9", "authors": ["Someone"], "default": True},
             {"id": "t-2", "version": "1.0", "authors": []}]
 
-        await asked["on_done"]()
+        await press(asked["on_done"])
 
         self.said.assert_called_once_with(
             t("console.game_tables.added", table="1.0", game="Some Game"), type="positive")
@@ -139,8 +140,8 @@ class AnAddIsSaidOnce(unittest.IsolatedAsyncioTestCase):
                 patch.object(import_dialog.frame, "answer"), \
                 patch.object(import_dialog, "ui") as drawn:
             drawn.notify = said
-            await import_dialog.open_for(
-                library, "u-1", {"items": [{"index": 0}]}, source="Other.vpx")
+            await press(import_dialog.open_for,
+                        library, "u-1", {"items": [{"index": 0}]}, source="Other.vpx")
         return said
 
     async def test_a_table_added_leaves_the_naming_to_the_add(self) -> None:

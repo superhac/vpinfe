@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from common.i18n import t
 from console import import_dialog, mediasource, page, uploads
+from tests.support.clicks import press
 
 GAME = {"id": "g-1", "name": "Medieval Madness", "folder": "/games/Medieval Madness",
         "rom": "mm_109c"}
@@ -54,7 +55,7 @@ class TheCountReachesTheDialogTests(unittest.IsolatedAsyncioTestCase):
     async def test_from_the_grid(self) -> None:
         drop = uploads.Drop(target=uploads.TARGET_GAME, row_id="g-1", upload_id="u-1",
                             count=3)
-        await page._took_a_drop(self.library, {"view": "games"}, Mock(), drop)
+        await press(page._took_a_drop, self.library, {"view": "games"}, Mock(), drop)
 
         self.assertEqual(("", 3), self.opened_with())
 
@@ -62,7 +63,7 @@ class TheCountReachesTheDialogTests(unittest.IsolatedAsyncioTestCase):
         context = {"library": self.library, "game_id": "g-1", "game": GAME}
         sources = mediasource._Folder(context, "backglass", "Backglass", AsyncMock())
 
-        await sources.arrived(uploads.Drop(upload_id="u-1", count=3))
+        await press(sources.arrived, uploads.Drop(upload_id="u-1", count=3))
 
         self.assertEqual(("", 3), self.opened_with())
 

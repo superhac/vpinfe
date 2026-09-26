@@ -13,6 +13,7 @@ from common import device_client, device_registry
 from common.i18n import t
 from common.labels import humanize
 from console import offload, verbs
+from console.on_page import on_page
 
 from . import confirm, grid, panel, views, when
 from . import settings as settings_page
@@ -168,6 +169,7 @@ def acts(library: Any, device: dict[str, Any],
                        danger=True)]
 
 
+@on_page
 async def _confirm_forget(library: Any, device: dict[str, Any],
                           rerender: Callable[[], None] | None) -> None:
     """Drop the entry, having said what that does and does not do."""
@@ -245,6 +247,7 @@ def _available_rows(device: dict[str, Any], client: Any, update: dict[str, Any],
     return rows
 
 
+@on_page
 async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> None:
     """Ask before replacing an install, naming which one it is.
 
@@ -278,6 +281,7 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
     await _start_update(client, name, bool(running))
 
 
+@on_page
 async def _start_update(client: Any, name: str, stop_table: bool) -> None:
     try:
         await run.io_bound(lambda: client.perform_update(stop_table=stop_table))
@@ -595,6 +599,7 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     except Exception as exc:
         return [panel.note(t("console.devices.could_not_read_carrying"), hint=_why(exc))]
 
+    @on_page
     async def forget(name: str) -> None:
         if not await confirm.ask(
                 t("console.devices.remove", name=(name),
@@ -711,6 +716,7 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
         except Exception:  # noqa: BLE001 - an unreadable name is an empty field, not a 500
             library = None
 
+    @on_page
     async def rename(value: str) -> None:
         if library is None:
             return
@@ -807,6 +813,7 @@ async def software_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
 
 
 def _check_now(context: dict[str, Any], ask: Callable[..., Any]) -> Callable[[], Any]:
+    @on_page
     async def now() -> None:
         checking = ui.notification(t("console.devices.checking_updates"), spinner=True,
                                    timeout=None)
@@ -885,6 +892,7 @@ def _action_control(context: dict[str, Any],
                 or t("console.devices.action_the_scope", action=action, scope=scope))
     icon = verbs.STOP if action in ("stop", "restart") else verbs.RUN
 
+    @on_page
     async def go() -> None:
         if scope in _HEAVY and not await confirm.ask(
                 f"{label}?",

@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from common.i18n import t
 from console import workbench
+from tests.support.clicks import press
 
 LAUNCHER = {"launcher_id": "wide", "display_name": "VPX (4K)", "app_name": "Visual Pinball X"}
 
@@ -24,7 +25,7 @@ class SwitchingOff(unittest.IsolatedAsyncioTestCase):
         with patch.object(workbench.offload, "io", new=AsyncMock(return_value=found)), \
                 patch.object(workbench.confirm, "ask", new=ask), \
                 patch.object(workbench.ui, "notify", new=notify):
-            agreed = await workbench._agreed_to_switch_off(Mock(), LAUNCHER)
+            agreed = await press(workbench._agreed_to_switch_off, Mock(), LAUNCHER)
         return agreed, ask, notify
 
     async def test_one_no_table_uses_goes_off_without_asking(self) -> None:

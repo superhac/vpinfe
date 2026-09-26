@@ -17,6 +17,7 @@ from common.games.collection_store import MANUAL_ORDER
 from common.i18n import t
 from console import dialog as frame
 from console import offload, panel, remembered, undo, verbs
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.collection_adds")
 
@@ -178,15 +179,14 @@ def is_exception(wrote: Wrote) -> bool:
     return wrote.smart and bool(wrote.written)
 
 
+@on_page
 async def add(library: Any, name: str, rows: Iterable[Row], *, what: str = GAMES,
               at: int | None = None,
               then: Callable[[], Awaitable[Any]] | None = None) -> Wrote | None:
     """Add `rows` to `name`, say what happened, and offer the way back.
 
     `then` redraws whatever shows the collection, after the add and again after Undo.
-    It may delete the element that asked, so the message is said through the page.
     """
-    client = ui.context.client
     asked = list(dict.fromkeys(rows))
     try:
         wrote = await offload.io(write, library, name, asked, at)
@@ -202,12 +202,11 @@ async def add(library: Any, name: str, rows: Iterable[Row], *, what: str = GAMES
         if then is not None:
             await then()
 
-    with client:
-        if not wrote.added:
-            ui.notify(said(name, wrote, what), type="positive")
-        else:
-            undo.offer(said(name, wrote, what), reverse, warn=is_exception(wrote),
-                       icon=verbs.SMART if is_exception(wrote) else None)
+    if not wrote.added:
+        ui.notify(said(name, wrote, what), type="positive")
+    else:
+        undo.offer(said(name, wrote, what), reverse, warn=is_exception(wrote),
+                   icon=verbs.SMART if is_exception(wrote) else None)
     return wrote
 
 
@@ -337,9 +336,9 @@ async def remove_row(library: Any, name: str, member: dict[str, Any], *,
     await _taken(partial(take_row, library, name, member), library, name, then)
 
 
+@on_page
 async def _taken(taking: Callable[[], Took], library: Any, name: str,
                  then: Callable[[], Awaitable[Any]] | None) -> None:
-    client = ui.context.client
     try:
         took = await offload.io(taking)
     except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
@@ -356,11 +355,10 @@ async def _taken(taking: Callable[[], Took], library: Any, name: str,
     key = "console.adds.taken_out_games" if took.kept_out and not took.removed \
         else "console.adds.removed_games"
     said = t(key, count=took.taken, name=name)
-    with client:
-        if took.for_good:
-            ui.notify(said, type="positive")
-        else:
-            undo.offer(said, reverse)
+    if took.for_good:
+        ui.notify(said, type="positive")
+    else:
+        undo.offer(said, reverse)
 
 
 # --- the collections added to last ---------------------------------------------
@@ -537,6 +535,7 @@ def _item(label: str, act: Callable[[], Any] | None, *, smart: bool = False,
 _NEW = "\x00new"
 
 
+@on_page
 async def pick(offer: Offer) -> None:
     """Every collection, typed into, with what each is and holds: the rest of the menu."""
     library = offer.library
@@ -668,6 +667,7 @@ def ask_new(library: Any, made: Callable[[str], Awaitable[Any]], *,
     """
     held: dict[str, Any] = {}
 
+    @on_page
     async def keep() -> None:
         name = held["name"]
         wanted = (name.value or "").strip()

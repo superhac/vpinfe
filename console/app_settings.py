@@ -22,6 +22,7 @@ from common.i18n import t
 from console import dialog as frame
 from console import offload, panel, verbs, workbench
 from console.data import config_groups
+from console.on_page import on_page
 
 SCOPE_ENTRY = "entry"
 ADDED = "added_settings"
@@ -392,6 +393,7 @@ def _reset(label: str, on_click: Callable[[], Any], hint: str, playing: bool, *,
                         hint=t(workbench.PLAYING_NOTE) if playing else hint)
 
 
+@on_page
 async def _remove(inner: dict[str, Any], keys: list[str]) -> None:
     """Takes these off the table's own settings, and draws the section again."""
     try:
@@ -448,6 +450,7 @@ def _from_game_entries(inner: dict[str, Any], reach: dict[str, str]) -> list[tup
                 else t("console.app_settings.copy_from_game.help")))]
 
 
+@on_page
 async def _copy_from_game(inner: dict[str, Any], reach: dict[str, str]) -> None:
     try:
         await offload.io(inner["library"].write_launcher_config,
@@ -623,6 +626,7 @@ def write_shared(library: Any, targets: list[dict[str, Any]], groups: Sequence[A
     return {"cut": cut}
 
 
+@on_page
 async def _set_for_all(inner: dict[str, Any], others: list[dict[str, Any]],
                        own: Sequence[tuple[Any, str]], shares_here: bool,
                        tables: list[dict[str, Any]],

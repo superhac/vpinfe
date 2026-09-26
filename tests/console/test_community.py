@@ -241,7 +241,8 @@ class ItsExtensionNotRunning(unittest.IsolatedAsyncioTestCase):
         self.enterContext(patch.object(community.grid, "build",
                                        return_value=Mock(is_deleted=False)))
         self.enterContext(patch.object(community.grid, "replace_rows"))
-        await community._fill(LOADED, PLAIN, Mock(), self.body)
+        with self.body:
+            await community._fill(LOADED, PLAIN, Mock(), self.body)
         drawn = list(self.body.descendants())
         return ([str(getattr(one, "text", "")) for one in drawn],
                 [str(one.props.get("icon")) for one in drawn if isinstance(one, ui.button)],
