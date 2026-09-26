@@ -132,7 +132,6 @@ VIEWS: dict[str, list[str] | views.Preset] = {
 def build(found: list[dict[str, Any]], library: Any,
           on_select: Callable[[dict | None], Any],
           state: dict[str, Any] | None = None,
-          rerender: Callable[[], None] | None = None,
           rescan: Callable[[], Any] | None = None) -> None:
     """The asset lens: one row per file, and one per file that is not there."""
     state = state if state is not None else {}

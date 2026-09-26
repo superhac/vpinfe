@@ -1071,10 +1071,10 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                     community_page.build(*listed, library)
             elif view == "media":
                 media_page.build(library.media_rows(), library, show_slot, state,
-                                 redraw, rescan=_rescan)
+                                 rescan=_rescan)
             elif view == "assets":
                 assets_page.build(library.asset_rows(), library, show_slot, state,
-                                  redraw, rescan=_rescan)
+                                  rescan=_rescan)
             elif view == "extensions":
                 chosen = str(state.get("extension") or "")
                 # Not the rail's list: a switch may have changed one since the page

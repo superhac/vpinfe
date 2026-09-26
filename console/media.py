@@ -160,7 +160,6 @@ async def refill(library: Any, table: Any, built: list[dict[str, Any]],
 def build(found: list[dict[str, Any]], library: Any,
           on_select: Callable[[dict | None], Any],
           state: dict[str, Any] | None = None,
-          rerender: Callable[[], None] | None = None,
           rescan: Callable[[], Any] | None = None) -> None:
     """The media lens: one row per file, and one per file that is not there."""
     state = state if state is not None else {}

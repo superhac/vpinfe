@@ -52,14 +52,14 @@ class _Library:
 
 
 def serve(port: int) -> None:
-    """The Media page, drawn again by `rerender` as the Console draws it."""
+    """The Media page, drawn as the Console draws it."""
     from nicegui import app, ui
 
     from console import api, art_fill, grid, media
 
     api.local_base_url = lambda: "http://127.0.0.1:9"
     library = _Library()
-    heard: dict = {"asked": [], "placed": False, "drawn": 0}
+    heard: dict = {"asked": [], "placed": False}
 
     async def fill(game_ids: list[str] | None, state: dict[str, Any],
                    then: Callable[[], Any], name: str = "") -> None:
@@ -84,16 +84,11 @@ def serve(port: int) -> None:
         grid.install_filters()
         box = ui.element("div").classes("w-full h-[700px] flex flex-col")
 
-        def draw() -> None:
-            heard["drawn"] += 1
-            box.clear()
-            with box:
-                media.build(library.media_rows(), library, lambda _row: None, {}, draw)
-
         # After the browser is there, as the Console draws it: a view put on a grid
         # before then is lost.
         await ui.context.client.connected()
-        draw()
+        with box:
+            media.build(library.media_rows(), library, lambda _row: None, {})
 
     @app.get("/heard")
     def said() -> dict:
@@ -158,8 +153,7 @@ class MediaFillDrive(unittest.TestCase):
         self.assertTrue(self.seen["heard"]["placed"])
         self.assertEqual(self.seen["heard"]["asked"], [f"alpha{n}" for n in range(1, 6)])
 
-    def test_the_page_is_not_drawn_again(self) -> None:
-        self.assertEqual(self.seen["heard"]["drawn"], 1)
+    def test_the_grid_is_not_built_again(self) -> None:
         self.assertEqual(self.seen["after"]["grid"], self.seen["before"]["grid"])
 
     def test_the_search_is_still_applied(self) -> None:
