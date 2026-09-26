@@ -23,12 +23,7 @@ TEXT = {"args", "msg", "message", "strerror", "reason"}
 SLOT = re.compile(r"\{exc(?:[.!:\[][^}]*)?\}")
 
 NOT_YET: frozenset[str] = frozenset({
-    "common/games/game_ops.py",
     "common/games/media_ops.py",
-    "common/games/table_ops.py",
-    "common/host/metrics.py",
-    "common/host/table_commands.py",
-    "common/online/theme_ops.py",
     "console/about.py",
     "console/app_settings.py",
     "console/art_fill.py",
@@ -43,7 +38,6 @@ NOT_YET: frozenset[str] = frozenset({
     "console/launchers.py",
     "console/locations.py",
     "console/mediasource.py",
-    "console/metrics.py",
     "console/page.py",
     "console/remote.py",
     "console/sections.py",
@@ -63,9 +57,6 @@ NOT_YET: frozenset[str] = frozenset({
     "extensions/library_importer/popper.py",
     "extensions/library_importer/registry.py",
     "extensions/vpinplay/community.py",
-    "httpapi/capabilities.py",
-    "httpapi/config.py",
-    "httpapi/core_capabilities.py",
 })
 
 

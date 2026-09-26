@@ -14,6 +14,7 @@ from unittest import mock
 
 from common import apps
 from common.host import commands, table_commands
+from common.i18n import t
 
 
 def _config(**settings: str) -> configparser.ConfigParser:
@@ -126,12 +127,15 @@ class FailureTests(unittest.TestCase):
     def test_a_required_failure_stops_the_launch(self) -> None:
         with mock.patch.object(table_commands.commands, "run",
                                side_effect=commands.CommandRefusedError("no share")):
-            with self.assertRaises(commands.CommandRefusedError) as raised:
+            with self.assertRaises(commands.CommandRefusedError) as raised, \
+                    self.assertLogs(table_commands.logger, "WARNING") as logged:
                 table_commands.before(_game(), _playing(), _launcher(),
                                       _config(on_start="mount",
                                               start_required="true"))
 
-        self.assertIn("no share", str(raised.exception))
+        self.assertEqual(str(raised.exception),
+                         t("error.table_commands.every_table_command_failed"))
+        self.assertIn("no share", logged.output[0])
 
     def test_and_the_other_half_still_owes_a_run(self) -> None:
         """Whatever did run put the machine somewhere, and that has to be undone whether

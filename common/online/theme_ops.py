@@ -17,6 +17,7 @@ import threading
 from typing import Any
 
 from common import service_errors
+from common.failures import why
 from common.i18n import t
 from common.online import theme_service, theme_sources, theme_sync
 from common.online.theme_registry_client import ThemeRegistryError
@@ -198,8 +199,7 @@ def _readable(refresh: bool = False) -> ThemeRegistry:
     except ThemeRegistryError as exc:
         raise SourceUnavailableError(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - a source that will not load is news
-        raise SourceUnavailableError(
-            t("error.themes.could_not_read_theme", exc=(exc))) from exc
+        raise SourceUnavailableError(why(exc)) from exc
 
 
 def listing(refresh: bool = False) -> dict[str, Any]:
@@ -223,8 +223,7 @@ def install(key: str) -> dict[str, Any]:
     except ThemeRegistryError as exc:
         raise InstallFailedError(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
-        raise InstallFailedError(
-            t("error.themes.could_not_install", key=(key), exc=(exc))) from exc
+        raise InstallFailedError(why(exc)) from exc
     return {"key": key, "installed": registry.is_installed(key)}
 
 
@@ -242,8 +241,7 @@ def remove(key: str) -> dict[str, Any]:
     except ThemeRegistryError as exc:
         raise service_errors.RefusedError(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
-        raise RemoveFailedError(
-            t("error.themes.could_not_remove", key=(key), exc=(exc))) from exc
+        raise RemoveFailedError(why(exc)) from exc
     return {"key": key, "installed": False}
 
 
@@ -294,6 +292,5 @@ def save_options(key: str, values: dict[str, Any]) -> dict[str, Any]:
     except ValueError as exc:
         raise service_errors.RefusedError(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
-        raise service_errors.RefusedError(
-            t("error.themes.could_not_save_settings", exc=(exc))) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     return {"key": key, "values": theme_service.get_theme_option_values(key, registry)}

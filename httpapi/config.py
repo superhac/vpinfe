@@ -61,5 +61,4 @@ def put_values(values: dict[str, dict[str, Any]] = Body(...)) -> models.ConfigVa
             t("error.config.read_http_theme_sources",
               keys=", ".join(exc.keys))) from exc
     except config_service.SettingsWriteError as exc:
-        raise ConflictError(
-            t("error.config.could_not_write_settings", exc=(exc))) from exc
+        raise ConflictError(str(exc)) from exc

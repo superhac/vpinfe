@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import unittest
 from unittest.mock import patch
 
@@ -25,11 +26,12 @@ class SourcesThatWillNotLoadTests(TempTree):
     def setUp(self) -> None:
         super().setUp()
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
-        self.enterContext(patch.object(theme_ops, "_loaded",
-                                       side_effect=OSError("no route to host")))
+        self.enterContext(patch.object(
+            theme_ops, "_loaded",
+            side_effect=OSError(errno.EHOSTUNREACH, "No route to host")))
 
     def test_every_call_says_so_in_words_rather_than_breaking(self) -> None:
-        said = t("error.themes.could_not_read_theme", exc=OSError("no route to host"))
+        said = t("said.why.unreachable")
         for method, path, body in self.CALLS:
             with self.subTest(method=method, path=path):
                 answer = self.client.request(method, path, json=body)

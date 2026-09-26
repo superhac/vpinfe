@@ -16,6 +16,7 @@ import logging
 from typing import Any
 
 from common import config_schema, install_presence, path_checks
+from common.failures import why
 from common.paths import get_ini_config
 
 logger = logging.getLogger("vpinfe.common.config_service")
@@ -157,7 +158,7 @@ def set_values(wanted: dict[str, dict[str, Any]] | None) -> dict[str, Any]:
         store.save()
     except Exception as exc:
         logger.exception("Could not write the settings file")
-        raise SettingsWriteError(str(exc)) from exc
+        raise SettingsWriteError(why(exc)) from exc
 
     if any(section == "install" and key == "display_name" for section, key, _ in staged):
         # The registry holds a copy of what each install reported. This one just changed

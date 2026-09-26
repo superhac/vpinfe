@@ -19,6 +19,7 @@ from typing import Any
 from nicegui import ui
 
 from common import i18n
+from common.failures import why
 from common.i18n import t
 from console import offload, panel
 from console.data import Library
@@ -72,8 +73,14 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
         held["gpu"] = None
         _draw_cards(cards, held)
 
-    def show(said: str) -> None:
+    def show(said: str, detail: str = "") -> None:
         note.text = said
+        if detail != held.get("detail"):
+            held["detail"] = detail
+            note.clear()
+            if detail:
+                with note:
+                    ui.tooltip(detail)
         note.set_visibility(bool(said))
         for element in (readings, disks_title, disks):
             element.set_visibility(not said)
@@ -82,7 +89,7 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
         try:
             found = await offload.io(library.metrics, WINDOW_SECONDS)
         except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
-            show(t("console.metrics.could_not_read_device", exc=(exc)))
+            show(t("console.metrics.could_not_read_device"), why(exc))
             return
         now = found.get("now") or {}
         if not now.get("measurable"):
@@ -104,8 +111,8 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
                 held["gpu"] = await offload.io(library.gpu_metrics)
             except Exception as exc:  # noqa: BLE001
                 held["gpu"] = {"available": False, "gpus": [],
-                               "reason": t("console.metrics.could_not_read_device",
-                                           exc=exc)}
+                               "reason": t("console.metrics.could_not_read_device"),
+                               "detail": why(exc)}
             _draw_cards(cards, held)
 
     ui.timer(0.01, tick, once=True)
@@ -153,7 +160,9 @@ def _draw_cards(target: Any, held: dict[str, Any]) -> None:
         if not found.get("available"):
             # "This machine has no graphics section" and "the tool that reads one is
             # not installed" are different answers, and only the second can be acted on.
-            ui.label(str(found.get("reason") or "")).classes("console-help")
+            said = ui.label(str(found.get("reason") or "")).classes("console-help")
+            if found.get("detail"):
+                said.tooltip(str(found["detail"]))
             return
         for card in found.get("gpus") or []:
             _card(card, found.get("fields") or [])

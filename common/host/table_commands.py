@@ -133,11 +133,12 @@ def _run(text: str, around: Around, *, required: bool,
         # Whatever did run still has to be undone, so this counts as having run.
         around.ran = True
         _remember(around)
+        logger.warning("A command before the table failed, so it will not start: %s", exc)
         raise commands.CommandRefusedError(
             t("error.table_commands.launcher_command_failed",
-              launcher_name=launcher.display_name, exc=exc)
+              launcher_name=launcher.display_name)
             if launcher is not None
-            else t("error.table_commands.every_table_command_failed", exc=exc)) from exc
+            else t("error.table_commands.every_table_command_failed")) from exc
     around.ran = around.ran or outcome.ran
 
 

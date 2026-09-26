@@ -30,8 +30,9 @@ def _peripherals_available() -> bool | tuple[bool, str]:
         if not enabled:
             return False, t("error.capabilities.no_peripherals_on")
         return True
-    except Exception as exc:
-        return False, t("error.capabilities.peripheral_state_unknown", exc=exc)
+    except Exception:
+        logger.exception("Could not tell whether DOF or a real DMD is on")
+        return False, t("error.capabilities.peripheral_state_unknown")
 
 
 def _launch_available() -> bool | tuple[bool, str]:
@@ -53,8 +54,9 @@ def _launch_available() -> bool | tuple[bool, str]:
             return False, t("said.program_not_there",
                              launcher_name=found.display_name, path=configured)
         return True
-    except Exception as exc:
-        return False, t("error.capabilities.launcher_state_unknown", exc=exc)
+    except Exception:
+        logger.exception("Could not tell whether the default launcher can play")
+        return False, t("error.capabilities.launcher_state_unknown")
 
 
 def _rom_audit_available() -> bool | tuple[bool, str]:
@@ -68,8 +70,9 @@ def _rom_audit_available() -> bool | tuple[bool, str]:
         # other three predicates share has no room for a None one.
         available, reason = pinmame_catalog.availability(vpx_bin)
         return (available, reason) if reason else available
-    except Exception as exc:
-        return False, t("error.capabilities.libpinmame_state_unknown", exc=exc)
+    except Exception:
+        logger.exception("Could not tell whether the ROM audit can run")
+        return False, t("error.capabilities.libpinmame_state_unknown")
 
 
 def _actions_available() -> bool | tuple[bool, str]:

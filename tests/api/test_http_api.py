@@ -183,12 +183,14 @@ class DiscoveryTests(unittest.TestCase):
         capabilities.declare(capabilities.Capability(
             name="flaky", feature="frontend", is_available=_explode))
 
-        response = self.client.get("/")
+        with self.assertLogs(capabilities.logger, "ERROR") as logged:
+            response = self.client.get("/")
         declared = response.json()["capabilities"]
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(declared[0]["available"])
-        self.assertIn("probe blew up", declared[0]["reason"])
+        self.assertEqual(declared[0]["reason"], t("error.capabilities.check_failed"))
+        self.assertIn("probe blew up", "\n".join(logged.output))
 
 
 class ErrorEnvelopeTests(unittest.TestCase):

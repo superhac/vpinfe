@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from common import apps, service_errors
+from common.failures import why
 from common.games import derived_tags, game_lens, locations, mods, table_lens, tables
 from common.games.collection_resolver import visible_entries
 from common.games.game import Game
@@ -121,12 +122,11 @@ def extract_script(game_id: str, table_id: str) -> dict:
     try:
         launch.binary_for(table_id, filename)
     except launch.LaunchUnavailableError as exc:
-        raise service_errors.UnavailableError(
-            t("error.games.extracting_script_runs_visual", exc=(exc))) from exc
+        raise service_errors.UnavailableError(why(exc)) from exc
     try:
         game_service.extract_vbs(game_dir, filename, table_id)
     except (OSError, launch.LaunchUnavailableError) as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
+        raise service_errors.RefusedError(why(exc)) from exc
     return row_or_refuse(game, table_id)
 
 
@@ -261,8 +261,7 @@ def import_file(game_id: str, path: str) -> dict:
         raise service_errors.BlockedError(t("error.games.game_already_file_name"),
                                           details={"filename": str(exc)}) from exc
     except (OSError, ValueError) as exc:
-        raise service_errors.BlockedError(
-            t("error.games.could_not_bring", exc=(exc))) from exc
+        raise service_errors.BlockedError(why(exc)) from exc
 
     game = reread_game(game)
     return row_or_refuse(game, table_id)
@@ -362,8 +361,7 @@ def contain(game_id: str, table_id: str) -> dict:
     try:
         shutil.copy2(source, landing)
     except OSError as exc:
-        raise service_errors.BlockedError(
-            t("error.games.could_not_copy", exc=(exc))) from exc
+        raise service_errors.BlockedError(why(exc)) from exc
 
     if not MetaConfig(str(meta_file_path(game))).contain_referenced_table(table_id,
                                                                          source.name):

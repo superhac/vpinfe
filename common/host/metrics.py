@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from common.failures import why
 from common.i18n import t
 
 try:  # optional, and an install without it still runs
@@ -150,18 +151,18 @@ def gpu() -> dict[str, Any]:
     except subprocess.TimeoutExpired:
         return _no_gpu(reason=t("error.metrics.nvtop_timed_out"))
     except Exception as exc:  # noqa: BLE001 - a probe must not take the page with it
-        return _no_gpu(reason=t("error.metrics.nvtop_failed", exc=exc))
+        return _no_gpu(reason=t("error.metrics.nvtop_failed"), detail=why(exc))
 
     text = (done.stdout or "").strip()
     if done.returncode != 0 or not text:
         said = (done.stderr or text).strip()
-        return _no_gpu(reason=t("error.metrics.nvtop_failed", exc=said) if said
-                       else t("error.metrics.nvtop_said_nothing"))
+        return (_no_gpu(reason=t("error.metrics.nvtop_failed"), detail=said) if said
+                else _no_gpu(reason=t("error.metrics.nvtop_said_nothing")))
 
     try:
         cards = json.loads(text)
     except json.JSONDecodeError as exc:
-        return _no_gpu(reason=t("error.metrics.nvtop_unreadable", exc=exc))
+        return _no_gpu(reason=t("error.metrics.nvtop_unreadable"), detail=why(exc))
     if not isinstance(cards, list) or not cards:
         return _no_gpu(reason=t("error.metrics.nvtop_no_cards"))
 
@@ -176,8 +177,8 @@ def gpu() -> dict[str, Any]:
     return {"available": True, "reason": "", "gpus": found_cards}
 
 
-def _no_gpu(*, reason: str) -> dict[str, Any]:
-    return {"available": False, "reason": reason, "gpus": []}
+def _no_gpu(*, reason: str, detail: str = "") -> dict[str, Any]:
+    return {"available": False, "reason": reason, "detail": detail, "gpus": []}
 
 
 def _disks(paths: Iterable[str]) -> list[dict[str, Any]]:

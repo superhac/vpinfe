@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from common import service_errors
+from common.failures import why
 from common.games import (
     derived_tags,
     game_identity,
@@ -64,8 +65,7 @@ def create(name: str, location_id: str = "") -> dict:
         raise service_errors.RefusedError(
             str(exc), details=_where_else(location_id)) from exc
     except OSError as exc:
-        raise service_errors.BlockedError(
-            t("error.games.could_not_create", exc=(exc))) from exc
+        raise service_errors.BlockedError(why(exc)) from exc
 
     # Canonically, never by spelling. Re-reading one folder resolves the path it is given,
     # so the game just created carries the real path while every game a scan found carries
@@ -107,8 +107,7 @@ def set_details(game_id: str, values: dict) -> dict:
         raise service_errors.BlockedError(t("error.games.game_no_record_write"),
                                           details={"path": str(exc)}) from exc
     except OSError as exc:
-        raise service_errors.BlockedError(
-            t("error.games.could_not_write_2", exc=(exc))) from exc
+        raise service_errors.BlockedError(why(exc)) from exc
     return game_lens.detail(game_id)
 
 

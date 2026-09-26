@@ -6,12 +6,15 @@ Nothing is declared until the endpoints backing it land. See docs/http_api.md.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 from common import install_identity
 from common.i18n import t
+
+logger = logging.getLogger("vpinfe.httpapi.capabilities")
 
 # Which feature switches a capability on. One value or none, not a list: residency was
 # a list of places, which only meant something while `hub` and `device` were places.
@@ -41,8 +44,9 @@ class Capability:
         if self.is_available is not None:
             try:
                 result = self.is_available()
-            except Exception as exc:  # a broken probe must not break discovery
-                available, reason = False, t("error.capabilities.check_failed", exc=exc)
+            except Exception:  # a broken probe must not break discovery
+                logger.exception("Checking whether %s is available failed", self.name)
+                available, reason = False, t("error.capabilities.check_failed")
             else:
                 if isinstance(result, tuple):
                     available, reason = result[0], result[1]
