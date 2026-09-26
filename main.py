@@ -41,14 +41,18 @@ from common.config_bootstrap import apply_configdir_override
 
 apply_configdir_override(sys.argv[1:])
 
+import requests
+
 from common import extensions, i18n, shutdown, theme_options
 from common.config_store import ConfigStore
 from common.host.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.host.libdmdutil_service import (
     stop_libdmdutil_service,
 )
+from common.http_client import unreachable
 from common.log_setup import configure_logging, get_logger
 from common.online.pinmame_score_parser_updater import ensure_latest_roms_json
+from common.online.theme_registry_client import ThemeRegistryError
 from common.online.themes import ThemeRegistry
 from common.paths import (
     THEMES_DIR,
@@ -90,6 +94,8 @@ try:
         roms_update_result.get("status"),
         roms_update_result.get("path"),
     )
+except requests.RequestException as exc:
+    unreachable(logger, "Could not update pinmame-score-parser roms.json at startup", exc)
 except Exception:
     logger.exception("Failed to update pinmame-score-parser roms.json at startup")
 
@@ -235,6 +241,10 @@ try:
     theme_registry.load_registry()
     theme_registry.load_theme_manifests(default_only=True, dates=False)
     theme_registry.auto_install_defaults()
+except requests.RequestException as exc:
+    unreachable(logger, "Theme registry initialization failed", exc)
+except ThemeRegistryError as exc:
+    logger.warning("Theme registry initialization failed: %s", exc)
 except Exception:
     logger.exception("Theme registry initialization failed")
 

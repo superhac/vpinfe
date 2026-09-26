@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import unittest
 from email.utils import formatdate
@@ -139,6 +140,24 @@ class OfflineTest(unittest.TestCase):
         for url in ("http://127.0.0.1:8001/api/v1", "http://localhost:8001/",
                     "http://[::1]:8001/", "http://127.0.0.2/"):
             self.assertTrue(self._asked(url), url)
+
+
+class UnreachableTest(unittest.TestCase):
+    def _said(self, exc: requests.RequestException) -> list[Any]:
+        log = mock.Mock()
+        http_client.unreachable(log, "Could not ask", exc)
+        return [call.args for call in log.log.call_args_list]
+
+    def test_a_network_failure_is_one_warning_with_the_reason(self) -> None:
+        down = requests.ConnectionError("no route to host")
+
+        self.assertEqual(self._said(down),
+                         [(logging.WARNING, "%s: %s", "Could not ask", down)])
+
+    def test_a_refusal_is_debug(self) -> None:
+        for exc in (http_client.HostQuietError("api.github.com", NOW),
+                    http_client.OfflineError("api.github.com")):
+            self.assertEqual(self._said(exc)[0][0], logging.DEBUG)
 
 
 if __name__ == "__main__":

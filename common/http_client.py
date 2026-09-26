@@ -48,6 +48,11 @@ class OfflineError(requests.ConnectionError):
     """A host outside this machine, asked while OFFLINE is set."""
 
 
+def unreachable(log: logging.Logger, what: str, exc: requests.RequestException) -> None:
+    refused = isinstance(exc, (HostQuietError, OfflineError))
+    log.log(logging.DEBUG if refused else logging.WARNING, "%s: %s", what, exc)
+
+
 def _clock(when: float) -> str:
     return datetime.fromtimestamp(when).strftime("%H:%M:%S")
 

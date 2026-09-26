@@ -18,7 +18,7 @@ from pathlib import Path
 import requests
 
 from common import timestamps
-from common.http_client import HostQuietError, OfflineError, download_file, get_json
+from common.http_client import download_file, get_json, unreachable
 from common.i18n import t
 from common.online.update_scripts import (
     _build_posix_update_script,
@@ -399,10 +399,11 @@ def _ask(context: dict, before: dict | None) -> dict:
                     if _judged(context, release, None) is None else None)
         record = {"release": release, "manifest": manifest,
                   "checked_at": now, "attempted_at": now, "error": None}
-    except (requests.RequestException, UpdateError) as exc:
-        said = (logger.debug if isinstance(exc, (HostQuietError, OfflineError, UpdateError))
-                else logger.warning)
-        said("Could not check for updates: %s", exc)
+    except UpdateError as exc:
+        logger.debug("Could not check for updates: %s", exc)
+        record = {**(before or {}), "attempted_at": now, "error": "remote_check_failed"}
+    except requests.RequestException as exc:
+        unreachable(logger, "Could not check for updates", exc)
         record = {**(before or {}), "attempted_at": now, "error": "remote_check_failed"}
     except Exception:
         logger.exception("Could not check for updates")
