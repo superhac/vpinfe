@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from common.games.ids import new_id
@@ -145,6 +145,18 @@ def visible_columns(view: View, all_fields: list[str]) -> list[str] | None:
     if view.columns and not resolved:
         return None
     return resolved or list(all_fields)
+
+
+def arrived(view: View, over: Mapping[str, Any] | None, all_fields: list[str]) -> View:
+    """The view as a page arrived at it: `over` for its filters, each column `over`
+    filters shown. The view itself where the address asked for nothing on this grid,
+    or where the view is stale."""
+    over = {name: model for name, model in (over or {}).items() if name in all_fields}
+    shown = visible_columns(view, all_fields)
+    if not over or shown is None:
+        return view
+    return replace(view, columns=tuple(shown + [name for name in over if name not in shown]),
+                   filters=over)
 
 
 def differs(view: View, columns: tuple[str, ...], sort: tuple[dict, ...],

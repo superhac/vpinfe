@@ -447,3 +447,39 @@ class StaleViewTests(unittest.TestCase):
         self.assertEqual(
             views.visible_columns(self._view(["year", "rom", "name"]), self.FIELDS),
             ["year", "name"])
+
+
+class ArrivalTests(unittest.TestCase):
+    FIELDS = [definition["field"] for definition in games.COLUMNS]
+    SORT = ({"colId": "name", "sort": "asc", "sortIndex": 0},)
+    VIEW = views.View(id="v", name="Mine", columns=("name", "year"), sort=SORT)
+    ARRIVED = ("name", "year", "vps_unmatched")
+
+    def _baseline(self):
+        return views.arrived(self.VIEW, games.UNMATCHED, self.FIELDS)
+
+    def test_the_screen_a_link_opened_is_not_modified(self) -> None:
+        self.assertFalse(views.differs(self._baseline(), self.ARRIVED, self.SORT,
+                                       games.UNMATCHED))
+
+    def test_what_changes_after_it_is(self) -> None:
+        baseline = self._baseline()
+        resorted = ({"colId": "year", "sort": "desc", "sortIndex": 0},)
+        for columns, sort, filters in ((self.ARRIVED, resorted, games.UNMATCHED),
+                                       (self.ARRIVED, self.SORT, {}),
+                                       (("name", "year"), self.SORT, games.UNMATCHED)):
+            with self.subTest(columns=columns, sort=sort, filters=filters):
+                self.assertTrue(views.differs(baseline, columns, sort, filters))
+
+    def test_the_saved_view_is_left_as_it_was(self) -> None:
+        self._baseline()
+        self.assertEqual((self.VIEW.columns, self.VIEW.filters), (("name", "year"), {}))
+
+    def test_nothing_this_grid_has_is_no_arrival(self) -> None:
+        for over in (None, {}, {"gone": {"values": [True]}}):
+            with self.subTest(over=over):
+                self.assertIs(views.arrived(self.VIEW, over, self.FIELDS), self.VIEW)
+
+    def test_a_stale_view_arrives_as_itself(self) -> None:
+        stale = views.View(id="s", name="Old", columns=("gone",))
+        self.assertIs(views.arrived(stale, games.UNMATCHED, self.FIELDS), stale)

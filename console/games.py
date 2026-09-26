@@ -1552,7 +1552,7 @@ def view_control(library: Any, scope: str,
     if active not in {view.id for view in known}:
         active = known[0].id
     held: dict[str, Any] = {"views": known, "active": active, "custom": custom,
-                            "modified": False, "drawing": {}}
+                            "modified": False, "drawing": {}, "baseline": None, "over": None}
 
     top = bar.top
     with top:
@@ -1621,7 +1621,9 @@ def view_control(library: Any, scope: str,
             and then this view's own widths, which the grid does not carry across a
             switch."""
             _show_purpose()
-            wanted = views.visible_columns(view, all_fields)
+            baseline = views.arrived(view, over, all_fields)
+            held["baseline"], held["over"] = baseline, over
+            wanted = views.visible_columns(baseline, all_fields)
             # Leaving the grid as it is keeps it usable, and the notify says why. The
             # old fallback showed every column instead, which reads as the view
             # misbehaving rather than as a view that has gone stale.
@@ -1630,9 +1632,6 @@ def view_control(library: Any, scope: str,
                         type="warning")
                 await _refresh()
                 return
-            over = {field: model for field, model in (over or {}).items()
-                    if field in all_fields}
-            wanted = wanted + [field for field in over if field not in wanted]
             table.run_grid_method("setColumnsVisible", wanted, True)
             table.run_grid_method("setColumnsVisible",
                                   [f for f in all_fields if f not in wanted], False)
@@ -1644,7 +1643,7 @@ def view_control(library: Any, scope: str,
             # Always set, even to nothing: a view that filters nothing has to clear
             # what the last one filtered, which is what makes picking one a way out
             # rather than a hope.
-            table.run_grid_method("setFilterModel", over or view.filters or None)
+            table.run_grid_method("setFilterModel", baseline.filters or None)
             held["drawing"] = dict(view.drawn)
             draw(wanted)
             # After visibility, because `applyOrder` only orders what is showing.
@@ -1676,8 +1675,8 @@ def view_control(library: Any, scope: str,
                 logger.debug("console: the grid did not answer in time; "
                              "leaving the view mark as it is")
                 return
-            view = current()
-            changed = views.differs(view, shown, sort, model, held["drawing"])
+            changed = views.differs(held["baseline"] or current(), shown, sort, model,
+                                    held["drawing"])
             # On the picker rather than beside it: the drift is a fact about the view
             # that is selected, so it belongs to the control that names it.
             picker.props(add="suffix=modified") if changed \
@@ -1714,6 +1713,7 @@ def view_control(library: Any, scope: str,
             held["custom"] = [v for v in held["custom"] if v.id != view.id] + [view]
             held["views"] = views.builtins(presets) + held["custom"]
             held["active"] = view.id
+            held["baseline"], held["over"] = view, None
             await keep_views(view.id)
             _reoption(view.id)
             await _refresh()
@@ -1759,7 +1759,8 @@ def view_control(library: Any, scope: str,
                 # the screen has drifted, and nothing to delete unless it is the
                 # user's own view.
                 if held["modified"]:
-                    ui.menu_item(t("console.games.revert"), lambda: apply(current())) \
+                    ui.menu_item(t("console.games.revert"),
+                                 lambda: apply(current(), held["over"])) \
                         .classes("console-menu-item")
                 if not view.builtin:
                     ui.menu_item(t("console.games.rename_view"),
