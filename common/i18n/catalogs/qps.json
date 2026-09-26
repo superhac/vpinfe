@@ -1334,6 +1334,10 @@
     "one": "Çöûŀđ ñöţ ûþĝřàđè 1 ĝàɱè",
     "other": "Çöûŀđ ñöţ ûþĝřàđè {count} ĝàɱèš"
   },
+  "console.sections.could_not_write": {
+    "one": "1 çöûŀđ ñöţ ƀè ŵřîţţèñ, šö îţš çĥàñĝèš ŀàšţ ûñţîŀ ṼÞîñƑÈ řèšţàřţš",
+    "other": "{count} çöûŀđ ñöţ ƀè ŵřîţţèñ, šö ţĥèîř çĥàñĝèš ŀàšţ ûñţîŀ ṼÞîñƑÈ řèšţàřţš"
+  },
   "console.sections.coverage_kind": "Çöṽèřàĝè ƀý ķîñđ",
   "console.sections.declared_rom_not_installed": "Đèçŀàřèđ ŘÖḾ îš ñöţ îñšţàŀŀèđ",
   "console.sections.devices": "Đèṽîçèš",
@@ -1378,6 +1382,10 @@
   "console.sections.not_in_library": {
     "one": "1 ĝàɱè îš ñöţ îñ ýöûř ŀîƀřàřý",
     "other": "{count} ĝàɱèš àřè ñöţ îñ ýöûř ŀîƀřàřý"
+  },
+  "console.sections.not_written": {
+    "one": "1 ĝàɱè çöûŀđ ñöţ ƀè ŵřîţţèñ",
+    "other": "{count} ĝàɱèš çöûŀđ ñöţ ƀè ŵřîţţèñ"
   },
   "console.sections.nothing_installed": "Ñöţĥîñĝ îñšţàŀŀèđ",
   "console.sections.nothing_published_matches_tables": "Ñöţĥîñĝ þûƀŀîšĥèđ ɱàţçĥèš ýöûř ţàƀŀèš ({checked} çĥèçķèđ{running})",

@@ -1334,6 +1334,10 @@
     "one": "Could not upgrade 1 game",
     "other": "Could not upgrade {count} games"
   },
+  "console.sections.could_not_write": {
+    "one": "1 could not be written, so its changes last until VPinFE restarts",
+    "other": "{count} could not be written, so their changes last until VPinFE restarts"
+  },
   "console.sections.coverage_kind": "Coverage by kind",
   "console.sections.declared_rom_not_installed": "Declared ROM is not installed",
   "console.sections.devices": "Devices",
@@ -1378,6 +1382,10 @@
   "console.sections.not_in_library": {
     "one": "1 game is not in your library",
     "other": "{count} games are not in your library"
+  },
+  "console.sections.not_written": {
+    "one": "1 game could not be written",
+    "other": "{count} games could not be written"
   },
   "console.sections.nothing_installed": "Nothing installed",
   "console.sections.nothing_published_matches_tables": "Nothing published matches your tables ({checked} checked{running})",

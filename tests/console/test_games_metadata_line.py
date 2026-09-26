@@ -14,16 +14,19 @@ from unittest.mock import Mock
 
 from nicegui import core, ui
 
+from common.games import game_identity, game_repository
 from common.games.game_parser import GameParser
 from common.games.info_maintenance import upgrade_library
 from common.i18n import t
 from console import games, sections
 from console.data import Library
 from tests.support.library import game_info, write_game
+from tests.support.skips import needs_posix_permissions
 
 KEPT = "Kept Game (Original 2024)"
 BROKEN = "Malformed Info (Original 2024)"
 OLDER = "Older Game (Original 2024)"
+LOCKED = "Locked Game (Original 2024)"
 GAME = {"id": "g-1", "name": KEPT, "folder": f"/games/{KEPT}"}
 LEGACY = {"Info": {"Title": "Older Game", "Rom": "older"},
           "VPXFile": {"filename": f"{OLDER}.vpx", "filehash": "abc", "rom": "older"}}
@@ -51,6 +54,7 @@ class TheLineAboveTheGrid(unittest.TestCase):
         tmp = TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name)
+        self.locked: set[str] = set()
         write_game(self.root, KEPT, info=game_info(KEPT))
         client = Mock()
         client.games.return_value = [GAME]
@@ -65,15 +69,32 @@ class TheLineAboveTheGrid(unittest.TestCase):
         self.library.load_game_collections()
         self.library.load_kept_kinds()
         for patcher in (mock.patch.object(ui, "run_javascript"),
-                        mock.patch.object(ui, "notify")):
+                        mock.patch.object(ui, "notify"),
+                        mock.patch.dict(game_identity._HELD, clear=True),
+                        mock.patch.dict(game_identity._WHY, clear=True),
+                        mock.patch.object(game_identity, "logger")):
             patcher.start()
             self.addCleanup(patcher.stop)
 
     def _metadata(self) -> dict[str, Any]:
         parser = GameParser(self.root)
-        return {"pending_upgrade": sum(1 for one in parser.get_all_games()
-                                       if one.info_pending_upgrade),
-                "unreadable": parser.get_unreadable_games()}
+        parsed = parser.get_all_games()
+        # Only the locked ones: an id written to a writable 2.x `.info` upgrades it.
+        game_identity.ensure_unique_ids(
+            [one for one in parsed if one.game_dir_name in self.locked], order=[])
+        with mock.patch.object(game_repository, "all_games", return_value=parsed):
+            unwritten = game_repository.unwritten_games()
+        pending = [one.game_dir_name for one in parsed if one.info_pending_upgrade]
+        return {"pending_upgrade": len(pending), "pending_games": pending,
+                "unreadable": parser.get_unreadable_games(),
+                "unwritten": unwritten}
+
+    def _lock(self, name: str, info: dict[str, Any]) -> Path:
+        folder = write_game(self.root, name, info=info)
+        folder.chmod(0o555)
+        self.addCleanup(folder.chmod, 0o755)
+        self.locked.add(name)
+        return folder
 
     def _plant_broken(self) -> None:
         (write_game(self.root, BROKEN) / f"{BROKEN}.info").write_text(
@@ -168,6 +189,60 @@ class TheLineAboveTheGrid(unittest.TestCase):
             self._drawn(upgrade)
 
         self.assertEqual([[t("console.sections.older_format", count=1)], []], seen)
+
+    @needs_posix_permissions
+    def test_a_game_whose_folder_could_not_be_written_is_said_above_the_grid(self) -> None:
+        self._lock(LOCKED, game_info(LOCKED))
+
+        self.assertEqual([t("console.sections.not_written", count=1)],
+                         self._line(self._drawn()))
+
+    @needs_posix_permissions
+    def test_show_names_the_folder_it_could_not_write_and_why(self) -> None:
+        folder = self._lock(LOCKED, game_info(LOCKED))
+        opened: dict[str, str] = {}
+
+        async def show(holder: ui.element) -> None:
+            box = self._show(holder)
+            tips = {one.props["target"]: one.text
+                    for one in box.descendants() if isinstance(one, ui.tooltip)}
+            opened.update({one.text: tips.get(f"#{one.html_id}", "")
+                           for one in box.descendants() if isinstance(one, ui.label)})
+
+        self._drawn(show)
+
+        self.assertEqual(t("said.why.no_permission_at", path=str(folder)),
+                         opened.get(LOCKED), list(opened))
+
+    @needs_posix_permissions
+    def test_a_folder_upgrade_could_not_write_is_named_once(self) -> None:
+        self._lock(OLDER, LEGACY)
+        api = Mock()
+        api.upgrade_info.return_value = {"id": "u-1"}
+        seen: list[int] = []
+
+        def named(box: ui.dialog) -> int:
+            return sum(1 for one in box.descendants()
+                       if isinstance(one, ui.label) and one.text == OLDER)
+
+        async def ended(_client: Any, _job_id: str) -> dict[str, Any]:
+            return {"state": "done", "result": upgrade_library(self.root)}
+
+        async def upgrade(holder: ui.element) -> None:
+            box = self._show(holder)
+            seen.append(named(box))
+            _press(box, t("word.upgrade"))
+            for _ in range(50):
+                await asyncio.sleep(0)
+            seen.append(named(box))
+
+        with mock.patch("console.confirm.ask", mock.AsyncMock(return_value=True)), \
+                mock.patch("console.api.ApiClient", return_value=api), \
+                mock.patch("nicegui.run.io_bound", new=_now), \
+                mock.patch.object(sections, "_ended", ended):
+            self._drawn(upgrade)
+
+        self.assertEqual([1, 1], seen)
 
 
 class TheLineAboveTheTablesGrid(TheLineAboveTheGrid):

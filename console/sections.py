@@ -376,18 +376,24 @@ def _metadata_rows(state: dict[str, Any], on_start: Callable[[str], Any],
                    left: Mapping[str, list[tuple[str, str]]] | None = None) -> None:
     pending = int(state.get("pending_upgrade") or 0)
     unreadable = list(state.get("unreadable") or [])
+    unwritten = [(str(row["folder"]), str(row.get("error") or ""))
+                 for row in state.get("unwritten") or []]
     newer = int(state.get("newer_than_us") or 0)
     restorable = int(state.get("restorable") or 0)
     left = left or {}
     not_restored = list(left.get("restore") or [])
+    named = dict([*unwritten, *(left.get("upgrade") or [])])
 
     _metadata_row(
-        not pending, t("console.sections.format"),
-        t("console.sections.every_game_current_format") if not pending
-        else t("console.sections.written_older_build_can", count=pending),
+        not pending and not unwritten, t("console.sections.format"),
+        " · ".join(said for said in (
+            t("console.sections.written_older_build_can", count=pending) if pending else "",
+            t("console.sections.could_not_write", count=len(unwritten))
+            if unwritten else "") if said)
+        or t("console.sections.every_game_current_format"),
         None if not pending else (t("word.upgrade"),
                 lambda: on_start("upgrade")),
-        lines=_folder_lines(list(left.get("upgrade") or [])))
+        lines=_folder_lines(sorted(named.items(), key=lambda row: row[0].lower())))
 
     # No action: the fix is on disk, in a file this cannot repair without guessing
     # what it was meant to say. Naming the folders, and why, is the whole of the help.
@@ -423,9 +429,11 @@ def _line_said(state: Mapping[str, Any]) -> str:
     """What the Games page says about the library's metadata, or "" for nothing."""
     missing = len(state.get("unreadable") or ())
     pending = int(state.get("pending_upgrade") or 0)
+    unwritten = len(state.get("unwritten") or ())
     return " · ".join(said for said in (
         t("console.sections.not_in_library", count=missing) if missing else "",
-        t("console.sections.older_format", count=pending) if pending else "") if said)
+        t("console.sections.older_format", count=pending) if pending else "",
+        t("console.sections.not_written", count=unwritten) if unwritten else "") if said)
 
 
 def metadata_line(library: Library, state: dict[str, Any]) -> None:
