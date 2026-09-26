@@ -23,6 +23,7 @@ CABINET = {
 MACHINE: dict[str, str] = {}
 
 BUILD = {
+    "about.fact.build": "this VPinFE build",
     "app.vpx.no_plugins": "the VPX build beside the plugins",
     "console.assets.every_row_nothing_hidden.help": "the verb",
     "console.devices.device_s_settings_belong": "the VPinFE build a device runs",

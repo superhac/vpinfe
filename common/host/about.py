@@ -23,6 +23,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from common.i18n import t
+
 logger = logging.getLogger("vpinfe.common.host.about")
 
 # Read once per process. Every one of these costs a subprocess, a config read or a walk
@@ -37,26 +39,26 @@ def details(refresh: bool = False) -> list[dict[str, Any]]:
         browser = _browser_path()
         _held = [
             {"heading": "VPinFE", "facts": [
-                ("Version", _version()),
-                ("Build", _build_flavor()),
-                ("Release target", _release_target()),
-                ("Features", _features()),
-                ("Frontend theme", _active_theme()),
+                (t("word.version"), _version()),
+                (t("about.fact.build"), _build_flavor()),
+                (t("about.fact.release_target"), _release_target()),
+                (t("about.fact.features"), _features()),
+                (t("about.fact.frontend_theme"), _active_theme()),
             ]},
-            {"heading": "Machine", "facts": [
-                ("Host", _hostname()),
-                ("Operating system", _os()),
-                ("Architecture", platform.machine() or "Unknown"),
-                ("Windowing system", windowing_system()),
+            {"heading": t("about.heading.device"), "facts": [
+                (t("about.fact.host"), _hostname()),
+                (t("about.fact.operating_system"), _os()),
+                (t("about.fact.architecture"), platform.machine() or t("word.unknown")),
+                (t("about.fact.windowing_system"), windowing_system()),
                 ("Python", platform.python_version()),
-                ("Graphics", _graphics()),
+                (t("about.fact.graphics"), _graphics()),
             ]},
-            {"heading": "Browser", "facts": [
-                ("Name", _browser_name(browser)),
-                ("Version", _browser_version(browser) or "Unknown"),
-                ("Path", browser or "Not configured"),
+            {"heading": t("about.heading.browser"), "facts": [
+                (t("word.name"), _browser_name(browser)),
+                (t("word.version"), _browser_version(browser) or t("word.unknown")),
+                (t("word.path"), browser or t("about.not_configured")),
             ]},
-            {"heading": "Locations", "facts": _locations()},
+            {"heading": t("about.heading.locations"), "facts": _locations()},
         ]
     return _held
 
@@ -76,11 +78,11 @@ def as_text() -> str:
 def _version() -> str:
     from common.vpinfe_version import get_version
 
-    return str(get_version() or "Unknown")
+    return str(get_version() or t("word.unknown"))
 
 
 def _os() -> str:
-    system = platform.system() or "Unknown"
+    system = platform.system() or t("word.unknown")
     if system == "Darwin":
         return f"macOS {platform.mac_ver()[0] or platform.release()}"
     if system == "Windows":
@@ -90,9 +92,9 @@ def _os() -> str:
 
 def _hostname() -> str:
     try:
-        return socket.gethostname() or "Unknown"
+        return socket.gethostname() or t("word.unknown")
     except OSError:
-        return "Unknown"
+        return t("word.unknown")
 
 
 def _install_context() -> dict[str, Any]:
@@ -111,18 +113,18 @@ def _build_flavor() -> str:
     found = _install_context()
     reason = found.get("reason")
     if reason == "source_build":
-        return "Source"
+        return t("about.build.source")
     if reason == "non_release_build":
-        return "Non-release build"
+        return t("about.build.non_release")
     if found.get("slim") is True:
-        return "Slim"
+        return t("about.build.slim")
     if found.get("slim") is False:
-        return "Full"
-    return "Unknown"
+        return t("about.build.full")
+    return t("word.unknown")
 
 
 def _release_target() -> str:
-    return str(_install_context().get("triplet") or "Unknown")
+    return str(_install_context().get("triplet") or t("word.unknown"))
 
 
 def _features() -> str:
@@ -133,18 +135,19 @@ def _features() -> str:
         found = install_identity.features(get_ini_config())
     except Exception:  # noqa: BLE001
         logger.debug("Could not read the enabled features", exc_info=True)
-        return "Unknown"
-    return ", ".join(found) or "None"
+        return t("word.unknown")
+    return ", ".join(t(install_identity.LABELS.get(name, name)) for name in found
+                     if name != install_identity.CORE) or t("word.none")
 
 
 def _active_theme() -> str:
     try:
         from common.online import theme_service
 
-        return theme_service.get_active_theme() or "Unknown"
+        return theme_service.get_active_theme() or t("word.unknown")
     except Exception:  # noqa: BLE001
         logger.debug("Could not read the active theme", exc_info=True)
-        return "Unknown"
+        return t("word.unknown")
 
 
 def windowing_system() -> str:
@@ -160,7 +163,7 @@ def windowing_system() -> str:
         return "Wayland"
     if os.environ.get("DISPLAY", "").strip() or session == "x11":
         return "X11"
-    return "Unknown"
+    return t("word.unknown")
 
 
 def _graphics() -> str:
@@ -170,9 +173,9 @@ def _graphics() -> str:
 
     found = metrics.gpu()
     if not found["available"]:
-        return found["reason"] or "Not reported"
-    return ", ".join(str(card.get("name") or "GPU")
-                     for card in found["gpus"]) or "Present"
+        return found["reason"] or t("about.not_reported")
+    return ", ".join(str(card.get("name") or t("word.unknown"))
+                     for card in found["gpus"]) or t("word.present")
 
 
 def _browser_path() -> str:
@@ -187,13 +190,13 @@ def _browser_path() -> str:
 
 def _browser_name(path: str) -> str:
     if not path:
-        return "Not configured"
+        return t("about.not_configured")
     lowered = path.lower()
     for fragment, name in (("msedge", "Microsoft Edge"), ("chromium", "Chromium"),
                            ("chrome", "Google Chrome"), ("firefox", "Firefox")):
         if fragment in lowered:
             return name
-    return Path(path).name or "Unknown"
+    return Path(path).name or t("word.unknown")
 
 
 def _browser_version(path: str) -> str:
@@ -232,10 +235,11 @@ def _locations() -> list[tuple[str, str]]:
     from common.log_setup import log_file
     from common.paths import CONFIG_DIR, VPINFE_INI_PATH
 
-    found = [("Configuration", str(CONFIG_DIR)), ("Settings file", str(VPINFE_INI_PATH))]
+    found = [(t("about.fact.configuration"), str(CONFIG_DIR)),
+             (t("about.fact.settings_file"), str(VPINFE_INI_PATH))]
     log = log_file()
-    found.append(("Log file", str(log) if log else "Not written yet"))
-    found.append(("Tables", _tables_root()))
+    found.append((t("about.fact.log_file"), str(log) if log else t("about.not_written_yet")))
+    found.append((t("about.fact.tables"), _tables_root()))
     return found
 
 
@@ -247,8 +251,8 @@ def _tables_root() -> str:
         root = SettingsConfig.from_config(get_ini_config()).game_root_dir.strip()
     except Exception:  # noqa: BLE001
         logger.debug("Could not read the tables root", exc_info=True)
-        return "Unknown"
-    return root or "Not set"
+        return t("word.unknown")
+    return root or t("about.not_set")
 
 
 def reset_for_tests() -> None:
