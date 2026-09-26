@@ -13,6 +13,7 @@ from urllib.parse import quote, urlencode
 
 import requests
 
+from common import device_client
 from common.config_access import NetworkConfig
 from common.i18n import t
 from common.paths import get_ini_config
@@ -54,6 +55,16 @@ class ApiError(RuntimeError):
         self.details = dict(details or {})
 
 
+class _WordedSession(requests.Session):
+    """Raises ApiError, never a requests exception, for a request nothing answered."""
+
+    def request(self, *args: Any, **kwargs: Any) -> requests.Response:
+        try:
+            return super().request(*args, **kwargs)
+        except requests.RequestException as exc:
+            raise ApiError(t(device_client.why_not(exc))) from exc
+
+
 class ApiClient:
     """An ordinary consumer of /api/v1, over HTTP rather than by import.
 
@@ -63,7 +74,7 @@ class ApiClient:
 
     def __init__(self, base_url: str | None = None) -> None:
         self._base = f"{base_url or local_base_url()}/api/v1"
-        self._session = requests.Session()
+        self._session = _WordedSession()
         self._media: dict[str, dict] = {}
         self._discovery: dict | None = None
 
