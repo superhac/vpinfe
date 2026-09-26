@@ -420,6 +420,29 @@ class SeparationTests(TempTree):
         self.assertEqual(after, ["None", list(TITLES)])
         self.assertEqual(failures, [])
 
+    def test_a_device_asked_to_show_a_collection_with_the_hub_down_says_so(self) -> None:
+        with LiveInstance(self.library_root) as library:
+            library.wait_for_api()
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+            library.post("/api/v1/collections", {"name": "Hub Picks", "games": []})
+
+            with LiveInstance(self.device_root,
+                              extra_settings={("network", "library_url"): library_api}) as device:
+                device.wait_for_api()
+                device.library_assets_port = library.ports["assets"]
+                device_api = f"http://127.0.0.1:{device.ports['manager']}"
+
+                def hub_stops_then_device_is_asked() -> tuple[int, str]:
+                    library._stop()
+                    answer = requests.put(f"{device_api}/api/v1/frontend/collection",
+                                          json={"name": "Hub Picks"}, timeout=30)
+                    return answer.status_code, answer.json()["error"]["message"]
+
+                (refused,), _ = self._evaluate(device, (hub_stops_then_device_is_asked,))
+
+        self.assertEqual(refused,
+                         (409, f"The library at {library_api} could not be reached"))
+
     def _evaluate(self, device: LiveInstance, steps: tuple[str | Callable[[], object], ...]):
         """Open the device's playfield window and take each step, in order, once the
         theme is ready: a string is evaluated in the page, anything else is called here."""

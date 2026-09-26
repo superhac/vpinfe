@@ -24,6 +24,7 @@ from common.games import remote_library
 from common.games.collection_resolver import Entry
 from common.games.collection_store import CollectionStore
 from common.games.wire_entry import WireGame
+from common.service_errors import BlockedError
 from frontend import game_state
 from frontend import library_resolver as frontend_library
 from frontend.api import API
@@ -230,7 +231,7 @@ class LibraryCollectionTests(unittest.TestCase):
     def test_a_pick_the_library_cannot_answer_leaves_the_wheel_as_it_was(self) -> None:
         self.reachable = False
 
-        with self.assertRaises(OSError):
+        with self.assertRaises(BlockedError):
             game_state.apply_collection(self.api, "")
 
         self.assertEqual(self.api.current_collection, "Top Ranked")

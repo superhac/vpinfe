@@ -151,10 +151,10 @@ def fetch_collections(library_url: str, *,
 
 def fetch_collection(library_url: str, name: str, *,
                      timeout: int = http_client.DEFAULT_TIMEOUT) -> dict[str, Any]:
-    """One of another install's collections. Raises when it cannot be asked, and when
-    that install has no collection by that name."""
+    """One of another install's collections. Raises when it cannot be asked, and
+    NotFoundError when that install has no collection by that name."""
     path = f"api/v1/collections/{quote(name, safe='')}"
-    row = http_client.get_json(_on(library_url, path), timeout=timeout)
+    row = _get_json(_on(library_url, path), name, timeout)
     if not isinstance(row, dict) or not row.get("name"):
         raise ValueError(f"{library_url} did not return a collection")
     return row

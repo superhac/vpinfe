@@ -45,7 +45,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/play/state` | What this play host is doing. The snapshot you take once; `play.state_changed` on the stream is how you hear about it after that |
 | POST | `/api/v1/play/stop` | Close the table this play host is running. `stopped` is false when there was nothing to close, which is an answer rather than a failure |
 | GET | `/api/v1/frontend/state` | What the frontend is showing: whether it is up, its collection and the game on the wheel. `frontend.state_changed` on the stream carries the same after every change |
-| PUT | `/api/v1/frontend/collection` | Show a collection on the frontend, `""` being the whole library. 202, and the switch arrives as the next `frontend.state_changed`. 409 when the frontend is not running |
+| PUT | `/api/v1/frontend/collection` | Show a collection on the frontend, `""` being the whole library. 202, and the switch arrives as the next `frontend.state_changed`. 409 when the frontend is not running, or when this install reads its library from another that cannot be reached; 404 when there is no collection by that name |
 | PUT | `/api/v1/frontend/game` | Move the frontend's wheel to a game. 202; 409 when the frontend is not running, 404 when the collection on screen does not hold that game |
 | POST | `/api/v1/input/actions` | Press, hold or release an input action on this install — the door a remote drives the frontend through |
 | GET | `/api/v1/update` | Whether a newer build is published, and whether this install can take it. `update_supported` is the second question, and `support_reason` says which case it is |

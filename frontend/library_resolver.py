@@ -43,7 +43,8 @@ from common.games.collections_service import (
 )
 from common.games.game_repository import all_games
 from common.games.media_lookup import resolved_kinds
-from common.service_errors import NotFoundError
+from common.i18n import t
+from common.service_errors import BlockedError, NotFoundError
 from frontend import game_state
 
 logger = logging.getLogger("vpinfe.frontend.library_resolver")
@@ -112,11 +113,23 @@ class LibraryResolver:
         """The library: another install's entries, or the local games. Different kinds of
         thing, which `rebuild_entries` knows."""
         if self._remote:
-            entries = remote_library.fetch_entries(self._library_url, collection)
+            entries = self._ask(remote_library.fetch_entries, collection)
             if not collection:
                 self._whole = entries
             return entries
         return all_games()
+
+    def _ask(self, fetch: Callable[[str, str], Any], collection: str) -> Any:
+        """`fetch` of the library, raising NotFoundError for a collection it does not
+        hold and BlockedError for any other failure."""
+        try:
+            return fetch(self._library_url, collection)
+        except NotFoundError:
+            raise
+        except Exception as exc:
+            logger.debug("The library did not answer for %r", collection, exc_info=True)
+            raise BlockedError(t("error.frontend.library_unreachable",
+                                 url=self._library_url)) from exc
 
     def reload(self) -> list[Any]:
         """The library again. A library that has gone quiet leaves the list alone: a
@@ -168,7 +181,7 @@ class LibraryResolver:
     def stored(self, name: str) -> tuple[dict | None, dict[str, Any]] | None:
         """A collection's criteria and its order block, or None when there is no
         collection by that name. A library's criteria stay over there, and its ranked
-        orders arrive ranked."""
+        orders arrive ranked. BlockedError when the library cannot be asked."""
         if not self._remote:
             store = self.collections()
             if name not in store:
@@ -179,9 +192,8 @@ class LibraryResolver:
                                  ORDER_PAGING_GROUP_KEY: None}
         if name != BUILTIN_ALL:
             try:
-                resource = remote_library.fetch_collection(self._library_url, name)
-            except Exception:
-                logger.warning("The library did not answer for %r", name, exc_info=True)
+                resource = self._ask(remote_library.fetch_collection, name)
+            except NotFoundError:
                 return None
             by = str(resource.get("order_by") or DEFAULT_ORDER_BY)
             order = {ORDER_BY_KEY: MANUAL_ORDER if rankings.is_token(by) else by,
