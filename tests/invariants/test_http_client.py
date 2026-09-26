@@ -5,13 +5,14 @@ from __future__ import annotations
 import logging
 import os
 import unittest
+from datetime import datetime
 from email.utils import formatdate
 from typing import Any
 from unittest import mock
 
 import requests
 
-from common import http_client
+from common import http_client, i18n
 
 NOW = 1_800_000_000.0
 URL = "https://api.github.com/repos/o/r/releases/latest"
@@ -113,6 +114,14 @@ class GateTest(unittest.TestCase):
         self._closed_until(_answer(429))
         with self._transport(_answer(200)):
             self.assertEqual(http_client.get_json("https://raw.githubusercontent.com/x"), {})
+
+    def test_the_wait_is_said_in_words(self) -> None:
+        self.addCleanup(i18n.set_language, i18n.language())
+        i18n.set_language("en")
+        until = datetime(2026, 3, 1, 14, 5).timestamp()
+
+        self.assertEqual(str(http_client.HostQuietError("api.github.com", until)),
+                         "api.github.com asked VPinFE to wait until 14:05")
 
 
 class OfflineTest(unittest.TestCase):
