@@ -72,10 +72,10 @@ _VIEWS_AT = {"0": ("DT", "FSS"), "1": ("Cab",), "2": ("DT",)}
 BGSET = "Player.BGSet"
 
 # What the program keeps for all tables only: the pages of its own menu that save
-# globally (input, plunger, nudge and tilt, cabinet, stereo), and the items any page
-# writes straight to the global file. The playfield window is read from the global file
+# globally (input, plunger, nudge and tilt, cabinet, stereo), the table editor's, and the
+# items any page writes straight to the global file. The playfield window is read from the global file
 # alone, whatever its page saves.
-ALL_TABLES_ONLY_SECTIONS = frozenset({"Input"})
+ALL_TABLES_ONLY_SECTIONS = frozenset({"Input", "Editor"})
 ALL_TABLES_ONLY_PREFIXES = ("Player.Stereo3D", "Player.Anaglyph", "Controller.DOF",
                             "Plugin.DMDUtil.")
 _SAVED_DIRECTLY = ("FullScreen", "FSWidth", "FSHeight", "RefreshRate", "ColorDepth")
@@ -106,6 +106,9 @@ ALL_TABLES_ONLY = frozenset({
     "Plugin.PUP.PUPFolder", "Plugin.UpscaleDMD.UpscaleMode",
     "Standalone.Haptics",
 })
+# The editor's settings the player reads through the table's.
+BALL_CONTROL = frozenset({"Editor.ThrowBallSize", "Editor.ThrowBallMass",
+                          "Editor.ThrowBallsAlwaysOn", "Editor.BallControlAlwaysOn"})
 
 # Of those, what a table starting still reads through the table's settings, so a value
 # already in its file is the one in force there. Only the playfield window is built from
@@ -127,6 +130,8 @@ TABLE_ONLY = frozenset({"Player.OverrideTableEmissionScale", "Player.EmissionSca
 def _all_tables_only(qualified: str) -> bool:
     # A plugin's switch is read from the table's settings when a table starts.
     if qualified.startswith("Plugin.") and qualified.endswith(".Enable"):
+        return False
+    if qualified in BALL_CONTROL:
         return False
     return (qualified in ALL_TABLES_ONLY
             or qualified.split(".", 1)[0] in ALL_TABLES_ONLY_SECTIONS

@@ -221,6 +221,28 @@ class AllTablesOnlyTests(_Case):
         self.assertTrue(found.in_effect)
 
 
+BALL_CONTROL = frozenset({"Editor.ThrowBallSize", "Editor.ThrowBallMass",
+                          "Editor.ThrowBallsAlwaysOn", "Editor.BallControlAlwaysOn"})
+
+
+class EditorTests(_Case):
+    def test_the_editor_s_are_offered_for_all_tables_only(self) -> None:
+        editor = [key for key in TYPES if key.startswith("Editor.")]
+        self.assertTrue(editor)
+
+        for key in [*editor, "Editor.SomethingLater"]:
+            if key in BALL_CONTROL:
+                continue
+            with self.subTest(key=key):
+                self.assertEqual(self.config.scopes_for(key), (SCOPE_LAUNCHER,))
+
+    def test_but_ball_control_is_read_at_the_table(self) -> None:
+        for key in sorted(BALL_CONTROL):
+            with self.subTest(key=key):
+                self.assertIn(key, TYPES)
+                self.assertEqual(self.config.scopes_for(key), self.config.scopes())
+
+
 class ReadAtTableStartTests(_Case):
     """Kept for all tables, and still read through a table's settings when it starts."""
 
