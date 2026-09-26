@@ -51,5 +51,34 @@ class MatchingAReleaseTests(unittest.TestCase):
         self.assertEqual((2, 2), (client.all_tables.call_count, client.tables.call_count))
 
 
+class MatchingAFileTests(unittest.TestCase):
+    def test_every_read_that_shows_the_match_is_made_again(self) -> None:
+        client = Mock()
+        client.all_tables.return_value = []
+        client.tables.return_value = []
+        client.games.return_value = []
+        client.library_policy.return_value = {}
+        library = data.Library(client)
+
+        def read() -> None:
+            library.load_tables()
+            library.tables_for("game")
+            library.load_asset_rows()
+            library.load_media_rows()
+            library.media_for("game", None)
+            library.media_for("game", "t1")
+
+        read()
+        library.set_asset_source("game", "medias/(Wheel) Game.png", "file01")
+        read()
+
+        self.assertEqual(
+            {"all_tables": 2, "tables": 2, "all_assets": 2, "all_media": 2, "media": 2,
+             "table_media": 2},
+            {name: getattr(client, name).call_count
+             for name in ("all_tables", "tables", "all_assets", "all_media", "media",
+                          "table_media")})
+
+
 if __name__ == "__main__":
     unittest.main()

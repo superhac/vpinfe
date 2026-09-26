@@ -1172,6 +1172,8 @@ class Library:
 
     def set_asset_source(self, game_id: str, path: str, vps_file_id: str) -> None:
         self._client.set_asset_source(game_id, path, vps_file_id)
+        self._forget_tables(game_id)
+        self.forget_media(game_id)
         self._forget_games()
 
     def vps_releases(self, vps_id: str, listed_as: str = "tableFiles") -> list[dict]:
