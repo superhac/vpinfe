@@ -709,6 +709,10 @@ answers.
 - **A setting that changes how the view draws lives in the view menu**, not on the bar.
   Ticks against thumbnails is the case: it is chosen once and left, so a click's depth
   costs nothing and the bar keeps the width.
+- **A choice about how every list draws lives in Settings > Console**, beside Date Format.
+  A choice about one view lives in that view's menu, which may carry a link to the former
+  but never a copy. `panel.menu_link` draws that row: an item's look, because accent in a
+  menu is the current value, and an address like any link.
 - **An action is an icon and a tooltip, until the page is empty.** Three spellings of one
   verb fit no rule and cost the width the description needs. The empty state keeps the
   full text button: that is where somebody meets the page for the first time, and an icon

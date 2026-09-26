@@ -269,7 +269,7 @@ def build(collections: list[dict[str, Any]], library: Any,
         bar = panel.grid_bar()
         wire_views, _picker, showing, describe = view_control(
             library, SCOPE, COLLECTION_VIEWS, fields, COLUMNS, bar=bar,
-            annotate=annotate)
+            annotate=annotate, art_in_lists=True)
         describe()
         with bar.top, panel.bar_end():
             search = panel.search(t("console.collections.search_collections"))

@@ -1015,6 +1015,12 @@ def link(label: str, *, to: str, on_click: Callable[[], Any] | None = None,
     return draw
 
 
+def menu_link(label: str, *, to: str) -> None:
+    """A menu row that goes somewhere else in the Console: an item's look, not accent."""
+    row = ui.menu_item(label).classes("console-menu-item")
+    row.props["href"] = to
+
+
 def tag_link(tag: str, color: str, *, to: str, mark: str = "",
              hint: str = "") -> Callable[[], None]:
     """A tag chip that goes somewhere: the chip's look, and an address like any link."""

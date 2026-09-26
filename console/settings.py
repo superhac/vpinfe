@@ -686,6 +686,12 @@ def _page_holding(section: str) -> str:
                  if section in page[3]), "")
 
 
+def address_for(section: str) -> str:
+    """Settings, open at the page that draws a config section."""
+    return "/console?" + deeplink.query({"view": "settings",
+                                         "settings_page": _page_holding(section)})
+
+
 def pages_in_trouble(items: Any) -> dict[str, list[Any]]:
     """Unmet requirements, keyed by the page that carries the setting.
 

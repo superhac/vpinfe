@@ -148,7 +148,8 @@ def build(found: list[dict[str, Any]], library: Any,
                                   "console-panel console-grid-bar"):
         bar = panel.grid_bar()
         wire_views, _picker, showing, describe = view_control(library, SCOPE, VIEWS,
-                                                    _ALL, COLUMNS, bar=bar)
+                                                    _ALL, COLUMNS, bar=bar,
+                                                    art_in_lists=True)
         describe()
         with bar.top, panel.bar_end():
             search = panel.search(t("console.assets.search_assets"))

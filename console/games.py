@@ -15,6 +15,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common import config_schema
 from common.failures import why
 from common.games import asset_registry
 from common.i18n import t
@@ -45,6 +46,7 @@ from console import (
     workbench,
 )
 from console import dialog as frame
+from console import settings as settings_page
 from console.api import ApiClient
 
 logger = logging.getLogger("vpinfe.console.games")
@@ -499,7 +501,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             or ({"collections": {"values": [narrowed]}} if narrowed else None)
         wire_views, view_picker, showing, describe = view_control(
             library, SCOPE, presets, all_fields, columns, bar=bar, annotate=annotate,
-            arriving=arriving)
+            arriving=arriving, art_in_lists=True)
         describe()
         with bar.top, panel.bar_end():
             search = panel.search(t("console.games.search_games"))
@@ -1263,7 +1265,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
 
         wire_views, view_picker, showing, describe = view_control(
             library, f"{SCOPE}.tables", presets, fields, table_columns, bar=bar,
-            annotate=annotate, arriving=arriving)
+            annotate=annotate, arriving=arriving, art_in_lists=True)
         describe()
         with bar.top, panel.bar_end():
             search = panel.search(t("console.games.search_tables"))
@@ -1563,7 +1565,8 @@ def view_control(library: Any, scope: str,
                  all_fields: list[str],
                  columns: list[dict[str, Any]], *, bar: Any,
                  annotate: Callable[[], None] | None = None,
-                 arriving: dict[str, Any] | None = None) -> Any:
+                 arriving: dict[str, Any] | None = None,
+                 art_in_lists: bool = False) -> Any:
     """One control for how the rows are presented: which view, and what is in it.
 
     Built here in the toolbar and wired once the grid exists, because the widgets have
@@ -1577,6 +1580,8 @@ def view_control(library: Any, scope: str,
 
     `arriving` is a filter model the address asked for. It stands in for the filters of
     the first view put on the grid, and each column it filters is shown.
+
+    `art_in_lists` is for a grid that lists games, tables or collections by name.
     """
     custom, active = views.stored(library, scope)
     # Before the grid is built from `columns`, which is the same list.
@@ -1805,6 +1810,10 @@ def view_control(library: Any, scope: str,
                     ui.menu_item(t("console.games.delete_view"), delete) \
                         .classes("console-menu-item console-menu-danger")
                 drawings(hidden)
+                if art_in_lists:
+                    ui.separator()
+                    panel.menu_link(config_schema.label_for("list_art", "console"),
+                                    to=settings_page.address_for("console"))
                 ui.separator()
                 # An explicit column: the menu lays its children out inline otherwise,
                 # so twenty checkboxes wrap into a paragraph rather than a list.
