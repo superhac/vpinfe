@@ -100,10 +100,15 @@ class ACollectionTakingAGameWheel(unittest.TestCase):
                 self.assertIn(named[len("4 Queens"):], IMAGE_EXTENSIONS)
 
 
-def _slot(in_view: str, saved_for: str) -> mediasource._Slot:
+def _slot(in_view: str, saved_for: str, tables: tuple[str, ...] = (),
+          own_names: tuple[str, ...] = ()) -> mediasource._Slot:
     slot = mediasource._Slot({"library": LIBRARY, "game_id": "game", "game": {},
-                              "lens": in_view},
+                              "lens": in_view,
+                              "tables": [{"id": one, "filename": f"{one}.vpx"}
+                                         for one in tables]},
                              "wheel", "Wheel", _nothing, mediasource._media(LIBRARY, "wheel"))
+    slot.placements = [{"table": "", "label": "Shared"},
+                       *({"table": one, "label": f"{one}.vpx"} for one in own_names)]
     slot.placed_at = {"table": saved_for, "label": f"{saved_for}.vpx"}
     return slot
 
@@ -117,6 +122,24 @@ class WhereItWent(unittest.TestCase):
         self.assertEqual(
             "Wheel saved for every table in this game - not what this view is showing",
             _slot("Attack from Mars", "").said_where("Wheel saved"))
+
+    def test_the_one_table_named_as_its_folder_is_named_from_either_view(self) -> None:
+        for in_view in ("Attack from Mars", ""):
+            with self.subTest(in_view=in_view):
+                self.assertEqual(
+                    "Wheel saved for Attack from Mars",
+                    _slot(in_view, "", tables=("Attack from Mars",)).said_where("Wheel saved"))
+
+    def test_the_one_table_with_a_name_of_its_own_keeps_the_shared_wording(self) -> None:
+        self.assertEqual(
+            "Wheel saved for every table in this game - not what this view is showing",
+            _slot("AFM VPW", "", tables=("AFM VPW",), own_names=("AFM VPW",))
+            .said_where("Wheel saved"))
+
+    def test_saved_for_every_table_of_several_says_so(self) -> None:
+        self.assertEqual("Wheel saved for every table in this game",
+                         _slot("", "", tables=("Attack from Mars", "Attack from Mars VR"))
+                         .said_where("Wheel saved"))
 
     def test_a_translation_orders_what_and_where(self) -> None:
         self.addCleanup(i18n.set_language, i18n.language())

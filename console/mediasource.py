@@ -604,10 +604,14 @@ class _Slot(_OneFile):
         the pair reads as a failure.
         """
         chosen = self.placed_at or {}
-        where = (t("console.mediasource.every_table_game") if not self.destination
-                 else t("console.mediasource.for",
-                        table=(_trimmed_stem(str(chosen.get("label") or "")))))
-        if self.destination != (self.table_id or ""):
+        tables = list(self.context.get("tables") or [])
+        alone = (not self.destination and len(tables) == 1
+                 and not any(item.get("table") for item in self.placements))
+        named = (str(tables[0].get("filename") or "") if alone
+                 else str(chosen.get("label") or "") if self.destination else "")
+        where = (t("console.mediasource.for", table=_trimmed_stem(named)) if named
+                 else t("console.mediasource.every_table_game"))
+        if not alone and self.destination != (self.table_id or ""):
             where = t("console.mediasource.not_what_view_showing", where=where)
         return t("console.mediasource.saved_where", message=message, where=where)
 
