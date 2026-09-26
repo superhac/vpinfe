@@ -122,11 +122,15 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
         game.meta_config[TABLES_KEY] = resolved
         # Re-read so unrelated sections come from disk, but replace tables outright:
         # re-deriving here would mint different ids than the ones just handed out.
-        config = load_game_meta(game)
-        config[TABLES_KEY] = resolved
-        if new_default:
-            config.setdefault(VPINFE_SECTION, {})[DEFAULT_TABLE_KEY] = new_default
-        persist_game_meta(game, config)
+        try:
+            config = load_game_meta(game)
+            config[TABLES_KEY] = resolved
+            if new_default:
+                config.setdefault(VPINFE_SECTION, {})[DEFAULT_TABLE_KEY] = new_default
+            persist_game_meta(game, config)
+        except Exception:
+            logger.exception("Could not write table ids for %s; they last until the "
+                             "library is read again", game.game_dir_name)
 
     if minted or remixed or rekeyed or defaults or stamped:
         logger.info("Assigned ids to %s tables, re-minted %s collisions, re-keyed %s "

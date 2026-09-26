@@ -9,6 +9,7 @@ import json
 import os
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from common.games import ids, table_identity
 from common.games.info_file import MetaConfig
@@ -22,6 +23,7 @@ from common.games.tables import (
 )
 from common.timestamps import epoch_to_iso, utc_now_iso
 from tests.support.library import TempTree, fake_game, write_game
+from tests.support.skips import needs_posix_permissions
 
 
 def _by_name(entries: dict, filename: str) -> dict:
@@ -249,6 +251,22 @@ class BackfillTests(TempTree):
         remixed = json.loads((self.root / "Second" / "Second.info").read_text(encoding="utf-8"))
         self.assertEqual(table_id(_by_name(kept[TABLES_KEY], "a.vpx")), "dupdupdup1")
         self.assertNotEqual(table_id(_by_name(remixed[TABLES_KEY], "a.vpx")), "dupdupdup1")
+
+    @needs_posix_permissions
+    def test_a_folder_it_cannot_write_leaves_the_others_their_ids(self) -> None:
+        locked = _game(self.root, "Locked", _legacy_meta(("a.vpx", {"file_hash": "aaa"})))
+        kept = _game(self.root, "Kept", _legacy_meta(("b.vpx", {"file_hash": "bbb"})))
+        (self.root / "Locked").chmod(0o555)
+        self.addCleanup((self.root / "Locked").chmod, 0o755)
+
+        with mock.patch.object(table_identity.logger, "exception") as logged:
+            by_id = table_identity.ensure_unique_table_ids([locked, kept])
+
+        self.assertEqual(sorted(name for _game, name in by_id.values()),
+                         ["a.vpx", "b.vpx"])
+        on_disk = json.loads((self.root / "Kept" / "Kept.info").read_text(encoding="utf-8"))
+        self.assertTrue(table_id(_by_name(on_disk[TABLES_KEY], "b.vpx")))
+        self.assertEqual([one.args[1] for one in logged.call_args_list], ["Locked"])
 
     def test_a_game_that_needs_nothing_is_not_rewritten(self) -> None:
         """A large library on a network share: a needless write is a round trip each."""

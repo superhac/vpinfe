@@ -74,6 +74,19 @@ def ensure_id(game: Game, *, force_new: bool = False) -> str:
     return minted
 
 
+def _assigned(game: Game) -> str:
+    """`ensure_id`, or an id held in memory for a game whose .info cannot be written."""
+    try:
+        return ensure_id(game)
+    except Exception:
+        logger.exception("Could not write an id to %s; it has one until the library "
+                         "is read again", game.game_dir_name)
+    held = new_id()
+    meta = normalize_meta(game.meta_config)
+    game.meta_config = {**meta, ID_SECTION: {**section(meta, ID_SECTION), ID_KEY: held}}
+    return held
+
+
 @dataclass(frozen=True)
 class Shadowed:
     """A game folder whose id another folder is already using.
@@ -150,7 +163,7 @@ def resolve_ids(games: Iterable[Any],
     for game in _priority(games, order):
         current = game_id(game)
         if not current:
-            current = ensure_id(game)
+            current = _assigned(game)
             minted += 1
         if current in by_id:
             first = holder[current]
