@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-vpinfe v2.6.2. Add addtional --class=<window> param to launching chrome browers.  Needed for Weston support.
+vpinfe v2.6.3.  Add a wait until all displays are accouned for when window system is loaded on demand (linux only).
 
 ### What's New
-Add Weston multi-screen placement
+None
 
 ### Fixes
-None
+- add a wait until all displays are accounted for in get_monitors(). Linux only.
 
 ### Notes
 None
