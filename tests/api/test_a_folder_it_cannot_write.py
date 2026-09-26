@@ -81,6 +81,23 @@ class LockedFolderTests(TempTree):
         self.assertEqual(self.client.get(f"/games/{first}").status_code, 200)
         self.assertEqual(self._listed()[LOCKED], first)
 
+    def test_a_refresh_hands_it_the_same_id(self) -> None:
+        first = self._listed()[LOCKED]
+
+        game_repository.refresh_games()
+
+        self.assertEqual(self._listed()[LOCKED], first)
+        self.assertEqual([one.args[1] for one in self.logged.call_args_list], [LOCKED])
+
+    def test_the_id_it_held_is_the_one_written_once_it_can_be(self) -> None:
+        first = self._listed()[LOCKED]
+        self.locked.chmod(0o755)
+
+        game_repository.refresh_games()
+
+        self.assertEqual(self._listed()[LOCKED], first)
+        self.assertEqual(self._on_disk(LOCKED), first)
+
     def test_it_counts_among_those_written_by_an_older_build(self) -> None:
         self._listed()
 

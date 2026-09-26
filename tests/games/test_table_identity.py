@@ -268,6 +268,30 @@ class BackfillTests(TempTree):
         self.assertTrue(table_id(_by_name(on_disk[TABLES_KEY], "b.vpx")))
         self.assertEqual([one.args[1] for one in logged.call_args_list], ["Locked"])
 
+    @needs_posix_permissions
+    def test_a_folder_it_cannot_write_keeps_its_table_ids_when_read_again(self) -> None:
+        meta = _legacy_meta(("a.vpx", {"file_hash": "aaa"}))
+        (self.root / "Locked").mkdir()
+        (self.root / "Locked").chmod(0o555)
+        self.addCleanup((self.root / "Locked").chmod, 0o755)
+
+        def read() -> dict[str, str]:
+            game = fake_game(self.root / "Locked", "Locked", meta=json.loads(json.dumps(meta)))
+            with mock.patch.object(table_identity.logger, "exception"):
+                table_identity.ensure_unique_table_ids([game])
+            return table_identity.table_ids(game)
+
+        first = read()
+
+        self.assertTrue(first["a.vpx"])
+        self.assertEqual(read(), first)
+
+        (self.root / "Locked").chmod(0o755)
+        read()
+
+        on_disk = json.loads((self.root / "Locked" / "Locked.info").read_text(encoding="utf-8"))
+        self.assertEqual(table_id(_by_name(on_disk[TABLES_KEY], "a.vpx")), first["a.vpx"])
+
     def test_a_game_that_needs_nothing_is_not_rewritten(self) -> None:
         """A large library on a network share: a needless write is a round trip each."""
         game = _game(self.root, "Done",

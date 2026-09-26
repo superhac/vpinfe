@@ -27,6 +27,9 @@ from common.games.tables import (
 
 logger = logging.getLogger("vpinfe.common.games.table_identity")
 
+# Folder path -> {native key: id} for a folder VPinFE could not write to, for this run.
+_HELD: dict[str, dict[str, str]] = {}
+
 
 def table_ids(game: GameRecord) -> dict[str, str]:
     """{native key: id} for a game's tables, skipping entries with no id yet.
@@ -66,6 +69,8 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
         changed = entries is not stored
         rekeyed += changed
 
+        game_dir = str(getattr(game, "full_path_game", "") or "")
+        held = _HELD.get(game_dir, {})
         resolved: dict[str, dict] = {}
         for entry in entries.values():
             filename = entry_native_key(entry)
@@ -88,14 +93,13 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
             else:
                 minted += 1
 
-            fresh = new_id()
+            fresh = held.get(filename) or new_id()
             while fresh in by_id:
                 fresh = new_id()
             resolved[fresh] = {**entry, TABLE_ID_KEY: fresh}
             by_id[fresh] = (game, filename)
             changed = True
 
-        game_dir = str(getattr(game, "full_path_game", "") or "")
         for entry in resolved.values():
             if game_dir and stamp_added(game_dir, entry):
                 stamped += 1
@@ -128,9 +132,14 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
             if new_default:
                 config.setdefault(VPINFE_SECTION, {})[DEFAULT_TABLE_KEY] = new_default
             persist_game_meta(game, config)
+            _HELD.pop(game_dir, None)
         except Exception:
-            logger.exception("Could not write table ids for %s; they last until the "
-                             "library is read again", game.game_dir_name)
+            if game_dir in _HELD:
+                logger.debug("Still could not write table ids for %s", game.game_dir_name)
+            else:
+                logger.exception("Could not write table ids for %s; they last until "
+                                 "VPinFE restarts", game.game_dir_name)
+            _HELD[game_dir] = {entry_native_key(e): i for i, e in resolved.items()}
 
     if minted or remixed or rekeyed or defaults or stamped:
         logger.info("Assigned ids to %s tables, re-minted %s collisions, re-keyed %s "

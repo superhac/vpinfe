@@ -74,14 +74,31 @@ def ensure_id(game: Game, *, force_new: bool = False) -> str:
     return minted
 
 
+# Folder path -> the id a folder VPinFE could not write to was given, for this run.
+_HELD: dict[str, str] = {}
+
+
 def _assigned(game: Game) -> str:
-    """`ensure_id`, or an id held in memory for a game whose .info cannot be written."""
-    try:
-        return ensure_id(game)
-    except Exception:
-        logger.exception("Could not write an id to %s; it has one until the library "
-                         "is read again", game.game_dir_name)
-    held = new_id()
+    """`ensure_id`, or for a game whose .info cannot be written, an id held by its path
+    until VPinFE restarts. Once the .info can be written, the held id is the one written."""
+    path = str(game.full_path_game or "")
+    held = _HELD.get(path)
+    if held is None:
+        try:
+            return ensure_id(game)
+        except Exception:
+            logger.exception("Could not write an id to %s; it has one until VPinFE "
+                             "restarts", game.game_dir_name)
+        held = _HELD[path] = new_id()
+    else:
+        try:
+            config = load_game_meta(game)
+            _vpinfe_section(config)[ID_KEY] = held
+            persist_game_meta(game, config)
+            del _HELD[path]
+            return held
+        except Exception:
+            logger.debug("Still could not write an id to %s", game.game_dir_name)
     meta = normalize_meta(game.meta_config)
     game.meta_config = {**meta, ID_SECTION: {**section(meta, ID_SECTION), ID_KEY: held}}
     return held
