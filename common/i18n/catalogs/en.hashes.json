@@ -1857,6 +1857,8 @@
   "error.launch.nothing_to_launch": "dc7e4442986d",
   "error.launch.reference_unreachable": "fc782d8ba26d",
   "error.launchers.all_tables_only": "19583c21179c",
+  "error.launchers.copy_gone": "82d74f05bf91",
+  "error.launchers.copy_matches_no_file": "cf38b9ef9d8e",
   "error.launchers.default_has_no_program": "3e92ec696689",
   "error.launchers.default_switched_off": "d48f71a0f0f5",
   "error.launchers.fallback_has_no_program": "e14e00b3d744",

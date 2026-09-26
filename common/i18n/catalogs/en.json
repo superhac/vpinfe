@@ -2124,6 +2124,8 @@
   "error.launch.nothing_to_launch": "This game has nothing to launch",
   "error.launch.reference_unreachable": "This table lives at {path}, which is not reachable from here.",
   "error.launchers.all_tables_only": "{app_name} reads {keys} for all tables at once, never for one.",
+  "error.launchers.copy_gone": "That copy is no longer there.",
+  "error.launchers.copy_matches_no_file": "That copy does not match any file this app keeps.",
   "error.launchers.default_has_no_program": "{name} has no program. Set one to make it the default.",
   "error.launchers.default_switched_off": "{name} is switched off. Switch it on to make it the default.",
   "error.launchers.fallback_has_no_program": "Switched off, its tables would go to {name}, which has no program.",

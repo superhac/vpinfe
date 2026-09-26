@@ -18,7 +18,8 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 import httpapi
-from common.games import launcher_migration, launchers
+from common.games import config_backups, launcher_migration, launchers
+from common.i18n import t
 from console import app_settings, data, workbench
 from console.api import ApiClient
 
@@ -281,6 +282,53 @@ class LauncherApiTests(unittest.TestCase):
                                    json={"launcher_id": "ghost"})
 
         self.assertEqual(response.status_code, 404)
+
+
+class RestoreRefusedTests(unittest.TestCase):
+    """A launcher with one copy of its settings file taken."""
+
+    def setUp(self) -> None:
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.store = launchers.LauncherStore(
+            os.path.join(self.tmp.name, "launchers.json"))
+        for patcher in (patch.object(launchers, "get_launcher_store",
+                                     return_value=self.store),
+                        patch.object(config_backups, "BACKUPS_DIR",
+                                     pathlib.Path(self.tmp.name, "backups"))):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.store.mark_migration(launcher_migration.SEEDED)
+        self.client = _client()
+        self.ini = pathlib.Path(self.tmp.name, "VPinballX.ini")
+        self.ini.write_text("[Player]\nFXAA = 1\n")
+        self._point_at(self.ini)
+        taken = self.client.post("/launchers/l1/config/backups", json={})
+        self.assertEqual(taken.status_code, 200, taken.text)
+        self.copy = taken.json()["taken"][0]["name"]
+
+    def _point_at(self, ini: pathlib.Path) -> None:
+        self.client.put("/launchers/l1", json={"app": "vpx", "settings": {
+            "bin_path": "/opt/vpx", "ini_path": str(ini)}})
+
+    def _restore(self, name: str):
+        return self.client.post(f"/launchers/l1/config/backups/{name}/restore")
+
+    def test_a_copy_that_is_gone_says_so(self) -> None:
+        response = self._restore("VPinballX--20260101T000000Z--manual.ini")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["message"],
+                         t("error.launchers.copy_gone"))
+
+    def test_a_copy_of_a_file_it_no_longer_keeps_says_so(self) -> None:
+        self._point_at(pathlib.Path(self.tmp.name, "Other.ini"))
+
+        response = self._restore(self.copy)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["message"],
+                         t("error.launchers.copy_matches_no_file"))
 
 
 class _TableCase(unittest.TestCase):

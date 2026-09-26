@@ -152,10 +152,11 @@ SPEAKS_TO_A_SURFACE = {
     "common/uploads/asset_import_service.py": frozenset({"reason"}),
     "common/games/locations.py": frozenset({"reason"}),
     "console/metrics.py": frozenset({"reason"}),
+    "common/games/config_backups.py": frozenset({"raise", "refusal"}),
 }
 
 # Said to whoever wrote the calling code, which has a bug to fix rather than a person
-# something to do.
+# something to do. A module whose caller shows one anyway lists `refusal`.
 SAID_TO_A_DEVELOPER = {"AttributeError", "ContractError", "NotThisDeviceError",
                        "NotVPinFEError", "TypeError", "ValueError"}
 
@@ -219,8 +220,9 @@ def _handed_back(source: str) -> list[tuple[str, ast.expr]]:
                 if isinstance(key, ast.Constant) and key.value == "reason":
                     add("reason", value)
         elif isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call) \
-                and node.exc.args and _named(node.exc.func) not in SAID_TO_A_DEVELOPER:
-            add("raise", node.exc.args[0])
+                and node.exc.args:
+            add("refusal" if _named(node.exc.func) in SAID_TO_A_DEVELOPER else "raise",
+                node.exc.args[0])
         elif isinstance(node, ast.Assign):
             for target in node.targets:
                 pairs = (list(zip(target.elts, node.value.elts, strict=True))
@@ -262,6 +264,7 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
         self.assertGreater(kinds.count("return"), 5)
         self.assertGreater(kinds.count("reason"), 5)
         self.assertGreater(kinds.count("raise"), 5)
+        self.assertGreater(kinds.count("refusal"), 0)
 
     def test_each_road_is_read(self) -> None:
         source = ('NOT_WIRED = "Nothing performs that."\n'
@@ -294,7 +297,8 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                                 "reason 'Copied'",
                                 "reason 'Drop it on a game'",
                                 "reason 'Nothing performs that.'",
-                                "reason str(exc)"])
+                                "reason str(exc)",
+                                "refusal 'not inside a folder it declared'"])
 
 
 # Pages where a caught exception reaches the screen only through the function named,

@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from common.i18n import t
 from common.paths import CONFIG_DIR
 
 logger = logging.getLogger("vpinfe.common.games.config_backups")
@@ -106,11 +107,11 @@ def restore(launcher_id: str, name: str, files: dict[str, str],
     home = _home(launcher_id, named)
     source = home / Path(str(name or "")).name
     if not source.is_file() or source.parent != home:
-        raise FileNotFoundError(f"No copy called {name!r}.")
+        raise FileNotFoundError(t("error.launchers.copy_gone"))
 
     target = _target_for(source, files)
     if target is None:
-        raise ValueError("That copy does not match any file this app keeps.")
+        raise ValueError(t("error.launchers.copy_matches_no_file"))
 
     safety = take(launcher_id, {"": str(target)}, reason=BEFORE_RESTORE,
                   named=named)

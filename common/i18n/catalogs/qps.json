@@ -2124,6 +2124,8 @@
   "error.launch.nothing_to_launch": "Ţĥîš ĝàɱè ĥàš ñöţĥîñĝ ţö ŀàûñçĥ",
   "error.launch.reference_unreachable": "Ţĥîš ţàƀŀè ŀîṽèš àţ {path}, ŵĥîçĥ îš ñöţ řèàçĥàƀŀè ƒřöɱ ĥèřè.",
   "error.launchers.all_tables_only": "{app_name} řèàđš {keys} ƒöř àŀŀ ţàƀŀèš àţ öñçè, ñèṽèř ƒöř öñè.",
+  "error.launchers.copy_gone": "Ţĥàţ çöþý îš ñö ŀöñĝèř ţĥèřè.",
+  "error.launchers.copy_matches_no_file": "Ţĥàţ çöþý đöèš ñöţ ɱàţçĥ àñý ƒîŀè ţĥîš àþþ ķèèþš.",
   "error.launchers.default_has_no_program": "{name} ĥàš ñö þřöĝřàɱ. Šèţ öñè ţö ɱàķè îţ ţĥè đèƒàûŀţ.",
   "error.launchers.default_switched_off": "{name} îš šŵîţçĥèđ öƒƒ. Šŵîţçĥ îţ öñ ţö ɱàķè îţ ţĥè đèƒàûŀţ.",
   "error.launchers.fallback_has_no_program": "Šŵîţçĥèđ öƒƒ, îţš ţàƀŀèš ŵöûŀđ ĝö ţö {name}, ŵĥîçĥ ĥàš ñö þřöĝřàɱ.",
