@@ -12,6 +12,7 @@ import json
 import logging
 import weakref
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 from typing import Any
 
 from nicegui import run, ui
@@ -31,22 +32,60 @@ DEFAULT_COL_DEF: dict[str, Any] = {
     "autoHeaderHeight": True,
 }
 
-# AG Grid's own column state is the stored payload: width, order, visibility, sort, pin.
 # Layout belongs to the *view*, not to the grid: a tick column wants to be narrow and a
 # name column wants to be wide, and they are the same column under two views. Visibility,
 # sort and filters are the view's too - what keeps a built-in a constant is that none of
 # it is stored against the built-in's definition. See console/views.py.
-_SAVE_EVENTS = ("columnMoved", "columnResized", "columnPinned")
-_LAYOUT_FIELDS = ("colId", "width", "flex", "pinned")
+#
+# Each event, and the part of a `Layout` it changes.
+_SAVE_EVENTS = {"columnMoved": "order", "columnResized": "widths", "columnPinned": "pins"}
 # Emits only a person's own gestures, the events whose AG Grid source starts `ui`.
 _BY_A_PERSON = ("e => { if (String(e.source || '').startsWith('ui'))"
                 " emit({colId: e.colId, pinned: e.pinned}); }")
+# How the ids of the columns AG Grid adds for itself begin: the checkbox column, chiefly.
+_GENERATED = "ag-Grid-"
+_PIN_SIDES = ("left", "right", None)
 
-# AG Grid's id for the checkbox column it adds, and the pin `build` gives it.
-SELECTION_COLUMN = "ag-Grid-SelectionColumn"
-_SELECTION_PIN = "left"
-# Each grid's pins as the person set them, for the view showing.
-_PINS: weakref.WeakKeyDictionary[Any, dict[str, str | None]] = weakref.WeakKeyDictionary()
+
+@dataclass
+class Layout:
+    """A view's layout as a person left it: the order once they move a column, and the
+    width or pin of each column they resized or pinned. A column it does not name takes
+    what its definition declares."""
+
+    where: str
+    order: list[str] = field(default_factory=list)
+    widths: dict[str, float] = field(default_factory=dict)
+    pins: dict[str, str | None] = field(default_factory=dict)
+    # The widths the grid was last seen at. A resize is found by what changed rather
+    # than by the event's column: a shift-drag resizes two columns and names neither.
+    seen: dict[str, float] = field(default_factory=dict)
+    written: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def read(cls, where: str, held: Any) -> Layout:
+        held = held if isinstance(held, dict) else {}
+        widths, pins = held.get("widths"), held.get("pins")
+        layout = cls(
+            where,
+            order=[col_id for col_id in held.get("order") or [] if isinstance(col_id, str)],
+            widths={str(col_id): width for col_id, width in
+                    (widths.items() if isinstance(widths, dict) else ())
+                    if isinstance(width, (int, float)) and not isinstance(width, bool)},
+            pins={str(col_id): side for col_id, side in
+                  (pins.items() if isinstance(pins, dict) else ())
+                  if side in _PIN_SIDES})
+        layout.written = layout.stored()
+        return layout
+
+    def stored(self) -> dict[str, Any]:
+        """What goes in the preferences: each part only once a person has set it."""
+        return {key: value for key, value in (("order", list(self.order)),
+                                              ("widths", dict(self.widths)),
+                                              ("pins", dict(self.pins))) if value}
+
+
+_LAYOUTS: weakref.WeakKeyDictionary[Any, Layout] = weakref.WeakKeyDictionary()
 _SAVERS: weakref.WeakKeyDictionary[Any, Callable[[dict[str, Any]], Awaitable[None]]] = \
     weakref.WeakKeyDictionary()
 
@@ -789,7 +828,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # the grid dies as an empty table rather than an error.
         ":getRowId": "params => params.data.id",
         # The checkbox belongs to the row, so it stays with the row's left edge.
-        "selectionColumnDef": {"pinned": _SELECTION_PIN},
+        "selectionColumnDef": {"pinned": "left"},
         # The workbench follows the focused row, and focus is not selection: arrowing
         # must not disturb the checkboxes a bulk action reads.
         #
@@ -1051,46 +1090,46 @@ async def apply_layout(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]
     where = layout_scope(scope, view_of)
     try:
         held = await offload.io(ApiClient().preferences, where)
-        stored = (held or {}).get("columns")
     except Exception:
         logger.warning("console: could not read column state for %s", where, exc_info=True)
+        _LAYOUTS.pop(grid, None)
         return
-    # Only the layout fields, in as well as out: a payload written before views existed
-    # carries `hide`, which would override the view.
-    saved = {entry["colId"]: {k: entry[k] for k in _LAYOUT_FIELDS if k in entry}
-             for entry in (stored or []) if entry.get("colId")}
-    _PINS[grid] = {SELECTION_COLUMN: _SELECTION_PIN,
-                   **{definition["field"]: definition.get("pinned") for definition in columns},
-                   **{col_id: entry["pinned"] for col_id, entry in saved.items()
-                      if "pinned" in entry}}
+    kept = _LAYOUTS[grid] = Layout.read(where, held)
     grid.run_grid_method("applyColumnState",
-                         {"state": applied_state(columns, saved), "applyOrder": True})
+                         {"state": applied_state(columns, kept), "applyOrder": True})
+    try:
+        kept.seen = _widths(await grid.run_grid_method("getColumnState"))
+    except TimeoutError:
+        logger.debug("console: the grid did not answer in time; widths for %s not seen",
+                     where)
 
 
-def applied_state(columns: list[dict[str, Any]],
-                  saved: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
-    """The column state `apply_layout` puts on a grid: the saved order, then every
-    column the save does not name in declared order, each at its saved width or else
-    its declared one."""
+def applied_state(columns: list[dict[str, Any]], kept: Layout) -> list[dict[str, Any]]:
+    """The column state `apply_layout` puts on a grid: the person's order, then every
+    column it does not name in declared order, each at the person's width and pin or
+    else its declared ones."""
     declared = {definition["field"]: definition for definition in columns}
-    order = [col_id for col_id in saved if col_id in declared]
-    order += [field_id for field_id in declared if field_id not in saved]
-    # Every column this grid has gets a definite width, not only the ones with one
-    # stored: a view with no geometry of its own must go back to the definitions rather
-    # than keep the last view's. `defaultState: {"width": None}` reads as if it would do
-    # this and does not - a widened column survives the switch.
-    #
-    # Pinning is deliberately not reset. It is set by the column definition rather than
-    # by a layout, and forcing it here unpins the selection column.
+    order = list(dict.fromkeys(col_id for col_id in kept.order if col_id in declared))
+    order += [field_id for field_id in declared if field_id not in order]
+    # Every column gets a definite width and pin, or a view with none of its own keeps
+    # the last view's. `defaultState` reads as if it would do this and does not - a
+    # widened column survives the switch - and a pin there reaches the selection column,
+    # which is not among `columns`, and unpins it.
     state = []
     for field_id in order:
-        want = dict(saved.get(field_id) or {})
-        want.setdefault("colId", field_id)
-        want.setdefault("width", declared[field_id].get("width"))
-        if want.get("width") is None:
-            want.pop("width", None)
+        want = {"colId": field_id,
+                "pinned": kept.pins.get(field_id, declared[field_id].get("pinned"))}
+        width = kept.widths.get(field_id, declared[field_id].get("width"))
+        if width is not None:
+            want["width"] = width
         state.append(want)
     return state
+
+
+def _widths(state: list[dict[str, Any]] | None) -> dict[str, float]:
+    return {str(entry["colId"]): entry["width"] for entry in state or []
+            if entry.get("colId") and entry.get("width") is not None
+            and not str(entry["colId"]).startswith(_GENERATED)}
 
 
 def _restore(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]],
@@ -1104,21 +1143,33 @@ def _save_on_change(grid: ui.aggrid, scope: str,
                     view_of: Callable[[], str] | None) -> None:
     from console.api import ApiClient
 
-    async def save(done: dict[str, Any]) -> None:
-        """Keep the layout, `done` being the column the person just pinned, if any."""
+    async def save(done: dict[str, Any], change: str) -> None:
+        """Keep what the person just changed, `done` being the column the event names."""
+        kept = _LAYOUTS.get(grid)
         where = layout_scope(scope, view_of)
-        pins = _PINS.setdefault(grid, {})
-        if done.get("colId") and "pinned" in done:
-            pins[str(done["colId"])] = done["pinned"]
+        # No layout read for the view showing, so none to write over it.
+        if kept is None or kept.where != where:
+            return
         try:
-            state = await grid.run_grid_method("getColumnState")
-            # Stripped to the layout: storing `hide` or `sort` would make a built-in
-            # drift, which is the one thing it must never do.
-            layout = [{k: entry[k] for k in _LAYOUT_FIELDS if k in entry}
-                      | ({"pinned": pins[entry["colId"]]} if entry.get("colId") in pins
-                         else {})
-                      for entry in (state or [])]
-            await run.io_bound(ApiClient().put_preferences, where, {"columns": layout})
+            state = [entry for entry in await grid.run_grid_method("getColumnState") or []
+                     if not str(entry.get("colId", "")).startswith(_GENERATED)]
+            now = _widths(state)
+            resized = {col_id for col_id, width in now.items()
+                       if kept.seen and kept.seen.get(col_id) != width}
+            if change == "widths" and done.get("colId") in now:
+                resized.add(done["colId"])
+            kept.widths.update({col_id: now[col_id] for col_id in resized})
+            kept.seen = now
+            if change == "order":
+                kept.order = [str(entry["colId"]) for entry in state]
+            if (change == "pins" and done.get("colId") and "pinned" in done
+                    and done["pinned"] in _PIN_SIDES):
+                kept.pins[str(done["colId"])] = done["pinned"]
+            stored = kept.stored()
+            if stored == kept.written:
+                return
+            await run.io_bound(ApiClient().put_preferences, where, stored)
+            kept.written = stored
         except TimeoutError:
             # The browser did not answer in time. This fires on every resize, so a busy
             # moment is ordinary and the next one saves - a stack trace for it is what
@@ -1130,9 +1181,9 @@ def _save_on_change(grid: ui.aggrid, scope: str,
             # never take down the grid the user is working in.
             logger.warning("console: could not save column state for %s", where, exc_info=True)
 
-    _SAVERS[grid] = save
-    for event in _SAVE_EVENTS:
+    _SAVERS[grid] = lambda done: save(done, "pins")
+    for event, change in _SAVE_EVENTS.items():
         # A resize fires per pixel. nicegui's own throttle, so no timer outlives the
         # element; trailing_events keeps the final width.
-        grid.on(event, lambda said: save(said.args or {}), throttle=0.6,
-                trailing_events=True, js_handler=_BY_A_PERSON)
+        grid.on(event, lambda said, change=change: save(said.args or {}, change),
+                throttle=0.6, trailing_events=True, js_handler=_BY_A_PERSON)

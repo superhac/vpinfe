@@ -10,7 +10,7 @@ filter a reader cannot derive from the name is a grid that lost rows. The funnel
 what is applied either way, and picking another view clears it.
 
 Physical layout - width, order, pinning - is the grid's, not a view's. See
-`grid._LAYOUT_FIELDS`.
+`grid.Layout`.
 """
 
 from __future__ import annotations

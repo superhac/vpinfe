@@ -138,10 +138,10 @@ class GridLayoutDrive(unittest.TestCase):
         return seen
 
     def _layout(self, held: dict) -> dict:
-        found = [value["columns"] for key, value in held.items()
+        found = [value for key, value in held.items()
                  if key.startswith("console.collections::")]
         self.assertEqual(1, len(found), sorted(held))
-        return {entry["colId"]: entry for entry in found[0]}
+        return found[0]
 
     def test_a_load_writes_nothing(self) -> None:
         self.assertTrue(self.seen["first_load"])
@@ -160,19 +160,18 @@ class GridLayoutDrive(unittest.TestCase):
         self.assertIsNone(self.seen["narrow_on_screen"][SELECTION])
         self.assertTrue(self.seen["narrow"])
 
-    def test_a_resize_saves_the_width_and_the_pins_the_person_has(self) -> None:
+    def test_a_resize_saves_that_width_and_not_the_unpins_a_narrow_window_made(self) -> None:
         before, after = self.seen["resized"]
         self.assertEqual({}, {k: v for k, v in before.items() if "::" in k})
         layout = self._layout(after)
-        self.assertLess(layout["name"]["width"], 240)
-        self.assertEqual("left", layout[SELECTION]["pinned"])
-        self.assertEqual("left", layout["name"]["pinned"])
+        self.assertEqual(["widths"], sorted(layout))
+        self.assertEqual(["name"], sorted(layout["widths"]))
+        self.assertLess(layout["widths"]["name"], 240)
         self.assertIsNone(self.seen["resized_on_screen"][SELECTION])
 
     def test_pinning_from_the_header_menu_is_saved(self) -> None:
         layout = self._layout(self.seen["pinned"])
-        self.assertEqual("left", layout["icon"]["pinned"])
-        self.assertEqual("left", layout[SELECTION]["pinned"])
+        self.assertEqual({"icon": "left"}, layout["pins"])
 
 
 if __name__ == "__main__":
