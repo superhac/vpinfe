@@ -22,6 +22,7 @@ DETAIL = {"caption", "hint"}
 TEXT = {"args", "msg", "message", "strerror", "reason"}
 
 SLOT = re.compile(r"\{exc(?:[.!:\[][^}]*)?\}")
+REPR = re.compile(r"\{[^{}]*![rsa]\}")
 
 
 def _named(node: ast.expr) -> str:
@@ -109,6 +110,12 @@ class TheExceptionGoesUnderTheWords(unittest.TestCase):
 
     def test_no_entry_has_a_slot_for_one(self) -> None:
         self.assertEqual(sorted(key for key, value in served().items() if _slots(value)), [])
+
+    def test_no_entry_quotes_a_value_the_python_way(self) -> None:
+        self.assertEqual(sorted(key for key, value in served().items()
+                                if any(REPR.search(str(form)) for form in
+                                       (value.values() if isinstance(value, dict) else [value]))),
+                         [], "“{value}” reads as a name; {value!r} reads as code")
 
     def test_each_way_is_read(self) -> None:
         source = ("def save(client):\n"

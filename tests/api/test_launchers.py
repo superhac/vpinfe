@@ -186,7 +186,7 @@ class LauncherApiTests(unittest.TestCase):
 
         self.assertEqual(refused.status_code, 400)
         self.assertEqual(refused.json()["error"]["message"],
-                         "Another launcher is already called vpx.")
+                         "Another launcher is already called vpx")
         self.assertEqual(len(self.client.get("/launchers").json()["launchers"]), 1)
 
     def test_whatever_app_it_runs(self) -> None:

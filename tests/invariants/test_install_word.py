@@ -16,7 +16,7 @@ VERB = re.compile(
     r"\bcould(?: not)? install\b"
     r"|\binstall (?:it|them)\b"
     r"|^install$"
-    r"|(?:^|(?<=[.!?] ))install (?=.*\.$)",
+    r"|(?:^|(?<=[.!?] ))install (?=\S+ \S)",
     re.IGNORECASE | re.DOTALL)
 
 ALLOWED = {
@@ -40,7 +40,7 @@ class EveryCatalog(unittest.TestCase):
             unexplained(CATALOG, ALLOWED), [],
             "say this device for the computer VPinFE runs on, and a device for another; "
             "if the word is the verb, write it as one (Install unar from your package "
-            "manager., Could not install), or list the key in ALLOWED with why")
+            "manager, Could not install), or list the key in ALLOWED with why")
 
     def test_every_listed_key_still_says_it(self) -> None:
         self.assertEqual(sorted(key for key in ALLOWED
@@ -56,7 +56,7 @@ class EveryCatalog(unittest.TestCase):
             "noun": "This install has no launcher",
             "plural": {"one": "{count} install", "other": "{count} installs"},
             "possessive": "This install's account",
-            "imperative": "Install unar from your package manager.",
+            "imperative": "Install unar from your package manager",
             "second_sentence": "Nothing is there. Install one first.",
             "refusal": "Could not install it: {exc}",
             "offer": "Themes you could install",

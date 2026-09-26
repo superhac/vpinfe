@@ -77,6 +77,13 @@ class TheCatalog(unittest.TestCase):
 
         self.assertEqual(found, {})
 
+    def test_no_error_is_a_lone_sentence_with_a_stop(self) -> None:
+        found = {key: lines for key, value in CATALOG.items()
+                 if (key.split(".", 2)[-1] if key.startswith(("app.", "ext.")) else key)
+                 .startswith("error.") and (lines := _lone_stops(value))}
+
+        self.assertEqual(found, {})
+
 
 class WhereTheConsoleDrawsThem(unittest.TestCase):
     def setUp(self) -> None:
