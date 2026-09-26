@@ -157,7 +157,7 @@ SPEAKS_TO_A_SURFACE = {
 # Said to whoever wrote the calling code, which has a bug to fix rather than a person
 # something to do.
 SAID_TO_A_DEVELOPER = {"AttributeError", "ContractError", "NotThisDeviceError",
-                       "TypeError", "ValueError"}
+                       "NotVPinFEError", "TypeError", "ValueError"}
 
 
 def _pieces(node: ast.expr, held: dict[str, ast.expr]) -> list[ast.expr]:
@@ -295,6 +295,59 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                                 "reason 'Drop it on a game'",
                                 "reason 'Nothing performs that.'",
                                 "reason str(exc)"])
+
+
+# Pages where a caught exception reaches the screen only through the function named,
+# which is what turns another machine's connection error into a reason a person can use.
+SAYS_WHAT_WENT_WRONG = {"console/devices.py": "_why"}
+
+
+def _exception_made_text(source: str) -> list[ast.expr]:
+    """Each caught exception handed to `str()`, to `t()` or into an f-string."""
+    found: list[ast.expr] = []
+    for handler in ast.walk(ast.parse(source)):
+        if not isinstance(handler, ast.ExceptHandler) or not handler.name:
+            continue
+        for node in (one for line in handler.body for one in ast.walk(line)):
+            if isinstance(node, ast.Call) and _named(node.func) in ("str", "t"):
+                given = [*node.args, *(kw.value for kw in node.keywords)]
+            elif isinstance(node, ast.FormattedValue):
+                given = [node.value]
+            else:
+                continue
+            found += [one for one in given
+                      if isinstance(one, ast.Name) and one.id == handler.name]
+    return found
+
+
+class TestAnExceptionIsSaidInWords(unittest.TestCase):
+
+    def test_no_exception_reaches_the_screen_as_itself(self) -> None:
+        offenders = [f"{name}:{one.lineno} {ast.unparse(one)}"
+                     for name in SAYS_WHAT_WENT_WRONG
+                     for one in _exception_made_text(_source_of(name))]
+        self.assertEqual(offenders, [], "say it through the function that words it")
+
+    def test_the_function_that_words_it_is_there(self) -> None:
+        for name, through in SAYS_WHAT_WENT_WRONG.items():
+            with self.subTest(name):
+                self.assertIn(f"def {through}(", _source_of(name))
+
+    def test_each_way_is_read(self) -> None:
+        source = ("def ask(client):\n"
+                  "    try:\n"
+                  "        client.ask()\n"
+                  "    except TooOldError as exc:\n"
+                  "        return str(exc)\n"
+                  "    except Exception as exc:\n"
+                  "        logger.info('Could not ask %s', exc)\n"
+                  "        ui.notify(t('said.could_not_do_that', exc=(exc)))\n"
+                  "        ui.notify(f'Could not: {exc}')\n"
+                  "        return t('said.could_not_do_that', exc=_why(exc))\n")
+
+        said = [f"{one.lineno} {ast.unparse(one)}" for one in _exception_made_text(source)]
+
+        self.assertEqual(said, ["5 exc", "8 exc", "9 exc"])
 
 
 # The display positions a string reaches a person through. Kept beside the check rather

@@ -1,13 +1,17 @@
-"""What a device is called, and which capability answer it gets.
+"""What a device is called, which capability answer it gets, and why it did not answer.
 
-Both are pure and both decide what somebody reads about hardware they may not be
+Each is pure and each decides what somebody reads about hardware they may not be
 standing next to, which is where a wrong answer is hardest to notice.
 """
 
 import unittest
 
+import requests
+
 from common import device_client
+from common.i18n import t
 from console import devices
+from console.api import ApiError
 
 LOCAL = "Aaaa111111"
 
@@ -132,6 +136,34 @@ class SettingsDoorTests(unittest.TestCase):
     def test_this_install_always_has_a_door(self) -> None:
         """It is a place in the Console already open, so nothing has to answer first."""
         self.assertEqual(devices.door_reason({}, None, True), "")
+
+
+class FailureWordsTests(unittest.TestCase):
+    """What the page says when asking a device went wrong."""
+
+    def test_a_machine_with_nothing_on_its_port_is_not_a_socket_error(self) -> None:
+        refused = requests.ConnectionError(ConnectionRefusedError(61, "Connection refused"))
+
+        self.assertEqual(devices._why(refused), t("device.reason.refused"))
+
+    def test_one_that_took_too_long_says_it_may_be_asleep(self) -> None:
+        self.assertEqual(devices._why(requests.Timeout()), t("device.reason.timed_out"))
+
+    def test_a_phone_says_what_it_runs(self) -> None:
+        with self.assertRaises(device_client.NotVPinFEError) as caught:
+            device_client.MobileDevice("http://192.168.1.60:2112").logs(200)
+
+        self.assertEqual(devices._why(caught.exception), t("device.reason.runs_vpx_mobile"))
+
+    def test_this_install_s_own_answer_is_shown_as_it_said_it(self) -> None:
+        said = t("error.devices.no_device_device_id", device_id="Bbbb222222")
+
+        self.assertEqual(devices._why(ApiError(said)), said)
+
+    def test_an_install_too_old_for_the_route_says_so(self) -> None:
+        older = device_client.TooOldError(t(device_client.TOO_OLD))
+
+        self.assertEqual(devices._why(older), t(device_client.TOO_OLD))
 
 
 if __name__ == "__main__":

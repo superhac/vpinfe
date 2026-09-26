@@ -126,6 +126,10 @@ class NotThisDeviceError(RuntimeError):
     """Asked of a remote device something only the machine itself can answer."""
 
 
+class NotVPinFEError(NotThisDeviceError):
+    """Asked of a VPX Mobile device something only VPinFE answers."""
+
+
 # What a probe found. `unreachable` and `unknown` are different answers: one means the
 # asking got nothing, the other that there was nothing to ask - an entry with no
 # port, which a device being switched off never causes and switching it on never fixes.
@@ -153,10 +157,12 @@ def _chain(exc: BaseException) -> list[BaseException]:
     return found
 
 
-def _why_not(exc: Exception) -> str:
+def why_not(exc: Exception) -> str:
     """The catalog key for why a device did not answer."""
     import requests
 
+    if isinstance(exc, NotVPinFEError):
+        return "device.reason.runs_vpx_mobile"
     if isinstance(exc, requests.Timeout):
         return "device.reason.timed_out"
     if any(isinstance(one, ConnectionRefusedError) for one in _chain(exc)):
@@ -183,7 +189,7 @@ def probe(client: LocalDevice | RemoteDevice | MobileDevice | None) -> dict[str,
         return client.probe()
     except Exception as exc:  # noqa: BLE001 - not answering is an answer
         logger.debug("No answer from %s: %s", getattr(client, "base_url", ""), exc)
-        return _not_answering(UNREACHABLE, _why_not(exc))
+        return _not_answering(UNREACHABLE, why_not(exc))
 
 
 
@@ -376,8 +382,7 @@ class MobileDevice:
 
     def __getattr__(self, name: str) -> Callable[..., NoReturn]:
         def refuse(*_args: Any, **_kwargs: Any) -> NoReturn:
-            raise NotThisDeviceError(
-                f"A VPX Mobile device does not answer {name}")
+            raise NotVPinFEError(f"A VPX Mobile device does not answer {name}")
         return refuse
 
     def probe(self) -> dict[str, Any]:

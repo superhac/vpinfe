@@ -15,7 +15,7 @@ from console import offload, verbs
 
 from . import confirm, grid, panel, views, when
 from . import settings as settings_page
-from .api import ApiClient
+from .api import ApiClient, ApiError
 
 logger = logging.getLogger("vpinfe.console.devices")
 
@@ -185,7 +185,8 @@ async def _confirm_forget(library: Any, device: dict[str, Any],
     try:
         await run.io_bound(library.forget_device, str(device.get("device_id") or ""))
     except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-        ui.notify(t("console.devices.could_not_forget_device", exc=(exc)), type="negative")
+        ui.notify(t("console.devices.could_not_forget_device", exc=_why(exc)),
+                  type="negative")
         return
     ui.notify(t("console.devices.forgot", name=(name)), type="positive")
     if rerender is not None:
@@ -246,8 +247,8 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
     try:
         playing = await offload.io(client.play_state)
     except Exception as exc:  # noqa: BLE001 - a dialog that cannot say what it will do
-        ui.notify(t("console.devices.could_not_check_what", name=(name), exc=(exc)),
-                type="negative")
+        ui.notify(t("console.devices.could_not_check_what", name=name, reason=_why(exc)),
+                  type="negative")
         return
 
     running = str((playing or {}).get("game_name") or "") if (
@@ -271,7 +272,8 @@ async def _start_update(client: Any, name: str, stop_table: bool) -> None:
     try:
         await run.io_bound(lambda: client.perform_update(stop_table=stop_table))
     except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-        ui.notify(t("console.devices.could_not_start_update", exc=(exc)), type="negative")
+        ui.notify(t("console.devices.could_not_start_update", reason=_why(exc)),
+                  type="negative")
         return
     # Nothing to redraw towards. Updating this install takes the page's own server down;
     # updating another leaves it up but knowing nothing new until that device is back.
@@ -499,6 +501,14 @@ def _client_for(context: dict[str, Any]) -> Any:
     return device_client.for_device(_of(context), context.get("local_device_id"))
 
 
+def _why(exc: Exception) -> str:
+    """This install's API and an install too old for the route already speak in the
+    catalog's words; anything else is a device that did not answer."""
+    if isinstance(exc, (ApiError, device_client.TooOldError)):
+        return str(exc)
+    return t(device_client.why_not(exc))
+
+
 def _of(context: dict[str, Any]) -> dict[str, Any]:
     return context.get("device") or {}
 
@@ -552,7 +562,7 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     except Exception as exc:
         # The words the API used. A device that is switched off is the ordinary case
         # here, and it is not a failure of this panel.
-        return [panel.note(str(exc))]
+        return [panel.note(_why(exc))]
 
     async def forget(name: str) -> None:
         if not await confirm.ask(
@@ -565,7 +575,7 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
             await run.io_bound(ApiClient().remove_from_device,
                                str(device.get("device_id") or ""), name)
         except Exception as exc:
-            ui.notify(str(exc), type="negative")
+            ui.notify(_why(exc), type="negative")
             return
         if library is not None:
             context["rerender"]()
@@ -677,7 +687,7 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
             await run.io_bound(library.put_config,
                                {"install": {"display_name": value.strip()}})
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(t("console.devices.could_not_save", exc=(exc)), type="negative")
+            ui.notify(t("console.devices.could_not_save", exc=_why(exc)), type="negative")
             return
         rebuild = context.get("rebuild")
         if rebuild is not None:
@@ -772,12 +782,12 @@ async def action_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     try:
         offered = await offload.io(client.actions)
     except device_client.TooOldError as exc:
-        return [panel.intro(str(exc))]
+        return [panel.intro(_why(exc))]
     except Exception as exc:  # noqa: BLE001 - unreachable is a state, not a 500
         logger.info("Could not ask %s what it does", device_label(_of(context)),
                     exc_info=True)
         return [panel.intro(t("console.devices.could_not_ask",
-                device_label=(device_label(_of(context))), exc=(exc)))]
+                device_label=device_label(_of(context)), reason=_why(exc)))]
     if not offered:
         return [panel.intro(t("console.devices.device_offers_nothing"))]
 
@@ -809,7 +819,7 @@ def _action_control(context: dict[str, Any],
         try:
             done = await offload.io(client.perform_action, scope, action)
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that", exc=_why(exc)), type="negative")
             return
         # A machine on its way down answers before it goes, so "performed" here means
         # the work was handed over rather than finished.
@@ -839,11 +849,11 @@ async def log_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     try:
         found = await offload.io(client.logs, LOG_LIMIT)
     except device_client.TooOldError as exc:
-        return [panel.intro(str(exc))]
+        return [panel.intro(_why(exc))]
     except Exception as exc:  # noqa: BLE001 - unreachable is a state, not a 500
         logger.info("Could not read the log on %s", device_label(_of(context)),
                     exc_info=True)
-        return [panel.intro(t("console.devices.could_not_read_log", exc=(exc)))]
+        return [panel.intro(t("console.devices.could_not_read_log", reason=_why(exc)))]
 
     records = list(found.get("records") or [])
     if not records:
