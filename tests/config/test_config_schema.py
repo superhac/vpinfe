@@ -112,6 +112,7 @@ class SchemaShapeTests(unittest.TestCase):
                                     ("vpsdb", "art_checked"),
                                     ("state", "last_table"),
                                     ("pinmame_score_parser", "roms_update_sha"),
+                                    ("pinmame_score_parser", "roms_checked"),
                                     ("install", "id"),
                                     ("general", "hidden_media_kinds"),
                                     ("general", "hidden_asset_kinds"),

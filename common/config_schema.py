@@ -787,6 +787,12 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             aliases=("romsupdatesha",),
             internal=True,
         ),
+        ConfigOption(
+            "roms_checked",
+            type="string",
+            default="",
+            internal=True,
+        ),
     ),
     *in_section(
         "network",

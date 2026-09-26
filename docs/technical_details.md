@@ -195,6 +195,7 @@ Runtime state written by VPinFE, not shown as a setting.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `roms_update_sha` | string |  |  |
+| `roms_checked` | string |  |  |
 
 ### `network`
 

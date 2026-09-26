@@ -4,8 +4,10 @@ import configparser
 import importlib
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 updater = importlib.import_module("common.online.pinmame_score_parser_updater")
@@ -81,3 +83,65 @@ class TestPinmameScoreParserUpdater(unittest.TestCase):
 
             self.assertEqual(result["status"], "up_to_date")
             download.assert_not_called()
+            self.assertTrue(ini.config.get("pinmame_score_parser", "roms_checked"))
+
+
+class TestAskedOnceADay(unittest.TestCase):
+    """A start does not ask GitHub for the release it asked about in the last day."""
+
+    RELEASE = {"assets": [{"name": "roms.json",
+                           "browser_download_url": "https://example.invalid/roms.json",
+                           "digest": "sha256:abc"}]}
+
+    def setUp(self) -> None:
+        held = tempfile.TemporaryDirectory()
+        self.addCleanup(held.cleanup)
+        self.root = Path(held.name)
+        self.ini = _FakeConfigStore(self.root / "vpinfe.ini")
+        self.ini.config.set("pinmame_score_parser", "roms_update_sha", "abc")
+        for one in (mock.patch.object(updater, "CONFIG_DIR", self.root),
+                    mock.patch.object(updater, "ROMS_JSON_PATH", self.root / "roms.json")):
+            one.start()
+            self.addCleanup(one.stop)
+
+    def _checked(self, hours_ago: float) -> None:
+        self.ini.config.set("pinmame_score_parser", "roms_checked",
+                            updater.timestamps.epoch_to_iso(time.time() - hours_ago * 3600))
+
+    def _run(self, **lookup: Any) -> tuple[dict | None, mock.MagicMock]:
+        with mock.patch.object(updater, "_request_json", **lookup) as asked:
+            try:
+                return updater.ensure_latest_roms_json(self.ini), asked
+            except OSError:
+                return None, asked
+
+    def test_checked_today_is_not_asked(self) -> None:
+        (self.root / "roms.json").write_text("{}")
+        self._checked(hours_ago=23)
+        result, asked = self._run(return_value=self.RELEASE)
+        asked.assert_not_called()
+        self.assertEqual((result or {}).get("status"), "checked_recently")
+
+    def test_checked_yesterday_is_asked_and_stamped(self) -> None:
+        (self.root / "roms.json").write_text("{}")
+        self._checked(hours_ago=25)
+        before = self.ini.config.get("pinmame_score_parser", "roms_checked")
+        result, asked = self._run(return_value=self.RELEASE)
+        asked.assert_called_once()
+        self.assertEqual((result or {}).get("status"), "up_to_date")
+        self.assertNotEqual(self.ini.config.get("pinmame_score_parser", "roms_checked"),
+                            before)
+
+    def test_a_missing_file_is_asked_for_however_recent_the_check(self) -> None:
+        self._checked(hours_ago=1)
+        _, asked = self._run(side_effect=OSError("offline"))
+        asked.assert_called_once()
+
+    def test_a_failed_lookup_leaves_the_stamp_alone(self) -> None:
+        (self.root / "roms.json").write_text("{}")
+        self._checked(hours_ago=30)
+        before = self.ini.config.get("pinmame_score_parser", "roms_checked")
+        result, asked = self._run(side_effect=OSError("offline"))
+        asked.assert_called_once()
+        self.assertIsNone(result)
+        self.assertEqual(self.ini.config.get("pinmame_score_parser", "roms_checked"), before)

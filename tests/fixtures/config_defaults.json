@@ -78,6 +78,7 @@
     "ws_port": "8002"
   },
   "pinmame_score_parser": {
+    "roms_checked": "",
     "roms_update_sha": ""
   },
   "presentation": {
