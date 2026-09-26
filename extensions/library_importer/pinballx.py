@@ -410,7 +410,8 @@ def read_database(path: Path | str, tables_dir: str = "",
             skipped += 1
             continue
         found.append(game)
-    notes = [t("note.entries_unnamed", file=path.name, count=skipped)] if skipped else []
+    if skipped:
+        notes.append(t("note.entries_unnamed", file=path.name, count=skipped))
     return found, notes
 
 

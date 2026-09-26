@@ -293,6 +293,22 @@ class ReadTests(unittest.TestCase):
             "Attack from Mars (Bally 1995).vpx"))
         self.assertEqual(found["Taxi"], "")
 
+    def test_a_database_read_as_windows_1252_says_so_when_it_parses(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "source"
+            shutil.copytree(FIXTURE, root)
+            database = root / "Databases" / VPX / f"{VPX}.xml"
+            database.write_bytes(database.read_text(encoding="utf-8")
+                                 .replace("<author>somebody</author>",
+                                          "<author>somebody · else</author>")
+                                 .encode("cp1252"))
+
+            library = self.pinballx.read(root)
+
+        self.assertIn(f"{VPX}.xml is not UTF-8, so it was read as Windows-1252",
+                      library.notes)
+        self.assertTrue(any("no name" in note for note in library.notes), library.notes)
+
 
 class TableFileTests(unittest.TestCase):
     """Which file in the tables folder is the table.
