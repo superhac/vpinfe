@@ -122,7 +122,8 @@ def build(rows: list[dict[str, Any]], library: Any,
             for group in duplicates:
                 with ui.row().classes("items-center gap-2 w-full no-wrap "
                                       "console-member-row"):
-                    ui.label(" · ".join(f"{r['tag']} ({r['games']})" for r in group)) \
+                    ui.label(" · ".join(t("console.tageditor.tag_used", tag=r["tag"],
+                                          games=r["games"]) for r in group)) \
                         .classes("console-member-name grow min-w-0 truncate")
                     ui.button(t("word.merge"),
                         icon=verbs.MERGE, on_click=lambda _, g=group: merge(g)) \

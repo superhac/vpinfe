@@ -416,8 +416,9 @@ def removal_words(found: dict[str, Any]) -> tuple[str, list[str]]:
         name = goes[0].get("display_name")
         said = (t("console.launchers.remove_moves_to", count=count, fallback=name) if name
                 else t("console.launchers.remove_strands", count=count))
-        return f"{said} {kept}", []
-    return (f"{kept} {t('console.launchers.remove_split', count=count)}",
+        return t("console.launchers.remove_detail", tables=said, kept=kept), []
+    return (t("console.launchers.remove_split_detail", kept=kept,
+              tables=t("console.launchers.remove_split", count=count)),
             [t("console.workbench.count_launch_with", count=int(one["tables"]),
                name=one["display_name"]) if one.get("display_name")
              else t("console.launchers.count_no_launcher", count=int(one["tables"]))

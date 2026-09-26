@@ -42,7 +42,7 @@ def local(stamp: Any) -> str:
     if at is None:
         return str(stamp or "").strip()
     at = at.astimezone()
-    return f"{day(at)} {clock(at)}"
+    return t("date.day_and_time", day=day(at), time=clock(at))
 
 
 _settings: tuple[int, Any] | None = None

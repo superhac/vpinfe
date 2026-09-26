@@ -961,6 +961,7 @@
   "console.launchers.program_missing": "Þřöĝřàɱ Ḿîššîñĝ",
   "console.launchers.ready_switched_program_cannot.help": "Ñö Þřöĝřàɱ - ñöţĥîñĝ ţö řûñ ýèţ\nÞřöĝřàɱ Ḿîššîñĝ - ñöţ àţ ţĥàţ þàţĥ\nŠŵîţçĥèđ Öƒƒ - îţš ţàƀŀèš ûšè ţĥè đèƒàûŀţ",
   "console.launchers.remove": "Řèɱöṽè “{name}”?",
+  "console.launchers.remove_detail": "{tables} {kept}",
   "console.launchers.remove_keeps_files": "Ţĥè þřöĝřàɱ àñđ àñý ƒîŀè îţ þöîñţš àţ šţàý ŵĥèřè ţĥèý àřè.",
   "console.launchers.remove_moves_to": {
     "one": "{count} ţàƀŀè ûšèš îţ. Îţ ŵîŀŀ ŀàûñçĥ ŵîţĥ {fallback} îñšţèàđ.",
@@ -970,6 +971,7 @@
     "one": "{count} ţàƀŀè ûšèš îţ. Öñçè îţ îš řèɱöṽèđ:",
     "other": "{count} ţàƀŀèš ûšè îţ. Öñçè îţ îš řèɱöṽèđ:"
   },
+  "console.launchers.remove_split_detail": "{kept} {tables}",
   "console.launchers.remove_strands": {
     "one": "{count} ţàƀŀè ûšèš îţ, àñđ ñö öţĥèř ŀàûñçĥèř çàñ þŀàý îţ.",
     "other": "{count} ţàƀŀèš ûšè îţ, àñđ ñö öţĥèř ŀàûñçĥèř çàñ þŀàý ţĥèɱ."
@@ -1143,6 +1145,7 @@
   "console.mediasource.saved_2": "{label} šàṽèđ ƒřöɱ {source_name}",
   "console.mediasource.saved_where": "{message} {where}",
   "console.mediasource.search_another_game": "Šèàřçĥ àñöţĥèř ĝàɱè",
+  "console.mediasource.source_and_size": "{source_name} · {size}",
   "console.mediasource.start": "Šţàřţ ƒřöɱ",
   "console.mediasource.takes": "{label} ţàķèš {extensions}",
   "console.mediasource.upload": "Ûþŀöàđ",
@@ -1401,6 +1404,7 @@
   "console.settings.group_vpinfe": "ṼÞîñƑÈ",
   "console.settings.heading_kinds": "Ķîñđš",
   "console.settings.heading_online_sources": "Öñŀîñè Šöûřçèš",
+  "console.settings.install_at": "{name} - {url}",
   "console.settings.kinds_note": "Ţûřñîñĝ öñè öƒƒ šţöþš îţ ƀèîñĝ šĥöŵñ öř çöûñţèđ. Îţš ƒîŀèš šţàý ŵĥèřè ţĥèý àřè.",
   "console.settings.last_checked": "Ŀàšţ çĥèçķèđ",
   "console.settings.not_built_yet": "Ñöţ ƀûîŀţ ýèţ",
@@ -1491,6 +1495,7 @@
   "console.tageditor.tag.help": "Řèñàɱîñĝ ţĥîš řèñàɱèš îţ èṽèřýŵĥèřè",
   "console.tageditor.tag_game": "{tag} - {count} ĝàɱè",
   "console.tageditor.tag_games": "{tag} - {count} ĝàɱèš",
+  "console.tageditor.tag_used": "{tag} ({games})",
   "console.tageditor.tags": "Ţàĝš",
   "console.tageditor.tags_counted": {
     "one": "{count} ţàĝ",
@@ -1677,6 +1682,7 @@
   "console.workbench.at_a_time": "{count} àţ à ţîɱè",
   "console.workbench.back_to": "Ɓàçķ ţö {value} - {whose}",
   "console.workbench.back_to_whose": "Ɓàçķ ţö {whose}",
+  "console.workbench.backup_labeled": "{when} - {label}",
   "console.workbench.before_restore": "Ɓèƒöřè à řèšţöřè",
   "console.workbench.by_letter": "Ɓý ŀèţţèř",
   "console.workbench.by_rating": "Ɓý řàţîñĝ",
@@ -2064,6 +2070,7 @@
   "console.workbench.wheel.help": "Šĥöŵñ ŵĥèñ þîçķîñĝ à çöŀŀèçţîöñ îñ ţĥè ƒřöñţèñđ",
   "console.workbench.where_rom_managed": "Ŵĥèřè à řöɱ îš ɱàñàĝèđ",
   "console.workbench.which_table_plays": "Ŵĥîçĥ Ţàƀŀè Þŀàýš",
+  "console.workbench.width_by_height": "{width} × {height}",
   "console.workbench.writes_to_tables": {
     "one": "Çĥàñĝèš ĥèřè àþþŀý ţö ţĥè 1 ţàƀŀè ţĥàţ ûšèš ţĥîš ƒîŀè",
     "other": "Çĥàñĝèš ĥèřè àþþŀý ţö ţĥè {count} ţàƀŀèš ţĥàţ ûšè ţĥîš ƒîŀè"
@@ -2072,6 +2079,7 @@
   "console.workbench.yours": "Ýöûřš",
   "date.am": "ÀḾ",
   "date.clock_12": "{hour}:{minute} {period}",
+  "date.day_and_time": "{day} {time}",
   "date.days_ago": {
     "one": "{count} đàý àĝö",
     "other": "{count} đàýš àĝö"

@@ -1788,7 +1788,8 @@ def _spec(detail: dict[str, Any]) -> str:
     apart when both look right in a thumbnail."""
     parts = []
     if detail.get("width") and detail.get("height"):
-        parts.append(f"{detail['width']} \u00d7 {detail['height']}")
+        parts.append(t("console.workbench.width_by_height", width=detail["width"],
+                       height=detail["height"]))
     if detail.get("duration_s"):
         parts.append(running_time(float(detail["duration_s"])))
     name = str(detail.get("file") or "")
@@ -5431,7 +5432,7 @@ def _backup_when(one: dict) -> str:
     """When it was taken, as a person reads a date, with any label beside it."""
     said = when.ago(one.get("taken_at"), timed=True) or t("word.unknown")
     label = str(one.get("label") or "")
-    return f"{said} - {label}" if label else said
+    return t("console.workbench.backup_labeled", when=said, label=label) if label else said
 
 
 async def _config_backups(context: dict[str, Any]) -> None:

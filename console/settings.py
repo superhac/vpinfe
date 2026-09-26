@@ -993,7 +993,7 @@ def _install_label(install: dict) -> str:
     """
     name = str(install.get("display_name") or "").strip()
     url = str(install.get("url") or "")
-    return f"{name} - {url}" if name else url
+    return t("console.settings.install_at", name=name, url=url) if name else url
 
 
 async def _identity_page(library: Library, reported: str,

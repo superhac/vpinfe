@@ -961,6 +961,7 @@
   "console.launchers.program_missing": "Program Missing",
   "console.launchers.ready_switched_program_cannot.help": "No Program - nothing to run yet\nProgram Missing - not at that path\nSwitched Off - its tables use the default",
   "console.launchers.remove": "Remove “{name}”?",
+  "console.launchers.remove_detail": "{tables} {kept}",
   "console.launchers.remove_keeps_files": "The program and any file it points at stay where they are.",
   "console.launchers.remove_moves_to": {
     "one": "{count} table uses it. It will launch with {fallback} instead.",
@@ -970,6 +971,7 @@
     "one": "{count} table uses it. Once it is removed:",
     "other": "{count} tables use it. Once it is removed:"
   },
+  "console.launchers.remove_split_detail": "{kept} {tables}",
   "console.launchers.remove_strands": {
     "one": "{count} table uses it, and no other launcher can play it.",
     "other": "{count} tables use it, and no other launcher can play them."
@@ -1143,6 +1145,7 @@
   "console.mediasource.saved_2": "{label} saved from {source_name}",
   "console.mediasource.saved_where": "{message} {where}",
   "console.mediasource.search_another_game": "Search another game",
+  "console.mediasource.source_and_size": "{source_name} · {size}",
   "console.mediasource.start": "Start from",
   "console.mediasource.takes": "{label} takes {extensions}",
   "console.mediasource.upload": "Upload",
@@ -1401,6 +1404,7 @@
   "console.settings.group_vpinfe": "VPinFE",
   "console.settings.heading_kinds": "Kinds",
   "console.settings.heading_online_sources": "Online Sources",
+  "console.settings.install_at": "{name} - {url}",
   "console.settings.kinds_note": "Turning one off stops it being shown or counted. Its files stay where they are.",
   "console.settings.last_checked": "Last checked",
   "console.settings.not_built_yet": "Not built yet",
@@ -1491,6 +1495,7 @@
   "console.tageditor.tag.help": "Renaming this renames it everywhere",
   "console.tageditor.tag_game": "{tag} - {count} game",
   "console.tageditor.tag_games": "{tag} - {count} games",
+  "console.tageditor.tag_used": "{tag} ({games})",
   "console.tageditor.tags": "Tags",
   "console.tageditor.tags_counted": {
     "one": "{count} tag",
@@ -1677,6 +1682,7 @@
   "console.workbench.at_a_time": "{count} at a time",
   "console.workbench.back_to": "Back to {value} - {whose}",
   "console.workbench.back_to_whose": "Back to {whose}",
+  "console.workbench.backup_labeled": "{when} - {label}",
   "console.workbench.before_restore": "Before a restore",
   "console.workbench.by_letter": "By letter",
   "console.workbench.by_rating": "By rating",
@@ -2064,6 +2070,7 @@
   "console.workbench.wheel.help": "Shown when picking a collection in the frontend",
   "console.workbench.where_rom_managed": "Where a rom is managed",
   "console.workbench.which_table_plays": "Which Table Plays",
+  "console.workbench.width_by_height": "{width} × {height}",
   "console.workbench.writes_to_tables": {
     "one": "Changes here apply to the 1 table that uses this file",
     "other": "Changes here apply to the {count} tables that use this file"
@@ -2072,6 +2079,7 @@
   "console.workbench.yours": "Yours",
   "date.am": "AM",
   "date.clock_12": "{hour}:{minute} {period}",
+  "date.day_and_time": "{day} {time}",
   "date.days_ago": {
     "one": "{count} day ago",
     "other": "{count} days ago"

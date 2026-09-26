@@ -13,7 +13,7 @@ import json
 import re
 import string
 import unittest
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from common import apps, i18n, tokens
@@ -1270,6 +1270,13 @@ NOT_ON_SCREEN = {
 # A literal carrying one of these is markup, a URL or a selector rather than prose.
 NOT_PROSE = re.compile(r"[<>?&/=;{}#]")
 BYTE_UNITS = {"B", "KB", "MB", "GB", "TB"}
+# Functions and constants in the Console whose values joined by a space are not words.
+JOINED_NOT_SAID = {
+    "console/games.py": {"_RATING_CHOICES": "two star glyphs drawn as one mark"},
+    "console/grid.py": {"identifier": "a cell's class list"},
+    "console/renderers.py": {"install": "a script's object entries"},
+    "console/tag_chips.py": {"dot_class": "a class list", "chip_class": "a class list"},
+}
 
 
 def _is_identifier(said: str) -> bool:
@@ -1277,10 +1284,10 @@ def _is_identifier(said: str) -> bool:
 
     Whitespace tells them apart, and it is read unstripped: `builtin:` is one token and
     `"Set: "` is a word with a value after it. Prose this short - `by`, `of`, `No` -
-    never carries a dot, an underscore or a colon.
+    never carries a dot, an underscore or a colon. A mark alone, ` - `, names nothing.
     """
     body = said.strip()
-    if not body or any(c.isspace() for c in body):
+    if not re.search(r"[A-Za-z0-9]", body) or any(c.isspace() for c in body):
         return False
     if re.search(r"[_.\-]", body):
         return True
@@ -1298,9 +1305,11 @@ def _glued_words(node: ast.JoinedStr) -> str:
 class _Fstrings(ast.NodeVisitor):
     """Every f-string, with the calls it sits inside, so context can excuse it."""
 
-    def __init__(self) -> None:
+    def __init__(self, excused: Iterable[str] = ()) -> None:
         self.found: list[tuple[int, str]] = []
         self.calls: list[str] = []
+        self.within: list[str] = []
+        self.excused = set(excused)
 
     def visit_Call(self, node: ast.Call) -> None:
         name = getattr(node.func, "attr", None) or getattr(node.func, "id", None) or ""
@@ -1310,33 +1319,80 @@ class _Fstrings(ast.NodeVisitor):
             self.visit(argument)
         self.calls.pop()
 
+    def visit_FunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        self.within.append(node.name)
+        self.generic_visit(node)
+        self.within.pop()
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self.visit_FunctionDef(node)
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        """A constant at the top of a module is named by what it is assigned to."""
+        named = [] if self.within else [target.id for target in node.targets
+                                        if isinstance(target, ast.Name)]
+        self.within += named
+        self.generic_visit(node)
+        del self.within[len(self.within) - len(named):]
+
     def visit_JoinedStr(self, node: ast.JoinedStr) -> None:
         said = _glued_words(node)
+        slots = sum(isinstance(v, ast.FormattedValue) for v in node.values)
+        joined = slots > 1 and any(c.isspace() for c in said) \
+            and not set(self.within) & self.excused
         if not set(self.calls) & NOT_ON_SCREEN and not NOT_PROSE.search(said) \
            and not _is_identifier(said) and said.strip() not in BYTE_UNITS \
-           and re.search(r"[A-Za-z]{2,}", said):
+           and (re.search(r"[A-Za-z]{2,}", said) or joined):
             self.found.append((node.lineno, said))
         self.generic_visit(node)
 
 
+def _defined_in(path: Path) -> set[str]:
+    """Each function a module defines, and each name it assigns at its top level."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return {node.name for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))} \
+        | {target.id for node in tree.body if isinstance(node, ast.Assign)
+           for target in node.targets if isinstance(target, ast.Name)}
+
+
 class TestNoWordGluedToAValue(unittest.TestCase):
-    """An f-string whose typed half is a word rather than a token or a class."""
+    """An f-string whose typed half is a word rather than a token or a class, or that
+    joins two values with only spaces and marks."""
 
     def test_a_label_styled_in_the_same_line_is_still_read(self) -> None:
         seen = _Fstrings()
         seen.visit(ast.parse('ui.label(f"{a} of {b}").classes("console-help")'))
         self.assertEqual([" of "], [said for _, said in seen.found])
 
+    def test_two_values_joined_by_a_mark_are_read(self) -> None:
+        source = ('def backup(said, label, a, b):\n'
+                  '    shown = f"{said} - {label}"\n'
+                  '    key = f"{a}-{b}"\n'
+                  '    ui.label(f"{a} {b}").classes(f"{a} {b}")\n'
+                  'def dot_class(color):\n'
+                  '    return f"{DOT} {DOT}--{color}"\n'
+                  'MARK = f"{STAR} {LIT}"\n')
+        seen = _Fstrings({"dot_class", "MARK"})
+        seen.visit(ast.parse(source))
+        self.assertEqual([(2, " - "), (4, " ")], seen.found)
+
     def test_no_fstring_in_the_console_carries_a_word(self) -> None:
         offenders = []
         for path in sorted((ROOT / "console").rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            seen = _Fstrings()
+            name = path.relative_to(ROOT).as_posix()
+            seen = _Fstrings(JOINED_NOT_SAID.get(name, {}))
             seen.visit(ast.parse(path.read_text(encoding="utf-8")))
-            offenders += [f"{path.relative_to(ROOT)}:{line} f{said.strip()[:38]!r}"
-                          for line, said in seen.found]
+            offenders += [f"{name}:{line} f{said[:38]!r}" for line, said in seen.found]
         self.assertEqual(offenders, [], "call t() with a named slot instead")
+
+    def test_each_join_excused_is_there_with_its_reason(self) -> None:
+        for name, excused in JOINED_NOT_SAID.items():
+            with self.subTest(name):
+                self.assertEqual(excused.keys() - _defined_in(ROOT / name), set())
+                self.assertTrue(all(why.strip() for why in excused.values()))
 
 
 class _PluralSuffixes(ast.NodeVisitor):

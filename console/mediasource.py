@@ -56,6 +56,9 @@ _LIST_MAX = 60
 _HOST_NAME_MAX = 20
 _FIND_FROM = 8
 
+SIZE_NAMES = {"4k": "config.media.playfield_resolution.choice.4k",
+              "1k": "config.media.playfield_resolution.choice.1k"}
+
 # Only a drag carrying files belongs to the dialog: text dragged within a field is left
 # to the field.
 _FILES = "Array.from(e.dataTransfer.types || []).includes('Files')"
@@ -822,7 +825,9 @@ class _Slot(_OneFile):
 
         # The source is the first thing on the row, because with several of them the
         # question "where is this from" comes before "is it any good".
-        meta = f"{source_name} \u00b7 {size.upper()}" if size else source_name
+        meta = (t("console.mediasource.source_and_size", source_name=source_name,
+                  size=t(SIZE_NAMES[size]) if size in SIZE_NAMES else size)
+                if size else source_name)
         self.candidate(offer.get("url") or "", str(offer.get("name") or ""),
                        meta, "", take)
 
