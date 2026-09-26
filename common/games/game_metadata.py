@@ -28,6 +28,7 @@ from common.games.tables import (
     rekey_by_id,
     table_entries,
 )
+from common.i18n import t
 
 # Re-exported so the theme payload and the Manager UI agree with storage. Sourced
 # from the tables module rather than restated, since a second list drifts silently -
@@ -785,7 +786,7 @@ def set_asset_source(game: Game, path: str, vps_file_id: str) -> dict[str, Any]:
     config = load_game_meta(game)
     key = str(path or "").strip().replace("\\", "/").strip("/")
     if not key:
-        raise ValueError("An asset source needs the path it is about")
+        raise ValueError(t("error.games.say_where_file"))
     entries = config.setdefault(ASSETS_KEY, {})
     entry = entries.setdefault(key, {})
 
