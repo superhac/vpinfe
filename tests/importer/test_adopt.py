@@ -143,18 +143,27 @@ class ImportTests(AdoptCase):
         self.assertEqual(f"Something is already at {self.library / 'Taxi (Williams 1988)'}",
                          failed["error"]["detail"])
 
-    def test_what_the_source_remembers_about_playing_comes_across(self) -> None:
-        from vpinfe_ext_library_importer import adopt, pinballx, plan
+    def _with_history(self, *rows: str):
+        """The fixture with a GameStats.csv beside it, planned the way the extension
+        plans an import."""
+        from vpinfe_ext_library_importer import pinballx, plan
 
         source = self.root / "source"
         shutil.copytree(FIXTURE, source)
         (source / "GameStats.csv").write_bytes(
-            "Game,Play Count\nTaxi (Williams 1988).Visual Pinball X,33\n".encode("utf-16"))
+            "".join(f"{row}\n" for row in ("Game,Play Count,Is Favorite", *rows))
+            .encode("utf-16"))
         self._ctx.files.set_roots([str(source)])
         library = pinballx.read(source)
         made = plan.build(library, [], systems=[VPX],
                           folder_name_for=self._ctx.games.folder_name_for,
                           source_id=library.source_id, kinds=self._ctx.games.kinds())
+        return library, made
+
+    def test_what_the_source_remembers_about_playing_comes_across(self) -> None:
+        from vpinfe_ext_library_importer import adopt
+
+        library, made = self._with_history("Taxi (Williams 1988).Visual Pinball X,33,")
 
         report = adopt.run(self._ctx, library, [VPX], "", made)
 
@@ -162,6 +171,32 @@ class ImportTests(AdoptCase):
         self.assertEqual(taxi["history"], 1)
         game = self.client.get(f"/games/{taxi['game_id']}").json()
         self.assertEqual(game["user"]["play_count"], 33)
+
+    PLAYED = ("Taxi (Williams 1988).Visual Pinball X,33,",
+              "Attack from Mars (Bally 1995).Visual Pinball X,5,",
+              "Taxi 2 (Homebrew 2020).Visual Pinball X,,1",
+              "Medieval Madness (Williams 1997).Visual Pinball X,12,")
+
+    def _history_row(self, library, made) -> dict:
+        from vpinfe_ext_library_importer import adopt, plan
+
+        want = plan.expected(made)
+        report = adopt.run(self._ctx, library, [VPX], "", made)
+        return next(row for row in plan.against(want, report) if row["key"] == "history")
+
+    def test_the_report_counts_the_games_whose_play_history_came_across(self) -> None:
+        """Taxi 2 holds only a favorite, and the source has no Medieval Madness."""
+        row = self._history_row(*self._with_history(*self.PLAYED))
+
+        self.assertEqual((2, 2, 0), (row["expected"], row["actual"], row["short"]))
+        self.assertEqual("Games with play history", row["label"])
+
+    def test_a_game_that_does_not_come_across_leaves_its_play_history_short(self) -> None:
+        (self.library / "Taxi (Williams 1988)").mkdir()
+
+        row = self._history_row(*self._with_history(*self.PLAYED))
+
+        self.assertEqual((2, 1, 1), (row["expected"], row["actual"], row["short"]))
 
     def test_running_it_twice_creates_nothing_the_second_time(self) -> None:
         """It only ever creates, so the second run has nowhere to put anything rather

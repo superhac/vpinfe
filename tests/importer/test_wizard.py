@@ -225,7 +225,17 @@ class SummaryShapeTests(WizardCase):
 
         after = [one[0] for one in found["summary"][at + 1:]]
         self.assertEqual(after, ["Games", "Game files", "Artwork files",
-                                 "Backglasses and settings"])
+                                 "Backglasses and settings", "Games with play history"])
+
+    def test_the_summary_counts_the_games_whose_play_history_comes_across(self) -> None:
+        source = self.root / "pinballx"
+        shutil.copytree(FIXTURE, source)
+        (source / "GameStats.csv").write_text(
+            "Game,Play Count\nTaxi (Williams 1988).Visual Pinball X,33\n", encoding="utf-8")
+
+        found = self._check(source)
+
+        self.assertIn(["Games with play history", "1"], found["summary"])
 
     def test_a_database_it_could_not_read_hovers_why_in_the_console(self) -> None:
         source = self.root / "pinballx"

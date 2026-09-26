@@ -3,12 +3,14 @@
 Two things this holds. Every source is an option with a derived default, so "no ROMs came
 across" is something somebody chose and can see they chose. And an import can be run more
 than once - a first pass fails partway, or the games come now and the ROMs when the old
-machine is back - so what is already here is recognised rather than collided with.
+machine is back - so what is already here is recognized rather than collided with.
 """
 
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 from common.extensions import host
 
@@ -75,7 +77,7 @@ class MatchTests(unittest.TestCase):
     HELD = [{"game_id": "g1", "folder_name": "Taxi (Williams 1988)",
              "name": "Taxi", "vps_id": "vps-taxi"}]
 
-    def test_a_game_a_previous_run_made_is_recognised_by_its_folder(self) -> None:
+    def test_a_game_a_previous_run_made_is_recognized_by_its_folder(self) -> None:
         library = _library(_game("Taxi", display_name="Taxi (Williams 1988)"))
 
         found = plan_for.match_existing(library, self.HELD)
@@ -83,7 +85,7 @@ class MatchTests(unittest.TestCase):
         self.assertTrue(found[0].existing)
         self.assertEqual(found[0].how, "folder")
 
-    def test_one_renamed_since_is_still_recognised(self) -> None:
+    def test_one_renamed_since_is_still_recognized(self) -> None:
         """A rename should not turn one game into two."""
         library = _library(_game("Taxi", display_name="Taxi, the good one",
                                  vps_id="vps-taxi"))
@@ -221,6 +223,56 @@ class ExpectedTests(unittest.TestCase):
 
         self.assertEqual(skipping["games"], 0)
         self.assertEqual(filling["games"], 1)
+
+    def _stats(self, *rows: str) -> dict:
+        """A GameStats.csv holding these rows, chosen as the play history source."""
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        path = Path(folder.name) / "GameStats.csv"
+        path.write_text("".join(f"{row}\n" for row in ("Game,Play Count,Is Favorite",
+                                                        *rows)), encoding="utf-8")
+        return {"history": str(path)}
+
+    def test_a_game_the_play_history_names_is_counted(self) -> None:
+        library = _library(_game("Taxi", display_name="Taxi (Williams 1988)"),
+                           _game("Funhouse", display_name="Funhouse (Williams 1990)"))
+        chosen = self._stats("Taxi (Williams 1988).Visual Pinball X,33,",
+                             "Medieval Madness (Williams 1997).Visual Pinball X,12,")
+
+        counts = plan_for.expected(self._plan(library, chosen=chosen))
+
+        self.assertEqual(counts["history"], 1)
+
+    def test_a_machine_brings_its_play_history_once(self) -> None:
+        library = _library(
+            _game("Kiss (Bally 1979)", table_file="/src/a.vpx"),
+            _game("Kiss (Bally 1979)", table_file="/src/b.vpx"))
+        chosen = self._stats("Kiss (Bally 1979).Visual Pinball X,7,")
+
+        counts = plan_for.expected(self._plan(library, chosen=chosen))
+
+        self.assertEqual(counts["history"], 1)
+
+    def test_a_game_left_alone_brings_no_play_history(self) -> None:
+        library = _library(_game("Taxi", display_name="Taxi (Williams 1988)"))
+        held = [{"game_id": "g1", "folder_name": "Taxi (Williams 1988)",
+                 "name": "Taxi", "vps_id": ""}]
+        chosen = self._stats("Taxi (Williams 1988).Visual Pinball X,33,")
+
+        skipping = plan_for.expected(self._plan(library, held, chosen=chosen))
+        filling = plan_for.expected(self._plan(library, held, chosen=chosen,
+                                               on_existing="fill"))
+
+        self.assertEqual(skipping["history"], 0)
+        self.assertEqual(filling["history"], 1)
+
+    def test_a_row_holding_only_a_favorite_is_not_counted(self) -> None:
+        library = _library(_game("Taxi", display_name="Taxi (Williams 1988)"))
+        chosen = self._stats("Taxi (Williams 1988).Visual Pinball X,,1")
+
+        counts = plan_for.expected(self._plan(library, chosen=chosen))
+
+        self.assertEqual(counts["history"], 0)
 
     def test_leaving_them_alone_is_the_default(self) -> None:
         """Rewriting what somebody has curated since the last run is the worse

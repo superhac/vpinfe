@@ -76,6 +76,7 @@ class Match:
     tables: int = 0
     media: int = 0
     companions: int = 0
+    history: int = 0
 
     @property
     def existing(self) -> bool:
@@ -105,7 +106,7 @@ class Plan:
 # What the report counts, in the order it reads. The same keys come back from the run,
 # so expected and actual are one shape and a difference is a subtraction rather than a
 # comparison somebody has to make by eye.
-COUNTS = ("games", "tables", "media", "companions")
+COUNTS = ("games", "tables", "media", "companions", "history")
 
 
 def expected(plan: Plan) -> dict:
@@ -122,7 +123,7 @@ def expected(plan: Plan) -> dict:
     wanted = _wanted(plan)
     has = {source.key: bool(source.active) for source in plan.sources}
 
-    folders, tables, media, companions = set(), 0, 0, 0
+    folders, tables, media, companions, history = set(), 0, 0, 0, 0
     for one in wanted:
         first = one.folder.lower() not in folders
         folders.add(one.folder.lower())
@@ -130,12 +131,14 @@ def expected(plan: Plan) -> dict:
             tables += one.tables
             # They ride with the table, so they arrive only where it does.
             companions += one.companions
-        # Artwork rides with the game, and the game is made once.
+        # Artwork and history ride with the game, and the game is made once.
         if has.get("media") and first:
             media += one.media
+        if first:
+            history += one.history
 
     return {"games": len(folders), "tables": tables, "media": media,
-            "companions": companions, "roms": 0}
+            "companions": companions, "history": history, "roms": 0}
 
 
 def _wanted(plan: Plan) -> list[Match]:
@@ -233,7 +236,8 @@ def match_existing(library: SourceLibrary, existing: list[dict],
                    folder_name_for: Callable[[str], str] | None = None,
                    source_id: str = "",
                    kinds: tuple[str, ...] = (),
-                   companions_of: Callable[..., Any] | None = None) -> list[Match]:
+                   companions_of: Callable[..., Any] | None = None,
+                   history: dict[str, gamestats.Played] | None = None) -> list[Match]:
     """Which of the source's games the library already holds.
 
     By the folder this import would create first, because that is what a previous run of
@@ -260,13 +264,15 @@ def match_existing(library: SourceLibrary, existing: list[dict],
         if held is None and game.vps_id:
             held = by_vps.get(game.vps_id.lower())
             how = "catalog_id" if held else ""
+        played = history_for(history or {}, game)
         found.append(Match(key=game.key, folder=folder,
                            game_id=str(held.get("game_id") or "") if held else "",
                            how=how,
                            tables=1 if game.table_file else 0,
                            media=len(mapping.media_for(source_id, game, kinds)),
                            companions=(len(companions_of(game.table_file))
-                                       if companions_of and game.table_file else 0)))
+                                       if companions_of and game.table_file else 0),
+                           history=1 if played and played.counts_as_history else 0))
     return found
 
 
@@ -306,7 +312,7 @@ def build(library: SourceLibrary, existing: list[dict], chosen: dict | None = No
                                    ""))
     return Plan(sources=sources,
                 matches=match_existing(library, existing, systems, folder_name_for,
-                                       source_id, kinds, companions_of),
+                                       source_id, kinds, companions_of, history),
                 on_existing=on_existing if on_existing in ON_EXISTING
                 else DEFAULT_ON_EXISTING,
                 history=history, notes=notes)
@@ -322,4 +328,14 @@ def _history(path: str) -> tuple[dict[str, gamestats.Played], list[Note]]:
     if not path:
         return {}, []
     found, notes = gamestats.read(path)
-    return {one.name.strip().lower(): one for one in found}, notes
+    return {_filed_as(one.name): one for one in found}, notes
+
+
+def history_for(history: dict[str, gamestats.Played],
+                game: SourceGame) -> gamestats.Played | None:
+    """The row the source remembers this game by, if it has one."""
+    return history.get(_filed_as(game.display_name))
+
+
+def _filed_as(name: str) -> str:
+    return name.strip().lower()

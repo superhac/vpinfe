@@ -69,6 +69,7 @@
   "count.tables": "Game files",
   "count.media": "Artwork files",
   "count.companions": "Backglasses and settings",
+  "count.history": "Games with play history",
   "match.folder": "folder",
   "match.catalog_id": "catalog id",
   "error.game_file": "the game file did not come across",

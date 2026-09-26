@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, NotRequired, TypedDict
 
 from . import mapping
+from .plan import history_for
 from .source import Note, SourceGame, SourceLibrary
 
 # Where a ROM set and the folders keyed on it are placed, by the kind the registry knows
@@ -89,18 +90,14 @@ def _remember(ctx: Any, game_id: str, played: Any) -> int:
     whose count was never recorded are different, and only one of them should overwrite
     what is already here.
     """
-    brought = 0
     try:
-        if any(one is not None for one in (played.play_count, played.play_time_seconds,
-                                           played.last_played)):
+        if played.has_play_record:
             ctx.games.set_play_record(
                 game_id, play_count=played.play_count,
                 play_time_seconds=played.play_time_seconds,
                 last_played=played.last_played)
-            brought = 1
         if played.tags:
             ctx.games.set_tags(game_id, list(played.tags))
-            brought = 1
         if played.rating:
             ctx.games.rate_game(game_id, played.rating)
         if played.favorite:
@@ -108,7 +105,7 @@ def _remember(ctx: Any, game_id: str, played: Any) -> int:
     except Exception as exc:
         ctx.logger.warning("Could not carry the play history for %s: %s", game_id, exc)
         return 0
-    return brought
+    return 1 if played.counts_as_history else 0
 
 
 def _put(ctx: Any, game_id: str, kind: str, path: Path, rom: str) -> int:
@@ -179,7 +176,7 @@ def _one(ctx: Any, source_id: str, game: SourceGame, kinds: tuple[str, ...],
             if sources.get("altdata"):
                 row["altdata"] = _bring_alt_data(ctx, game_id, rom, sources["altdata"])
 
-    played = (history or {}).get(game.display_name.strip().lower())
+    played = history_for(history or {}, game)
     if played is not None:
         row["history"] = _remember(ctx, game_id, played)
     return row

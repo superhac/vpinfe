@@ -66,6 +66,15 @@ class Played:
                    (self.play_count, self.play_time_seconds, self.last_played,
                     self.favorite, self.rating)) or bool(self.tags)
 
+    @property
+    def has_play_record(self) -> bool:
+        return any(one is not None for one in
+                   (self.play_count, self.play_time_seconds, self.last_played))
+
+    @property
+    def counts_as_history(self) -> bool:
+        return self.has_play_record or bool(self.tags)
+
 
 def path_for(root: Path | str) -> Path:
     return Path(root) / STATS_FILE
