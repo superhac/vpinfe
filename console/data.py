@@ -955,10 +955,10 @@ class Library:
         The kept kinds are read here too, because `media_rows` filters on them while
         the page is drawing - which is on the loop, where the config call is refused.
         """
-        if self._media_rows is None:
-            self._media_rows = self._client.all_media()
-        self.kept_kinds()
-        return self._media_rows
+        rows = self._media_rows
+        if rows is None:
+            rows = self._media_rows = self._client.all_media()
+        return self._kept_media(rows)
 
     def media_rows(self) -> list[dict[str, Any]]:
         """The media lens as it stands, filtered to the kinds this library collects.

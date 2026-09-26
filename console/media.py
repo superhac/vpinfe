@@ -149,11 +149,11 @@ async def refill(library: Any, table: Any, built: list[dict[str, Any]],
     the rest of the selection stay as they were."""
     for game_id in game_ids:
         library.forget_media(game_id)
-    await offload.io(library.load_media_rows)
+    found = await offload.io(library.load_media_rows)
     if table.is_deleted:
         return
     wanted = set(game_ids)
-    fresh = rows([row for row in library.media_rows() if str(row["game_id"]) in wanted])
+    fresh = rows([row for row in found if str(row["game_id"]) in wanted])
     grid.replace_rows(table, built, by_id, fresh, lambda row: str(row["game_id"]) in wanted)
 
 

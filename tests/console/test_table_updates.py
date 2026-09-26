@@ -55,6 +55,7 @@ class MatchingAFileTests(unittest.TestCase):
     def test_every_read_that_shows_the_match_is_made_again(self) -> None:
         client = Mock()
         client.all_tables.return_value = []
+        client.all_media.return_value = []
         client.tables.return_value = []
         client.games.return_value = []
         client.library_policy.return_value = {}

@@ -32,7 +32,7 @@ class _Library:
         return self.found
 
     def media_rows(self) -> list[dict]:
-        return list(self.found)
+        return []
 
 
 class _Grid:
@@ -92,6 +92,11 @@ class RefillTests(unittest.TestCase):
 
         self.assertEqual(self.library.forgot, ["g1", "g2"])
         self.assertEqual(self.library.loads, 1)
+
+    def test_what_is_placed_is_what_the_read_answered(self) -> None:
+        self._refill("g1")
+
+        self.assertIn("g1:wheel:wheel.png", self.by_id)
 
     def test_a_page_that_has_gone_is_left_alone(self) -> None:
         self.table.is_deleted = True
