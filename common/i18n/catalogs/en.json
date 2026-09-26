@@ -369,6 +369,7 @@
     "other": "{count} of this game's settings do not reach this table, which has its own file"
   },
   "console.app_settings.game_and_table": "{game} - {table}",
+  "console.app_settings.heading_row": "{heading} {label}",
   "console.app_settings.no_longer_reads_game": {
     "one": "{tables} no longer reads this game's own settings",
     "other": "{count} tables no longer read this game's own settings:\n{tables}"

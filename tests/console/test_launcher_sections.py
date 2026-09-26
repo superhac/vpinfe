@@ -2137,6 +2137,25 @@ class SettingNamesTests(unittest.TestCase):
                                        window="VR Preview", label="Width"),
             "Player.Shadows": "Shadows"})
 
+    def test_a_pair_s_setting_is_led_by_its_pair_where_its_window_s_name_is_shared(
+            self) -> None:
+        mode, size = ("Topper.TopperFSWidth",), ("Topper.TopperWidth",)
+        names = workbench.setting_names([_group(
+            "displays", _setting(*mode, "Width"), _setting(*size, "Width"),
+            _setting("Topper.TopperDisplay", "Display"),
+            curated=[_heading("topper", *mode, *size, "Topper.TopperDisplay",
+                              label="Topper", pairs=[_pair("video_mode", "Video Mode", *mode),
+                                                     _pair("size", "Size", *size)])])])
+
+        def led(pair: str) -> str:
+            return t("console.app_settings.heading_row", label="Width",
+                     heading=t("console.app_settings.window_row", window="Topper", label=pair))
+
+        self.assertEqual(names, {
+            "Topper.TopperFSWidth": led("Video Mode"), "Topper.TopperWidth": led("Size"),
+            "Topper.TopperDisplay": t("console.app_settings.window_row", window="Topper",
+                                      label="Display")})
+
     def test_or_by_its_section_where_no_heading_holds_it(self) -> None:
         names = workbench.setting_names([_group(
             "displays", _setting("Player.PlayfieldWidth", "Width"),

@@ -5073,12 +5073,16 @@ def _section_label(section: str, group_label: str) -> str:
 def setting_names(groups: Sequence[Any]) -> dict[str, str]:
     """What to call each of one program's settings away from its area, by key: its
     label, led by its plugin's or its window's name, or by the heading or section it
-    sits under where another setting shares the label."""
+    sits under where another setting shares the label. A setting in a pair whose name
+    another shares is led by the pair's name instead."""
     from console import app_settings
 
     fields = [(group, field) for group in groups for field in group.settings]
     shared = Counter(field.label for _group, field in fields)
     plugins = _plugin_names(groups)
+    pairs = {key: str(pair.label) for pair in app_settings.named_pairs(groups)
+             for key in pair.keys}
+    labels = {field.key: field.label for _group, field in fields}
 
     def named(group: Any, field: Any) -> str:
         section = _section_of(field.key)
@@ -5092,7 +5096,11 @@ def setting_names(groups: Sequence[Any]) -> dict[str, str]:
                         if field.key in one.keys and one.label), "")
         return f"{heading or _section_label(section, group.label)} {field.label}"
 
-    return {field.key: named(group, field) for group, field in fields}
+    names = {field.key: named(group, field) for group, field in fields}
+    read = Counter(name.casefold() for name in names.values())
+    return {key: t("console.app_settings.heading_row", heading=pairs[key], label=labels[key])
+            if key in pairs and read[name.casefold()] > 1 else name
+            for key, name in names.items()}
 
 
 def plugin_row(section: str, label: str, plugin_names: dict[str, str]) -> str:
