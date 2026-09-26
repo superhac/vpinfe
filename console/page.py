@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import Callable
 from functools import partial
 from typing import Any
@@ -221,6 +222,20 @@ def _version(said: Any) -> str:
     """
     text = str(said or "").strip() or "?"
     return text if not text[:1].isdigit() else f"v{text}"
+
+
+def failed_since(jobs: list[dict[str, Any]], opened: float,
+                 dismissed: set[str]) -> dict[str, Any] | None:
+    """The job that ended last, when it failed after `opened` and is not dismissed.
+
+    `jobs` is the install's list, running ones first and then the latest to end.
+    """
+    ended = next((job for job in jobs if job.get("state") != "running"), None)
+    if (ended is None or ended.get("state") != "failed"
+            or float(ended.get("finished_at") or 0) < opened
+            or str(ended.get("id") or "") in dismissed):
+        return None
+    return ended
 
 
 # A plain left click on a rail entry navigates in place; anything else is the browser's.
@@ -584,6 +599,15 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 job_text = ui.label("").classes("text-xs min-w-0 truncate")
             job_line.set_visibility(False)
             labels.append(job_text)
+            failed_line = ui.row().classes("items-center justify-center gap-2 w-full "
+                                           "no-wrap console-job cursor-pointer")
+            with failed_line:
+                ui.icon("error", size="16px").classes("shrink-0 text-negative")
+                failed_text = ui.label("").classes("text-xs min-w-0 truncate")
+                failed_why = ui.tooltip("")
+            failed_line.set_visibility(False)
+            failed_line.on("click", lambda: _dismiss_failed())
+            labels.append(failed_text)
             with ui.column().classes("gap-0 items-center w-full"):
                 # Which build this is. Identity rather than state, so it is always
                 # true and always shown. Whether a newer one exists is a device's
@@ -592,20 +616,36 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 labels.append(ui.label(_version(discovery.get("vpinfe_version")))
                               .classes("text-xs opacity-70"))
 
+    opened = time.time()
+    shown_failed = {"id": ""}
+    dismissed: set[str] = set()
+
+    def _dismiss_failed() -> None:
+        dismissed.add(shown_failed["id"])
+        failed_line.set_visibility(False)
+
     async def _watch_jobs() -> None:
-        """Say what is running, and stop asking once nothing is.
+        """Say what is running, or what failed since the page opened, and stop asking
+        once nothing runs.
 
         Polled rather than subscribed: the job event stream is per job and this needs
         to notice one starting that this client did not start. A timer that only runs
         while something is running costs nothing the rest of the time.
         """
         try:
-            running = [job for job in await offload.io(ApiClient().jobs)
-                       if job.get("state") == "running"]
+            found = await offload.io(ApiClient().jobs)
         except Exception:
             job_line.set_visibility(False)
             return
+        running = [job for job in found if job.get("state") == "running"]
+        failed = None if running else failed_since(found, opened, dismissed)
         job_line.set_visibility(bool(running))
+        failed_line.set_visibility(failed is not None)
+        if failed is not None:
+            failed_text.text = (str(failed.get("message") or "").strip()
+                                or t("console.page.failed"))
+            failed_why.text = str(failed.get("error") or "")
+            shown_failed["id"] = str(failed.get("id") or "")
         if not running:
             job_timer.active = False
             return

@@ -26,7 +26,9 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
-from common import events
+import requests
+
+from common import device_client, events
 from common.i18n import t
 
 logger = logging.getLogger("vpinfe.common.jobs")
@@ -167,6 +169,13 @@ _active: dict[str, Job] = {}
 _history: list[Job] = []
 
 
+def _reason(error: BaseException) -> str:
+    """Why a job stopped, as a person reads it."""
+    if isinstance(error, requests.RequestException):
+        return t(device_client.why_not(error))
+    return str(error) or error.__class__.__name__
+
+
 def _finish(job: Job, error: BaseException | None) -> None:
     with _lock:
         if _active.get(job.kind) is job:
@@ -177,7 +186,7 @@ def _finish(job: Job, error: BaseException | None) -> None:
             job.pct = 100
         else:
             job.state = FAILED
-            job.error = str(error) or error.__class__.__name__
+            job.error = _reason(error)
         _history.append(job)
         del _history[:-_HISTORY_LIMIT]
     if error is None:

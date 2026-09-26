@@ -608,7 +608,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             # from the device, because starting with the tables and choosing where they
             # land is a different job from managing what a phone holds.
             panel.menu_entry(t("console.games.send_device"),
-                             lambda: send_to_device.ask_where(chosen))
+                             lambda: send_to_device.ask_where(chosen, state))
             ui.separator()
             collection_adds.draw(offer(chosen, ""), known, bulk_menu.close)
             ui.separator()

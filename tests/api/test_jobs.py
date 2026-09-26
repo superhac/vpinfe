@@ -12,6 +12,7 @@ import threading
 import time
 import unittest
 
+import requests
 from fastapi.testclient import TestClient
 
 import httpapi
@@ -97,6 +98,13 @@ class TrackTests(unittest.TestCase):
         self.assertEqual(self.bus.payloads(events.JOB_FAILED),
                          [{"job_id": job.id, "error": "scan blew up"}])
         self.assertNotIn(events.JOB_DONE, self.bus.names())
+
+    def test_a_request_nothing_answered_is_recorded_in_words(self) -> None:
+        with self.assertRaises(requests.ConnectTimeout):
+            with jobs.track("test.kind") as job:
+                raise requests.ConnectTimeout("HTTPConnectionPool(host='10.0.0.9')")
+
+        self.assertEqual(job.error, t("device.reason.timed_out"))
 
     def test_one_kind_at_a_time(self) -> None:
         """Two library scans would interleave writes to the same .info files."""

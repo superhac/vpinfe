@@ -9,6 +9,7 @@ is a device job - so both are offered and both come through here.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -21,6 +22,9 @@ from console import dialog as frame
 from console.api import ApiClient
 
 logger = logging.getLogger("vpinfe.console.send_to_device")
+
+_POLL_S = 1.0
+_POLLS = 3600
 
 
 def phones(devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -38,7 +42,8 @@ def name_of(device: dict[str, Any]) -> str:
     return str(device.get("display_name") or "").strip() or t("console.send_to_device.device")
 
 
-async def ask_where(games: list[dict[str, Any]]) -> None:
+async def ask_where(games: list[dict[str, Any]],
+                    state: dict[str, Any] | None = None) -> None:
     """Choose a device, say what will happen, and start it.
 
     A confirm rather than a straight send: this copies whole tables over somebody's
@@ -68,20 +73,37 @@ async def ask_where(games: list[dict[str, Any]]) -> None:
             detail=t("console.send_to_device.table_backglass_settings_rom"),
             confirm=t("console.send_to_device.send"), icon=verbs.SEND, danger=False):
         return
-    await send(games, picked)
+    await send(games, picked, state)
 
 
-async def send(games: list[dict[str, Any]], device: dict[str, Any]) -> None:
-    """Start the transfer. It runs as a job, so this returns as soon as it is under
-    way and the drawer's job line says how it is going."""
+async def send(games: list[dict[str, Any]], device: dict[str, Any],
+               state: dict[str, Any] | None = None) -> None:
+    """Start the transfer, and say so if it fails. The drawer's job line says how it is
+    going while it runs."""
+    client = ApiClient()
     try:
-        await run.io_bound(ApiClient().send_to_device, str(device["device_id"]),
-                           [str(one["id"]) for one in games])
+        job = await run.io_bound(client.send_to_device, str(device["device_id"]),
+                                 [str(one["id"]) for one in games])
     except Exception as exc:
         ui.notify(str(exc), type="negative")
         return
     ui.notify(t("console.send_to_device.sending", len=(len(games)), name_of=(name_of(device))),
             type="positive")
+    watch = (state or {}).get("watch_jobs")
+    if callable(watch):
+        watch()
+    for _ in range(_POLLS):
+        await asyncio.sleep(_POLL_S)
+        try:
+            found = await offload.io(client.job, str((job or {}).get("id") or ""))
+        except Exception:  # noqa: BLE001 - the footer line still reports it
+            return
+        if found.get("state") == "running":
+            continue
+        if found.get("state") == "failed":
+            ui.notify(t("console.send_to_device.failed", name_of=name_of(device),
+                        error=found.get("error") or ""), type="negative")
+        return
 
 
 async def _which(found: list[dict[str, Any]]) -> dict[str, Any]:
