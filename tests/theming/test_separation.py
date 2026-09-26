@@ -383,6 +383,43 @@ class SeparationTests(TempTree):
         self.assertEqual(letters, ["A", "M", "T"])
         self.assertEqual(failures, [])
 
+    def test_a_hub_collection_deleted_while_shown_leaves_the_device_on_all_games(self) -> None:
+        with LiveInstance(self.library_root) as library:
+            library.wait_for_api()
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+            ids = {entry["game"]["name"]: entry["game"]["id"] for entry in
+                   _fetch(f"{library_api}/api/v1/library/entries")["entries"]}
+            library.post("/api/v1/collections", {"name": "Hub Picks",
+                                                 "games": [ids["Twilight Zone"]]})
+
+            with LiveInstance(self.device_root,
+                              extra_settings={("network", "library_url"): library_api}) as device:
+                device.wait_for_api()
+                device.library_assets_port = library.ports["assets"]
+
+                def hub_deletes_it_then_device_refreshes() -> None:
+                    requests.delete(f"{library_api}/api/v1/collections/Hub%20Picks",
+                                    timeout=30).raise_for_status()
+                    device.post("/api/v1/collections", {"name": "Only Here", "games": []})
+
+                (_, picked, _, after), failures = self._evaluate(device, (
+                    "vpin.call('set_tables_by_collection', 'Hub Picks')",
+                    f"{SHOWN}()",
+                    hub_deletes_it_then_device_refreshes,
+                    f"""(async () => {{
+                          for (let tries = 0; tries < 100; tries++) {{
+                            const names = await {SHOWN}();
+                            if (names.length === 3) break;
+                            await new Promise(done => setTimeout(done, 100));
+                          }}
+                          return [await vpin.call('get_current_collection'),
+                                  await {SHOWN}()];
+                        }})()"""))
+
+        self.assertEqual(picked, ["Twilight Zone"])
+        self.assertEqual(after, ["None", list(TITLES)])
+        self.assertEqual(failures, [])
+
     def _evaluate(self, device: LiveInstance, steps: tuple[str | Callable[[], object], ...]):
         """Open the device's playfield window and take each step, in order, once the
         theme is ready: a string is evaluated in the page, anything else is called here."""

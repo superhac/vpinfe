@@ -43,6 +43,7 @@ from common.games.collections_service import (
 )
 from common.games.game_repository import all_games
 from common.games.media_lookup import resolved_kinds
+from common.service_errors import NotFoundError
 from frontend import game_state
 
 logger = logging.getLogger("vpinfe.frontend.library_resolver")
@@ -78,6 +79,8 @@ class LibraryResolver:
         self._held = BUILTIN_ALL
         self._whole: list[Any] | None = None
         self._orders: dict[str, dict[str, Any]] = {}
+        # The collection the last reload was told that install no longer has.
+        self._gone = ""
 
         # An unreadable library is empty, not fatal: a first run before the scan has
         # none, and wants a view it can fill in rather than an exception.
@@ -118,9 +121,12 @@ class LibraryResolver:
     def reload(self) -> list[Any]:
         """The library again. A library that has gone quiet leaves the list alone: a
         stale wheel beats a screen emptying because one request failed."""
+        self._gone = ""
         try:
             self.all_games = self._load(public_name(self.current_collection))
             self._held = self.current_collection
+        except NotFoundError:
+            self._gone = self.current_collection
         except Exception:
             logger.debug("Could not reload the library; keeping what is shown",
                          exc_info=True)
@@ -303,7 +309,12 @@ class LibraryResolver:
     def show_all_if_gone(self) -> bool:
         with self.lock:
             name = self.current_collection
-            if self._remote or name == BUILTIN_ALL or name in self.collections():
+            if name == BUILTIN_ALL:
+                return False
+            if self._remote:
+                if self._gone != name:
+                    return False
+            elif name in self.collections():
                 return False
             self.reset_to_default()
             return True

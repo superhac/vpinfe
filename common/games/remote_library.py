@@ -13,10 +13,14 @@ from collections.abc import Iterable
 from typing import Any
 from urllib.parse import quote, urlencode, urljoin
 
+import requests
+
 from common import http_client
 from common.games.collection_ops import wheel_paths
 from common.games.collection_resolver import Entry
 from common.games.wire_entry import WireGame, table_of
+from common.i18n import t
+from common.service_errors import NotFoundError
 
 logger = logging.getLogger("vpinfe.common.games.remote_library")
 
@@ -105,15 +109,25 @@ def _entry_from_wire(row: dict[str, Any]) -> Entry:
                  siblings=int(row.get("siblings") or 1))
 
 
+def _get_json(url: str, collection: str, timeout: int) -> Any:
+    try:
+        return http_client.get_json(url, timeout=timeout)
+    except requests.HTTPError as exc:
+        if collection.strip() and getattr(exc.response, "status_code", None) == 404:
+            raise NotFoundError(t("error.collections.no_collection_named",
+                                  name=collection)) from exc
+        raise
+
+
 def fetch_entries(library_url: str, collection: str = "",
                   timeout: int = LIBRARY_TIMEOUT) -> list[Entry]:
     """Another install's entries for a collection, as local Entry objects.
 
     Raises rather than returning an empty list: a library that cannot be reached is not a
     library with no games, and a caller showing an empty wheel for it would be reporting
-    the wrong thing.
+    the wrong thing. A 404 for a named collection raises NotFoundError.
     """
-    payload = http_client.get_json(entries_url(library_url, collection), timeout=timeout)
+    payload = _get_json(entries_url(library_url, collection), collection, timeout)
     rows = payload.get("entries") if isinstance(payload, dict) else payload
     if not isinstance(rows, list):
         raise ValueError(f"{library_url} did not return an entry list")
