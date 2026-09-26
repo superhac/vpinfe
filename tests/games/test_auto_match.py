@@ -392,6 +392,25 @@ class ImportWithPickTests(TempTree):
         self.assertFalse(associate.call_args.args[2])
         art.assert_called_once_with([report["game_dir"]])
 
+    def test_a_match_that_failed_for_a_worded_reason_says_it(self) -> None:
+        report = {"game_dir": str(self.root / NEW)}
+        with patch.object(game_service, "associate_vps_to_folder",
+                          side_effect=FileNotFoundError(t("error.games.folder_has_no_table"))):
+            upload_ops._associate(report, _entry("fathom", "Fathom"))
+
+        self.assertEqual(report["vps_error"], t("error.games.folder_has_no_table"))
+
+    def test_one_that_failed_for_any_other_reason_points_at_the_log(self) -> None:
+        report = {"game_dir": str(self.root / NEW)}
+        with patch.object(game_service, "associate_vps_to_folder",
+                          side_effect=KeyError("tableFiles")), \
+                self.assertLogs("vpinfe.common.uploads.upload_ops", "ERROR") as logged:
+            upload_ops._associate(report, _entry("fathom", "Fathom"))
+
+        self.assertIs(report["vps_associated"], False)
+        self.assertEqual(report["vps_error"], t("error.uploads.log_says_why"))
+        self.assertIn("tableFiles", "\n".join(logged.output))
+
 
 if __name__ == "__main__":
     unittest.main()

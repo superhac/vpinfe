@@ -428,8 +428,11 @@ def _associate(report: dict, vps_entry: dict) -> None:
                                 matched_by=MATCHED_ON_IMPORT)
         report["vps_associated"] = True
         media_fill.request([report["game_dir"]])
-    except Exception as exc:
+    except FileNotFoundError as exc:
+        report["vps_associated"] = False
+        report["vps_error"] = str(exc)
+    except Exception:
         logging.getLogger("vpinfe.common.uploads.upload_ops").exception(
             "VPS association failed after import")
         report["vps_associated"] = False
-        report["vps_error"] = str(exc)
+        report["vps_error"] = t("error.uploads.log_says_why")

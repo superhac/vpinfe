@@ -317,6 +317,51 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                                 "refusal f'Table folder already exists: {name}'"])
 
 
+CAUGHT_WHOLE = {"Exception", "BaseException"}
+
+
+def _caught_whole_said_bare(source: str) -> list[ast.Call]:
+    """Each `str()` of an exception caught by `except Exception` or wider."""
+    found = []
+    for handler in ast.walk(ast.parse(source)):
+        if not isinstance(handler, ast.ExceptHandler) or not handler.name:
+            continue
+        caught = (handler.type.elts if isinstance(handler.type, ast.Tuple)
+                  else [handler.type])
+        if not any(_named(one) in CAUGHT_WHOLE for one in caught if one is not None):
+            continue
+        found += [node for line in handler.body for node in ast.walk(line)
+                  if isinstance(node, ast.Call) and _named(node.func) == "str"
+                  and any(isinstance(one, ast.Name) and one.id == handler.name
+                          for one in node.args)]
+    return found
+
+
+class TestNoExceptionCaughtWholeIsHandedOnBare(unittest.TestCase):
+
+    def test_none_is(self) -> None:
+        offenders = [f"{name}:{one.lineno} {ast.unparse(one)}"
+                     for name in SPEAKS_TO_A_SURFACE
+                     for one in _caught_whole_said_bare(_source_of(name))]
+        self.assertEqual(offenders, [], "catch what was worded, or say it from the catalog")
+
+    def test_each_way_is_read(self) -> None:
+        source = ("def match(report):\n"
+                  "    try:\n"
+                  "        associate()\n"
+                  "    except UnknownSessionError as exc:\n"
+                  "        raise NotFoundError(str(exc))\n"
+                  "    except (OSError, Exception) as exc:\n"
+                  "        report['vps_error'] = str(exc)\n"
+                  "    except BaseException as exc:\n"
+                  "        logger.info('Could not %s', exc)\n"
+                  "        return str(exc)\n")
+
+        said = [f"{one.lineno} {ast.unparse(one)}" for one in _caught_whole_said_bare(source)]
+
+        self.assertEqual(said, ["7 str(exc)", "10 str(exc)"])
+
+
 # Pages where a caught exception reaches the screen only through the function named,
 # which is what turns another machine's connection error into a reason a person can use.
 SAYS_WHAT_WENT_WRONG = {"console/devices.py": "_why"}

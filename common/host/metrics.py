@@ -215,7 +215,8 @@ def _disk(path: str) -> dict[str, Any]:
         total, used, free = shutil.disk_usage(found)
         entry["device"] = found.stat().st_dev
     except Exception as exc:  # noqa: BLE001 - a share that has gone is the case this reports
-        entry["error"] = str(exc)
+        logger.debug("Cannot read %s: %s", path, exc)
+        entry["error"] = t("error.metrics.path_unreadable")
         return entry
     entry.update({"total": total, "used": used, "free": free,
                   "percent": (used / total * 100) if total else 0.0})
