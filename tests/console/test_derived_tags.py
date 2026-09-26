@@ -7,8 +7,10 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from nicegui import ui
+
 from common.timestamps import utc_now_iso
-from console import collection_rules, community, games, tageditor
+from console import collection_rules, community, games, tageditor, workbench
 from console.data import Library, read_state, sources_of
 
 SOURCE = {"extension": "challenge", "display_name": "Challenge", "list": "releases",
@@ -34,6 +36,16 @@ def _library() -> Library:
 
 async def _after(_next: str | None) -> None:
     return None
+
+
+def _hovered(said: dict[str, Any]) -> dict[str, str]:
+    """The read state the panel draws for one source, with what hovering it shows."""
+    with ui.column() as body:
+        workbench._tag_source(said)
+    tips = {one.props["target"]: one.text
+            for one in body.descendants() if isinstance(one, ui.tooltip)}
+    return {one.text: tips.get(f"#{one.html_id}", "")
+            for one in body.descendants() if isinstance(one, ui.label)}
 
 
 class InTheGrids(unittest.TestCase):
@@ -93,6 +105,13 @@ class FromItsList(unittest.TestCase):
             "Last good read "))
         self.assertTrue(read_state(SOURCE).startswith("Read "))
         self.assertEqual("Not read yet", read_state({"stale": True}))
+
+    def test_a_failed_read_hovers_why_on_the_tags_panel(self) -> None:
+        failed = {**SOURCE, "stale": True, "error": "Nothing answers at vpinplay.example"}
+
+        self.assertEqual({read_state(failed): "Nothing answers at vpinplay.example",
+                          read_state(SOURCE): ""},
+                         {**_hovered(failed), **_hovered(SOURCE)})
 
     def test_a_read_a_moment_ago_reads_as_part_of_the_sentence(self) -> None:
         self.assertEqual("Read just now", read_state({"read_at": utc_now_iso()}))

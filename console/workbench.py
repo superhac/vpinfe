@@ -673,7 +673,9 @@ def _tag_source(said: dict[str, Any]) -> None:
     with ui.column().classes("gap-0 min-w-0"):
         panel.link(tag_source(said), to=community.address(str(said.get("extension") or ""),
                                                           str(said.get("list") or "")))()
-        ui.label(read_state(said)).classes("console-help")
+        age = ui.label(read_state(said)).classes("console-help")
+        if said.get("error"):
+            age.tooltip(str(said["error"]))
 
 
 def _swatches(context: dict[str, Any]) -> None:

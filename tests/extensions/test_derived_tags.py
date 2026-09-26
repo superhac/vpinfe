@@ -41,6 +41,10 @@ def _game(gid: str, title: str, entry: str, releases: dict[str, str],
     })
 
 
+def _unanswered(_path: str) -> dict:
+    raise RuntimeError("Nothing answers at vpinplay.example")
+
+
 class DerivedTagCase(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -159,6 +163,17 @@ class WhatKeepsThem(DerivedTagCase):
         self.assertEqual([CHALLENGE], derived_tags.table_tags(self.table(self.afm, "new")))
         (source,) = derived_tags.sources()[CHALLENGE]
         self.assertTrue(source["stale"])
+
+    def test_a_failed_read_says_why_where_the_tag_is_listed(self) -> None:
+        self.week(releases="afm-1-3")
+        self.read()
+
+        community_lists.refresh(_unanswered)
+        listed = self.client.get("/library/tags").json()["tags"]
+
+        (source,) = next(one["sources"] for one in listed if one["name"] == CHALLENGE)
+        self.assertEqual((True, "Nothing answers at vpinplay.example"),
+                         (source["stale"], source["error"]))
 
     def test_the_last_good_read_outlives_a_restart(self) -> None:
         self.week(releases="afm-1-3")

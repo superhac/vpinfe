@@ -2323,6 +2323,7 @@ class TagSource(ApiModel):
     title: str = ""
     read_at: str = ""
     stale: bool = False
+    error: str = ""
 
 
 class TagResource(ApiModel):

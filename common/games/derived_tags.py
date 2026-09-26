@@ -168,7 +168,7 @@ def sources() -> dict[str, list[dict[str, Any]]]:
         found.setdefault(one["tag"], []).append(
             {"extension": one["extension"], "display_name": one["display_name"],
              "list": one["list"], "title": one["title"], "read_at": one["read_at"],
-             "stale": one["stale"]})
+             "stale": one["stale"], "error": one["error"]})
     return found
 
 
