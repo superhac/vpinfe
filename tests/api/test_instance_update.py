@@ -138,6 +138,39 @@ class PerformUpdateTests(unittest.TestCase):
         self.assertEqual(self.forced, [True])
 
 
+@unittest.skipIf(TestClient is None, "starlette test client unavailable")
+class UpdateCheckTests(unittest.TestCase):
+    ANSWER = {"update_available": True, "current_version": "v3.0.0",
+              "latest_version": "v3.1.0", "update_supported": False,
+              "support_reason": "source_build", "triplet": None, "asset_name": None,
+              "error": "remote_check_failed", "checked_at": "2026-09-25T08:00:00Z"}
+
+    def setUp(self) -> None:
+        self.asked: list[bool] = []
+
+        def check_now(refresh: bool = False) -> dict:
+            self.asked.append(refresh)
+            return dict(self.ANSWER)
+
+        patcher = patch("common.online.app_updater.check_now", check_now)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
+
+    def test_the_kept_answer_is_served_with_when_it_was_checked(self) -> None:
+        response = self.client.get("/update")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.asked, [False])
+        self.assertEqual(response.json()["checked_at"], "2026-09-25T08:00:00Z")
+        self.assertEqual(response.json()["error"], "remote_check_failed")
+
+    def test_refresh_asks_now(self) -> None:
+        self.client.get("/update", params={"refresh": "true"})
+
+        self.assertEqual(self.asked, [True])
+
+
 if __name__ == "__main__":
     unittest.main()
 

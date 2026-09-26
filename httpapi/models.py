@@ -2116,9 +2116,11 @@ class UpdateCheck(ApiModel):
     support_reason: str | None = None
     triplet: str | None = None
     asset_name: str | None = None
-    # Set when the check could not be made at all. Not knowing is its own answer and is
+    # Set when the last attempt could not be made. Not knowing is its own answer and is
     # never reported as "no update".
     error: str | None = None
+    # The last check that succeeded; None when none has.
+    checked_at: str | None = None
 
 
 class UpdateRequest(ApiModel):

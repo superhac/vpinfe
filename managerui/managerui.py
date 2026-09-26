@@ -17,9 +17,7 @@ import threading
 from nicegui import app, context, ui
 
 from common.online.app_updater import (
-    check_for_updates as check_for_app_updates,
-)
-from common.online.app_updater import (
+    check_now,
     force_exit_after_handoff,
     launch_prepared_update,
     prepare_update,
@@ -89,7 +87,7 @@ def check_for_updates() -> dict:
         return _update_check_cache
 
     logger.info("Running initial header update check for current_version=%s", get_version())
-    _update_check_cache.update(check_for_app_updates())
+    _update_check_cache.update(check_now())
     _update_check_cache['checked'] = True
     logger.info(
         "Initial header update check complete: current=%s latest=%s available=%s error=%s supported=%s support_reason=%s asset=%s",

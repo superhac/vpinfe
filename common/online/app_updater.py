@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import os
 import platform
@@ -16,14 +17,15 @@ from pathlib import Path
 
 import requests
 
-from common.http_client import download_file, get_json
+from common import timestamps
+from common.http_client import HostQuietError, OfflineError, download_file, get_json
 from common.i18n import t
 from common.online.update_scripts import (
     _build_posix_update_script,
     _build_windows_bootstrap_script,
     _build_windows_update_script,
 )
-from common.paths import CONFIG_DIR, UPDATES_DIR, bundled
+from common.paths import CONFIG_DIR, UPDATE_CHECK_PATH, UPDATES_DIR, bundled
 from common.vpinfe_version import get_version
 
 logger = logging.getLogger("vpinfe.common.online.app_updater")
@@ -32,6 +34,10 @@ logger = logging.getLogger("vpinfe.common.online.app_updater")
 LAST_UPDATE_LOG = CONFIG_DIR / "last_update.log"
 LATEST_RELEASE_URL = "https://api.github.com/repos/superhac/vpinfe/releases/latest"
 USER_AGENT = "VPinFE-Updater"
+CHECK_EVERY_SECONDS = 24 * 60 * 60
+RETRY_AFTER_FAILURE_SECONDS = 60 * 60
+
+_checking = threading.Lock()
 
 
 class UpdateError(RuntimeError):
@@ -279,9 +285,8 @@ def _get_release_manifest(release_payload: dict) -> dict:
     return manifest
 
 
-def check_for_updates() -> dict:
-    context = get_install_context()
-    result = {
+def _blank(context: dict) -> dict:
+    return {
         "update_available": False,
         "error": None,
         "current_version": context["current_version"],
@@ -290,119 +295,120 @@ def check_for_updates() -> dict:
         "support_reason": context["reason"],
         "triplet": context["triplet"],
         "asset_name": None,
+        "checked_at": None,
     }
-    # Debug, all three of these: a check runs whenever a surface draws, so anything
-    # louder is three lines per page load saying what the last one said. What a caller
-    # needs is in the result it gets back.
-    logger.debug(
-        "Starting update check: current_version=%s triplet=%s supported=%s support_reason=%s",
-        result["current_version"],
-        result["triplet"],
-        context["supported"],
-        result["support_reason"],
-    )
 
+
+def _judged(context: dict, release: dict, manifest: dict | None) -> dict | None:
+    """What `release` means to this install. None when it needs a manifest it was not
+    given. Logs nothing: it runs on every read of the kept answer."""
+    result = _blank(context)
+    latest_tag = str(release.get("tag_name") or "").strip()
+    if not latest_tag:
+        result["error"] = "missing_latest_tag"
+        return result
+    result["latest_version"] = latest_tag
+
+    current_ver = _parse_tag_version(context["current_version"])
+    latest_ver = _parse_tag_version(latest_tag)
+    if current_ver is None:
+        result["update_available"] = True
+        return result
+    if latest_ver is None:
+        result["error"] = "latest_tag_unparseable"
+        return result
+
+    result["update_available"] = latest_ver > current_ver
+    if not result["update_available"] or not context["supported"]:
+        return result
+    if manifest is None:
+        return None
+
+    _, asset_info = _resolve_manifest_asset(manifest, context["triplet"])
+    if not asset_info:
+        result["support_reason"] = "no_matching_asset"
+        return result
+    asset_name = asset_info.get("file")
+    if not asset_name:
+        result["support_reason"] = "asset_missing_file_name"
+        return result
+    if not _find_release_asset(release, asset_name):
+        result["support_reason"] = "asset_not_attached_to_release"
+        return result
+
+    result["update_supported"] = True
+    result["support_reason"] = None
+    result["asset_name"] = asset_name
+    return result
+
+
+def _kept_release(payload: dict) -> dict:
+    return {"tag_name": payload.get("tag_name"),
+            "assets": [{"name": asset.get("name"),
+                        "browser_download_url": asset.get("browser_download_url")}
+                       for asset in payload.get("assets") or []]}
+
+
+def _saved() -> dict | None:
     try:
-        release_payload = _get_release_payload()
-        latest_tag = (release_payload.get("tag_name") or "").strip()
-        if not latest_tag:
-            result["error"] = "missing_latest_tag"
-            logger.warning("Update check failed: latest release payload missing tag_name")
-            return result
+        held = json.loads(UPDATE_CHECK_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError):
+        logger.warning("Could not read the kept update check; asking again", exc_info=True)
+        return None
+    return held if isinstance(held, dict) else None
 
-        result["latest_version"] = latest_tag
 
-        current_ver = _parse_tag_version(context["current_version"])
-        latest_ver = _parse_tag_version(latest_tag)
-        logger.debug(
-            "Parsed versions for update check: current=%s parsed_current=%s "
-            "latest=%s parsed_latest=%s",
-            context["current_version"],
-            current_ver,
-            latest_tag,
-            latest_ver,
-        )
+def _keep(record: dict) -> None:
+    try:
+        UPDATE_CHECK_PATH.parent.mkdir(parents=True, exist_ok=True)
+        part = UPDATE_CHECK_PATH.with_name(UPDATE_CHECK_PATH.name + ".part")
+        part.write_text(json.dumps(record, indent=2), encoding="utf-8")
+        os.replace(part, UPDATE_CHECK_PATH)
+    except OSError:
+        logger.warning("Could not keep the update check", exc_info=True)
 
-        if current_ver is None:
-            result["update_available"] = True
-            if result["error"] is None:
-                result["error"] = "non_release_build"
-            # A source build has no version to compare and knows it - `support_reason`
-            # already says so, and it is not going to change while this process runs.
-            # A build that is meant to be a release and cannot be parsed is the odd
-            # one, and that is the one worth a warning.
-            _say = (logger.debug if context["reason"] == "source_build"
-                    else logger.warning)
-            _say("Update check treating current build as non-release: "
-                 "current_version=%s", context["current_version"])
-            return result
 
-        if latest_ver is None:
-            result["error"] = "latest_tag_unparseable"
-            logger.warning("Update check failed: latest tag is unparseable: %s", latest_tag)
-            return result
+def _fresh(record: dict, now: float) -> bool:
+    if record.get("error"):
+        since, within = record.get("attempted_at"), RETRY_AFTER_FAILURE_SECONDS
+    else:
+        since, within = record.get("checked_at"), CHECK_EVERY_SECONDS
+    then = timestamps.iso_to_epoch(since)
+    return then is not None and 0 <= now - then < within
 
-        result["update_available"] = latest_ver > current_ver
-        if not result["update_available"]:
-            logger.info(
-                "Update check complete: already up to date at %s", context["current_version"])
-            return result
 
-        if not context["supported"]:
-            logger.info(
-                "Update available but auto-update unsupported: support_reason=%s",
-                result["support_reason"])
-            return result
+def _answer(context: dict, record: dict) -> dict | None:
+    release = record.get("release")
+    answer = (_judged(context, release, record.get("manifest"))
+              if isinstance(release, dict) else _blank(context))
+    if answer is None:
+        return None
+    answer["checked_at"] = record.get("checked_at") or None
+    answer["error"] = record.get("error") or answer["error"]
+    return answer
 
-        manifest = _get_release_manifest(release_payload)
-        resolved_triplet, asset_info = _resolve_manifest_asset(manifest, context["triplet"])
-        if not asset_info:
-            result["support_reason"] = "no_matching_asset"
-            logger.warning(
-                "Update available but manifest has no asset for triplet=%s", context["triplet"])
-            return result
-        if resolved_triplet and resolved_triplet != context["triplet"]:
-            logger.info(
-                "Using compatible manifest triplet=%s for context triplet=%s",
-                resolved_triplet,
-                context["triplet"],
-            )
 
-        asset_name = asset_info.get("file")
-        if not asset_name:
-            result["support_reason"] = "asset_missing_file_name"
-            logger.warning(
-                "Update manifest asset missing file name for triplet=%s", context["triplet"])
-            return result
-
-        asset = _find_release_asset(release_payload, asset_name)
-        if not asset:
-            result["support_reason"] = "asset_not_attached_to_release"
-            logger.warning(
-                "Release payload missing attached asset=%s for triplet=%s", asset_name,
-                context["triplet"])
-            return result
-
-        result["update_supported"] = True
-        result["support_reason"] = None
-        result["asset_name"] = asset_name
-        logger.info(
-            "Update check complete: update_available=%s latest=%s asset=%s triplet=%s",
-            result["update_available"],
-            result["latest_version"],
-            result["asset_name"],
-            result["triplet"],
-        )
-        return result
-    except requests.RequestException as exc:
-        logger.exception(
-            "Update check failed with RequestException against %s: %s", LATEST_RELEASE_URL, exc)
-        result["error"] = "remote_check_failed"
-        return result
-    except Exception as exc:
-        logger.exception("Failed to check for updates: %s", exc)
-        result["error"] = "remote_check_failed"
-        return result
+def _ask(context: dict, before: dict | None) -> dict:
+    """Asks GitHub and returns the record it kept."""
+    now = timestamps.utc_now_iso()
+    try:
+        release = _kept_release(_get_release_payload())
+        manifest = (_get_release_manifest(release)
+                    if _judged(context, release, None) is None else None)
+        record = {"release": release, "manifest": manifest,
+                  "checked_at": now, "attempted_at": now, "error": None}
+    except (requests.RequestException, UpdateError) as exc:
+        said = (logger.debug if isinstance(exc, (HostQuietError, OfflineError, UpdateError))
+                else logger.warning)
+        said("Could not check for updates: %s", exc)
+        record = {**(before or {}), "attempted_at": now, "error": "remote_check_failed"}
+    except Exception:
+        logger.exception("Could not check for updates")
+        record = {**(before or {}), "attempted_at": now, "error": "remote_check_failed"}
+    _keep(record)
+    return record
 
 
 def prepare_update() -> dict:
@@ -581,22 +587,36 @@ def launch_prepared_update(prepared: dict) -> None:
     )
 
 
-def check_now() -> dict:
+def check_now(refresh: bool = False) -> dict:
     """What this install could become, and whether it can get there itself.
 
+    From the answer kept under `cache/` while it is fresh, else from GitHub; `refresh`
+    asks GitHub now. `checked_at` is the last success and `error` the last attempt's.
     Never raises: not knowing whether an update exists is not a reason to fail the
     question, and `error` carries it.
     """
-    from common.vpinfe_version import get_version
-
     try:
-        return check_for_updates()
-    except Exception as exc:
-        logger.warning("Could not check for updates: %s", exc)
+        context = get_install_context()
+        with _checking:
+            record = _saved()
+            if not refresh and record is not None and _fresh(record, time.time()):
+                kept = _answer(context, record)
+                if kept is not None:
+                    return kept
+            record = _ask(context, record)
+        answer = _answer(context, record) or {
+            **_blank(context), "checked_at": record.get("checked_at") or None,
+            "error": record.get("error") or "check_failed"}
+        logger.info("Update check: latest=%s available=%s supported=%s reason=%s error=%s",
+                    answer["latest_version"], answer["update_available"],
+                    answer["update_supported"], answer["support_reason"], answer["error"])
+        return answer
+    except Exception:
+        logger.exception("Could not check for updates")
         return {"update_available": False, "error": "check_failed",
                 "current_version": get_version(), "latest_version": None,
                 "update_supported": False, "support_reason": "check failed",
-                "triplet": None, "asset_name": None}
+                "triplet": None, "asset_name": None, "checked_at": None}
 
 
 def take_published(*, stop_table: bool = False) -> dict:

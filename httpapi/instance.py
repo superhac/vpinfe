@@ -88,14 +88,14 @@ def build_router(prefix: str, api_version: str) -> APIRouter:
 
     @router.get("/update", summary="Whether a newer build is published",
                 dependencies=[requires(scopes.INSTANCE_READ)])
-    async def update() -> models.UpdateCheck:
+    async def update(refresh: bool = False) -> models.UpdateCheck:
         """Served because a client cannot otherwise ask: 2.x calls the check in-process,
-        which any consumer over HTTP has no way to do. Reaches the network, so it runs
+        which any consumer over HTTP has no way to do. Can reach the network, so it runs
         off the loop."""
         from starlette.concurrency import run_in_threadpool
 
         return models.UpdateCheck.model_validate(
-            await run_in_threadpool(app_updater.check_now))
+            await run_in_threadpool(app_updater.check_now, refresh))
 
     @router.post("/update", summary="Take the published build", status_code=202,
                  dependencies=[requires(scopes.SYSTEM_ADMIN)])
