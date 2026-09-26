@@ -470,7 +470,7 @@ class BackglassPluginAtATableTests(_TableCase):
     VALUES = {"Plugin.B2S.ShowGrill": "1", "Plugin.B2S.BackglassDMDX": "120",
               "Plugin.B2S.BackglassDMDY": "40", "Plugin.B2S.BackglassDMDW": "512",
               "Plugin.B2S.BackglassDMDH": "128", "Plugin.B2S.BackglassDMDAutoPos": "1",
-              "Plugin.B2S.ScoreViewDMDAutoPos": "1"}
+              "Plugin.B2S.ScoreViewDMDAutoPos": "1", "Plugin.B2S.ScoreViewDMDX": "60"}
 
     def setUp(self) -> None:
         super().setUp()
@@ -495,30 +495,30 @@ class BackglassPluginAtATableTests(_TableCase):
                 file.read(self.beside)
                 self.assertEqual(file["Plugin.B2S"][key.rsplit(".", 1)[-1]], value)
 
-    def test_its_heading_is_about_the_backglass_and_pairs_the_dmd_box(self) -> None:
+    def test_its_heading_is_about_the_backglass_and_pairs_each_dmd_box(self) -> None:
         got = self.client.get("/launchers/l1/config?table=t1&scope=entry")
         plugins = {g["key"]: g for g in got.json()["groups"]}["plugins"]
         b2s, = plugins["curated"]
+        backglass, score_view = "Plugin.B2S.BackglassDMD", "Plugin.B2S.ScoreViewDMD"
 
         self.assertEqual(b2s["kinds"], ["backglass"])
         self.assertEqual([(p["label"], p["joiner"], p["keys"]) for p in b2s["pairs"]], [
-            ("DMD Position", ",", ["Plugin.B2S.BackglassDMDX", "Plugin.B2S.BackglassDMDY"]),
-            ("DMD Size", "×", ["Plugin.B2S.BackglassDMDW", "Plugin.B2S.BackglassDMDH"])])
+            ("Backglass DMD Position", ",", [f"{backglass}X", f"{backglass}Y"]),
+            ("Backglass DMD Size", "×", [f"{backglass}W", f"{backglass}H"]),
+            ("ScoreView DMD Position", ",", [f"{score_view}X", f"{score_view}Y"]),
+            ("ScoreView DMD Size", "×", [f"{score_view}W", f"{score_view}H"])])
         self.assertTrue(set(self.VALUES) <= set(b2s["keys"]))
 
     def test_the_overlay_s_rows_are_switched_by_the_overlay(self) -> None:
         got = self.client.get("/launchers/l1/config?table=t1&scope=entry")
         b2s, = {g["key"]: g for g in got.json()["groups"]}["plugins"]["curated"]
-        prefix = "Plugin.B2S."
 
-        self.assertEqual(b2s["switched"], [
-            {"enabled_by": f"{prefix}BackglassDMDOverlay",
-             "keys": [f"{prefix}BackglassDMD{part}" for part in
+        self.assertEqual(b2s["switched"], [one for art in ("Backglass", "ScoreView") for one in (
+            {"enabled_by": f"Plugin.B2S.{art}DMDOverlay",
+             "keys": [f"Plugin.B2S.{art}DMD{part}" for part in
                       ("AutoPos", "X", "Y", "W", "H")], "on": True},
-            {"enabled_by": f"{prefix}BackglassDMDAutoPos",
-             "keys": [f"{prefix}BackglassDMD{part}" for part in "XYWH"], "on": False},
-            {"enabled_by": f"{prefix}ScoreViewDMDOverlay",
-             "keys": [f"{prefix}ScoreViewDMDAutoPos"], "on": True}])
+            {"enabled_by": f"Plugin.B2S.{art}DMDAutoPos",
+             "keys": [f"Plugin.B2S.{art}DMD{part}" for part in "XYWH"], "on": False})])
 
 
 class _Wire:

@@ -393,23 +393,25 @@ class AreaTests(_Case):
 
         self.assertEqual((heading.enabled_by, heading.rivals), ("", ()))
 
-    def test_a_backglass_renderer_is_about_the_backglass_and_pairs_its_dmd_box(self) -> None:
-        prefix = "Plugin.B2SLegacy.BackglassDMD"
-        heading, = areas.plugin_headings({"Plugin.B2SLegacy.Enable",
-                                          *(f"{prefix}{part}" for part in "XYWH")})
+    def test_a_backglass_renderer_is_about_the_backglass_and_pairs_each_dmd_box(self) -> None:
+        backglass, score_view = "Plugin.B2SLegacy.BackglassDMD", "Plugin.B2SLegacy.ScoreViewDMD"
+        box = [f"{art}{part}" for art in (backglass, score_view) for part in "XYWH"]
+        heading, = areas.plugin_headings({"Plugin.B2SLegacy.Enable", *box})
 
         self.assertEqual(heading.kinds, ("backglass",))
         self.assertEqual([(pair.key, pair.keys) for pair in heading.pairs],
-                         [("dmd_position", (f"{prefix}X", f"{prefix}Y")),
-                          ("dmd_size", (f"{prefix}W", f"{prefix}H"))])
-        self.assertTrue(all(areas.is_curated(f"{prefix}{part}") for part in "XYWH"))
+                         [("backglass_dmd_position", (f"{backglass}X", f"{backglass}Y")),
+                          ("backglass_dmd_size", (f"{backglass}W", f"{backglass}H")),
+                          ("score_view_dmd_position", (f"{score_view}X", f"{score_view}Y")),
+                          ("score_view_dmd_size", (f"{score_view}W", f"{score_view}H"))])
+        self.assertTrue(all(areas.is_curated(key) for key in box))
 
     def test_a_dmd_pair_the_file_holds_half_of_is_left_out(self) -> None:
         heading, = areas.plugin_headings({"Plugin.B2S.Enable", "Plugin.B2S.BackglassDMDX",
                                           "Plugin.B2S.BackglassDMDY",
                                           "Plugin.B2S.BackglassDMDW"})
 
-        self.assertEqual([pair.key for pair in heading.pairs], ["dmd_position"])
+        self.assertEqual([pair.key for pair in heading.pairs], ["backglass_dmd_position"])
 
     def test_the_dmd_overlay_s_rows_are_switched_by_the_overlay(self) -> None:
         prefix = "Plugin.B2SLegacy."
@@ -423,14 +425,15 @@ class AreaTests(_Case):
                                                             f"{prefix}BackglassDMDX"))])
 
     def test_the_dmd_box_is_drawn_only_while_automatic_position_is_off(self) -> None:
-        prefix = "Plugin.B2S.BackglassDMD"
-        heading, = areas.plugin_headings({"Plugin.B2S.Enable", f"{prefix}Overlay",
-                                          f"{prefix}AutoPos", f"{prefix}X", f"{prefix}Y"})
+        arts = ("Plugin.B2S.BackglassDMD", "Plugin.B2S.ScoreViewDMD")
+        heading, = areas.plugin_headings({"Plugin.B2S.Enable", *(
+            f"{art}{part}" for art in arts for part in ("Overlay", "AutoPos", "X", "Y"))})
 
-        self.assertEqual([(one.enabled_by, one.keys) for one in heading.switched
-                          if not one.on],
-                         [(f"{prefix}AutoPos", (f"{prefix}X", f"{prefix}Y"))])
-        self.assertEqual(heading.keys.count(f"{prefix}X"), 1)
+        self.assertEqual([(one.enabled_by, one.keys, one.on) for one in heading.switched],
+                         [row for art in arts for row in (
+                             (f"{art}Overlay", (f"{art}AutoPos", f"{art}X", f"{art}Y"), True),
+                             (f"{art}AutoPos", (f"{art}X", f"{art}Y"), False))])
+        self.assertEqual([heading.keys.count(f"{art}X") for art in arts], [1, 1])
 
     def test_any_other_plugin_is_about_no_file(self) -> None:
         heading, = areas.plugin_headings({"Plugin.PinMAME.Enable"})

@@ -1375,7 +1375,8 @@ class TablePairTests(unittest.TestCase):
     PLUGINS = _group(
         "plugins", _field("Plugin.B2S.Enable", "Enable"), *(_field(key) for key in DMD),
         curated=(_heading("B2S", "Plugin.B2S.Enable", *DMD, label="B2S",
-                          pairs=[_pair("dmd_position", "DMD Position", *DMD)]),))
+                          pairs=[_pair("backglass_dmd_position", "Backglass DMD Position",
+                                       *DMD)]),))
 
     def test_a_pair_is_listed_whole_where_the_table_sets_either_row(self) -> None:
         found = app_settings.differences([self.DISPLAYS], {self.SIZE[1]: self.SET})
@@ -1389,7 +1390,7 @@ class TablePairTests(unittest.TestCase):
                              [self.DISPLAYS, self.PLUGINS])],
                          ["Backglass Video Mode", "Backglass Size", "Topper Size",
                           t("console.app_settings.plugin_row", plugin="B2S",
-                            label="DMD Position")])
+                            label="Backglass DMD Position")])
 
     def test_add_a_setting_offers_a_pair_once_by_its_name(self) -> None:
         self.assertEqual([(str(field.label), field.key) for field, _ in

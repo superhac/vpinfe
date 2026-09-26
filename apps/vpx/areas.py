@@ -64,12 +64,18 @@ CURATED: dict[str, tuple[Heading, ...]] = {
 }
 
 
+_ARTS =(("Backglass", "backglass_dmd_position", "backglass_dmd_size"),
+         ("ScoreView", "score_view_dmd_position", "score_view_dmd_size"))
+
+
 def _overlays(plugin: str) -> tuple[Switched, ...]:
-    prefix = f"Plugin.{plugin}."
-    box = tuple(f"{prefix}BackglassDMD{part}" for part in "XYWH")
-    return (Switched(f"{prefix}BackglassDMDOverlay", (f"{prefix}BackglassDMDAutoPos", *box)),
-            Switched(f"{prefix}BackglassDMDAutoPos", box, on=False),
-            Switched(f"{prefix}ScoreViewDMDOverlay", (f"{prefix}ScoreViewDMDAutoPos",)))
+    found: list[Switched] = []
+    for art, _, _ in _ARTS:
+        prefix = f"Plugin.{plugin}.{art}DMD"
+        box = tuple(f"{prefix}{part}" for part in "XYWH")
+        found += (Switched(f"{prefix}Overlay", (f"{prefix}AutoPos", *box)),
+                  Switched(f"{prefix}AutoPos", box, on=False))
+    return tuple(found)
 
 
 def _dmd(plugin: str) -> tuple[str, ...]:
@@ -78,9 +84,12 @@ def _dmd(plugin: str) -> tuple[str, ...]:
 
 
 def _dmd_pairs(plugin: str) -> tuple[Pair, ...]:
-    prefix = f"Plugin.{plugin}.BackglassDMD"
-    return (Pair("dmd_position", (f"{prefix}X", f"{prefix}Y")),
-            Pair("dmd_size", (f"{prefix}W", f"{prefix}H")))
+    found: list[Pair] = []
+    for art, position, size in _ARTS:
+        prefix = f"Plugin.{plugin}.{art}DMD"
+        found += (Pair(position, (f"{prefix}X", f"{prefix}Y")),
+                  Pair(size, (f"{prefix}W", f"{prefix}H")))
+    return tuple(found)
 
 
 # The plugins the catalog has words for, and each one's rows after its Enable. A plugin
