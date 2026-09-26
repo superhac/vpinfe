@@ -1145,7 +1145,8 @@ async def _draw_location(container: ui.column, title: ui.column, library: Librar
     title.clear()
     with container:
         _title(title, row.get("name") or "",
-               locations_page.KIND_LABELS.get(str(row.get("kind") or "root"), "Location"))
+               t(locations_page.KIND_LABELS.get(str(row.get("kind") or "root"),
+                                                 "console.page.location")))
         # The whole list as well as this row: priority is a fact about where this one
         # sits among the others, so it cannot be read off the row alone.
         context: dict[str, Any] = {"library": library, "location": row,
@@ -5523,8 +5524,9 @@ async def _location_details(context: dict[str, Any]) -> None:
             row["path"], save_path,
             status=panel.value_state("ok" if row["reachable"] else "missing",
                                      row["reason"]))),
-        (t("word.contains"), panel.select(locations_page.KIND_LABELS, row["kind"],
-                save_kind)),
+        (t("word.contains"), panel.select(
+            {kind: t(key) for kind, key in locations_page.KIND_LABELS.items()},
+            row["kind"], save_kind)),
         (t("word.state"), _location_state(row)),
         (t("console.workbench.new_games"), _location_write_to(context, row)),
     ]

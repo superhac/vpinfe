@@ -38,6 +38,15 @@ PANELS =tuple(f"view=collections&collection=Last%20Played&section={section}"
                for section in ("collection_details", "collection_games"))
 CATALOG = json.loads((ROOT / "common/i18n/catalogs/en.json").read_text(encoding="utf-8"))
 GAME = "Attack from Mars"
+DOTTED = re.compile(r"\b[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+\b", re.IGNORECASE)
+KEYS = {key.lower(): key for key in CATALOG}
+FIRST_ROW = ".ag-row .ag-cell"
+
+
+def _keys_in(text: str) -> list[str]:
+    """Catalog keys on screen as themselves, in either case: `innerText` applies
+    `text-transform`."""
+    return sorted({KEYS[one.lower()] for one in DOTTED.findall(text) if one.lower() in KEYS})
 
 
 # Under the pseudo-locale every letter the catalog owns is replaced by one that is not
@@ -169,8 +178,17 @@ class PseudoLocaleTests(unittest.TestCase):
         sections = sorted(set(console_page.SECTIONS) - CONTENT_HEAVY)
         addresses = [f"view={view}" for view in sections] + list(PANELS)
 
-        async def look(instance) -> dict[str, list[str]]:
-            found: dict[str, list[str]] = {}
+        found: dict[str, list[str]] = {}
+        keys: dict[str, list[str]] = {}
+
+        def read(where: str, text: str) -> None:
+            leaked = sorted({w.lower() for w in ASCII_WORD.findall(text)} - allowed)
+            if leaked:
+                found[where] = leaked
+            if named := _keys_in(text):
+                keys[where] = named
+
+        async def look(instance) -> None:
             async with BrowserSession(chromium_path()) as browser:
                 for view in addresses:
                     await browser.navigate(
@@ -180,12 +198,14 @@ class PseudoLocaleTests(unittest.TestCase):
                         timeout=90.0)
                     await asyncio.sleep(3)
                     text = await browser.evaluate("document.body.innerText") or ""
-                    text += await _picker_text(browser)
-                    seen = {w.lower() for w in ASCII_WORD.findall(text)}
-                    leaked = sorted(seen - allowed)
-                    if leaked:
-                        found[view] = leaked
-            return found
+                    read(view, text + await _picker_text(browser))
+                await browser.navigate(instance.console_url("/console?view=locations"))
+                await browser.wait_for(
+                    f"document.querySelector({json.dumps(FIRST_ROW)}) !== null", timeout=90.0)
+                await browser.click(FIRST_ROW)
+                await asyncio.sleep(3)
+                read("a location's panel",
+                     await browser.evaluate("document.body.innerText") or "")
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -193,9 +213,10 @@ class PseudoLocaleTests(unittest.TestCase):
             with LiveInstance(root,
                               extra_settings={("general", "language"): "qps"}) as instance:
                 allowed |= _machine_words(root, instance.config_dir)
-                leaked = asyncio.run(look(instance))
+                asyncio.run(look(instance))
 
-        self.assertEqual(leaked, {}, "these reached the screen without the catalog")
+        self.assertEqual(keys, {}, "these reached the screen as the catalog's own keys")
+        self.assertEqual(found, {}, "these reached the screen without the catalog")
 
 
 class FrontendPseudoLocaleTests(unittest.TestCase):
