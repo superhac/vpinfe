@@ -345,6 +345,69 @@ class WindowRoleTests(unittest.TestCase):
                                  [("show", 1), ("show", 2), ("show", 0), ("front", 0)])
 
 
+class ScreenWaitTests(unittest.TestCase):
+    """Three windows on screens 0, 1 and 2, and a screen list that is short at first."""
+
+    def _launch(self, platform: str, answers: list[int]) -> tuple[list[str], int]:
+        ini = Path(self.enterContext(tempfile.TemporaryDirectory())) / "vpinfe.ini"
+        ini.write_text("[windows.playfield]\nscreen_id = 0\n"
+                       "[windows.backglass]\nscreen_id = 1\n"
+                       "[windows.score_view]\nscreen_id = 2\n", encoding="utf-8")
+        config = ConfigStore(str(ini))
+        counts = iter(answers)
+        asked = 0
+        clock = [0.0]
+
+        def screens() -> list[Any]:
+            nonlocal asked
+            asked += 1
+            count = next(counts, answers[-1])
+            return [types.SimpleNamespace(x=i * 100, y=0, width=100, height=100)
+                    for i in range(count)]
+
+        def sleep(seconds: float) -> None:
+            clock[0] += seconds
+
+        placed: list[str] = []
+
+        def launch(manager: ChromiumManager, name: str, url: str, monitor: Any,
+                   index: int, **kwargs: Any) -> None:
+            placed.append(name)
+
+        with (
+            mock.patch.object(theme_windows, "active",
+                              return_value=theme_windows.DEFAULT_WINDOWS[2]),
+            mock.patch.object(sys, "platform", platform),
+            mock.patch("screeninfo.get_monitors", screens),
+            mock.patch.object(chromium_manager, "get_mac_screens", screens),
+            mock.patch.object(ChromiumManager, "launch_window", launch),
+            mock.patch.object(ChromiumManager, "_focus_game_window_mac"),
+            mock.patch.object(chromium_manager.time, "sleep", sleep),
+            mock.patch.object(chromium_manager.time, "monotonic", lambda: clock[0]),
+        ):
+            ChromiumManager().launch_all_windows(config)
+        return sorted(placed), asked
+
+    def test_a_screen_list_that_fills_in_late_places_every_window(self) -> None:
+        placed, asked = self._launch("linux", [1, 1, 3])
+
+        self.assertEqual(placed, ["backglass", "playfield", "scoreview"])
+        self.assertEqual(asked, 3)
+
+    def test_screens_that_never_arrive_end_the_wait_and_the_rest_still_open(self) -> None:
+        placed, asked = self._launch("linux", [1])
+
+        self.assertEqual(placed, ["playfield"])
+        self.assertEqual(asked, 1 + round(chromium_manager.SCREEN_WAIT_S
+                                          / chromium_manager.SCREEN_POLL_S))
+
+    def test_macos_takes_the_first_answer(self) -> None:
+        placed, asked = self._launch("darwin", [1, 3])
+
+        self.assertEqual(placed, ["playfield"])
+        self.assertEqual(asked, 1)
+
+
 class LibraryEndpointTests(unittest.TestCase):
     """Reading `network.library_url` into the three values a window url carries."""
 

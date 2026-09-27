@@ -318,6 +318,27 @@ def get_mac_screens() -> list[MonitorInfo]:
     return result
 
 
+SCREEN_WAIT_S = 5.0
+SCREEN_POLL_S = 0.2
+
+
+def _screens(wanted: int) -> list[Any]:
+    if sys.platform == "darwin":
+        monitors: list[Any] = get_mac_screens()
+        logger.info("Detected %s macOS screens (via NSScreen): %s", len(monitors), monitors)
+        return monitors
+
+    from screeninfo import get_monitors
+
+    monitors = get_monitors()
+    deadline = time.monotonic() + SCREEN_WAIT_S
+    while len(monitors) < wanted and time.monotonic() < deadline:
+        time.sleep(SCREEN_POLL_S)
+        monitors = get_monitors()
+    logger.info("Detected %s monitors: %s", len(monitors), monitors)
+    return monitors
+
+
 PROFILE_PREFIX = "vpinfe_chromium_"
 
 
@@ -481,17 +502,6 @@ class ChromiumManager:
             iniconfig: ConfigStore instance with display and network settings
             base_url: Base URL for the HTTP server
         """
-        if sys.platform == "darwin":
-            monitors = get_mac_screens()
-            logger.info(
-                "Detected %s macOS screens (via NSScreen): %s", len(monitors), monitors
-            )
-        else:
-            from screeninfo import get_monitors
-
-            monitors = get_monitors()
-            logger.info("Detected %s monitors: %s", len(monitors), monitors)
-
         network = NetworkConfig.from_config(iniconfig)
         displays = DisplayConfig.from_config(iniconfig)
         settings = SettingsConfig.from_config(iniconfig)
@@ -505,6 +515,9 @@ class ChromiumManager:
         from frontend.runtime import window_configs
 
         configs = window_configs(iniconfig)
+        named = [int(screen) for _, key in configs
+                 if (screen := displays.window_screen_id(key).strip())]
+        monitors = _screens(max(named) + 1 if named else 1)
         self._controller = theme_windows.controller([name for name, _ in configs])
         for window_name, config_key in reversed(configs):
             screen_id_str = displays.window_screen_id(config_key).strip()
