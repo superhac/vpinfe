@@ -192,12 +192,17 @@ class BrowserSession:
             f"{self._proc.returncode}; stderr:\n{self._stderr()}")
 
     def _stderr(self) -> str:
-        """Why the browser gave up, which a timeout on its own never says."""
+        """Why the browser gave up, which a timeout on its own never says. Only what
+        the pipe already holds: the browser can still be running."""
         if self._proc is None or self._proc.stderr is None:
             return "(none)"
+        said = b""
         with suppress(Exception):
-            return (self._proc.stderr.read() or "(silent)")[-2000:]
-        return "(unreadable)"
+            fd = self._proc.stderr.fileno()
+            os.set_blocking(fd, False)
+            while chunk := os.read(fd, 65536):
+                said += chunk
+        return said.decode(errors="replace")[-2000:] or "(silent)"
 
     async def _pump(self) -> None:
         """Read every frame once, so replies and events cannot consume each other."""
