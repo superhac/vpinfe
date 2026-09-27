@@ -14,6 +14,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
 from common.games import mobile_transfer
@@ -179,10 +180,12 @@ class MobileTransferTests(unittest.TestCase):
         self.assertIn("/upload: 500", logged.output[0])
 
     def test_a_device_that_is_not_there_says_so(self) -> None:
-        with self.assertRaises(mobile_transfer.DeviceUnreachableError) as raised:
+        with mock.patch("common.games.mobile_transfer.time.sleep") as slept, \
+                self.assertRaises(mobile_transfer.DeviceUnreachableError) as raised:
             mobile_transfer.carried("127.0.0.1", 9, timeout=0.2)
 
         self.assertEqual(str(raised.exception), t("device.reason.refused"))
+        self.assertEqual([call.args[0] for call in slept.call_args_list], [2, 4])
 
     def test_a_game_with_nothing_to_send_is_refused_before_anything_is_made(self) -> None:
         """Otherwise an empty folder appears on the device and reads as a broken game."""
