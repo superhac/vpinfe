@@ -271,14 +271,15 @@ class _Sources:
             if event.value in loaded:
                 return
             loaded.add(event.value)
-            if event.value == "host":
-                await self.host_tab(host_body)
-            elif event.value == "online" and online_body is not None:
-                await self.online_tab(online_body)
-            elif event.value == "games" and games_body is not None:
-                await self.games_tab(games_body)
-            elif event.value == "keyed" and keyed_body is not None:
-                await self.keyed_tab(keyed_body)
+            reads = {"host": (host_body, self.host_tab),
+                     "online": (online_body, self.online_tab),
+                     "games": (games_body, self.games_tab),
+                     "keyed": (keyed_body, self.keyed_tab)}
+            body, read = reads.get(event.value, (None, None))
+            if body is None or read is None:
+                return
+            with busy.held(body):
+                await read(body)
 
         tabs.on_value_change(load)
         if first == "host":
