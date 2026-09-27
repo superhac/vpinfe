@@ -241,8 +241,12 @@ class BrowserSession:
     async def send(self, method: str, params: dict | None = None) -> dict:
         self._next_id += 1
         message_id = self._next_id
-        await self._ws.send(json.dumps(
-            {"id": message_id, "method": method, "params": params or {}}))
+        try:
+            await asyncio.wait_for(self._ws.send(json.dumps(
+                {"id": message_id, "method": method, "params": params or {}})),
+                self.timeout)
+        except TimeoutError:
+            raise TimeoutError(f"{method} was never taken") from None
         deadline = asyncio.get_event_loop().time() + self.timeout
         while asyncio.get_event_loop().time() < deadline:
             if message_id in self._responses:
