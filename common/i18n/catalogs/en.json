@@ -2343,6 +2343,7 @@
   "error.launch.app_starts_nothing": "{app_name} does not know how to start anything",
   "error.launch.no_launcher_configured": "This device has no launcher. Add one in the Console under Frontend - Launchers.",
   "error.launch.no_table_named": "No table named {table} in this game",
+  "error.launch.not_on_this_device": "This game is not in any of this device's library folders",
   "error.launch.nothing_to_launch": "This game has nothing to launch",
   "error.launch.reference_unreachable": "This table lives at {path}, which is not reachable from here",
   "error.launchers.all_tables_only": "{app_name} reads {keys} for all tables at once, never for one",

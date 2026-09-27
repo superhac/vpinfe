@@ -2028,6 +2028,7 @@
   "error.launch.app_starts_nothing": "d2298df49c08",
   "error.launch.no_launcher_configured": "f813fc8b7094",
   "error.launch.no_table_named": "3066c79ff1a4",
+  "error.launch.not_on_this_device": "34ece0d43a60",
   "error.launch.nothing_to_launch": "dc7e4442986d",
   "error.launch.reference_unreachable": "6800a9abba23",
   "error.launchers.all_tables_only": "8c05f750a28f",

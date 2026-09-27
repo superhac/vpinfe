@@ -27,7 +27,7 @@ from common import apps, events
 from common.config_store import ConfigStore
 from common.extensions import services as ext_services
 from common.failures import why
-from common.games import game_play_service, info_file, launchers, tables
+from common.games import game_play_service, game_repository, info_file, launchers, tables
 from common.games.game import Game
 from common.games.tables import (
     entry_for_filename,
@@ -61,6 +61,15 @@ class LaunchBusyError(LaunchUnavailableError):
     """Something is already playing. Its own type because it is the one refusal
     that is about timing rather than configuration, and a caller may want to say
     so differently."""
+
+
+def this_devices_copy(game: Any) -> Game:
+    """The game to launch here for one that may have come from another device's library.
+    Raises LaunchUnavailableError when this device has no copy of it."""
+    here = game_repository.on_this_device(game)
+    if here is None:
+        raise LaunchUnavailableError(t("error.launch.not_on_this_device"))
+    return here
 
 
 def _launcher_for(table_id: str, entry: dict) -> tuple[launchers.Launcher | None, str]:

@@ -2343,6 +2343,7 @@
   "error.launch.app_starts_nothing": "{app_name} đöèš ñöţ ķñöŵ ĥöŵ ţö šţàřţ àñýţĥîñĝ",
   "error.launch.no_launcher_configured": "Ţĥîš đèṽîçè ĥàš ñö ŀàûñçĥèř. Àđđ öñè îñ ţĥè Çöñšöŀè ûñđèř Ƒřöñţèñđ - Ŀàûñçĥèřš.",
   "error.launch.no_table_named": "Ñö ţàƀŀè ñàɱèđ {table} îñ ţĥîš ĝàɱè",
+  "error.launch.not_on_this_device": "Ţĥîš ĝàɱè îš ñöţ îñ àñý öƒ ţĥîš đèṽîçè'š ŀîƀřàřý ƒöŀđèřš",
   "error.launch.nothing_to_launch": "Ţĥîš ĝàɱè ĥàš ñöţĥîñĝ ţö ŀàûñçĥ",
   "error.launch.reference_unreachable": "Ţĥîš ţàƀŀè ŀîṽèš àţ {path}, ŵĥîçĥ îš ñöţ řèàçĥàƀŀè ƒřöɱ ĥèřè",
   "error.launchers.all_tables_only": "{app_name} řèàđš {keys} ƒöř àŀŀ ţàƀŀèš àţ öñçè, ñèṽèř ƒöř öñè",

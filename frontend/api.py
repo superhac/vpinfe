@@ -699,7 +699,7 @@ class API:
         try:
             # The entry names the table, so the table the collection chose launches
             # rather than whatever the game defaults to.
-            launch.launch_game(game, self._ini_config,
+            launch.launch_game(launch.this_devices_copy(game), self._ini_config,
                                source=launch_state.SOURCE_FRONTEND,
                                table=entry.filename)
         except launch.LaunchUnavailableError as exc:

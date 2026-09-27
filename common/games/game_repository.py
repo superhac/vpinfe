@@ -125,6 +125,14 @@ def game_folder(game_id: str) -> Path | None:
     return Path(str(game.full_path_game)) if game is not None else None
 
 
+def on_this_device(game: Any) -> Any | None:
+    """The game this device can play for one it was handed: the same game when it has a
+    folder here, otherwise this device's own copy of that id, or None without one."""
+    if str(getattr(game, "full_path_game", "") or ""):
+        return game
+    return game_by_id(vpinfe_id(game))
+
+
 def games_under(games_root: str, config: ConfigStore | None = None) -> list[Any]:
     """The library at `games_root`, from the cache when that is the configured one.
 
