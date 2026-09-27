@@ -9,6 +9,8 @@ to be the repo root, or discovery imports the group folders as top-level package
 and never imports this file - which is where the power guard below is installed.
 tests/invariants/test_bootstrap_runs.py fails when that happens, so a wrong
 invocation says so instead of quietly running without a guard.
+
+`python -m tests` runs the same modules across processes; see `tests/__main__.py`.
 """
 
 from __future__ import annotations
@@ -30,7 +32,9 @@ import tempfile
 # machine - where its answer is most likely to be believed.
 #
 # An explicit VPINFE_CONFIG_DIR still wins, so a caller can hand in a prepared one.
-if not os.environ.get("VPINFE_CONFIG_DIR", "").strip():
+# None when this file made it: `python -m tests` cannot split a caller's between processes.
+CALLER_CONFIG_DIR = os.environ.get("VPINFE_CONFIG_DIR", "").strip() or None
+if CALLER_CONFIG_DIR is None:
     _TEST_CONFIG_DIR = tempfile.mkdtemp(prefix="vpinfe-tests-")
     os.environ["VPINFE_CONFIG_DIR"] = _TEST_CONFIG_DIR
     atexit.register(shutil.rmtree, _TEST_CONFIG_DIR, ignore_errors=True)
