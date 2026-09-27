@@ -10,6 +10,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 KEY = "alt_vpsid"
 
@@ -34,11 +36,11 @@ REVIEWED = {
 }
 
 
-def _reads(src: str) -> list[int]:
+def _reads(path: pathlib.Path) -> list[int]:
     """Lines calling `.get("alt_vpsid", ...)` or subscripting it. A rename map or a
     constant naming the key reads nothing and is not one of these."""
     out = []
-    for node in ast.walk(ast.parse(src)):
+    for node in ast.walk(trees.tree_for(path)):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
            and node.func.attr == "get" and node.args \
            and isinstance(node.args[0], ast.Constant) and node.args[0].value == KEY:
@@ -83,7 +85,7 @@ class TestADeclaredNoneStaysNone(unittest.TestCase):
                 name = str(path.relative_to(REPO))
                 if name in REVIEWED:
                     continue
-                for line in _reads(path.read_text(encoding="utf-8")):
+                for line in _reads(path):
                     offenders.append(f"{name}:{line}")
         self.assertEqual(sorted(offenders), [],
                          f"reads {KEY} without having been read for null; "

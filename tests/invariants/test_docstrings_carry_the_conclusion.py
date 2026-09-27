@@ -23,6 +23,8 @@ import re
 import subprocess
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 PACKAGES = ("apps", "common", "console", "extensions", "frontend", "httpapi")
 
@@ -78,7 +80,7 @@ def _offenders() -> list[str]:
     for path in _modules():
         relative = path.relative_to(REPO).as_posix()
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
         except SyntaxError:
             continue
         for node in ast.walk(tree):
@@ -119,7 +121,7 @@ class DocstringsCarryTheConclusionTests(unittest.TestCase):
             if not path.exists():
                 wrong.append(f"{relative}: gone")
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             names = {getattr(n, "name", "<module>") for n in ast.walk(tree)}
             if name not in names:
                 wrong.append(f"{relative}: no {name}()")

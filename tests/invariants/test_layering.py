@@ -17,6 +17,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 
 # `common/host/` is the device's own package, so a frontend import inside it is a
@@ -33,7 +35,7 @@ ALLOWED = {
 def _imports(path: pathlib.Path) -> set[str]:
     """Every top-level package this module imports, however it spells it."""
     found = set()
-    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+    for node in ast.walk(trees.tree_for(path)):
         if isinstance(node, ast.ImportFrom) and node.module:
             found.add(node.module.split(".")[0])
         elif isinstance(node, ast.Import):
@@ -74,7 +76,7 @@ class LayeringTests(unittest.TestCase):
         # `_imports` reports the top-level package only; the full dotted name is what
         # distinguishes `common.games` from `common.paths`, so this walks it directly.
         for path in sorted((REPO / "common").glob("*.py")):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             for node in ast.walk(tree):
                 names = []
                 if isinstance(node, ast.ImportFrom) and node.module:

@@ -17,6 +17,8 @@ import pathlib
 import unittest
 from collections.abc import Iterator
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 CONSOLE = REPO / "console"
 
@@ -29,7 +31,7 @@ ALLOWED: dict[Place, str] = {}
 
 
 def _methods(path: str, name: str) -> dict[str, ast.FunctionDef]:
-    tree = ast.parse((REPO / path).read_text(encoding="utf-8"))
+    tree = trees.tree_for(REPO / path)
     cls = next(node for node in tree.body
                if isinstance(node, ast.ClassDef) and node.name == name)
     return {node.name: node for node in cls.body if isinstance(node, ast.FunctionDef)}
@@ -106,9 +108,9 @@ def _own(function: Function) -> Iterator[ast.AST]:
 
 
 class _Module:
-    def __init__(self, name: str, source: str, known: set[str]) -> None:
+    def __init__(self, name: str, tree: ast.Module, known: set[str]) -> None:
         self.name = name
-        self.tree = ast.parse(source)
+        self.tree = tree
         self.top = {node.name: node for node in self.tree.body
                     if isinstance(node, FUNCTIONS)}
         self.classes = {node.name: node for node in self.tree.body
@@ -194,10 +196,9 @@ class _Module:
         return None
 
 
-def _offenders(sources: dict[str, str], library: set[str],
+def _offenders(modules: dict[str, _Module], library: set[str],
                client: set[str]) -> dict[Place, list[str]]:
     """Each place a blocking read is made, with the trails from a coroutine to it."""
-    modules = {name: _Module(name, source, set(sources)) for name, source in sources.items()}
     found: dict[Place, list[str]] = {}
     for module in modules.values():
         for coroutine in ast.walk(module.tree):
@@ -230,9 +231,10 @@ def _offenders(sources: dict[str, str], library: set[str],
 
 def _console() -> dict[Place, list[str]]:
     sends = _sends()
-    sources = {path.stem: path.read_text(encoding="utf-8")
-               for path in sorted(CONSOLE.glob("*.py"))}
-    return _offenders(sources, _blocking(sends), sends)
+    paths = sorted(CONSOLE.glob("*.py"))
+    known = {path.stem for path in paths}
+    modules = {path.stem: _Module(path.stem, trees.tree_for(path), known) for path in paths}
+    return _offenders(modules, _blocking(sends), sends)
 
 
 def _trails(found: dict[Place, list[str]]) -> list[str]:
@@ -242,7 +244,10 @@ def _trails(found: dict[Place, list[str]]) -> list[str]:
 class ConsoleReadsOffTheLoop(unittest.TestCase):
     def _found(self, **sources: str) -> list[str]:
         sends = _sends()
-        return _trails(_offenders(sources, _blocking(sends), sends))
+        known = set(sources)
+        modules = {name: _Module(name, trees.parse_snippet(source), known)
+                  for name, source in sources.items()}
+        return _trails(_offenders(modules, _blocking(sends), sends))
 
     def test_the_check_sees_a_read_three_calls_down(self) -> None:
         self.assertIn("vps_releases", _blocking(_sends()))

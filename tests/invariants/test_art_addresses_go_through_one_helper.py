@@ -11,6 +11,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 CONSOLE = REPO / "console"
 HELPER = CONSOLE / "art.py"
@@ -20,21 +22,20 @@ HELPER = CONSOLE / "art.py"
 ART_ROOTS = ("/api/v1/games", "/api/v1/collections")
 
 
-def _fragments(source: str) -> list[tuple[int, str]]:
+def _fragments(path: pathlib.Path) -> list[tuple[int, str]]:
     """Every string literal, and every literal piece of an f-string, with its line."""
     found = []
-    for node in ast.walk(ast.parse(source)):
+    for node in ast.walk(trees.tree_for(path)):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             found.append((node.lineno, node.value))
     return found
 
 
 def _addresses(path: pathlib.Path) -> list[str]:
-    source = path.read_text(encoding="utf-8")
     if path.suffix == ".py":
-        pieces = _fragments(source)
+        pieces = _fragments(path)
     else:
-        pieces = list(enumerate(source.splitlines(), 1))
+        pieces = list(enumerate(path.read_text(encoding="utf-8").splitlines(), 1))
     return [f"{path.relative_to(REPO)}:{line}" for line, text in pieces
             if any(root in text for root in ART_ROOTS)]
 

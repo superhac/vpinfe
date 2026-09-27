@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 from typing import Any, TypeGuard
 
+from tests.support import trees
 from tests.support.catalogs import served
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -76,10 +77,9 @@ def _unworded(value: ast.expr, name: str) -> list[ast.Name]:
     return [one for one in _as_text(value, name) if id(one) not in worded]
 
 
-def offenders(source: str) -> list[tuple[int, str]]:
+def offenders(tree: ast.Module) -> list[tuple[int, str]]:
     """Each place an exception reaches a message: an `exc=` handed to `t()`, or a caught
     exception's words handed to a lookup or drawn as the message."""
-    tree = ast.parse(source)
     found: list[tuple[int, str]] = []
     seen: set[int] = set()
     for node in ast.walk(tree):
@@ -130,9 +130,8 @@ def _not_handed_on(chain: list[ast.AST]) -> bool:
     return False
 
 
-def handed_on(source: str) -> list[tuple[int, str, str]]:
+def handed_on(tree: ast.Module) -> list[tuple[int, str, str]]:
     """(line, function, text) for each caught exception's own text a handler hands on."""
-    tree = ast.parse(source)
     parent: dict[int, ast.AST] = {id(child): node for node in ast.walk(tree)
                                   for child in ast.iter_child_nodes(node)}
     within: dict[int, str] = {}
@@ -177,7 +176,7 @@ class TheExceptionGoesUnderTheWords(unittest.TestCase):
     def test_no_message_carries_an_exception(self) -> None:
         found = [f"{path.relative_to(ROOT).as_posix()}:{line} {said}"
                  for path in _sources()
-                 for line, said in offenders(path.read_text(encoding="utf-8"))]
+                 for line, said in offenders(trees.tree_for(path))]
         self.assertEqual(found, [], "the lead-in is the message; why() goes in the caption")
 
     def test_no_entry_has_a_slot_for_one(self) -> None:
@@ -210,7 +209,7 @@ class TheExceptionGoesUnderTheWords(unittest.TestCase):
                   "        row['error'] = ctx.t('x.game_file', error=f'{error}')\n"
                   "    return lambda exc: t('x.could_not', exc=exc)\n")
 
-        said = [f"{line} {text}" for line, text in offenders(source)]
+        said = [f"{line} {text}" for line, text in offenders(trees.parse_snippet(source))]
 
         self.assertEqual(said, ["5 exc=exc", "7 str(exc)", "9 exc.msg",
                                 "11 _why(exc)", "15 str(exc)", "16 exc.args[0]",
@@ -231,7 +230,7 @@ class ACaughtExceptionIsSaidThroughWhy(unittest.TestCase):
             name = path.relative_to(ROOT).as_posix()
             excused = HANDED_ON.get(name, {})
             found += [f"{name}:{line} {said}"
-                      for line, function, said in handed_on(path.read_text(encoding="utf-8"))
+                      for line, function, said in handed_on(trees.tree_for(path))
                       if function not in excused]
         self.assertEqual(found, [], "why(exc) says it in words where it can")
 
@@ -251,7 +250,8 @@ class ACaughtExceptionIsSaidThroughWhy(unittest.TestCase):
                   "            raise Refused(why(exc, url), details={'path': str(exc)})\n"
                   "        raise Refused(f'line {exc.lineno}: {exc.msg}') from exc\n")
 
-        said = [f"{line} {function} {text}" for line, function, text in handed_on(source)]
+        said = [f"{line} {function} {text}"
+               for line, function, text in handed_on(trees.parse_snippet(source))]
 
         self.assertEqual(said, ["5 plan str(exc)", "7 plan f'{said}: {exc}'",
                                 "9 plan exc.strerror", "14 plan f'line {exc.lineno}: {exc.msg}'"])
@@ -259,7 +259,7 @@ class ACaughtExceptionIsSaidThroughWhy(unittest.TestCase):
     def test_each_function_excused_is_there_with_its_reason(self) -> None:
         for name, excused in HANDED_ON.items():
             with self.subTest(name):
-                tree = ast.parse((ROOT / name).read_text(encoding="utf-8"))
+                tree = trees.tree_for(ROOT / name)
                 defined = {node.name for node in ast.walk(tree)
                            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
                 self.assertEqual(excused.keys() - defined, set())

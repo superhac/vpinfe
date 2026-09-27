@@ -17,6 +17,8 @@ import pathlib
 import re
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 MODELS = REPO / "httpapi" / "models.py"
 
@@ -39,7 +41,7 @@ def _alias_of(node: ast.AnnAssign) -> str | None:
 
 def _offenders() -> list[str]:
     out = []
-    tree = ast.parse(MODELS.read_text(encoding="utf-8"))
+    tree = trees.tree_for(MODELS)
     for klass in tree.body:
         if not isinstance(klass, ast.ClassDef):
             continue
@@ -62,7 +64,7 @@ class WireNamingTests(unittest.TestCase):
 
     def test_there_are_models_to_check(self) -> None:
         """The check reads one file; if it stops finding fields it has stopped working."""
-        tree = ast.parse(MODELS.read_text(encoding="utf-8"))
+        tree = trees.tree_for(MODELS)
         fields = [
             node for klass in tree.body if isinstance(klass, ast.ClassDef)
             for node in klass.body if isinstance(node, ast.AnnAssign)
@@ -73,5 +75,5 @@ class WireNamingTests(unittest.TestCase):
         """Both halves: the field name, and the alias a client actually reads."""
         self.assertFalse(SNAKE.match("gameDirName"))
         self.assertTrue(SNAKE.match("game_dir_name"))
-        declared = ast.parse('x: str = Field(alias="camelCase")').body[0]
+        declared = trees.parse_snippet('x: str = Field(alias="camelCase")').body[0]
         self.assertEqual(_alias_of(declared), "camelCase")

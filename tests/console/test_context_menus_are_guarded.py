@@ -11,6 +11,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 CONSOLE = pathlib.Path(__file__).resolve().parent.parent.parent / "console"
 GUARD = "_suppress_empty_menu"
 
@@ -27,8 +29,7 @@ def _function(tree: ast.AST, name: str) -> ast.FunctionDef | None:
 
 class ContextMenusAreGuarded(unittest.TestCase):
     def test_build_installs_the_guard(self) -> None:
-        source = (CONSOLE / "grid.py").read_text(encoding="utf-8")
-        built = _function(ast.parse(source), "build")
+        built = _function(trees.tree_for(CONSOLE / "grid.py"), "build")
         self.assertIsNotNone(built, "console/grid.py no longer defines build()")
         called = {getattr(node.func, "id", "") or getattr(node.func, "attr", "")
                   for node in ast.walk(built) if isinstance(node, ast.Call)}
@@ -36,7 +37,7 @@ class ContextMenusAreGuarded(unittest.TestCase):
 
     def test_the_guard_runs_in_the_browser_at_capture(self) -> None:
         source = (CONSOLE / "grid.py").read_text(encoding="utf-8")
-        guard = _function(ast.parse(source), GUARD)
+        guard = _function(trees.tree_for(CONSOLE / "grid.py"), GUARD)
         self.assertIsNotNone(guard, f"console/grid.py no longer defines {GUARD}()")
         self.assertTrue(_calls(guard, "run_javascript"),
                         f"{GUARD} no longer runs in the browser")
@@ -56,7 +57,7 @@ class ContextMenusAreGuarded(unittest.TestCase):
         """Module-level: the menu is created beside the grid it serves, never by it."""
         stray: list[str] = []
         for path in sorted(CONSOLE.rglob("*.py")):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             if _calls(tree, "context_menu") and not _calls(tree, "build"):
                 stray.append(path.name)
         self.assertEqual([], stray, f"context menus built outside grid.build: {stray}")

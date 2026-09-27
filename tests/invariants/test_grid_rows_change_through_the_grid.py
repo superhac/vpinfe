@@ -12,6 +12,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parents[2]
 CONSOLE = REPO / "console"
 HELPER = CONSOLE / "grid.py"
@@ -38,7 +40,7 @@ def _called(node: ast.AST) -> tuple[str, str] | None:
 def _strays(path: pathlib.Path) -> list[str]:
     """Held rows changed in a list other than the one the page's grid was built from."""
     found = []
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    tree = trees.tree_for(path)
     for page in tree.body:
         if not isinstance(page, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
@@ -94,7 +96,7 @@ class GridRowsChangeThroughTheGridTests(unittest.TestCase):
         """Every module that changes a grid's rows, so a scan reading nothing fails."""
         changing = set()
         for path in CONSOLE.rglob("*.py"):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             if any(_called(node) in HELD_AT for node in ast.walk(tree)):
                 changing.add(path.name)
         self.assertGreaterEqual(changing, {"games.py", "collections.py", "devices.py",

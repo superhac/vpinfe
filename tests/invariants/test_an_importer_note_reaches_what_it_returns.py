@@ -6,6 +6,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 IMPORTER = REPO / "extensions" / "library_importer"
 
@@ -60,10 +62,10 @@ def _mentions_note(node: ast.AST) -> bool:
     return any(isinstance(one, ast.Name) and one.id == "Note" for one in ast.walk(node))
 
 
-def _readers(trees: dict[str, ast.Module]) -> dict[tuple[str, str], tuple[int, set[int]]]:
+def _readers(parsed: dict[str, ast.Module]) -> dict[tuple[str, str], tuple[int, set[int]]]:
     """(module, function) -> the length of the tuple it answers, and where its notes are."""
     found = {}
-    for module, tree in trees.items():
+    for module, tree in parsed.items():
         for node in tree.body:
             if not isinstance(node, FUNCTIONS):
                 continue
@@ -154,13 +156,12 @@ def _bound(nodes: list[ast.AST], name: str) -> list[tuple[ast.stmt, ast.AST | No
     return out
 
 
-def _offenders(sources: dict[str, str]) -> tuple[list[str], int]:
+def _offenders(parsed: dict[str, ast.Module]) -> tuple[list[str], int]:
     """Every call to a reader that loses its notes, and how many calls were looked at."""
-    trees = {module: ast.parse(text) for module, text in sources.items()}
-    readers = _readers(trees)
+    readers = _readers(parsed)
     found, looked = [], 0
-    for module, tree in trees.items():
-        local, aliases = _names(module, tree, set(trees))
+    for module, tree in parsed.items():
+        local, aliases = _names(module, tree, set(parsed))
         for function in ast.walk(tree):
             if not isinstance(function, FUNCTIONS):
                 continue
@@ -210,30 +211,30 @@ def _offenders(sources: dict[str, str]) -> tuple[list[str], int]:
     return found, looked
 
 
-def _importer() -> dict[str, str]:
-    return {path.stem: path.read_text(encoding="utf-8")
-            for path in sorted(IMPORTER.glob("*.py"))}
+def _importer() -> dict[str, pathlib.Path]:
+    return {path.stem: path for path in sorted(IMPORTER.glob("*.py"))}
 
 
 class AnImporterNoteReachesWhatItReturns(unittest.TestCase):
     def test_the_check_sees_every_planted_drop(self) -> None:
-        found, looked = _offenders({"planted": PLANTED})
+        found, looked = _offenders({"planted": trees.parse_snippet(PLANTED)})
 
         self.assertEqual(looked, 8)
         self.assertEqual(sorted(one.split(":")[1].split(" ")[1] for one in found),
                          ["dropped", "ignored", "indexed", "replaced", "unreturned"])
 
     def test_it_finds_the_readers(self) -> None:
-        trees = {module: ast.parse(text) for module, text in _importer().items()}
+        parsed = {module: trees.tree_for(path) for module, path in _importer().items()}
 
         self.assertLessEqual({("pinballx", "read_database"), ("pinballx", "read_config"),
                               ("pinballx", "_database_text"), ("gamestats", "read"),
                               ("gamestats", "_text"), ("registry", "read"),
                               ("registry", "read_text")},
-                             set(_readers(trees)))
+                             set(_readers(parsed)))
 
     def test_no_reader_in_the_importer_loses_its_notes(self) -> None:
-        found, looked = _offenders(_importer())
+        parsed = {module: trees.tree_for(path) for module, path in _importer().items()}
+        found, looked = _offenders(parsed)
 
         self.assertGreaterEqual(looked, 6)
         self.assertEqual(found, [], "a reader's notes are bound, kept and returned, so "

@@ -7,6 +7,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 WORKBENCH = REPO / "console/workbench.py"
 WRAPPER = "_rebuilds"
@@ -14,7 +16,7 @@ WRAPPER = "_rebuilds"
 
 def _assignments() -> list[tuple[int, str]]:
     """Every `context["rebuild"] = ...`, with what it was given."""
-    tree = ast.parse(WORKBENCH.read_text(encoding="utf-8"))
+    tree = trees.tree_for(WORKBENCH)
     found = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Assign) or len(node.targets) != 1:

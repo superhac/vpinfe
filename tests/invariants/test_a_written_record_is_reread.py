@@ -15,6 +15,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 OPS = ("common/games/table_ops.py", "common/games/game_ops.py")
 METADATA = REPO / "common/games/game_metadata.py"
@@ -44,7 +46,7 @@ def _functions(body: list[ast.stmt]) -> dict[str, ast.FunctionDef]:
 
 
 def _module(path: pathlib.Path) -> list[ast.stmt]:
-    return ast.parse(path.read_text(encoding="utf-8")).body
+    return trees.tree_for(path).body
 
 
 def _closure(functions: dict[str, ast.FunctionDef], seed: set[str], reaches) -> set[str]:

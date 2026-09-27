@@ -30,6 +30,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from tests.support import trees
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Only paths rooted at one of these are ours to verify.
@@ -348,7 +350,7 @@ def _read_keys(function: Any, name: str, hops: int = 1) -> set[str]:
         return isinstance(node, ast.Name) and node.id == called
 
     read = set()
-    for node in ast.walk(ast.parse(textwrap.dedent(inspect.getsource(function)))):
+    for node in ast.walk(trees.parse_snippet(textwrap.dedent(inspect.getsource(function)))):
         if isinstance(node, ast.Subscript) and is_it(node.value, name) and isinstance(
                 node.slice, ast.Constant):
             read.add(str(node.slice.value))

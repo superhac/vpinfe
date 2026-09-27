@@ -22,6 +22,7 @@ import unittest
 from pathlib import Path
 
 from common.config_schema import CONFIG_OPTIONS, canonical_section, locate
+from tests.support import trees
 
 MANAGER_UI = Path(__file__).resolve().parents[2] / "managerui"
 
@@ -91,7 +92,7 @@ class ManagerUiConfigKeyTests(unittest.TestCase):
         live = _live_pairs()
         stale = []
         for path in sorted(MANAGER_UI.rglob("*.py")):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             for section, key in sorted(_named_pairs(tree)):
                 if section in FOREIGN_SECTIONS or (section, key) in live:
                     continue
@@ -105,7 +106,7 @@ class ManagerUiConfigKeyTests(unittest.TestCase):
         live = {option.section for option in CONFIG_OPTIONS}
         stale = []
         for path in sorted(MANAGER_UI.rglob("*.py")):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             for section in sorted(_named_sections(tree)):
                 if section in live or section in FOREIGN_SECTIONS or section in FORMER_SECTIONS:
                     continue
@@ -134,7 +135,7 @@ class ManagerUiConfigKeyTests(unittest.TestCase):
                     if sum(1 for other in CONFIG_OPTIONS if other.key == option.key) > 1}
         bare = []
         for path in sorted(MANAGER_UI.rglob("*.py")):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Call) or len(node.args) != 1:
                     continue

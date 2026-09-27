@@ -6,6 +6,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 CONSOLE = pathlib.Path(__file__).resolve().parent.parent.parent / "console"
 GROWS = "error-message"
 KEEPS_THE_ROW = "bottom-slots"
@@ -70,7 +72,7 @@ def _outermost(tree: ast.AST) -> list[ast.AST]:
 def _growing() -> list[str]:
     found = []
     for path in sorted(CONSOLE.glob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = trees.tree_for(path)
         for scope in _outermost(tree):
             props = _props_by_name(scope)
             for held, said in props.items():

@@ -6,6 +6,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 CONSOLE = pathlib.Path(__file__).resolve().parent.parent.parent / "console"
 KEY = "console-tier-key"
 
@@ -38,7 +40,7 @@ def _bars_without_the_container() -> list[str]:
     loose = []
     for path in sorted(CONSOLE.glob("*.py")):
         source = path.read_text(encoding="utf-8")
-        tree = ast.parse(source)
+        tree = trees.tree_for(path)
         calls = [node for node in ast.walk(tree)
                  if isinstance(node, ast.Call)
                  and getattr(node.func, "id", getattr(node.func, "attr", "")) ==
@@ -72,7 +74,7 @@ class TheKeyIsNotAnAction(unittest.TestCase):
     def test_no_key_in_a_row_end(self):
         wrong = []
         for path in sorted(CONSOLE.glob("*.py")):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             for end in _ends(tree):
                 if _classes_named(end, KEY):
                     wrong.append(f"console/{path.name}:{end.lineno}: a mark key drawn "
@@ -84,7 +86,7 @@ class TheKeyIsNotAnAction(unittest.TestCase):
         source = "\n".join(p.read_text(encoding="utf-8")
                            for p in CONSOLE.glob("*.py"))
         self.assertGreater(source.count(KEY), 1)
-        self.assertGreater(sum(len(_ends(ast.parse(p.read_text(encoding="utf-8"))))
+        self.assertGreater(sum(len(_ends(trees.tree_for(p)))
                                for p in CONSOLE.glob("*.py")), 5)
 
 

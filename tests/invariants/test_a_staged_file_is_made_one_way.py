@@ -13,6 +13,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 PACKAGES = ("apps", "common", "console", "extensions", "frontend", "httpapi", "managerui")
 HELPER = REPO / "common" / "atomic_write.py"
@@ -25,9 +27,9 @@ def _called(call: ast.Call) -> str:
     return func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
 
 
-def _offenders(source: str) -> list[int]:
+def _offenders(tree: ast.Module) -> list[int]:
     lines = []
-    for node in ast.walk(ast.parse(source)):
+    for node in ast.walk(tree):
         if isinstance(node, ast.Call) and _called(node) in MAKERS and any(
                 keyword.arg == "dir" for keyword in node.keywords):
             lines.append(node.lineno)
@@ -44,7 +46,7 @@ class AStagedFileIsMadeOneWayTests(unittest.TestCase):
             for path in sorted((REPO / package).rglob("*.py")):
                 if path != HELPER:
                     found += [f"{path.relative_to(REPO)}:{line}"
-                              for line in _offenders(path.read_text(encoding="utf-8"))]
+                              for line in _offenders(trees.tree_for(path))]
         self.assertEqual(found, [], "stage it with common.atomic_write.staged_for")
 
     def test_the_scan_finds_each_way_a_file_was_staged(self) -> None:
@@ -55,10 +57,12 @@ class AStagedFileIsMadeOneWayTests(unittest.TestCase):
                        'target.with_name(f".{target.name}.uploading")',
                        'mkstemp(prefix=".vpinfe_write_", suffix=".tmp")'):
             with self.subTest(staged=staged):
-                self.assertEqual(_offenders(staged), [1])
+                self.assertEqual(_offenders(trees.parse_snippet(staged)), [1])
 
     def test_a_scratch_file_in_the_system_temp_folder_is_not_staged(self) -> None:
-        self.assertEqual(_offenders('NamedTemporaryFile(delete=False, suffix=".dif")'), [])
+        self.assertEqual(
+            _offenders(trees.parse_snippet('NamedTemporaryFile(delete=False, suffix=".dif")')),
+            [])
 
 
 if __name__ == "__main__":

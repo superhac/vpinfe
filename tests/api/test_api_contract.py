@@ -444,6 +444,7 @@ class HandlerKeysMatchTheModelsTests(unittest.TestCase):
         import ast
 
         from httpapi import models
+        from tests.support import trees
 
         def dict_keys(node):
             return {k.value for k in node.keys
@@ -452,7 +453,7 @@ class HandlerKeysMatchTheModelsTests(unittest.TestCase):
         offenders = []
         repo_root = Path(__file__).resolve().parent.parent.parent
         for path in sorted((repo_root / "httpapi").glob("*.py")):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             functions = [n for n in ast.walk(tree)
                          if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
 

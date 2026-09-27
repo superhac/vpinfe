@@ -16,6 +16,7 @@ from nicegui import ui
 
 from common import i18n
 from console import panel
+from tests.support import trees
 
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 CONSOLE = REPO / "console"
@@ -35,7 +36,7 @@ def _is_ui_expansion(node: ast.AST) -> bool:
 def _built_outside_the_panel() -> list[str]:
     found = []
     for path in sorted(CONSOLE.rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = trees.tree_for(path)
         allowed: set[int] = set()
         if path.name == "panel.py":
             for fn in ast.walk(tree):
@@ -59,7 +60,7 @@ def _expansions() -> list[tuple[str, int, list[str]]]:
     """Each disclosure built with the words its chained `.classes` calls pass."""
     found = []
     for path in sorted(CONSOLE.rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = trees.tree_for(path)
         classes: dict[int, list[str]] = {}
         for node in ast.walk(tree):
             if _is_ui_expansion(node):

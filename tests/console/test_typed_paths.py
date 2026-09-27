@@ -8,6 +8,8 @@ import pathlib
 import re
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 CONSOLE = REPO / "console"
 ABOUT_A_PATH = re.compile(r"\b(path|folder|directory)\b", re.I)
@@ -33,7 +35,7 @@ def _bare_path_inputs() -> list[str]:
     catalog = _catalog()
     found = []
     for path in sorted(CONSOLE.glob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = trees.tree_for(path)
         for node in ast.walk(tree):
             if not (isinstance(node, ast.Call)
                     and getattr(node.func, "attr", "") == "input"):
@@ -59,8 +61,9 @@ class ATypedPathIsChecked(unittest.TestCase):
         """A clean tree and a broken detector look identical, so exercise it on both
         ways a placeholder is written."""
         catalog = _catalog()
-        written = ast.parse('ui.input(placeholder="/path/to/your/games")')
-        named = ast.parse('ui.input(placeholder=t("console.workbench.path_table_file"))')
+        written = trees.parse_snippet('ui.input(placeholder="/path/to/your/games")')
+        named = trees.parse_snippet(
+            'ui.input(placeholder=t("console.workbench.path_table_file"))')
         for tree in (written, named):
             call = next(n for n in ast.walk(tree) if isinstance(n, ast.Call)
                         and getattr(n.func, "attr", "") == "input")
@@ -71,7 +74,7 @@ class ATypedPathIsChecked(unittest.TestCase):
         """An empty sweep passes and measures nothing, which reads the same as clean."""
         seen = sum(1
                    for path in CONSOLE.glob("*.py")
-                   for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+                   for node in ast.walk(trees.tree_for(path))
                    if isinstance(node, ast.Call)
                    and getattr(node.func, "attr", "") == "input")
         self.assertGreater(seen, 5)

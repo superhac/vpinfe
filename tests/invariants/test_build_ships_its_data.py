@@ -16,6 +16,8 @@ import pathlib
 import subprocess
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 SPEC = REPO / "packaging" / "vpinfe.spec"
 
@@ -30,7 +32,7 @@ def _declared_roots() -> set[str]:
     The spec is a PyInstaller script and running it needs PyInstaller's own globals, so
     this parses it instead of importing it.
     """
-    tree = ast.parse(SPEC.read_text(encoding="utf-8"))
+    tree = trees.tree_for(SPEC)
     for node in ast.walk(tree):
         if not isinstance(node, ast.Assign):
             continue

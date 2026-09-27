@@ -7,6 +7,8 @@ import ast
 import unittest
 from pathlib import Path
 
+from tests.support import trees
+
 ROOT = Path(__file__).resolve().parents[2]
 NOT_SOURCE = {"tests", ".venv", ".git", "node_modules"}
 
@@ -97,7 +99,7 @@ def _tree() -> list[tuple[str, int, str, bool]]:
         where = path.relative_to(ROOT)
         if where.parts[0] in NOT_SOURCE or "__pycache__" in where.parts:
             continue
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = trees.tree_for(path)
         found += [(str(where), *one) for one in _registrations(tree)]
     return found
 
@@ -123,29 +125,29 @@ class PageListeners(unittest.TestCase):
         self.assertGreaterEqual(sum(by_page for *_, by_page in self.found), 10)
 
     def test_a_handler_a_lambda_and_a_helper_are_each_refused(self) -> None:
-        tree = ast.parse('@ui.page("/x")\n'
-                         'async def page():\n'
-                         '    ui.on("a", go)\n'
-                         '    ui.context.client.layout.on("b", go)\n'
-                         '    def later():\n'
-                         '        ui.on("c", go)\n'
-                         '    ui.on("d", lambda e: ui.on("e", go))\n'
-                         '    button.on("click", go)\n'
-                         'def helper():\n'
-                         '    ui.on("f", go)\n')
+        tree = trees.parse_snippet('@ui.page("/x")\n'
+                                   'async def page():\n'
+                                   '    ui.on("a", go)\n'
+                                   '    ui.context.client.layout.on("b", go)\n'
+                                   '    def later():\n'
+                                   '        ui.on("c", go)\n'
+                                   '    ui.on("d", lambda e: ui.on("e", go))\n'
+                                   '    button.on("click", go)\n'
+                                   'def helper():\n'
+                                   '    ui.on("f", go)\n')
 
         self.assertEqual([(name, by_page) for _line, name, by_page in _registrations(tree)],
                          [("page", True), ("page", True), ("later", False),
                           ("page", True), ("<lambda>", False), ("helper", False)])
 
     def test_one_after_the_page_is_sent_is_refused(self) -> None:
-        tree = ast.parse('@ui.page("/x")\n'
-                         'async def page():\n'
-                         '    async def elsewhere():\n'
-                         '        await ui.context.client.connected()\n'
-                         '    ui.on("a", go)\n'
-                         '    await ui.context.client.connected()\n'
-                         '    ui.on("b", go)\n')
+        tree = trees.parse_snippet('@ui.page("/x")\n'
+                                   'async def page():\n'
+                                   '    async def elsewhere():\n'
+                                   '        await ui.context.client.connected()\n'
+                                   '    ui.on("a", go)\n'
+                                   '    await ui.context.client.connected()\n'
+                                   '    ui.on("b", go)\n')
 
         self.assertEqual([(name, by_page) for _line, name, by_page in _registrations(tree)],
                          [("page", True), ("page", False)])

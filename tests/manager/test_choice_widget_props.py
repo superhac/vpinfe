@@ -25,6 +25,8 @@ import ast
 import unittest
 from pathlib import Path
 
+from tests.support import trees
+
 MANAGER_UI = Path(__file__).resolve().parents[2] / "managerui"
 
 # The NiceGUI elements built on ChoiceElement, which is what maps options to indices.
@@ -96,7 +98,7 @@ def _options_shape(call: ast.Call) -> str:
 def _choice_widgets():
     """(path, line, widget, options shape, props) for every ui.select/radio/toggle."""
     for path in sorted(MANAGER_UI.rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = trees.tree_for(path)
         _link_parents(tree)
         constants = _string_constants(tree)
         for node in ast.walk(tree):

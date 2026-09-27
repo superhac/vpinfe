@@ -13,6 +13,8 @@ import unittest
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
+from tests.support import trees
+
 ROOT = Path(__file__).resolve().parents[2]
 CONSOLE = ROOT / "console"
 HELPER = ("console/panel.py", "line")
@@ -168,9 +170,9 @@ class _Reader(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def offenders(source: str, path: str = "") -> list[tuple[int, str]]:
+def offenders(tree: ast.Module, path: str = "") -> list[tuple[int, str]]:
     reader = _Reader(path)
-    reader.visit(ast.parse(source))
+    reader.visit(tree)
     return sorted(reader.found)
 
 
@@ -181,7 +183,7 @@ class ALineWithMoreToSayShowsIt(unittest.TestCase):
         for path in sorted(CONSOLE.rglob("*.py")):
             name = path.relative_to(ROOT).as_posix()
             found += [f"{name}:{line} {said}"
-                      for line, said in offenders(path.read_text(encoding="utf-8"), name)]
+                      for line, said in offenders(trees.tree_for(path), name)]
         self.assertEqual(found, [], "draw it with panel.line(text, hint=...)")
 
     def test_each_way_is_read(self) -> None:
@@ -212,7 +214,7 @@ class ALineWithMoreToSayShowsIt(unittest.TestCase):
                   "    panel.line(t('x.e'), hint=why(exc))\n"
                   "    whose.text = t('x.value')\n")
 
-        said = [line for line, _ in offenders(source)]
+        said = [line for line, _ in offenders(trees.parse_snippet(source))]
 
         self.assertEqual(said, [5, 6, 8, 9, 11, 12, 14, 18, 21])
 
@@ -223,11 +225,12 @@ class ALineWithMoreToSayShowsIt(unittest.TestCase):
                   "def elsewhere(hint):\n"
                   "    ui.label('').classes('console-help').tooltip(hint)\n")
 
-        self.assertEqual([line for line, _ in offenders(source, HELPER[0])], [5])
+        self.assertEqual(
+            [line for line, _ in offenders(trees.parse_snippet(source), HELPER[0])], [5])
 
     def test_the_helper_is_there(self) -> None:
         """The exemption is only honest while the thing it defers to exists."""
-        tree = ast.parse((ROOT / HELPER[0]).read_text(encoding="utf-8"))
+        tree = trees.tree_for(ROOT / HELPER[0])
         self.assertIn(HELPER[1], {node.name for node in tree.body
                                   if isinstance(node, ast.FunctionDef)})
 

@@ -16,6 +16,7 @@ import unittest
 from pathlib import Path
 
 from common import config_schema
+from tests.support import trees
 
 REPO = Path(__file__).resolve().parent.parent.parent
 READERS = {"cfg_get", "cfg_bool", "cfg_int", "cfg_list", "cfg_set"}
@@ -33,7 +34,7 @@ def _call_sites():
                            "managerui/maps/")):
             continue
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))
+            tree = trees.tree_for(path)
         except SyntaxError:
             continue
         for node in ast.walk(tree):
@@ -78,7 +79,7 @@ def _raw_reads():
                            "managerui/maps/")) or rel in OWNS_THE_OLD_NAMES:
             continue
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))
+            tree = trees.tree_for(path)
         except SyntaxError:
             continue
         for node in ast.walk(tree):
@@ -106,7 +107,7 @@ def _store_reads():
                            "managerui/maps/")) or rel in OWNS_THE_OLD_NAMES:
             continue
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))
+            tree = trees.tree_for(path)
         except SyntaxError:
             continue
         for node in ast.walk(tree):

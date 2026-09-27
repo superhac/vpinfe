@@ -7,6 +7,8 @@ import ast
 import unittest
 from pathlib import Path
 
+from tests.support import trees
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 OWNER = "console/game_tables.py"
 SKIP_PARTS = {".venv", ".claude", "build", "third_party", "chromium", "__pycache__",
@@ -37,7 +39,7 @@ class MakerAndYearAreJoinedOnce(unittest.TestCase):
             rel = path.relative_to(REPO_ROOT).as_posix()
             if rel == OWNER or any(part in SKIP_PARTS for part in rel.split("/")):
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             offenders += [f"{rel}:{line}" for line in sorted(set(_joins(tree)))]
 
         self.assertEqual(offenders, [], "maker and year joined outside game_tables.made:\n  "
@@ -49,8 +51,8 @@ class MakerAndYearAreJoinedOnce(unittest.TestCase):
                        "f\"{g.get('manufacturer') or '?'} {g.get('year') or ''}\"",
                        'g.get("manufacturer", "") + " " + g.get("year", "")'):
             with self.subTest(source=source):
-                self.assertTrue(_joins(ast.parse(source)))
-        self.assertEqual(_joins(ast.parse(
+                self.assertTrue(_joins(trees.parse_snippet(source)))
+        self.assertEqual(_joins(trees.parse_snippet(
             '" ".join(str(g.get(k) or "") for k in ("name", "manufacturer", "year"))')), [])
 
 

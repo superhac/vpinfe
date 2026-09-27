@@ -22,6 +22,8 @@ import pathlib
 import re
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 PACKAGES = ("apps", "common", "console", "extensions", "frontend", "httpapi")
 # The two modules at the root are swept too: cli.py forwards metadata_service's
@@ -97,10 +99,10 @@ def _names(node: ast.AST, scope: str, out: list) -> None:
         _names(child, inner, out)
 
 
-def _defined(source: str) -> list[tuple[int, str, str]]:
+def _defined(tree: ast.Module) -> list[tuple[int, str, str]]:
     """The names a module binds that this convention does not allow."""
     found: list = []
-    _names(ast.parse(source), "module", found)
+    _names(tree, "module", found)
     return [item for item in found if not _ok(item[2], item[1])]
 
 
@@ -117,7 +119,7 @@ def _offenders() -> list[str]:
     out = []
     for path in _sources():
         where = path.relative_to(REPO).as_posix()
-        for lineno, what, name in _defined(path.read_text(encoding="utf-8")):
+        for lineno, what, name in _defined(trees.tree_for(path)):
             out.append(f"{where}:{lineno}: {what} {name}")
     return out
 
@@ -132,7 +134,7 @@ class PythonIsSnakeCaseTests(unittest.TestCase):
         something else."""
         seen: set[str] = set()
         for path in _sources():
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            for node in ast.walk(trees.tree_for(path)):
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                     seen.add(node.name)
                 elif isinstance(node, ast.Name):
@@ -154,7 +156,7 @@ class PythonIsSnakeCaseTests(unittest.TestCase):
         }
         for source, expected in cases.items():
             with self.subTest(source=source):
-                found = _defined(source)
+                found = _defined(trees.parse_snippet(source))
                 self.assertEqual([f"{what} {name}" for _line, what, name in found],
                                  [expected])
 
@@ -166,13 +168,15 @@ class PythonIsSnakeCaseTests(unittest.TestCase):
                        "def f():\n    _ = 1",
                        "def do_GET(self): pass"):
             with self.subTest(source=source):
-                self.assertEqual(_defined(source), [])
+                self.assertEqual(_defined(trees.parse_snippet(source)), [])
 
         # A type alias is CapWords at module scope only. The same name on a class is
         # the dataclass field this check was written for.
-        self.assertEqual(_defined("Progress = int"), [])
-        self.assertEqual([what for _line, what, _name in _defined("class C:\n    Progress = 1")],
-                         ["class attribute"])
+        self.assertEqual(_defined(trees.parse_snippet("Progress = int")), [])
+        self.assertEqual(
+            [what for _line, what, _name
+             in _defined(trees.parse_snippet("class C:\n    Progress = 1"))],
+            ["class attribute"])
 
 
 if __name__ == "__main__":

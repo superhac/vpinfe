@@ -464,8 +464,10 @@ class PageStylesheetTests(unittest.TestCase):
         static = managerui / "static"
 
         missing = []
+        from tests.support import trees
+
         for path in sorted(managerui.rglob("*.py")):
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            for node in ast.walk(trees.tree_for(path)):
                 if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
                         and node.func.id == "load_page_style" and node.args):
                     continue

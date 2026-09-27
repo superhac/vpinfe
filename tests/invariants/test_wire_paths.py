@@ -22,6 +22,8 @@ import ast
 import unittest
 from pathlib import Path
 
+from tests.support import trees
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Where a path can reach another machine. Not `frontend/` - its Python serves the
@@ -64,7 +66,7 @@ class WirePathTests(unittest.TestCase):
                 if "__pycache__" in rel:
                     continue
                 try:
-                    tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))
+                    tree = trees.tree_for(path)
                 except SyntaxError:
                     continue
                 for fn in ast.walk(tree):
@@ -92,14 +94,14 @@ class WirePathTests(unittest.TestCase):
         This is the shape that shipped: a payload built with `str()` on a relative path
         and handed to a caller as-is.
         """
-        broken = ast.parse(
+        broken = trees.parse_snippet(
             "def placements(game_dir, going):\n"
             "    return [str(p.relative_to(game_dir)) for p in going]\n")
         fn = next(n for n in ast.walk(broken) if isinstance(n, ast.FunctionDef))
         self.assertFalse(_normalizes(fn))
         self.assertTrue(any(_builds_a_path(n) for n in ast.walk(fn)))
 
-        fixed = ast.parse(
+        fixed = trees.parse_snippet(
             "def placements(game_dir, going):\n"
             "    return [p.relative_to(game_dir).as_posix() for p in going]\n")
         fixed_fn = next(n for n in ast.walk(fixed) if isinstance(n, ast.FunctionDef))

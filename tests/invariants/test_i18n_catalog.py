@@ -26,6 +26,7 @@ from common.input_registry import InputAction, actions
 from common.media_specs import MEDIA_SPECS, MediaSpec
 from common.tokens import Token
 from frontend.custom_http_server import CORE_WORDS
+from tests.support import trees
 from tests.support.catalogs import served
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -125,8 +126,7 @@ class TestRegistriesHoldNoWords(unittest.TestCase):
                      for root in ("common", "apps")
                      for path in sorted((ROOT / root).rglob("*.py"))
                      if "__pycache__" not in path.parts
-                     for line, said in _literal_words(
-                         ast.parse(path.read_text(encoding="utf-8")))]
+                     for line, said in _literal_words(trees.tree_for(path))]
         self.assertEqual(offenders, [], "the catalog owns these words now")
 
     def test_a_word_is_found_however_it_is_given(self) -> None:
@@ -134,7 +134,7 @@ class TestRegistriesHoldNoWords(unittest.TestCase):
                   'apps.Field("args", description="Arguments")\n'
                   'ConfigGroup("rom", "ROM")\n'
                   'Field("bin_path", path="exe")\n')
-        self.assertEqual([said for _, said in _literal_words(ast.parse(source))],
+        self.assertEqual([said for _, said in _literal_words(trees.parse_snippet(source))],
                          ["Field(label='Program')", "Field(description='Arguments')",
                           "ConfigGroup(label='ROM')"])
 
@@ -241,7 +241,7 @@ NAMES = frozenset({"VPinFE", "Python", "macOS", "Windows", "Quartz", "Wayland", 
 
 def _logged_lines(name: str) -> set[int]:
     wanted = SAID_TO_THE_LOG.get(name, frozenset())
-    return {line for node in ast.walk(ast.parse(_source_of(name)))
+    return {line for node in ast.walk(_tree_of(name))
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
             and node.name in wanted
             for line in range(node.lineno, (node.end_lineno or node.lineno) + 1)}
@@ -302,10 +302,9 @@ def _reason_at(tree: ast.Module) -> dict[str, int]:
     return at
 
 
-def _handed_back(source: str) -> list[tuple[str, ast.expr]]:
+def _handed_back(tree: ast.Module) -> list[tuple[str, ast.expr]]:
     """Each value a module returns, gives as a `reason` or raises with, and which. A
     caught exception's own text, returned, is a reason."""
-    tree = ast.parse(source)
     held = _constants(tree)
     reason_at = _reason_at(tree)
     caught = _what_was_caught_as_text(tree)
@@ -424,12 +423,16 @@ def _source_of(name: str) -> str:
     return (ROOT / name).read_text(encoding="utf-8")
 
 
+def _tree_of(name: str) -> ast.Module:
+    return trees.tree_for(ROOT / name)
+
+
 class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
 
     def test_no_word_handed_back_is_written_in_place(self) -> None:
         offenders = [f"{name}:{one.lineno} {kind} {ast.unparse(one)[:60]}"
                      for name, ways in SPEAKS_TO_A_SURFACE.items()
-                     for kind, one in _handed_back(_source_of(name))
+                     for kind, one in _handed_back(_tree_of(name))
                      if kind in ways and _not_looked_up(kind, one)
                      and one.lineno not in _logged_lines(name)]
         self.assertEqual(offenders, [], "the catalog owns these words now")
@@ -437,14 +440,14 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
     def test_each_function_said_to_the_log_is_there(self) -> None:
         """A name that matches nothing exempts nothing, and reads the same as one that does."""
         for name, functions in SAID_TO_THE_LOG.items():
-            found = {node.name for node in ast.walk(ast.parse(_source_of(name)))
+            found = {node.name for node in ast.walk(_tree_of(name))
                      if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
             self.assertEqual(functions - found, frozenset(), name)
 
     def test_it_found_each_way_out(self) -> None:
         """An empty sweep passes and measures nothing, which reads the same as clean."""
         kinds = [kind for name, ways in SPEAKS_TO_A_SURFACE.items()
-                 for kind, _ in _handed_back(_source_of(name)) if kind in ways]
+                 for kind, _ in _handed_back(_tree_of(name)) if kind in ways]
         self.assertGreater(kinds.count("return"), 5)
         self.assertGreater(kinds.count("reason"), 5)
         self.assertGreater(kinds.count("raise"), 5)
@@ -489,7 +492,8 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                   '    found = [{"name": card or f"GPU {at}"} for at, card in enumerate(cards)]\n'
                   '    return {"gpus": found}\n')
 
-        said = sorted(f"{kind} {ast.unparse(one)}" for kind, one in _handed_back(source)
+        said = sorted(f"{kind} {ast.unparse(one)}"
+                      for kind, one in _handed_back(trees.parse_snippet(source))
                       if _not_looked_up(kind, one))
 
         self.assertEqual(said, ["raise 'Nothing performs that.'",
@@ -520,7 +524,8 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                   "            continue\n"
                   "    return result, found\n")
 
-        said = sorted(f"{kind} {ast.unparse(one)}" for kind, one in _handed_back(source)
+        said = sorted(f"{kind} {ast.unparse(one)}"
+                      for kind, one in _handed_back(trees.parse_snippet(source))
                       if _not_looked_up(kind, one))
 
         self.assertEqual(said, ["reason str(exc)", "return 'Left alone'",
@@ -532,7 +537,7 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                   '            "pinmame/altsound", "7z", "MP4",\n'
                   '            f"{name} was copied", "Copied", "OK", "N/A"]\n')
 
-        said = [ast.unparse(one) for kind, one in _handed_back(source)
+        said = [ast.unparse(one) for kind, one in _handed_back(trees.parse_snippet(source))
                 if _not_looked_up(kind, one)]
 
         self.assertEqual(said, ["f'{name} was copied'", "'Copied'", "'OK'", "'N/A'"])
@@ -550,10 +555,10 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
 CAUGHT_WHOLE = {"Exception", "BaseException"}
 
 
-def _caught_whole_said_bare(source: str) -> list[ast.Call]:
+def _caught_whole_said_bare(tree: ast.Module) -> list[ast.Call]:
     """Each `str()` of an exception caught by `except Exception` or wider."""
     found = []
-    for handler in ast.walk(ast.parse(source)):
+    for handler in ast.walk(tree):
         if not isinstance(handler, ast.ExceptHandler) or not handler.name:
             continue
         caught = (handler.type.elts if isinstance(handler.type, ast.Tuple)
@@ -572,7 +577,7 @@ class TestNoExceptionCaughtWholeIsHandedOnBare(unittest.TestCase):
     def test_none_is(self) -> None:
         offenders = [f"{name}:{one.lineno} {ast.unparse(one)}"
                      for name in SPEAKS_TO_A_SURFACE
-                     for one in _caught_whole_said_bare(_source_of(name))]
+                     for one in _caught_whole_said_bare(_tree_of(name))]
         self.assertEqual(offenders, [], "catch what was worded, or say it from the catalog")
 
     def test_each_way_is_read(self) -> None:
@@ -587,7 +592,8 @@ class TestNoExceptionCaughtWholeIsHandedOnBare(unittest.TestCase):
                   "        logger.info('Could not %s', exc)\n"
                   "        return str(exc)\n")
 
-        said = [f"{one.lineno} {ast.unparse(one)}" for one in _caught_whole_said_bare(source)]
+        said = [f"{one.lineno} {ast.unparse(one)}"
+               for one in _caught_whole_said_bare(trees.parse_snippet(source))]
 
         self.assertEqual(said, ["7 str(exc)", "10 str(exc)"])
 
@@ -597,10 +603,10 @@ class TestNoExceptionCaughtWholeIsHandedOnBare(unittest.TestCase):
 SAYS_WHAT_WENT_WRONG = {"console/devices.py": "_why"}
 
 
-def _exception_made_text(source: str) -> list[ast.expr]:
+def _exception_made_text(tree: ast.Module) -> list[ast.expr]:
     """Each caught exception handed to `str()`, to `t()` or into an f-string."""
     found: list[ast.expr] = []
-    for handler in ast.walk(ast.parse(source)):
+    for handler in ast.walk(tree):
         if not isinstance(handler, ast.ExceptHandler) or not handler.name:
             continue
         for node in (one for line in handler.body for one in ast.walk(line)):
@@ -620,7 +626,7 @@ class TestAnExceptionIsSaidInWords(unittest.TestCase):
     def test_no_exception_reaches_the_screen_as_itself(self) -> None:
         offenders = [f"{name}:{one.lineno} {ast.unparse(one)}"
                      for name in SAYS_WHAT_WENT_WRONG
-                     for one in _exception_made_text(_source_of(name))]
+                     for one in _exception_made_text(_tree_of(name))]
         self.assertEqual(offenders, [], "say it through the function that words it")
 
     def test_the_function_that_words_it_is_there(self) -> None:
@@ -640,7 +646,8 @@ class TestAnExceptionIsSaidInWords(unittest.TestCase):
                   "        ui.notify(f'Could not: {exc}')\n"
                   "        return t('said.could_not_do_that', exc=_why(exc))\n")
 
-        said = [f"{one.lineno} {ast.unparse(one)}" for one in _exception_made_text(source)]
+        said = [f"{one.lineno} {ast.unparse(one)}"
+               for one in _exception_made_text(trees.parse_snippet(source))]
 
         self.assertEqual(said, ["5 exc", "8 exc", "9 exc"])
 
@@ -838,7 +845,7 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
         for path in sorted((ROOT / "console").rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            offenders += _shown_unlooked(path, ast.parse(path.read_text(encoding="utf-8")))
+            offenders += _shown_unlooked(path, trees.tree_for(path))
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
 
     def test_a_local_is_read_through_what_it_was_given(self) -> None:
@@ -855,7 +862,7 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
                   "        ui.notify(why)\n"
                   "    ui.label(word)\n")
 
-        said = _shown_unlooked(ROOT / "console" / "planted.py", ast.parse(source))
+        said = _shown_unlooked(ROOT / "console" / "planted.py", trees.parse_snippet(source))
 
         self.assertEqual(sorted(said), [
             "console/planted.py:1 label('Beside it')",
@@ -865,12 +872,13 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
             "console/planted.py:7 label('First one')"])
 
     def test_two_values_joined_by_a_space_are_read(self) -> None:
-        joined = ast.parse('f"{label} {value}"', mode="eval").body
+        joined = trees.parse_snippet('f"{label} {value}"', mode="eval").body
         self.assertEqual(len(_fault(ROOT / "console" / "metrics.py", "label", "", joined)), 1)
 
     def test_a_fallback_is_read_through_str(self) -> None:
-        shown = ast.parse('str(card.get("name") or "GPU")', mode="eval").body
-        returned = ast.parse('str(found and "Only this table uses it")', mode="eval").body
+        shown = trees.parse_snippet('str(card.get("name") or "GPU")', mode="eval").body
+        returned = trees.parse_snippet(
+            'str(found and "Only this table uses it")', mode="eval").body
 
         self.assertEqual(_fault(ROOT / "console" / "metrics.py", "label", "", shown),
                          ["console/metrics.py:1 label('GPU')"])
@@ -887,7 +895,7 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
         for path in sorted((ROOT / "console").rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             held = {node.targets[0].id: node.value.value for node in tree.body
                     if isinstance(node, ast.Assign) and len(node.targets) == 1
                     and isinstance(node.targets[0], ast.Name)
@@ -927,7 +935,7 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
         for path in sorted((ROOT / "console").rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            for node in ast.walk(trees.tree_for(path)):
                 if not isinstance(node, ast.Return) or node.value is None:
                     continue
                 for said in _literals_in(node.value):
@@ -946,7 +954,7 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
         for path in sorted((ROOT / "console").rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Dict):
                     continue
@@ -991,7 +999,7 @@ def _reachable_constants(tree: ast.Module) -> dict[str, ast.expr]:
             continue
         source = ROOT / (node.module.replace(".", "/") + ".py")
         if source.is_file():
-            theirs = _constants(ast.parse(source.read_text(encoding="utf-8")))
+            theirs = _constants(trees.tree_for(source))
             for alias in node.names:
                 if alias.name in theirs:
                     held.setdefault(alias.asname or alias.name, theirs[alias.name])
@@ -1092,7 +1100,7 @@ class TestWordsHandedToQuasar(unittest.TestCase):
         for path in sorted((ROOT / "console").rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             offenders += [f"{path.relative_to(ROOT)}:{said}" for said in _prop_words(tree)]
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
 
@@ -1101,14 +1109,14 @@ class TestWordsHandedToQuasar(unittest.TestCase):
         for path in sorted((ROOT / "console").rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             seen = _Options(_reachable_constants(tree))
             seen.visit(tree)
             offenders += [f"{path.relative_to(ROOT)}:{said}" for said in seen.found]
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
 
     def test_each_road_is_read(self) -> None:
-        tree = ast.parse(
+        tree = trees.parse_snippet(
             'name.props["error-message"] = "Give it a name"\n'
             "box.props('dense outlined error-message=\"Give it a name\"')\n"
             'ui.select({"": t("a"), "no": "No"})\n'
@@ -1181,7 +1189,7 @@ class TestApiErrorMessages(unittest.TestCase):
         for path in sorted((ROOT / "httpapi").rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Call):
                     continue
@@ -1212,7 +1220,7 @@ def _refusal_sweep() -> tuple[set[str], list[tuple[Path, str | None, ast.expr]]]
     for path in sorted((ROOT / "common").rglob("*.py")):
         if "__pycache__" in path.parts:
             continue
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        for node in ast.walk(trees.tree_for(path)):
             if isinstance(node, ast.ClassDef):
                 parents[node.name] = {_named(base) for base in node.bases}
             elif isinstance(node, ast.Call) and node.args:
@@ -1348,7 +1356,7 @@ class _Fstrings(ast.NodeVisitor):
 
 def _defined_in(path: Path) -> set[str]:
     """Each function a module defines, and each name it assigns at its top level."""
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    tree = trees.tree_for(path)
     return {node.name for node in ast.walk(tree)
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))} \
         | {target.id for node in tree.body if isinstance(node, ast.Assign)
@@ -1361,7 +1369,7 @@ class TestNoWordGluedToAValue(unittest.TestCase):
 
     def test_a_label_styled_in_the_same_line_is_still_read(self) -> None:
         seen = _Fstrings()
-        seen.visit(ast.parse('ui.label(f"{a} of {b}").classes("console-help")'))
+        seen.visit(trees.parse_snippet('ui.label(f"{a} of {b}").classes("console-help")'))
         self.assertEqual([" of "], [said for _, said in seen.found])
 
     def test_two_values_joined_by_a_mark_are_read(self) -> None:
@@ -1373,7 +1381,7 @@ class TestNoWordGluedToAValue(unittest.TestCase):
                   '    return f"{DOT} {DOT}--{color}"\n'
                   'MARK = f"{STAR} {LIT}"\n')
         seen = _Fstrings({"dot_class", "MARK"})
-        seen.visit(ast.parse(source))
+        seen.visit(trees.parse_snippet(source))
         self.assertEqual([(2, " - "), (4, " ")], seen.found)
 
     def test_no_fstring_in_the_console_carries_a_word(self) -> None:
@@ -1383,7 +1391,7 @@ class TestNoWordGluedToAValue(unittest.TestCase):
                 continue
             name = path.relative_to(ROOT).as_posix()
             seen = _Fstrings(JOINED_NOT_SAID.get(name, {}))
-            seen.visit(ast.parse(path.read_text(encoding="utf-8")))
+            seen.visit(trees.tree_for(path))
             offenders += [f"{name}:{line} f{said[:38]!r}" for line, said in seen.found]
         self.assertEqual(offenders, [], "call t() with a named slot instead")
 
@@ -1430,17 +1438,18 @@ class TestPluralsComeFromTheCatalog(unittest.TestCase):
 
     def test_a_suffix_handed_to_t_is_found(self) -> None:
         seen = _PluralSuffixes()
-        seen.visit(ast.parse('ui.label(t("k", value=("" if n == 1 else "s"))).classes("x")'))
+        seen.visit(
+            trees.parse_snippet('ui.label(t("k", value=("" if n == 1 else "s"))).classes("x")'))
         self.assertEqual([1], seen.found)
 
     def test_one_written_into_an_fstring_is_found(self) -> None:
         seen = _PluralSuffixes()
-        seen.visit(ast.parse('f"{n} device{\'s\' if n != 1 else \'\'}"'))
+        seen.visit(trees.parse_snippet('f"{n} device{\'s\' if n != 1 else \'\'}"'))
         self.assertEqual([1], seen.found)
 
     def test_a_log_line_may_keep_one(self) -> None:
         seen = _PluralSuffixes()
-        seen.visit(ast.parse('logger.info("%s", "" if n == 1 else "s")'))
+        seen.visit(trees.parse_snippet('logger.info("%s", "" if n == 1 else "s")'))
         self.assertEqual([], seen.found)
 
     def test_no_screen_word_is_pluralised_in_code(self) -> None:
@@ -1450,7 +1459,7 @@ class TestPluralsComeFromTheCatalog(unittest.TestCase):
                 if "__pycache__" in path.parts:
                     continue
                 seen = _PluralSuffixes()
-                seen.visit(ast.parse(path.read_text(encoding="utf-8")))
+                seen.visit(trees.tree_for(path))
                 offenders += [f"{path.relative_to(ROOT)}:{line}" for line in seen.found]
         self.assertEqual(offenders, [], "give the key one/other forms and pass count=")
 
@@ -1552,7 +1561,7 @@ class TestPanelFactLabels(unittest.TestCase):
         for path in sorted((ROOT / "console").rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            for node in ast.walk(trees.tree_for(path)):
                 if not isinstance(node, ast.Tuple) or len(node.elts) != 2:
                     continue
                 label, control = node.elts
@@ -1588,7 +1597,7 @@ class TestEveryKeyIsServed(unittest.TestCase):
             for path in sorted((ROOT / root).rglob("*.py")):
                 if "__pycache__" in path.parts:
                     continue
-                for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                for node in ast.walk(trees.tree_for(path)):
                     if not isinstance(node, ast.Call) \
                        or getattr(node.func, "id", None) not in TAKES_A_KEY:
                         continue
@@ -1651,7 +1660,7 @@ class TestParametersMatchTheirTemplate(unittest.TestCase):
             for path in sorted((ROOT / root).rglob("*.py")):
                 if "__pycache__" in path.parts:
                     continue
-                for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                for node in ast.walk(trees.tree_for(path)):
                     if not isinstance(node, ast.Call) \
                        or getattr(node.func, "id", None) not in TAKES_A_KEY:
                         continue
@@ -1688,7 +1697,7 @@ class TestASlotIsNamedForWhatItHolds(unittest.TestCase):
             for path in sorted((ROOT / root).rglob("*.py")):
                 if "__pycache__" in path.parts:
                     continue
-                for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                for node in ast.walk(trees.tree_for(path)):
                     if not isinstance(node, ast.Call) \
                        or getattr(node.func, "id", None) not in TAKES_A_KEY:
                         continue
@@ -1733,7 +1742,7 @@ def _file(directory: Path, name: str = "en") -> dict:
 def _package_strings(app_id: str) -> set[str]:
     """Every string constant in an app's code: a group's key, a reason it hands back."""
     return {node.value for path in (APPS / app_id).rglob("*.py")
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+            for node in ast.walk(trees.tree_for(path))
             if isinstance(node, ast.Constant) and isinstance(node.value, str)}
 
 
@@ -1762,7 +1771,7 @@ def _reasons(app_id: str) -> list[str]:
     """Every reason an app writes into an `Availability`, by position or by name."""
     found = []
     for path in (APPS / app_id).rglob("*.py"):
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        for node in ast.walk(trees.tree_for(path)):
             if not isinstance(node, ast.Call) \
                or getattr(node.func, "id", None) != Availability.__name__:
                 continue
@@ -1869,7 +1878,7 @@ def _extensions() -> list[Path]:
 
 
 def _modules(package: Path) -> list[tuple[Path, ast.Module]]:
-    return [(path, ast.parse(path.read_text(encoding="utf-8")))
+    return [(path, trees.tree_for(path))
             for path in sorted(package.rglob("*.py")) if "__pycache__" not in path.parts]
 
 
@@ -1994,15 +2003,15 @@ class TestEachExtensionKeepsItsOwnWords(unittest.TestCase):
         self.assertEqual(offenders, [], "ctx.t() or words(), and the words in i18n/en.json")
 
     def test_a_sentence_is_found_wherever_it_is_written(self) -> None:
-        tree = ast.parse('"""Reads a library."""\n'
-                         'NOTE = "Could not read it"\n'
-                         'reason = f"{name} is not reachable"\n'
-                         'logger.warning("Could not read %s", path)\n'
-                         'db.execute("select name from games")\n'
-                         'HINTS = ("vpx", "visual pinball x")\n'
-                         'SOURCE = "PinballX / PinballY"\n'
-                         'field = {"label": "Systems", "key": "systems"}\n'
-                         'ctx.ui.settings("/s", label="VPinPlay")\n')
+        tree = trees.parse_snippet('"""Reads a library."""\n'
+                                   'NOTE = "Could not read it"\n'
+                                   'reason = f"{name} is not reachable"\n'
+                                   'logger.warning("Could not read %s", path)\n'
+                                   'db.execute("select name from games")\n'
+                                   'HINTS = ("vpx", "visual pinball x")\n'
+                                   'SOURCE = "PinballX / PinballY"\n'
+                                   'field = {"label": "Systems", "key": "systems"}\n'
+                                   'ctx.ui.settings("/s", label="VPinPlay")\n')
         self.assertEqual([said for _, said in _Sentences(tree).found],
                          ["Could not read it", " is not reachable"])
         self.assertEqual([said for _, said in _written_in_place(tree, "VPinPlay")],
@@ -2035,11 +2044,11 @@ class TestEachExtensionKeepsItsOwnWords(unittest.TestCase):
     def test_no_entry_is_asked_for_by_nothing(self) -> None:
         for package in self.extensions:
             manifest = json.loads((package / "extension.json").read_text(encoding="utf-8"))
-            trees = [tree for _, tree in _modules(package)]
-            asked = [one for tree in trees for _, one, _ in _asks(tree)]
-            said = {node.value for tree in trees for node in ast.walk(tree)
+            parsed = [tree for _, tree in _modules(package)]
+            asked = [one for tree in parsed for _, one, _ in _asks(tree)]
+            said = {node.value for tree in parsed for node in ast.walk(tree)
                     if isinstance(node, ast.Constant) and isinstance(node.value, str)}
-            called = {node.func.attr for tree in trees for node in ast.walk(tree)
+            called = {node.func.attr for tree in parsed for node in ast.walk(tree)
                       if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)}
             spare = []
             for key in _file(package / "i18n"):

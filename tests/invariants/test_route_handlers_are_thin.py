@@ -20,6 +20,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 ROUTES = REPO / "httpapi"
 
@@ -72,7 +74,7 @@ def _code_lines(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
 def _fat_handlers(root: pathlib.Path) -> list[str]:
     out = []
     for path in sorted(root.glob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = trees.tree_for(path)
         for node in ast.walk(tree):
             if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
                 continue
@@ -94,7 +96,7 @@ class RouteHandlerTests(unittest.TestCase):
         """A stale entry silently widens the check."""
         found = set()
         for path in sorted(ROUTES.glob("*.py")):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             for node in ast.walk(tree):
                 if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and _is_route(node):
                     found.add(f"{path.name}:{node.name}")
@@ -103,7 +105,7 @@ class RouteHandlerTests(unittest.TestCase):
     def test_the_checker_can_actually_fail(self) -> None:
         """A checker nobody has seen fail is one nobody knows the shape of."""
         with self.subTest("a handler over the line is reported"):
-            tree = ast.parse(
+            tree = trees.parse_snippet(
                 "@router.get('/x')\n"
                 "def wide():\n" + "".join(f"    a{i} = {i}\n" for i in range(LIMIT + 1))
             )
@@ -111,7 +113,7 @@ class RouteHandlerTests(unittest.TestCase):
             self.assertTrue(_is_route(node))
             self.assertGreater(_code_lines(node), LIMIT)
         with self.subTest("a docstring does not count against it"):
-            tree = ast.parse(
+            tree = trees.parse_snippet(
                 "@router.get('/x')\n"
                 "def narrow():\n"
                 '    """' + "\n".join(str(i) for i in range(20)) + '"""\n'
@@ -119,4 +121,5 @@ class RouteHandlerTests(unittest.TestCase):
             )
             self.assertEqual(_code_lines(tree.body[0]), 1)
         with self.subTest("a plain function is not a handler"):
-            self.assertFalse(_is_route(ast.parse("def helper():\n    return 1\n").body[0]))
+            self.assertFalse(
+                _is_route(trees.parse_snippet("def helper():\n    return 1\n").body[0]))

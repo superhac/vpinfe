@@ -16,6 +16,8 @@ import pathlib
 import sys
 import unittest
 
+from tests.support import trees
+
 EXTENSIONS_DIR = pathlib.Path(__file__).resolve().parents[2] / "extensions"
 
 # The one module of ours an extension may import: the manifest types and the ABI. Its
@@ -59,7 +61,7 @@ class ImportBoundaryTests(unittest.TestCase):
 
     def test_an_extension_imports_the_contract_and_nothing_else_of_ours(self) -> None:
         for source in _sources():
-            tree = ast.parse(source.read_text(encoding="utf-8"), str(source))
+            tree = trees.tree_for(source)
             for module in _imports(tree):
                 root = module.split(".")[0]
                 if root in STDLIB or root in ALLOWED_THIRD_PARTY:

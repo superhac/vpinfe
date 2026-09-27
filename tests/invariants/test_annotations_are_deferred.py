@@ -21,6 +21,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 PACKAGES = ("apps", "common", "console", "extensions", "frontend", "httpapi")
 
@@ -74,7 +76,7 @@ class DeferredAnnotationTests(unittest.TestCase):
             relative = path.relative_to(REPO).as_posix()
             if relative in NOTHING_TO_DEFER:
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             if _annotates(tree) and not _defers(tree):
                 missing.append(relative)
         self.assertEqual(sorted(missing), [], "\n".join([
@@ -90,16 +92,17 @@ class DeferredAnnotationTests(unittest.TestCase):
             if not path.exists():
                 wrong.append(f"{relative}: gone")
                 continue
-            if _annotates(ast.parse(path.read_text(encoding="utf-8"))):
+            if _annotates(trees.tree_for(path)):
                 wrong.append(f"{relative}: annotates something now")
         self.assertEqual(wrong, [])
 
     def test_the_checker_can_actually_fail(self) -> None:
         """The two halves it decides on."""
-        annotating = ast.parse("def f(x: int) -> str:\n    return str(x)\n")
+        annotating = trees.parse_snippet("def f(x: int) -> str:\n    return str(x)\n")
         self.assertTrue(_annotates(annotating))
         self.assertFalse(_defers(annotating))
-        bare = ast.parse("VERSION = '1.0'\n")
+        bare = trees.parse_snippet("VERSION = '1.0'\n")
         self.assertFalse(_annotates(bare))
-        deferred = ast.parse("from __future__ import annotations\ndef f(x: int) -> str: ...\n")
+        deferred = trees.parse_snippet(
+            "from __future__ import annotations\ndef f(x: int) -> str: ...\n")
         self.assertTrue(_defers(deferred))

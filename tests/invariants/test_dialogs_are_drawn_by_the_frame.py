@@ -6,6 +6,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 CONSOLE = pathlib.Path(__file__).resolve().parents[2] / "console"
 FRAME = "dialog.py"
 OPENS_ONE = "ui.dialog("
@@ -19,7 +21,7 @@ NOT_ASKING = {
 
 def _called(path: pathlib.Path) -> set[str]:
     """What `path` calls on `console.dialog`, by name."""
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    tree = trees.tree_for(path)
     names = {alias.asname or alias.name for one in ast.walk(tree)
              if isinstance(one, ast.ImportFrom) and one.module == "console"
              for alias in one.names if alias.name == "dialog"}

@@ -6,6 +6,8 @@ import ast
 import unittest
 from pathlib import Path
 
+from tests.support import trees
+
 ROOT = Path(__file__).resolve().parents[2]
 SOURCES = ("apps", "common", "console", "extensions", "frontend", "httpapi")
 RECASED = {"lower", "upper", "title", "capitalize", "casefold", "swapcase"}
@@ -16,7 +18,7 @@ def _calls() -> list[tuple[str, ast.Call]]:
     found = []
     for top in SOURCES:
         for path in sorted((ROOT / top).rglob("*.py")):
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            for node in ast.walk(trees.tree_for(path)):
                 if isinstance(node, ast.Call) and node.keywords and "t" in (
                         getattr(node.func, "id", None), getattr(node.func, "attr", None)):
                     found.append((f"{path.relative_to(ROOT)}:{node.lineno}", node))

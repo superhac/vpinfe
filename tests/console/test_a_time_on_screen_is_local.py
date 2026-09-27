@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 from common import i18n
 from common.i18n import t
 from console import when
+from tests.support import trees
 
 CONSOLE = pathlib.Path(__file__).resolve().parent.parent.parent / "console"
 
@@ -75,8 +76,7 @@ class HowLongAgo(unittest.TestCase):
 
 class TheCellKeepsTheValue(unittest.TestCase):
     def test_devices_puts_a_sortable_stamp_in_the_row(self) -> None:
-        source = (CONSOLE / "devices.py").read_text(encoding="utf-8")
-        tree = ast.parse(source)
+        tree = trees.tree_for(CONSOLE / "devices.py")
         for node in ast.walk(tree):
             if not (isinstance(node, ast.Dict) and any(
                     isinstance(k, ast.Constant) and k.value == "last_seen"

@@ -9,6 +9,8 @@ import unittest
 from collections.abc import Iterator
 from pathlib import Path
 
+from tests.support import trees
+
 ROOT = Path(__file__).resolve().parents[2]
 CATALOG = json.loads((ROOT / "common/i18n/catalogs/en.json").read_text(encoding="utf-8"))
 
@@ -27,7 +29,7 @@ def _titles() -> list[tuple[str, str]]:
     """(where, key) for every catalog entry a Console dialog uses as its title."""
     found = []
     for path in sorted((ROOT / "console").glob("*.py")):
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        for node in ast.walk(trees.tree_for(path)):
             if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
                 continue
             where = f"{path.name}:{node.lineno}"

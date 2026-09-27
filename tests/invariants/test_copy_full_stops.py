@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 from typing import Any
 
+from tests.support import trees
 from tests.support.catalogs import served
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -91,7 +92,7 @@ class WhereTheConsoleDrawsThem(unittest.TestCase):
         for path in sorted((ROOT / "console").rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             self.drawn += [(f"{path.relative_to(ROOT)}:{line}", key)
                            for line, key in _help_and_state(tree)]
 
@@ -102,13 +103,13 @@ class WhereTheConsoleDrawsThem(unittest.TestCase):
         self.assertEqual(found, [], "drop the full stop")
 
     def test_every_position_is_read(self) -> None:
-        tree = ast.parse('x.tooltip(t("a"))\n'
-                         'panel.note(t("b"))\n'
-                         'ui.label(t("c")).classes("text-xs console-help")\n'
-                         'panel.action("x", go, hint=t("d"))\n'
-                         'panel.hint(field, t("e"))\n'
-                         'panel.state(t("f") if on else t("g"), "on")\n'
-                         'ui.label(t("h")).classes("console-card-title")\n')
+        tree = trees.parse_snippet('x.tooltip(t("a"))\n'
+                                   'panel.note(t("b"))\n'
+                                   'ui.label(t("c")).classes("text-xs console-help")\n'
+                                   'panel.action("x", go, hint=t("d"))\n'
+                                   'panel.hint(field, t("e"))\n'
+                                   'panel.state(t("f") if on else t("g"), "on")\n'
+                                   'ui.label(t("h")).classes("console-card-title")\n')
 
         self.assertEqual(sorted(key for _line, key in _help_and_state(tree)),
                          ["a", "b", "c", "d", "e", "f", "g"])

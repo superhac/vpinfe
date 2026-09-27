@@ -20,6 +20,8 @@ import pathlib
 import re
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 PACKAGES = ("apps", "common", "console", "extensions", "frontend", "httpapi")
 
@@ -79,7 +81,7 @@ def _offenders() -> list[str]:
         for path in sorted((REPO / package).rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             for name in sorted(_identifiers(tree)):
                 if TYPE_NAME.match(name) and name not in BORROWED:
                     out.append(f"{path.relative_to(REPO).as_posix()}: {name}")
@@ -99,7 +101,7 @@ class KindNotTypeTests(unittest.TestCase):
             for path in (REPO / package).rglob("*.py"):
                 if "__pycache__" in path.parts:
                     continue
-                seen |= _identifiers(ast.parse(path.read_text(encoding="utf-8")))
+                seen |= _identifiers(trees.tree_for(path))
         self.assertEqual(sorted(BORROWED - seen), [])
 
     def test_the_checker_can_actually_fail(self) -> None:
@@ -107,5 +109,6 @@ class KindNotTypeTests(unittest.TestCase):
         self.assertTrue(TYPE_NAME.match("asset_type"))
         self.assertFalse(TYPE_NAME.match("asset_kind"))
         self.assertFalse(TYPE_NAME.match("typed_value"))
-        found = _identifiers(ast.parse("def f(widget_type):\n    return widget_type\n"))
+        found = _identifiers(
+            trees.parse_snippet("def f(widget_type):\n    return widget_type\n"))
         self.assertIn("widget_type", found)

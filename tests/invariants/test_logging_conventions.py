@@ -19,6 +19,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 
 # Package to the area name that appears in a logger. Extensions log under `ext` because an
@@ -97,7 +99,7 @@ class LoggerNameTests(unittest.TestCase):
         wrong = []
         for path in _modules():
             expected = _expected_name(path)
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             for name in _declared_names(tree):
                 if name != expected:
                     relative = path.relative_to(REPO).as_posix()
@@ -107,7 +109,7 @@ class LoggerNameTests(unittest.TestCase):
     def test_there_are_loggers_to_check(self) -> None:
         """If it stops finding any, it has stopped checking rather than started passing."""
         total = sum(
-            len(_declared_names(ast.parse(path.read_text(encoding="utf-8"))))
+            len(_declared_names(trees.tree_for(path)))
             for path in _modules()
         )
         self.assertGreater(total, 100)
@@ -118,7 +120,7 @@ class LoggerCallTests(unittest.TestCase):
         """`logger.debug(f"...")` builds the string whether or not DEBUG is on."""
         offenders = []
         for path in _modules():
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             offenders.extend(
                 f"{path.relative_to(REPO).as_posix()} {where}"
                 for where in _formatted_into_logger(tree)
@@ -130,16 +132,19 @@ class CheckerTests(unittest.TestCase):
     def test_the_checker_can_actually_fail(self) -> None:
         """Each half, against source written to break it."""
         with self.subTest("an f-string is caught"):
-            found = _formatted_into_logger(ast.parse('logger.info(f"x {y}")'))
+            found = _formatted_into_logger(trees.parse_snippet('logger.info(f"x {y}")'))
             self.assertEqual(len(found), 1)
         with self.subTest("percent and .format are caught"):
-            self.assertEqual(len(_formatted_into_logger(ast.parse('logger.info("x %s" % y)'))), 1)
-            formatted = _formatted_into_logger(ast.parse('logger.info("{}".format(y))'))
+            self.assertEqual(
+                len(_formatted_into_logger(trees.parse_snippet('logger.info("x %s" % y)'))), 1)
+            formatted = _formatted_into_logger(trees.parse_snippet('logger.info("{}".format(y))'))
             self.assertEqual(len(formatted), 1)
         with self.subTest("passing arguments is what we want, and passes"):
-            self.assertEqual(_formatted_into_logger(ast.parse('logger.info("x %s", y)')), [])
+            self.assertEqual(
+                _formatted_into_logger(trees.parse_snippet('logger.info("x %s", y)')), [])
         with self.subTest("a comment is not a call"):
-            self.assertEqual(_formatted_into_logger(ast.parse('# logger.info(f"x {y}")')), [])
+            self.assertEqual(
+                _formatted_into_logger(trees.parse_snippet('# logger.info(f"x {y}")')), [])
         with self.subTest("the expected name follows the path"):
             self.assertEqual(
                 _expected_name(REPO / "common" / "games" / "game_identity.py"),

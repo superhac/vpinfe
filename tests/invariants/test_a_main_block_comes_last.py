@@ -10,6 +10,8 @@ import ast
 import unittest
 from pathlib import Path
 
+from tests.support import trees
+
 REPO = Path(__file__).resolve().parent.parent.parent
 SKIP_DIRS = {".venv", ".claude", "build", "third_party", "chromium", "web", "node_modules",
              "__pycache__"}
@@ -37,24 +39,24 @@ def _python_files() -> list[Path]:
 
 class MainBlockTests(unittest.TestCase):
     def test_a_block_above_a_class_is_found(self) -> None:
-        tree = ast.parse("class A: pass\n"
-                         "if __name__ == '__main__':\n    main()\n"
-                         "class B: pass\n")
+        tree = trees.parse_snippet("class A: pass\n"
+                                    "if __name__ == '__main__':\n    main()\n"
+                                    "class B: pass\n")
         self.assertEqual([2], main_blocks_out_of_place(tree))
 
     def test_a_second_block_is_found(self) -> None:
         block = "if __name__ == '__main__':\n    main()\n"
-        self.assertEqual([1], main_blocks_out_of_place(ast.parse(block + block)))
+        self.assertEqual([1], main_blocks_out_of_place(trees.parse_snippet(block + block)))
 
     def test_a_block_at_the_end_is_in_place(self) -> None:
-        tree = ast.parse("class A: pass\nif __name__ == '__main__':\n    main()\n")
+        tree = trees.parse_snippet("class A: pass\nif __name__ == '__main__':\n    main()\n")
         self.assertEqual([], main_blocks_out_of_place(tree))
 
     def test_every_main_block_in_the_tree_is_the_last_statement(self) -> None:
         self.maxDiff = None
         found = []
         for path in _python_files():
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            tree = trees.tree_for(path)
             found += [f"{path.relative_to(REPO).as_posix()}:{line}"
                       for line in main_blocks_out_of_place(tree)]
         self.assertEqual([], found,

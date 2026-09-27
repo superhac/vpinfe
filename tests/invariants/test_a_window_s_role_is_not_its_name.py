@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 
 from frontend import theme_windows
+from tests.support import trees
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -50,9 +51,9 @@ def _asks_for_a_role(node: ast.expr) -> bool:
             and (getattr(node.func, "id", "") or getattr(node.func, "attr", "")) == "canonical")
 
 
-def python_offenders(source: str, rel: str) -> list[str]:
+def python_offenders(tree: ast.Module, source: str, rel: str) -> list[str]:
     found = []
-    for node in ast.walk(ast.parse(source)):
+    for node in ast.walk(tree):
         if not isinstance(node, ast.Compare):
             continue
         sides = [node.left, *node.comparators]
@@ -78,19 +79,22 @@ class WindowRoleTests(unittest.TestCase):
     def test_no_window_s_role_comes_from_comparing_its_name(self) -> None:
         offenders = []
         for path, rel in _files("*.py"):
-            offenders += python_offenders(path.read_text(encoding="utf-8"), rel)
+            source = path.read_text(encoding="utf-8")
+            offenders += python_offenders(trees.tree_for(path), source, rel)
         for path, rel in _files("*.js", "*.html"):
             offenders += script_offenders(path.read_text(encoding="utf-8", errors="ignore"), rel)
 
         self.assertEqual(offenders, [], "\n" + "\n".join(offenders))
 
     def test_the_checks_can_fail(self) -> None:
-        self.assertTrue(python_offenders('if window_name == "table": pass', "sample.py"))
-        self.assertTrue(python_offenders('x = win_name in ("bg", "dmd")', "sample.py"))
+        def offenders(source: str) -> list[str]:
+            return python_offenders(trees.parse_snippet(source), source, "sample.py")
+
+        self.assertTrue(offenders('if window_name == "table": pass'))
+        self.assertTrue(offenders('x = win_name in ("bg", "dmd")'))
         self.assertTrue(script_offenders('const x = windowName === "playfield";', "a.js"))
-        self.assertFalse(python_offenders('if kind == "table": pass', "sample.py"))
-        self.assertFalse(python_offenders(
-            'if canonical(window_name) == "playfield": pass', "sample.py"))
+        self.assertFalse(offenders('if kind == "table": pass'))
+        self.assertFalse(offenders('if canonical(window_name) == "playfield": pass'))
 
 
 if __name__ == "__main__":

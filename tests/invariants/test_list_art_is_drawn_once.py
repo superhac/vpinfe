@@ -11,6 +11,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 CONSOLE = REPO / "console"
 HELPER = CONSOLE / "list_art.py"
@@ -19,20 +21,27 @@ HELPER = CONSOLE / "list_art.py"
 FRAME_CLASSES = ("console-cell-pictured", "console-cell-art-box", "console-cell-noart")
 
 
-def _fragments(source: str) -> list[tuple[int, str]]:
-    return [(node.lineno, node.value) for node in ast.walk(ast.parse(source))
+def _fragments(tree: ast.Module) -> list[tuple[int, str]]:
+    return [(node.lineno, node.value) for node in ast.walk(tree)
             if isinstance(node, ast.Constant) and isinstance(node.value, str)]
 
 
-def _marked(source: str, suffix: str) -> list[int]:
-    pieces = (_fragments(source) if suffix == ".py"
-              else list(enumerate(source.splitlines(), 1)))
+def _matching(pieces: list[tuple[int, str]]) -> list[int]:
     return [line for line, text in pieces if any(name in text for name in FRAME_CLASSES)]
 
 
+def _marked(source: str, suffix: str) -> list[int]:
+    pieces = (_fragments(trees.parse_snippet(source)) if suffix == ".py"
+              else list(enumerate(source.splitlines(), 1)))
+    return _matching(pieces)
+
+
 def _frames(path: pathlib.Path) -> list[str]:
-    return [f"{path.relative_to(REPO)}:{line}"
-            for line in _marked(path.read_text(encoding="utf-8"), path.suffix)]
+    if path.suffix == ".py":
+        lines = _matching(_fragments(trees.tree_for(path)))
+    else:
+        lines = _matching(list(enumerate(path.read_text(encoding="utf-8").splitlines(), 1)))
+    return [f"{path.relative_to(REPO)}:{line}" for line in lines]
 
 
 # Each shape a list's frame could be drawn in outside the helper: a grid renderer, an
@@ -61,8 +70,7 @@ class ListArtIsDrawnOnceTests(unittest.TestCase):
 
     def test_the_scan_finds_each_of_the_helper_s_classes(self) -> None:
         """Or a scan that matches nothing would pass the test above as well."""
-        source = HELPER.read_text(encoding="utf-8")
-        written = " ".join(text for _line, text in _fragments(source))
+        written = " ".join(text for _line, text in _fragments(trees.tree_for(HELPER)))
         for name in FRAME_CLASSES:
             with self.subTest(name=name):
                 self.assertIn(name, written)

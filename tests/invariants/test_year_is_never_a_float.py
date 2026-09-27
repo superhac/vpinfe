@@ -18,6 +18,8 @@ import json
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parents[2]
 SCANNED = ("common", "frontend", "httpapi", "console", "extensions")
 SKIP = {"__pycache__", ".venv", "third_party"}
@@ -51,7 +53,7 @@ class SourceTests(unittest.TestCase):
     def test_nothing_coerces_a_year_with_float(self) -> None:
         offenders = []
         for path in _sources():
-            tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
+            tree = trees.tree_for(path)
             for where in _float_calls_near_year(tree):
                 offenders.append(f"{path.relative_to(REPO).as_posix()}:{where}")
 

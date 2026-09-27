@@ -6,6 +6,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 
 # The classes whose methods the Console hands to `offload.io` by attribute.
@@ -16,7 +18,7 @@ def _answers_nothing() -> set[str]:
     """Method names declared `-> None` in every one of these classes that has them."""
     returns: dict[str, set[str]] = {}
     for path, name in DECLARED.items():
-        tree = ast.parse((REPO / path).read_text(encoding="utf-8"))
+        tree = trees.tree_for(REPO / path)
         cls = next(node for node in tree.body
                    if isinstance(node, ast.ClassDef) and node.name == name)
         for method in cls.body:
@@ -26,9 +28,9 @@ def _answers_nothing() -> set[str]:
     return {name for name, said in returns.items() if said == {"None"}}
 
 
-def _offenders(src: str, void: set[str]) -> list[tuple[int, str]]:
+def _offenders(tree: ast.AST, void: set[str]) -> list[tuple[int, str]]:
     out = []
-    for node in ast.walk(ast.parse(src)):
+    for node in ast.walk(tree):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
            and node.func.attr == "io" and isinstance(node.func.value, ast.Name) \
            and node.func.value.id == "offload" and node.args \
@@ -42,16 +44,19 @@ class OffloadIsGivenAnAnswer(unittest.TestCase):
         void = _answers_nothing()
         self.assertIn("delete_location", void)
         self.assertEqual(
-            _offenders("await offload.io(library.delete_location, 'x')", void),
+            _offenders(trees.parse_snippet("await offload.io(library.delete_location, 'x')"),
+                       void),
             [(1, "delete_location")])
-        self.assertEqual(_offenders("await run.io_bound(library.delete_location, 'x')", void),
-                         [])
+        self.assertEqual(
+            _offenders(trees.parse_snippet("await run.io_bound(library.delete_location, 'x')"),
+                       void),
+            [])
 
     def test_no_console_call_hands_it_one(self) -> None:
         void = _answers_nothing()
         found = [f"{path.relative_to(REPO)}:{line} {name}"
                  for path in sorted((REPO / "console").rglob("*.py"))
-                 for line, name in _offenders(path.read_text(encoding="utf-8"), void)]
+                 for line, name in _offenders(trees.tree_for(path), void)]
         self.assertEqual(found, [], "a call that answers nothing goes through "
                                     "`run.io_bound`, not `offload.io`")
 

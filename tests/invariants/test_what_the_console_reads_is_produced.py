@@ -18,6 +18,7 @@ import unittest
 from pydantic import BaseModel
 
 from httpapi import models
+from tests.support import trees
 
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 NAME = "table"
@@ -41,7 +42,7 @@ def _console() -> tuple[dict[str, list[str]], set[str]]:
     written: set[str] = set()
     for path in sorted((REPO / "console").rglob("*.py")):
         where = path.relative_to(REPO)
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        for node in ast.walk(trees.tree_for(path)):
             if isinstance(node, ast.Dict):
                 written |= {key for one in node.keys if one is not None
                             and (key := _key(one)) is not None}

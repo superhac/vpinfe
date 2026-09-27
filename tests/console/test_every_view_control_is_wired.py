@@ -11,6 +11,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 CONSOLE = pathlib.Path(__file__).resolve().parent.parent.parent / "console"
 
 
@@ -33,7 +35,7 @@ class EveryViewControlIsWired(unittest.TestCase):
         stray = []
         for path in sorted(CONSOLE.rglob("*.py")):
             stray += [f"{path.name}: {name}"
-                      for name in _unwired(ast.parse(path.read_text(encoding="utf-8")))]
+                      for name in _unwired(trees.tree_for(path))]
         self.assertEqual([], stray, f"view_control's wire function is never called: {stray}")
 
     def test_it_finds_the_grids_that_use_one(self) -> None:

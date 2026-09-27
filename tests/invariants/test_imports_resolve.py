@@ -16,6 +16,8 @@ import importlib.util
 import unittest
 from pathlib import Path
 
+from tests.support import trees
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Our own packages, plus the vendored drop we do not lint or own.
@@ -56,7 +58,7 @@ class ImportsResolveTests(unittest.TestCase):
         missing = []
         for path, rel in _source_files():
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+                tree = trees.tree_for(path)
             except SyntaxError as exc:
                 self.fail(f"{rel} does not parse: {exc}")
             for node in ast.walk(tree):
@@ -79,7 +81,7 @@ class ImportsResolveTests(unittest.TestCase):
         """An entry nothing imports is one nobody will remember to remove."""
         imported = set()
         for path, _ in _source_files():
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            tree = trees.tree_for(path)
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
                     imported.update(alias.name.split(".")[0] for alias in node.names)

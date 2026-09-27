@@ -13,6 +13,8 @@ import json
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 CONSOLE = REPO / "console"
 CATALOG = REPO / "common" / "i18n" / "catalogs" / "en.json"
@@ -36,7 +38,7 @@ BUTTON_CEILING = 80
 
 
 def _tree(path: pathlib.Path) -> ast.Module:
-    return ast.parse(path.read_text(encoding="utf-8"))
+    return trees.tree_for(path)
 
 
 def _is_ui_call(node: ast.AST, attr: str) -> bool:

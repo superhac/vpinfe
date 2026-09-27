@@ -10,6 +10,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 CONSOLE = pathlib.Path(__file__).resolve().parent.parent.parent / "console"
 DRAWN = ("menu_item", "item_label")
 TREATMENT = "console-menu"
@@ -47,7 +49,7 @@ def _dressed_calls(tree: ast.AST) -> set[int]:
 def _bare() -> list[str]:
     out = []
     for path in sorted(CONSOLE.glob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = trees.tree_for(path)
         dressed = _dressed_calls(tree)
         for node in ast.walk(tree):
             if (isinstance(node, ast.Call)
@@ -69,7 +71,7 @@ class MenuItemsAreDressed(unittest.TestCase):
         seen = sum(
             1
             for path in CONSOLE.glob("*.py")
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+            for node in ast.walk(trees.tree_for(path))
             if isinstance(node, ast.Call) and getattr(node.func, "attr", "") in DRAWN)
         self.assertGreater(seen, 30)
 

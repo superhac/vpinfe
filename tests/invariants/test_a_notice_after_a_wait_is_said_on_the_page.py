@@ -12,6 +12,8 @@ import unittest
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
+from tests.support import trees
+
 ROOT = Path(__file__).resolve().parents[2]
 
 SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
@@ -92,8 +94,8 @@ class _Module:
 class Console:
     """The Console's modules, with what each of their functions does to the page."""
 
-    def __init__(self, sources: dict[str, str]) -> None:
-        self.modules = {name: _Module(name, ast.parse(text)) for name, text in sources.items()}
+    def __init__(self, modules: dict[str, ast.Module]) -> None:
+        self.modules = {name: _Module(name, tree) for name, tree in modules.items()}
         self._reads: dict[ast.AST, bool] = {}
         self._placed: dict[ast.AST, bool] = {}
 
@@ -101,7 +103,7 @@ class Console:
     def read(cls, root: Path) -> Console:
         folder = root / "console"
         return cls({".".join(path.relative_to(folder).with_suffix("").parts):
-                    path.read_text(encoding="utf-8")
+                    trees.tree_for(path)
                     for path in sorted(folder.rglob("*.py"))})
 
     def called(self, module: _Module, call: ast.Call) -> tuple[_Module, ast.AST] | None:
@@ -224,7 +226,8 @@ class Console:
 def _judged(source: str) -> dict[str, tuple[bool, bool]]:
     """Each async function in `source`: (a builder, reads the page after a wait)."""
     return {fn.name: (builder, late)
-            for _where, fn, builder, late, _on in Console({"sample": source}).functions()}
+            for _where, fn, builder, late, _on
+            in Console({"sample": trees.parse_snippet(source)}).functions()}
 
 
 class SaidOnThePage(unittest.TestCase):

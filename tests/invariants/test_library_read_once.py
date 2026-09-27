@@ -14,7 +14,7 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.games.game_parser import GameParser
-from tests.support import library_loader
+from tests.support import library_loader, trees
 from tests.support.library import TempTree, write_game
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -81,7 +81,7 @@ class LibraryIsReadOnceTests(unittest.TestCase):
             if any(part in {".venv", ".claude", "build", "third_party"}
                    for part in path.parts):
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            tree = trees.tree_for(path)
             for node in ast.walk(tree):
                 body = getattr(node, "body", None)
                 if not isinstance(body, list):
@@ -168,7 +168,7 @@ class LoaderPatchSitesTests(unittest.TestCase):
             rel = path.relative_to(REPO_ROOT)
             if rel.parts[0] not in {"common", "frontend", "httpapi", "managerui"}:
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))
+            tree = trees.tree_for(path)
             # Module level only. A function-local import resolves through the defining
             # module when it runs, so patching that module already reaches it - and it
             # is not an attribute here to patch.

@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from common import i18n
+from tests.support import trees
 
 KB, MB, GB, TB = 1024, 1024**2, 1024**3, 1024**4
 CONSOLE = Path(__file__).resolve().parents[2] / "console"
@@ -35,7 +36,7 @@ class SizeUnitTests(unittest.TestCase):
 
 def _literals(path: Path) -> list[str]:
     """Every string the module could put on screen: its constants, docstrings aside."""
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    tree = trees.tree_for(path)
     docs = {id(node.value) for node in ast.walk(tree)
             if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)}
     return [node.value for node in ast.walk(tree)

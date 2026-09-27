@@ -10,6 +10,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 CONSOLE = REPO / "console"
 
@@ -38,7 +40,7 @@ class TestLinksGoThroughTheConstructors(unittest.TestCase):
         for path in sorted(CONSOLE.rglob("*.py")):
             if path.name in ALLOWED:
                 continue
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = trees.tree_for(path)
             offenders += [f"{path.relative_to(REPO)}:{node.lineno}"
                           for node in _calls(tree) if _is_ui_link(node)]
         self.assertEqual(offenders, [],
@@ -46,8 +48,7 @@ class TestLinksGoThroughTheConstructors(unittest.TestCase):
 
     def test_the_constructors_are_there_to_be_used(self) -> None:
         """The allowlist is only honest while the thing it defers to exists."""
-        source = (CONSOLE / "panel.py").read_text(encoding="utf-8")
-        tree = ast.parse(source)
+        tree = trees.tree_for(CONSOLE / "panel.py")
         built = {node.name for node in ast.walk(tree)
                  if isinstance(node, ast.FunctionDef)}
         self.assertIn("link", built)
@@ -56,8 +57,7 @@ class TestLinksGoThroughTheConstructors(unittest.TestCase):
     def test_only_a_link_that_leaves_the_app_is_marked(self) -> None:
         """`open_in_new` is the mark for leaving, so the internal constructor must not
         carry one - a mark on every link is a mark that says nothing."""
-        source = (CONSOLE / "panel.py").read_text(encoding="utf-8")
-        tree = ast.parse(source)
+        tree = trees.tree_for(CONSOLE / "panel.py")
         inside = next(node for node in ast.walk(tree)
                       if isinstance(node, ast.FunctionDef) and node.name == "link")
         self.assertNotIn("open_in_new", ast.unparse(inside))

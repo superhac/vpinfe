@@ -11,6 +11,8 @@ import json
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 CATALOG = REPO / "common/i18n/catalogs/en.json"
 CONSOLE = REPO / "console"
@@ -54,7 +56,7 @@ def _looked_up_key(node: ast.AST, consts: dict[str, str]) -> str | None:
 def _headings() -> list[tuple[str, int, str, str]]:
     out = []
     for path in sorted(CONSOLE.rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = trees.tree_for(path)
         consts = _string_constants(tree)
         where = path.relative_to(REPO).as_posix()
         for node in ast.walk(tree):

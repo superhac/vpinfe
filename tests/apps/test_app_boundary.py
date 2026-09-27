@@ -12,6 +12,8 @@ import pathlib
 import sys
 import unittest
 
+from tests.support import trees
+
 APPS_DIR = pathlib.Path(__file__).resolve().parents[2] / "apps"
 
 # The one module of ours an app may import. It is the boundary.
@@ -55,7 +57,7 @@ class ImportBoundaryTests(unittest.TestCase):
 
     def test_an_app_imports_the_contract_and_nothing_else_of_ours(self) -> None:
         for source in _app_sources():
-            tree = ast.parse(source.read_text(encoding="utf-8"), str(source))
+            tree = trees.tree_for(source)
             for module in _imports(tree):
                 root = module.split(".")[0]
                 if root not in FIRST_PARTY or root == "apps":
@@ -68,7 +70,7 @@ class ImportBoundaryTests(unittest.TestCase):
 
     def test_an_app_takes_no_dependency_nobody_agreed_to(self) -> None:
         for source in _app_sources():
-            tree = ast.parse(source.read_text(encoding="utf-8"), str(source))
+            tree = trees.tree_for(source)
             for module in _imports(tree):
                 root = module.split(".")[0]
                 if root in FIRST_PARTY or root in STDLIB:

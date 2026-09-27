@@ -19,6 +19,7 @@ from console import (
     themes,
 )
 from console import views as views_module
+from tests.support import trees
 
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 
@@ -50,8 +51,7 @@ class BuiltinViewsAreDescribed(unittest.TestCase):
 
     def test_a_view_built_at_render_time_is_a_preset(self):
         """A view built from what the library holds is a `Preset`, not a plain list."""
-        source = (REPO / "console/games.py").read_text(encoding="utf-8")
-        tree = ast.parse(source)
+        tree = trees.tree_for(REPO / "console/games.py")
         plain = []
         for node in ast.walk(tree):
             if not (isinstance(node, ast.Assign) and len(node.targets) == 1

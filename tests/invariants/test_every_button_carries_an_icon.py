@@ -6,6 +6,8 @@ import ast
 import pathlib
 import unittest
 
+from tests.support import trees
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 CONSOLE = REPO / "console"
 
@@ -13,8 +15,7 @@ NAME_PICKERS = {("send_to_device.py", "name_of")}
 
 
 def _sources() -> list[tuple[pathlib.Path, ast.Module]]:
-    return [(p, ast.parse(p.read_text(encoding="utf-8")))
-            for p in sorted(CONSOLE.rglob("*.py"))]
+    return [(p, trees.tree_for(p)) for p in sorted(CONSOLE.rglob("*.py"))]
 
 
 def _button_calls(tree: ast.Module) -> list[ast.Call]:
