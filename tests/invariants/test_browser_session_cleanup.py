@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shutil
 import tempfile
 import unittest
 from unittest import mock
@@ -71,6 +72,38 @@ class HandshakeFailureTests(unittest.TestCase):
         asyncio.run(session.__aexit__(None, None, None))
 
         self.assertFalse(os.path.exists(session._profile))
+
+
+class ProfileRemovalRetryTests(unittest.TestCase):
+    def test_a_removal_that_only_takes_hold_on_a_later_try_still_finishes(self) -> None:
+        profile = tempfile.mkdtemp(prefix="vpinfe-smoke-test-")
+        calls: list[int] = []
+
+        def flaky_rmtree(path: str, ignore_errors: bool = False) -> None:
+            calls.append(1)
+            if len(calls) >= 3:
+                shutil.rmtree(path, ignore_errors=True)
+
+        with mock.patch.object(browser_session, "shutil",
+                               mock.Mock(rmtree=flaky_rmtree)), \
+                mock.patch.object(browser_session, "_PROFILE_REMOVE_DELAY", 0):
+            asyncio.run(browser_session._rmtree_persistently(profile))
+
+        self.assertEqual(3, len(calls))
+        self.assertFalse(os.path.exists(profile))
+
+    def test_a_removal_that_never_takes_hold_still_gives_up(self) -> None:
+        """Best effort, not a hang: a lock that never clears must not spin forever."""
+        profile = tempfile.mkdtemp(prefix="vpinfe-smoke-test-")
+        self.addCleanup(shutil.rmtree, profile, True)
+        calls: list[int] = []
+
+        with mock.patch.object(browser_session, "shutil",
+                               mock.Mock(rmtree=lambda *a, **k: calls.append(1))), \
+                mock.patch.object(browser_session, "_PROFILE_REMOVE_DELAY", 0):
+            asyncio.run(browser_session._rmtree_persistently(profile))
+
+        self.assertEqual(browser_session._PROFILE_REMOVE_ATTEMPTS, len(calls))
 
 
 if __name__ == "__main__":

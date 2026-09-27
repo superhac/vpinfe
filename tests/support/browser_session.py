@@ -82,6 +82,19 @@ def chromium_path() -> str | None:
     return path if asyncio.run(drivable()) else None
 
 
+_PROFILE_REMOVE_ATTEMPTS = 5
+_PROFILE_REMOVE_DELAY = 0.2
+
+
+async def _rmtree_persistently(path: str) -> None:
+    """Retry `rmtree` until `path` is actually gone, or the attempts run out."""
+    for _ in range(_PROFILE_REMOVE_ATTEMPTS):
+        shutil.rmtree(path, ignore_errors=True)
+        if not os.path.exists(path):
+            return
+        await asyncio.sleep(_PROFILE_REMOVE_DELAY)
+
+
 @dataclass
 class PageResult:
     body: dict = field(default_factory=dict)
@@ -152,7 +165,7 @@ class BrowserSession:
                         pipe.close()   # Popen does not, and the handle outlives the run
             self._proc = None
         if self._profile:
-            shutil.rmtree(self._profile, ignore_errors=True)
+            await _rmtree_persistently(self._profile)
 
     async def _page_endpoint(self, port: int) -> str:
         """The tab's own socket, not the browser's.
