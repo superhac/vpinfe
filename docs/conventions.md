@@ -1223,13 +1223,20 @@ around an awaited build. Both put `aria-busy="true"` on the region at once and t
 the work ends, however it ends. The spinner goes in with the mark, and `.console-busy` keeps it
 hidden for its first quarter second, so a region that fills quickly never shows one.
 
+Content left up while what replaces it is read - a view after a rail click, the side pane after
+a grid row or a write - is held with `over`: `busy.start(region, work)` for an act that reads
+before it draws again, `busy.held(region, over=True)` around a pane build. From the same quarter
+second the content dims in place and the spinner sits over its middle (`.console-busy--over`),
+so nothing moves, and the rail row lights at the click. A region filling empty space keeps the
+spinner after what it has drawn. Work that overlaps on one region shares one mark and one
+spinner, and the region is let go when the last of it ends.
+
 `tests/invariants/test_a_region_filled_later_says_so.py` fails on a one-shot `ui.timer`
 anywhere else in `console/`; a timer that fills no region is listed there with its reason.
 
 A page is drawn when its handshake is done and nothing on it is marked `aria-busy`. The loading
 screen holds its region until the view is drawn (`busy.until_gone`), a linked subject's pane is
-held until it is built, and a grid's saved view is filled through `busy.fill` on its wrapper
-(`9e365d7c`).
+held until it is built, and a grid's saved view is filled through `busy.fill` on its wrapper.
 
 ## Typing
 
