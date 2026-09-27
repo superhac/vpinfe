@@ -400,6 +400,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             choices=("synthwave", "dark", "light", "system"),
             editor=EDITOR_CONSOLE_THEME,
             legacy=(),
+            group=setting_groups.APPEARANCE,
         ),
         ConfigOption(
             "list_art",
@@ -408,6 +409,27 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             choices=("none", "wheel", "backglass", "playfield", "logo"),
             choice_words="media.kind.{choice}.label",
             editor=EDITOR_LIST_ART,
+            group=setting_groups.ARTWORK,
+        ),
+        ConfigOption(
+            "list_art_shape",
+            type="choice",
+            default="auto",
+            choices=("auto", "square", "wide"),
+            group=setting_groups.ARTWORK,
+        ),
+        ConfigOption(
+            "list_art_height",
+            type="choice",
+            default="small",
+            choices=("small", "medium", "large"),
+            group=setting_groups.ARTWORK,
+        ),
+        ConfigOption(
+            "list_art_frame",
+            type="bool",
+            default="true",
+            group=setting_groups.ARTWORK,
         ),
         ConfigOption(
             "dates",
@@ -415,17 +437,20 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             default="language",
             choices=("language", "iso", "mm/dd/yyyy", "dd/mm/yyyy", "dd.mm.yyyy",
                      "yyyy/mm/dd"),
+            group=setting_groups.DATES_AND_TIMES,
         ),
         ConfigOption(
             "times",
             type="choice",
             default="24h",
             choices=("24h", "12h"),
+            group=setting_groups.DATES_AND_TIMES,
         ),
         ConfigOption(
             "relative_dates",
             type="bool",
             default="true",
+            group=setting_groups.DATES_AND_TIMES,
         ),
     ),
     # Programs on this machine VPinFE shells out to. Each is discovered first, and set

@@ -1,4 +1,4 @@
-"""Art in Lists: which picture sits beside a name in the Console's lists."""
+"""Show, under Artwork: which picture sits beside a name in the Console's lists."""
 
 from __future__ import annotations
 
@@ -37,11 +37,22 @@ class TheSettingTests(unittest.TestCase):
         self.assertEqual(("none", *KINDS), option.choices)
         self.assertEqual("wheel", option.default)
 
-    def test_it_sits_beside_date_format(self) -> None:
-        keys = [option["key"] for block in _blocks() if block["name"] == "console"
-                for option in block["options"]]
+    def test_it_leads_the_artwork_settings_after_the_theme(self) -> None:
+        options = [option for block in _blocks() if block["name"] == "console"
+                   for option in block["options"]]
 
-        self.assertEqual(keys.index("dates") - 1, keys.index("list_art"))
+        self.assertEqual([(option["key"], option.get("group")) for option in options[:5]],
+                         [("theme", "appearance"), ("list_art", "artwork"),
+                          ("list_art_shape", "artwork"), ("list_art_height", "artwork"),
+                          ("list_art_frame", "artwork")])
+
+    def test_every_console_setting_has_a_heading(self) -> None:
+        """One setting without a group would be drawn under Other."""
+        options = [option for block in _blocks() if block["name"] == "console"
+                   for option in block["options"]]
+
+        self.assertEqual([option["key"] for option in options if not option.get("group")],
+                         [])
 
     def test_each_kind_is_called_what_the_media_grid_calls_it(self) -> None:
         """One word per kind for a translator, so Playfield here is Playfield there."""

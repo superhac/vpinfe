@@ -589,7 +589,8 @@ LIST_ART_CLASS = "console-cell-art-list"
 ONE_LINE_ROW_PX = 42
 TWO_LINE_ROW_PX = 56
 PICTURED_ROW_PX = 88
-_ROW_CLASS = {TWO_LINE_ROW_PX: "console-grid-two-line", PICTURED_ROW_PX: "console-grid-pictured"}
+_ROW_CLASS = {TWO_LINE_ROW_PX: "console-grid-two-line", 64: "console-grid-medium-art",
+              PICTURED_ROW_PX: "console-grid-pictured"}
 
 _SUBTITLE_RENDERER = (
     "params => {"
@@ -663,12 +664,14 @@ def identifier(field: str, header: str, width: int = 0, help: str = "",
 # Carried on the definition so the list that declares the columns also declares their
 # order and their grouping, and stripped before the defs reach the grid.
 GROUP_KEY = "group"
+# Ours too: the `list_art.Look` an identifier's art is drawn in.
+ART_KEY = "list_art"
 
 
 def for_grid(columns: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The definitions as AG Grid wants them, without our own keys."""
     return [{k: v for k, v in column.items()
-             if k not in (GROUP_KEY, renderers.CHOICES_KEY)}
+             if k not in (GROUP_KEY, ART_KEY, renderers.CHOICES_KEY)}
             for column in columns]
 
 
@@ -796,22 +799,30 @@ def selection_said(table: Any, picked: int, plain: str) -> str:
     return t("console.grid.selected_hidden", count=picked, hidden=hidden) if hidden else plain
 
 
+def _art_look(columns: list[dict[str, Any]]) -> list_art.Look | None:
+    return next((definition[ART_KEY] for definition in columns if ART_KEY in definition),
+                None)
+
+
 def base_row_px(columns: list[dict[str, Any]]) -> int:
     """The row height the grid's own cells need, before any drawing asks for more."""
     classes = " ".join(str(definition.get("cellClass") or "") for definition in columns)
     if PICTURED_CLASS in classes:
         return PICTURED_ROW_PX
-    return TWO_LINE_ROW_PX if TWO_LINE_CLASS in classes or LIST_ART_CLASS in classes \
-        else ONE_LINE_ROW_PX
+    own = TWO_LINE_ROW_PX if TWO_LINE_CLASS in classes else ONE_LINE_ROW_PX
+    look = _art_look(columns)
+    return max(own, look.row_px) if look is not None else own
 
 
-def with_art(columns: list[dict[str, Any]], shown: bool) -> list[dict[str, Any]]:
+def with_art(columns: list[dict[str, Any]],
+             look: list_art.Look | None) -> list[dict[str, Any]]:
     """`columns`, with the identifier declared wide enough for the art beside the name,
-    and its rows tall enough for the frame, while the list draws it."""
-    if not shown:
+    and its rows tall enough for the frame, while the list draws it in `look`."""
+    if look is None:
         return columns
-    return [definition | {"width": definition["width"] + list_art.ROOM_PX,
-                          "cellClass": f"{definition['cellClass']} {LIST_ART_CLASS}"}
+    return [definition | {"width": definition["width"] + look.room_px,
+                          "cellClass": f"{definition['cellClass']} {LIST_ART_CLASS}",
+                          ART_KEY: look}
             if IDENTIFIER_CLASS in str(definition.get("cellClass") or "") else definition
             for definition in columns]
 
@@ -820,9 +831,8 @@ def _fit_of(columns: list[dict[str, Any]]) -> dict[str, Any] | None:
     """The column `window.__hubFit` narrows to the grid, and the width it stops at: the
     identifier while art is beside it, never below its width without the art."""
     return next(({"col": definition["field"],
-                  "least": definition["width"] - list_art.ROOM_PX}
-                 for definition in columns
-                 if LIST_ART_CLASS in str(definition.get("cellClass") or "")), None)
+                  "least": definition["width"] - definition[ART_KEY].room_px}
+                 for definition in columns if ART_KEY in definition), None)
 
 
 _FIT = "params => window.__hubFit && window.__hubFit(params.api, params.context)"
@@ -911,6 +921,9 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # overrides both the declared widths and any the user saved.
         auto_size_columns=False,
     ).classes(f"w-full grow min-h-0 {_ROW_CLASS.get(base_row_px(columns), '')}".strip())
+    look = _art_look(columns)
+    if look is not None:
+        look.apply(grid)
 
     ui.run_javascript(
         f"if (window.__hubFocusScope !== {json.dumps(scope)}) {{"

@@ -137,7 +137,7 @@ def build(found: list[dict[str, Any]], library: Any,
     """The asset lens: one row per file, and one per file that is not there."""
     state = state if state is not None else {}
     built = rows(found)
-    columns = grid.with_art(COLUMNS, bool(library.list_art()))
+    columns = grid.with_art(COLUMNS, library.list_art_look())
     gaps = sum(1 for row in built if not row.get("present"))
     on_screen = {"rows": len(built)}
 

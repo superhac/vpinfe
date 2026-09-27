@@ -13,6 +13,7 @@ from common.labels import field_label
 from common.media_specs import MEDIA_SPECS, media_family, media_label_map
 from console import art, game_tables, list_art, media_ownership, when
 from console.api import ApiClient
+from console.list_art import Look
 
 logger = logging.getLogger("vpinfe.console.data")
 
@@ -711,6 +712,12 @@ class Library:
         """The kind the lists draw beside a name, or "" for none. Asks nothing, so a
         draw on the event loop may call it."""
         return list_art.chosen(self.kept_kinds()["media"])
+
+    def list_art_look(self) -> Look | None:
+        """How the lists draw their art, or None for none. Asks nothing, like
+        `list_art`."""
+        kind = self.list_art()
+        return list_art.look(kind) if kind else None
 
     def load_list_art(self) -> None:
         """Read what the lists draw beside a name, while they draw something. Off the

@@ -68,6 +68,9 @@ class _Library:
     def list_art(self) -> str:
         return ""
 
+    def list_art_look(self) -> None:
+        return None
+
     def load_media_rows(self) -> list[dict]:
         return self.found
 

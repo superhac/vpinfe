@@ -714,6 +714,7 @@ async def _tag_games(context: dict[str, Any]) -> None:
                if wants_tables or library.list_art() else [])
     tables = [one for one in listing if name in _carried(one)] if wants_tables else []
     shown = library.game_art()
+    look = library.list_art_look()
     with ui.column().classes("gap-0 console-form w-full min-w-0"):
         if not carrying and not tables:
             ui.label(t("console.tags.on_no_games")).classes("console-help px-3")
@@ -721,7 +722,7 @@ async def _tag_games(context: dict[str, Any]) -> None:
             to = "/console?" + deeplink.query({"view": "games", "game": game["id"]})
             with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row"), \
                     list_art.beside(None if shown is None else shown.get(game["id"], ""),
-                                    icons.GAMES, to=to), \
+                                    icons.GAMES, to=to, look=look), \
                     ui.column().classes("gap-0 grow min-w-0"):
                 panel.link(str(game.get("name") or ""), to=to)()
                 _said_line(game_tables.made(game))
@@ -733,7 +734,7 @@ async def _tag_games(context: dict[str, Any]) -> None:
                                                "table": str(table.get("id") or "")})
             with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row"), \
                     list_art.beside(None if shown is None else list_art.address(table),
-                                    icons.TABLES, to=to), \
+                                    icons.TABLES, to=to, look=look), \
                     ui.column().classes("gap-0 grow min-w-0"):
                 panel.link(str(table.get("game") or table.get("name") or ""), to=to)()
                 _said_line(game_tables.made(table), table)
@@ -6550,6 +6551,7 @@ def _games_list(context: dict[str, Any], row: dict[str, Any],
     # of it, and an order has to be the whole membership.
     arrange = live and not _is_dynamic(row) and not find and len(kept) > 1
     smart = _is_dynamic(row) if live else _rules_drafted(context)
+    art_look = context["library"].list_art_look()
     with ui.column().classes("gap-0 w-full console-member-list") \
             .props('data-arrange="hub_member_moved"') as listed:
         listed._props[row_drag.LIST] = True
@@ -6564,7 +6566,8 @@ def _games_list(context: dict[str, Any], row: dict[str, Any],
                 cut = True
                 ui.label(t("console.workbench.past_limit", limit=row.get("limit") or 0)) \
                     .classes("console-limit-line")
-            _member_line(context, member, arrange=arrange, live=live, smart=smart)
+            _member_line(context, member, arrange=arrange, live=live, smart=smart,
+                         look=art_look)
     # Grouped, not inline: a handful of rows somebody took out do not belong scattered
     # through forty they left in, and they are the ones most likely to be wanted back.
     if excluded:
@@ -6572,7 +6575,7 @@ def _games_list(context: dict[str, Any], row: dict[str, Any],
             .classes("console-group mt-3")
         with ui.column().classes("gap-0 w-full"):
             for member in excluded:
-                _member_line(context, member, live=live, smart=smart)
+                _member_line(context, member, live=live, smart=smart, look=art_look)
     if not live:
         return
     # `kept`, not `members`: the excluded rows are drawn in their own group below, so
@@ -6644,7 +6647,8 @@ def _locked_to(member: dict[str, Any]) -> str:
 
 
 def _member_line(context: dict[str, Any], member: dict[str, Any], *,
-                 arrange: bool = False, live: bool = True, smart: bool = False) -> None:
+                 arrange: bool = False, live: bool = True, smart: bool = False,
+                 look: list_art.Look | None = None) -> None:
     origin = member.get("origin") or ""
     tables = member.get("tables") or []
     table = tables[0] if tables else {}
@@ -6665,7 +6669,7 @@ def _member_line(context: dict[str, Any], member: dict[str, Any], *,
             ui.icon("drag_indicator").classes("console-drag-handle") \
                 .props('tabindex=0 role=button') \
                 .tooltip(t("console.workbench.drag_move_press_space"))
-        with list_art.beside(member.get(list_art.FIELD), icons.GAMES), \
+        with list_art.beside(member.get(list_art.FIELD), icons.GAMES, look=look), \
                 ui.column().classes("gap-0 grow min-w-0"):
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 ui.label(member.get("name") or member.get("game") or "") \
@@ -6952,9 +6956,10 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
                               label=t("console.workbench.add_games"),
                               art=context["library"].game_art()) \
         .props('dense outlined options-dense input-debounce=0 '
-               'hide-selected fill-input clearable '
-               'popup-content-class="console-picker-popup"') \
+               'hide-selected fill-input clearable') \
         .classes("w-full mt-2")
+    (context["library"].list_art_look() or list_art.Look()).in_panel() \
+        .apply_to_options(picker, "console-picker-popup")
 
     async def add() -> None:
         if not picker.value:

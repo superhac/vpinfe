@@ -1,7 +1,8 @@
 """The picture ahead of a name in a list: which one, where it is served, and its frame.
 
-Every list draws the same frame at the same size, holding the row's glyph where there is
-no picture. The address comes from `console/art.py`.
+Every row of a list draws the same frame, holding the row's glyph where there is no
+picture. Its shape, height and ground are the Artwork settings, carried by an ancestor of
+the frame as a `Look`. The address comes from `console/art.py`.
 """
 
 from __future__ import annotations
@@ -11,23 +12,32 @@ import json
 import re
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from typing import Any
 
 from nicegui import ui
 
 from common import config_schema
-from common.config_access import cfg_get
+from common.config_access import cfg_bool, cfg_get
 from common.paths import get_ini_config
 from console import art
 
 # The row field holding the address, "" where the row has none. A row without the field
 # is drawn with no frame at all.
 FIELD = "art"
-# The two sizes: 80 x 40 in the list rows, 128 x 72 in the Themes grid.
+# The two frames: the lists', sized by a `Look`, and the Themes grid's 128 x 72 preview.
 LIST = "list"
 PREVIEW = "preview"
-# The list frame and the gap after it, which a name column grows by.
-ROOM_PX = 92
+
+SQUARE = "square"
+WIDE = "wide"
+SMALL = "small"
+# Each height's row, and the picture in it with 8px above and below.
+ROW_PX = {SMALL: 56, "medium": 64, "large": 88}
+_ART_PX = {SMALL: 40, "medium": 48, "large": 72}
+_GAP_PX = 12
+_SQUARE_CLASS = "console-art-square"
+_BARE_CLASS = "console-art-bare"
 
 _PICTURED = "console-cell-pictured"
 _BOX = "console-cell-art-box"
@@ -50,6 +60,69 @@ def chosen(kept: set[str]) -> str:
     if value not in option.choices:
         value = str(option.default)
     return value if value != "none" and value in kept else ""
+
+
+@dataclass(frozen=True)
+class Look:
+    """How the lists draw their art: the frame's shape, the grids' row height, and
+    whether the picture sits on the frame's ground or on the row."""
+
+    shape: str = WIDE
+    height: str = SMALL
+    framed: bool = True
+
+    @property
+    def row_px(self) -> int:
+        return ROW_PX[self.height]
+
+    @property
+    def room_px(self) -> int:
+        """How much wider a name column is for the frame and the gap after it."""
+        tall = _ART_PX[self.height]
+        return (tall if self.shape == SQUARE else 2 * tall) + _GAP_PX
+
+    @property
+    def _classes(self) -> str:
+        return " ".join(name for name, on in ((_SQUARE_CLASS, self.shape == SQUARE),
+                                              (_BARE_CLASS, not self.framed)) if on)
+
+    def apply(self, element: ui.element) -> None:
+        """Put the look on `element`, an ancestor of the frames it sizes."""
+        element.classes(self._classes).style(f"--art-h: {_ART_PX[self.height]}px")
+
+    def apply_to_options(self, select: ui.select, popup_classes: str) -> None:
+        """Put the look on `select`'s options, which open in a popup outside it, beside
+        the popup's own `popup_classes`."""
+        select.props(f'popup-content-class="{popup_classes} {self._classes}" '
+                     f'popup-content-style="--art-h: {_ART_PX[self.height]}px"')
+
+    def in_panel(self) -> Look:
+        """The look a panel's list takes: its shape and frame, at the smallest height."""
+        return replace(self, height=SMALL)
+
+
+def look(kind: str) -> Look:
+    """How the lists draw `kind`, with Automatic's shape answered for it."""
+    config = get_ini_config()
+
+    def chose(key: str) -> str:
+        option = config_schema.option("console", key)
+        assert option is not None
+        value = cfg_get(config, "console", key)
+        return value if value in option.choices else str(option.default)
+
+    shape = chose("list_art_shape")
+    if shape not in (SQUARE, WIDE):
+        shape = SQUARE if kind == "wheel" else WIDE
+    return Look(shape, chose("list_art_height"),
+                cfg_bool(config, "console", "list_art_frame", True))
+
+
+def heading() -> str:
+    """The name of the settings the lists' art is chosen in, for a link to them."""
+    option = config_schema.option("console", "list_art")
+    assert option is not None
+    return option.group_label
 
 
 def address(row: dict[str, Any]) -> str:
@@ -122,13 +195,16 @@ def frame_html(address: str, glyph: str, *, to: str = "") -> str:
 
 
 @contextmanager
-def beside(address: str | None, glyph: str, *, to: str = "") -> Iterator[None]:
+def beside(address: str | None, glyph: str, *, to: str = "",
+           look: Look | None = None) -> Iterator[None]:
     """A row drawn in Python: the list frame, with what the block draws as the name's
-    lines beside it. `address` as `frame_html` takes it, or None for no frame at all."""
+    lines beside it. `address` as `frame_html` takes it, or None for no frame at all.
+    `look` is the lists' look, which a panel's row takes at its own height."""
     if address is None:
         yield
         return
-    with ui.element("span").classes(f"{_PICTURED} grow"):
+    with ui.element("span").classes(f"{_PICTURED} grow") as pictured:
+        (look or Look()).in_panel().apply(pictured)
         ui.html(frame_html(address, glyph, to=to), sanitize=False, tag="span")
         with ui.element("span").classes(f"{_LINES} grow"):
             yield

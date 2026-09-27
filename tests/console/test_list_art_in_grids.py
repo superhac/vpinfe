@@ -37,8 +37,8 @@ TWO_ID, PLAIN_ID, BARE_ID = "gameTwo001", "gamePlain1", "gameBare01"
 PICTURED, UNPICTURED = "Pictured", "Unpictured"
 RED, BLUE, GREEN, WHITE = (200, 0, 0), (0, 0, 200), (0, 160, 0), (255, 255, 255)
 GRIDS = ("games", "tables", "media", "assets", "collections")
-# The 80px frame and the 12px gap after it.
-ROOM_PX = 92
+# A wheel's frame, square and 40px at the smallest height, and the 12px gap after it.
+ROOM_PX = 52
 
 
 def _png(color: tuple[int, int, int]) -> bytes:
@@ -133,14 +133,14 @@ class _Drawn(TempTree):
             .raise_for_status()
         self.addCleanup(self.http.delete, f"/collections/{PICTURED}/image")
 
-    def _list_art(self, value: str) -> None:
-        self._write_list_art(value)
-        self.addCleanup(self._write_list_art, "")
+    def _list_art(self, value: str, key: str = "list_art") -> None:
+        self._write_list_art(value, key)
+        self.addCleanup(self._write_list_art, "", key)
 
     @staticmethod
-    def _write_list_art(value: str) -> None:
+    def _write_list_art(value: str, key: str = "list_art") -> None:
         store = get_ini_config()
-        store.set_value("console", "list_art", value)
+        store.set_value("console", key, value)
         store.save()
 
     def _hide_media_kinds(self, *kinds: str) -> None:
@@ -320,6 +320,58 @@ class ACollectionCarriesItsOwnPicture(_Drawn):
 
         self.assertEqual(table.options["rowHeight"], 42)
         self.assertNotIn("console-grid-two-line", table.classes)
+
+
+class TheArtworkSettingsDrawEveryGrid(_Drawn):
+    """Each grid's frame, rows and name column as Shape, Height and Frame set them."""
+
+    def _room(self, table: ui.aggrid) -> int:
+        """How much wider the name column is for the frame and its gap."""
+        return self._name_column(table)["width"] - table.options["context"]["fit"]["least"]
+
+    def test_automatic_draws_a_wheel_square_and_the_other_kinds_wide(self) -> None:
+        square = {view: self._room(self._drawn(view)) for view in GRIDS}
+        self._list_art("backglass")
+        wide = {view: self._room(self._drawn(view)) for view in GRIDS}
+
+        self.assertEqual((square, wide), (dict.fromkeys(GRIDS, 52), dict.fromkeys(GRIDS, 92)))
+
+    def test_square_or_wide_holds_whatever_the_kind(self) -> None:
+        self._list_art("wide", "list_art_shape")
+        wide_wheel = self._room(self._drawn("games"))
+        self._list_art("square", "list_art_shape")
+        self._list_art("backglass")
+        square_backglass = self._room(self._drawn("games"))
+
+        self.assertEqual((wide_wheel, square_backglass), (92, 52))
+
+    def test_each_height_sets_the_rows_their_class_and_the_room(self) -> None:
+        drawn = {}
+        for height in ("medium", "large"):
+            self._list_art(height, "list_art_height")
+            drawn[height] = {view: self._drawn(view) for view in GRIDS}
+
+        for height, rows, row_class, room in (("medium", 64, "console-grid-medium-art", 60),
+                                              ("large", 88, "console-grid-pictured", 84)):
+            for view, table in drawn[height].items():
+                with self.subTest(height=height, grid=view):
+                    self.assertEqual((table.options["rowHeight"], self._room(table)),
+                                     (rows, room))
+                    self.assertIn(row_class, table.classes)
+
+    def test_the_grid_carries_the_look_its_frames_are_sized_from(self) -> None:
+        square = self._drawn("games")
+        self._list_art("large", "list_art_height")
+        self._list_art("false", "list_art_frame")
+        self._list_art("wide", "list_art_shape")
+        bare = self._drawn("games")
+
+        self.assertEqual((square._style.get("--art-h"), bare._style.get("--art-h")),
+                         ("40px", "72px"))
+        self.assertIn("console-art-square", square.classes)
+        self.assertNotIn("console-art-bare", square.classes)
+        self.assertIn("console-art-bare", bare.classes)
+        self.assertNotIn("console-art-square", bare.classes)
 
 
 class TheArtIsReadBeforeTheDraw(_Drawn):

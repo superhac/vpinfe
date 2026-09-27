@@ -1081,11 +1081,15 @@ element.
   end (`console-file-name`), which is where two builds of one game differ.
   `tests/invariants/test_maker_and_year_are_joined_once.py` fails on a maker-year join
   written anywhere else.
-- **A game, table or collection in a list carries its art when Art in Lists is on.** One
-  80 x 40 frame ahead of the name holds the chosen kind as the frontend shows it, or a
-  collection's own picture, on a ground that is dark in every palette, or the row's own
-  glyph where there is none. Rows are 56px while it shows, so a one-line list grows from
-  42, and the name column is declared 92px wider (`grid.with_art`). Where the grid is too
+- **A game, table or collection in a list carries its art as the Artwork settings draw
+  it.** One frame ahead of the name holds the chosen kind as the frontend shows it, or a
+  collection's own picture, or the row's own glyph where there is none. The settings
+  (Settings > VPinFE > Console) give every list the same frame: square or twice as wide,
+  Automatic making a wheel square and the rest wide; 40, 48 or 72px tall in grid rows of
+  56, 64 or 88px; on a ground dark in every palette, or bare. A panel's list and the game
+  picker take the shape and ground at 40px. An ancestor of the frame carries it
+  (`list_art.Look`), so one drawn frame takes every look. The name column is declared
+  wider by the frame and its gap (`grid.with_art`). Where the grid is too
   narrow for that, the name gives the room back until its edge and resize handle show,
   never below its width without art; a width somebody dragged stays theirs, and a fitted
   one is never saved. `console/list_art.py` draws the frame, and

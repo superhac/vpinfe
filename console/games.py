@@ -15,7 +15,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common import config_schema, icons
+from common import icons
 from common.failures import why
 from common.games import asset_registry
 from common.i18n import t
@@ -447,7 +447,7 @@ def grid_columns(rows: list[dict[str, Any]], kinds: list[str],
                  library: Any) -> list[dict[str, Any]]:
     """Every column the Games grid declares: a media column for every kind the library
     collects, whether or not any game has one yet. `kinds` are the ones some game has."""
-    return grid.with_art(with_derived_facets(COLUMNS, rows), bool(library.list_art())) \
+    return grid.with_art(with_derived_facets(COLUMNS, rows), library.list_art_look()) \
         + asset_columns(library.asset_keys()) \
         + media_columns(sorted(library.kept_kinds()["media"]),
                         shown=_collected(kinds, library))
@@ -1202,12 +1202,12 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     state = state if state is not None else {}
     tag_chips.install(library.tag_looks())
     renderers.install_setting_names(own_setting_names(library.setting_groups()))
-    art_shown = bool(library.list_art())
-    built = table_rows(rows, art_shown)
+    look = library.list_art_look()
+    built = table_rows(rows, look is not None)
     # Taken once, as the Games grid takes its own.
     arriving = setting_their_own(rows, str(state.pop("launcher", None) or ""),
                                  str(state.pop("sets", None) or ""))
-    table_columns = grid.with_art(TABLE_COLUMNS, art_shown) \
+    table_columns = grid.with_art(TABLE_COLUMNS, look) \
         + table_asset_columns(list(TABLE_ASSET_KEYS))
     fields = [definition["field"] for definition in table_columns]
 
@@ -1366,7 +1366,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         # blanks four columns on exactly the rows just acted on.
         rows_now = await offload.io(library.load_tables)
         fresh = table_rows([item for item in rows_now
-                            if item.get("game_id") == game_id], art_shown)
+                            if item.get("game_id") == game_id], look is not None)
         transaction = row_transaction(by_id, game_id, fresh)
         add_index(built, game_id, transaction)
         if transaction:
@@ -1786,7 +1786,7 @@ def view_control(library: Any, scope: str,
                 drawings(hidden)
                 if art_in_lists:
                     ui.separator()
-                    panel.menu_link(config_schema.label_for("list_art", "console"),
+                    panel.menu_link(list_art.heading(),
                                     to=settings_page.address_for("console"))
                 ui.separator()
                 # An explicit column: the menu lays its children out inline otherwise,

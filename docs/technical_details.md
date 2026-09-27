@@ -80,6 +80,9 @@ Runtime state written by VPinFE, not shown as a setting.
 | --- | --- | --- | --- |
 | `theme` | choice (synthwave, dark, light, system) | `synthwave` | How the Console and the remote look. System follows whether this computer is set to light or dark. |
 | `list_art` | choice (none, wheel, backglass, playfield, logo) | `wheel` | The picture beside a game, table or collection's name in the Console's lists |
+| `list_art_shape` | choice (auto, square, wide) | `auto` | Automatic draws wheels square and the rest wide |
+| `list_art_height` | choice (small, medium, large) | `small` | Taller grid rows show bigger pictures and fit fewer on a screen |
+| `list_art_frame` | bool | `true` | A dark tile behind each picture keeps light art readable in the light theme |
 | `dates` | choice (language, iso, mm/dd/yyyy, dd/mm/yyyy, dd.mm.yyyy, yyyy/mm/dd) | `language` | How a day is written, wherever the Console shows one |
 | `times` | choice (24h, 12h) | `24h` | How a time of day is written, where the Console shows one |
 | `relative_dates` | bool | `true` | Anything from the last month says how long ago it was, whatever the format |

@@ -125,14 +125,14 @@ class _Panel(TempTree):
     def _write(self, verb: str, path: str, body: dict) -> None:
         getattr(self.http, verb)(path, json=body).raise_for_status()
 
-    def _list_art(self, value: str) -> None:
-        self._write_list_art(value)
-        self.addCleanup(self._write_list_art, "")
+    def _list_art(self, value: str, key: str = "list_art") -> None:
+        self._write_list_art(value, key)
+        self.addCleanup(self._write_list_art, "", key)
 
     @staticmethod
-    def _write_list_art(value: str) -> None:
+    def _write_list_art(value: str, key: str = "list_art") -> None:
         store = get_ini_config()
-        store.set_value("console", "list_art", value)
+        store.set_value("console", key, value)
         store.save()
 
     def _drawn(self, build: Callable[[ui.column, ui.column, Library],
@@ -270,6 +270,34 @@ class TheGamePicker(_Panel):
         options = self._picker(self._collection())._props["options"]
 
         self.assertEqual([one for one in options if "art" in one], [])
+
+
+class ThePanelTakesTheShapeAndFrameAtTheSmallestHeight(_Panel):
+    def setUp(self) -> None:
+        super().setUp()
+        self._list_art("large", "list_art_height")
+        self._list_art("false", "list_art_frame")
+
+    def test_a_row_of_a_collection_or_a_tag(self) -> None:
+        pictured = [next(one for one in row.descendants()
+                         if "console-cell-pictured" in one.classes)
+                    for holder in (self._collection(), self._tag())
+                    for row in self._rows(holder)]
+
+        self.assertEqual(len(pictured), 7)
+        for one in pictured:
+            with self.subTest(row=one.id):
+                self.assertIn("console-art-square", one.classes)
+                self.assertIn("console-art-bare", one.classes)
+                self.assertEqual(one._style.get("--art-h"), "40px")
+
+    def test_the_picker_s_options(self) -> None:
+        props = self._picker(self._collection())._props
+
+        self.assertIn("console-art-square", props["popup-content-class"])
+        self.assertIn("console-art-bare", props["popup-content-class"])
+        self.assertIn("console-picker-popup", props["popup-content-class"])
+        self.assertEqual(props["popup-content-style"], "--art-h: 40px")
 
 
 if __name__ == "__main__":

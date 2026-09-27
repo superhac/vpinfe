@@ -49,8 +49,9 @@ FOREIGN_PREFIXES = ("--ag-", "--q-")
 
 # Set on an element while the page runs, so the stylesheet reads them and never defines
 # them: by the drag handlers - the workbench's, and where a row dragged from a grid opens
-# the rail's collections - and on an empty number box, from the words it shows.
-RUNTIME = {"--dock-h", "--rows", "--drops-top", "--drops-left", "--blank"}
+# the rail's collections - on an empty number box, from the words it shows, and on a
+# list's grid or row, from its Artwork settings.
+RUNTIME = {"--dock-h", "--rows", "--drops-top", "--drops-left", "--blank", "--art-h"}
 
 
 def _same_color(literal):

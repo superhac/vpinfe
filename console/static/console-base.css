@@ -2916,9 +2916,12 @@ a.console-tag:hover { background: var(--wash-hover); }
 .console-section-row { grid-column: 1; }
 /* The picture ahead of a name, whole, in one box every row shares so the names line
    up; `console/list_art.py` draws it. A row chosen by looking at it takes 128 x 72 and
-   `grid.PICTURED_ROW_PX`. A list takes 80 x 40 in its own row, on a ground dark in
-   every palette. With no picture the box holds the row's glyph on a quieter ground,
-   and the glyph is hidden while there is a picture. */
+   `grid.PICTURED_ROW_PX`. A list's box is sized by an ancestor carrying a
+   `list_art.Look`: its height as `--art-h`, twice as wide unless the ancestor makes it
+   square, on a ground dark in every palette unless it is bare. With no picture the box
+   holds the row's glyph on a quieter ground, and the glyph is hidden while there is a
+   picture. */
+.console-grid-medium-art { --ag-row-height: 64px; }
 .console-grid-pictured { --ag-row-height: 88px; }
 .console-cell-pictured { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .console-cell-art-box {
@@ -2927,10 +2930,15 @@ a.console-tag:hover { background: var(--wash-hover); }
   border-radius: 4px; background: var(--surface-2); overflow: hidden;
 }
 .console-cell-art-box--list {
-  width: 80px; height: 40px; box-sizing: border-box;
+  width: calc(var(--art-h, 40px) * 2); height: var(--art-h, 40px); box-sizing: border-box;
   border: 1px solid var(--line); background: var(--art-ground);
 }
 .console-cell-art-box--list.console-cell-art-box--glyph { background: var(--surface-0); }
+.console-art-square .console-cell-art-box--list { width: var(--art-h, 40px); }
+.console-art-bare .console-cell-art-box--list,
+.console-art-bare .console-cell-art-box--list.console-cell-art-box--glyph {
+  border-color: transparent; background: none;
+}
 .console-cell-art-box:not(.console-cell-art-box--glyph) > .console-cell-noart { display: none; }
 .console-cell-art-box img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
 .console-cell-lines { display: flex; flex-direction: column; justify-content: center; min-width: 0; }

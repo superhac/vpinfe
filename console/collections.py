@@ -244,10 +244,10 @@ def build(collections: list[dict[str, Any]], library: Any,
           state: dict[str, Any] | None = None,
           rerender: Callable[[], None] | None = None) -> None:
     state = state if state is not None else {}
-    art_shown = bool(library.list_art())
+    look = library.list_art_look()
     built = rows(collections, library.opens_on(), state.get("unsaved_rules") or set(),
-                 art_shown)
-    columns = grid.with_art(COLUMNS, art_shown)
+                 look is not None)
+    columns = grid.with_art(COLUMNS, look)
     fields = [definition["field"] for definition in columns]
 
     @on_page
@@ -416,7 +416,7 @@ def build(collections: list[dict[str, Any]], library: Any,
     @on_page
     async def reread(focus: str = "") -> None:
         fresh = rows(await offload.io(library.load_collections), library.opens_on(),
-                     state.get("unsaved_rules") or set(), art_shown)
+                     state.get("unsaved_rules") or set(), look is not None)
         built[:] = fresh
         by_id.clear()
         by_id.update({row["id"]: row for row in fresh})

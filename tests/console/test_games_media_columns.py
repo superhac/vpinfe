@@ -12,6 +12,7 @@ from console import games, views
 def _library(hidden: frozenset[str] = frozenset()) -> Mock:
     library = Mock()
     library.asset_keys.return_value = []
+    library.list_art_look.return_value = None
     library.kept_kinds.return_value = {"media": set(media_label_map()) - hidden,
                                        "asset": set()}
     return library

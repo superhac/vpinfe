@@ -1,4 +1,4 @@
-"""The Art in Lists row in a list grid's view menu, opened on grids built in-process."""
+"""The Artwork row in a list grid's view menu, opened on grids built in-process."""
 
 from __future__ import annotations
 
@@ -103,7 +103,7 @@ class TheViewMenu(unittest.TestCase):
         for name, draw in grids.items():
             with self.subTest(grid=name):
                 self.assertEqual(self._links_in_menu(draw),
-                                 [(t("config.console.list_art.label"), SETTINGS)])
+                                 [(t("config.group.artwork"), SETTINGS)])
 
     def test_a_grid_that_is_not_a_list_has_none(self) -> None:
         tag = {"id": "classic", "tag": "Classic", "same": "classic", "games": 1}

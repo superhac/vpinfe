@@ -25,6 +25,9 @@
   "console": {
     "theme": "synthwave",
     "list_art": "wheel",
+    "list_art_frame": "true",
+    "list_art_height": "small",
+    "list_art_shape": "auto",
     "dates": "language",
     "relative_dates": "true",
     "times": "24h"
