@@ -140,7 +140,10 @@ class BrowserSession:
             with suppress(Exception):
                 await self._ws.close()
         if self._proc is not None:
-            self._proc.terminate()
+            # The child can already be gone - a crash, or the exit `_page_endpoint`
+            # detects through `poll()` - and terminate() then signals a reaped pid.
+            with suppress(ProcessLookupError):
+                self._proc.terminate()
             with suppress(Exception):
                 self._proc.wait(timeout=10)
             for pipe in (self._proc.stdout, self._proc.stderr, self._proc.stdin):

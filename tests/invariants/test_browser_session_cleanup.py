@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import tempfile
 import unittest
 from unittest import mock
 
@@ -29,6 +30,13 @@ class _FakeChromeProcess:
         return None
 
 
+class _AlreadyExitedChromeProcess(_FakeChromeProcess):
+    """`terminate()` on a pid already reaped elsewhere: `ProcessLookupError`, not a no-op."""
+
+    def terminate(self) -> None:
+        raise ProcessLookupError("no such process")
+
+
 class HandshakeFailureTests(unittest.TestCase):
     def test_a_handshake_that_never_finishes_stops_the_process_and_its_profile(self) -> None:
         fake_proc = _FakeChromeProcess()
@@ -51,6 +59,18 @@ class HandshakeFailureTests(unittest.TestCase):
         self.assertIsNotNone(profile)
         assert profile is not None  # for the type checker; asserted above
         self.assertFalse(os.path.exists(profile))
+
+    def test_a_process_already_gone_still_loses_its_profile(self) -> None:
+        """The Chromium child can exit on its own before `__aexit__` gets to it - a
+        crash, or the race `_page_endpoint` already detects through `poll()`. Its
+        profile is still ours to remove."""
+        session = browser_session.BrowserSession("ignored-binary")
+        session._proc = _AlreadyExitedChromeProcess()
+        session._profile = tempfile.mkdtemp(prefix="vpinfe-smoke-test-")
+
+        asyncio.run(session.__aexit__(None, None, None))
+
+        self.assertFalse(os.path.exists(session._profile))
 
 
 if __name__ == "__main__":
