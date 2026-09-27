@@ -27,8 +27,6 @@ NOT_A_REGION: dict[tuple[str, str], str] = {
         "holds its own region.",
     ("about.py", "_show_to_copy"):
         "Selects the text in a dialog once the dialog has focused itself. Draws nothing.",
-    ("games.py", "view_control.wire"):
-        "Applies a saved view to a grid already drawn. Draws nothing.",
     ("input_watch.py", "strip"):
         "Starts the readout's script once its element is in the document. Draws nothing.",
 }

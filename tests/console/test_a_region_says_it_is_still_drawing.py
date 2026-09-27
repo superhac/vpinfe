@@ -79,6 +79,17 @@ class Held(unittest.IsolatedAsyncioTestCase):
             self.assertIn("console-busy", row.classes)
 
 
+class UntilGone(unittest.TestCase):
+    def test_busy_with_its_spinner_until_it_is_deleted(self) -> None:
+        region = _region()
+
+        busy.until_gone(region)
+
+        self.assertEqual((True, 1), (_busy(region), len(_spinners(region))))
+        region.delete()
+        self.assertTrue(region.is_deleted)
+
+
 class Filled(unittest.IsolatedAsyncioTestCase):
     def _fill(self, region: ui.element, work: Callable[[], Any]) -> Callable[[], Any]:
         """`busy.fill`, handing back what it scheduled rather than waiting on a browser."""

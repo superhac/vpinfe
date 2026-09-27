@@ -30,6 +30,12 @@ def _let_go(region: ui.element, shown: ui.element) -> None:
     region.props(remove="aria-busy")
 
 
+def until_gone(region: ui.element) -> None:
+    """`region` busy for as long as it exists: a stand-in, deleted once what it stands
+    in for is drawn."""
+    _hold(region)
+
+
 @contextmanager
 def held(region: ui.element) -> Iterator[None]:
     """`region` busy while the block runs, and not after it - returned, raised or

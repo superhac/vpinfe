@@ -16,9 +16,8 @@ from common.failures import why
 from common.i18n import t
 from console import about as about_page
 from console import assets as assets_page
-from console import collections as collections_page
-from console import community as community_page
 from console import (
+    busy,
     confirm,
     deeplink,
     ext_page,
@@ -37,6 +36,8 @@ from console import (
     views,
     workbench,
 )
+from console import collections as collections_page
+from console import community as community_page
 from console import devices as devices_page
 from console import launchers as launchers_page
 from console import locations as locations_page
@@ -471,8 +472,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # nicegui abandons a response that is not ready in three - which surfaced as a
     # reload loop and a page whose handlers were never wired, not as a slow page.
     with ui.column().classes("w-full h-full items-center justify-center gap-3") as loading:
-        ui.spinner(size="lg").classes("text-primary")
         ui.label(t("console.page.loading_console")).classes("text-sm opacity-60")
+    busy.until_gone(loading)
 
     await ui.context.client.connected()
     loaded = await offload.io(_read_hub)
@@ -482,7 +483,6 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         # Building anyway raises out of the page function and logs a stack trace for
         # somebody having changed their mind.
         return
-    loading.delete()
 
     library: Library = loaded["library"]
     discovery = loaded["discovery"]
@@ -518,6 +518,18 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                            "collection": collection, "launcher": launcher, "sets": sets},
                    views=[key for key, _label, _icon, _feature in nav_items],
                    sections=[item.key for item in workbench.SECTIONS])
+
+    # The saved views, read before anything draws: a grid asks for them while it is
+    # being built, which is on the loop, and the client refuses an HTTP call there.
+    await run.io_bound(library.warm, games.SCOPE + views.VIEWS_SUFFIX,
+                       f"{games.SCOPE}.tables" + views.VIEWS_SUFFIX)
+    # An address that names a section has to read what that section needs, because the
+    # first draw goes straight to render() and only redraw() reads on the way in.
+    reads = reads_before_drawing(state["view"], library)
+    if reads is not None:
+        await run.io_bound(reads)
+    if ui.context.client.is_deleted:
+        return
 
     # Anything that hides with the rail, which is a label on most rows and a caret,
     # an image or a spinner's line on the rest.
@@ -1290,11 +1302,6 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     })()
     """)
 
-    # The saved views, read before anything draws: a grid asks for them while it is
-    # being built, which is on the loop, and the client refuses an HTTP call there.
-    await run.io_bound(library.warm, games.SCOPE + views.VIEWS_SUFFIX,
-                       f"{games.SCOPE}.tables" + views.VIEWS_SUFFIX)
-
     client = ui.context.client
 
     def go(view: str) -> None:
@@ -1313,12 +1320,6 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # what its address names is a collection, which lands by its own route below.
     landing = (state.get("game")
                if state["view"] in ("games", "tables", "media", "assets") else None)
-    # An address that names a section has to read what that section needs, because the
-    # first draw goes straight to render() and only redraw() reads on the way in. Both
-    # of these drew empty from a link and filled in on the next click.
-    reads = reads_before_drawing(state["view"], library)
-    if reads is not None:
-        await run.io_bound(reads)
     await workbench.build(panel, workbench_title, library, None, state)
     _land(state)
     render()
@@ -1326,27 +1327,35 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # install that is misconfigured says so on the first screen rather than on the
     # first visit to System.
     mark_system()
+    # Nothing since the reads above yields - a pane with no subject draws without
+    # waiting - so the shell and this go out in one message. A wait added in between
+    # shows the shell under the loading screen.
+    loading.delete()
+    arrival = None
     if landing:
         # Shaped as the lens in play expects it, so the one handler reads it the same
         # way whether it came from a click or from the address bar. The file lenses
         # take the row shape they hand out, which carries the table rather than
         # standing in for it - a shared file has none, and the address says so too.
         if state["view"] in ("media", "assets"):
-            await show_slot({"game_id": landing, "table": state.get("table") or "",
-                             "kind": (state.get("slot") or {}).get("kind") or ""})
+            arrival = show_slot({"game_id": landing, "table": state.get("table") or "",
+                                 "kind": (state.get("slot") or {}).get("kind") or ""})
         else:
-            await show_game({"game_id": landing, "id": state.get("table") or landing}
-                            if state["view"] == "tables" else {"id": landing})
+            arrival = show_game({"game_id": landing, "id": state.get("table") or landing}
+                                if state["view"] == "tables" else {"id": landing})
     elif state["view"] == "collections" and state.get("collection"):
-        await show_collection({"id": state["collection"]})
+        arrival = show_collection({"id": state["collection"]})
     elif state["view"] == "launchers" and state.get("launcher"):
-        await show_launcher({"id": state["launcher"]})
+        arrival = show_launcher({"id": state["launcher"]})
     elif state["view"] == "devices":
         # Arriving at Devices lands on this device with its rail open, so reaching a
         # setting is the two clicks it was when Settings was a place of its own. It is
         # first in every view for the same reason.
-        await show_device({"id": state.get("device_id")
-                           or discovery.get("install_id")})
+        arrival = show_device({"id": state.get("device_id")
+                               or discovery.get("install_id")})
+    if arrival is not None:
+        with busy.held(panel):
+            await arrival
 
 
 def _land(state: dict[str, Any]) -> None:

@@ -30,8 +30,8 @@ from common.config_access import NetworkConfig
 from common.failures import why
 from common.i18n import t
 from common.labels import humanize
+from console import busy, game_tables, offload, stars, theme, verbs
 from console import dialog as frame
-from console import game_tables, offload, stars, theme, verbs
 from console.api import ApiClient, ApiError, local_base_url
 from console.on_page import on_page
 
@@ -251,8 +251,8 @@ async def remote_page(screen: str = "") -> None:
     ui.on("remote_release", let_go)
 
     with ui.column().classes("w-full h-full items-center justify-center gap-3") as loading:
-        ui.spinner(size="lg").classes("text-primary")
         ui.label(t("console.remote.loading")).classes("text-sm opacity-60")
+    busy.until_gone(loading)
 
     await ui.context.client.connected()
     loaded = await offload.io(_read_here)
@@ -261,7 +261,6 @@ async def remote_page(screen: str = "") -> None:
         # is then nothing to draw on. Building anyway raises out of the page function and
         # logs a stack trace for somebody having changed their mind.
         return
-    loading.delete()
 
     local_device_id = loaded["local_device_id"]
     aimable = targets(loaded["devices"], local_device_id)
@@ -401,6 +400,11 @@ async def remote_page(screen: str = "") -> None:
         await reread()
         redraw()
 
+    # `listen`, which draws what the target says, cannot run before this function next
+    # waits, so nothing reaches `redraw` before the shell below exists.
+    await reread()
+    if page.is_deleted:
+        return
     # Header, then the screen, then the tabs, in that order and inside the shell: the
     # body has to be built here rather than earlier and reparented, because a NiceGUI
     # element belongs to whatever slot was open when it was made.
@@ -410,8 +414,8 @@ async def remote_page(screen: str = "") -> None:
         body = ui.column().classes(
             "w-full grow min-h-0 gap-0 overflow-auto remote-body")
         tabs = ui.row().classes("w-full items-stretch gap-0 remote-tabs no-wrap")
-    await reread()
     redraw()
+    loading.delete()
 
 
 def _header(state: dict[str, Any], aimable: list[dict[str, Any]],

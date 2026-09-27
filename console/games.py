@@ -24,6 +24,7 @@ from common.media_specs import media_label_map
 from console import (
     art,
     art_fill,
+    busy,
     collection_adds,
     confirm,
     deeplink,
@@ -1583,7 +1584,8 @@ def view_control(library: Any, scope: str,
     to sit above the grid and the behavior needs the grid to talk to.
 
     Returns `(wire, picker, showing, describe)`. Call `wire(table)` once the grid
-    exists; the picker is handed back so a caller can hang a binding off which view is
+    exists, inside a wrapper of its own that is held busy until the view is on it; the
+    picker is handed back so a caller can hang a binding off which view is
     showing, `showing()` answers the same question for the grid's own geometry, and
     `describe()` draws the view's own line - called last, so it takes the row's full
     width and falls to the foot of the bar.
@@ -1888,7 +1890,8 @@ def view_control(library: Any, scope: str,
         # recomputed on a timer that would outlive the grid.
         for event in ("columnVisible", "sortChanged", "filterChanged"):
             table.on(event, lambda: _refresh(), args=[])
-        ui.timer(0, lambda: apply(current(), arriving), once=True)
+        wrapper = table.parent_slot.parent if table.parent_slot is not None else table
+        busy.fill(wrapper, lambda: apply(current(), arriving))
 
     return wire, picker, lambda: held["active"], describe
 
