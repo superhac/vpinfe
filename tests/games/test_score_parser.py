@@ -1,5 +1,7 @@
+import atexit
 import contextlib
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +9,7 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 _test_config_dir = Path(tempfile.mkdtemp(prefix="vpinfe-score-parser-test-"))
+atexit.register(shutil.rmtree, _test_config_dir, ignore_errors=True)
 (_test_config_dir / "roms.json").write_text(
     json.dumps(
         {
