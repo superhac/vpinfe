@@ -2565,7 +2565,13 @@ class VPinFECore {
   async #onKeyDown(e) {
     if (!this.frontendInputEnabled) return;
     if (!this.isController()) return;
-    if (this.#isTextEntry(e.target)) return;
+    if (this.#isTextEntry(e.target)) {
+      if (e.key === "Escape" && this.inputMode === "text" && !e.repeat) {
+        e.preventDefault();
+        this.#dispatchAction("back");
+      }
+      return;
+    }
 
     const token = downToken("key:" + (e.code || e.key || ""));
     if (!e.repeat) this.#noteDown(token);

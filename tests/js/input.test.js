@@ -288,6 +288,46 @@ describe("typing is typing, not input actions", () => {
     });
   }
 
+  test("Escape in a dialog's field dismisses the dialog", async () => {
+    const { vpin, press, quits } = controller();
+    vpin.contract = 2;
+    vpin.pushInputMode("text");
+    const seen = [];
+    vpin.inputHandlers.push((action) => { seen.push(action); });
+
+    const event = await press("Escape", { target: field() });
+
+    assert.deepEqual(seen, ["back"]);
+    assert.equal(event.prevented, true);
+    assert.equal(await quits(), false);
+  });
+
+  test("a letter bound to back is still typed into a dialog's field", async () => {
+    const { vpin, press } = controller();
+    vpin.contract = 2;
+    vpin.pushInputMode("text");
+    const seen = [];
+    vpin.inputHandlers.push((action) => { seen.push(action); });
+
+    const event = await press("b", { target: field() });
+
+    assert.deepEqual(seen, []);
+    assert.equal(event.prevented, false);
+  });
+
+  test("a held Escape in a dialog's field dismisses it once", async () => {
+    const { vpin, press } = controller();
+    vpin.contract = 2;
+    vpin.pushInputMode("text");
+    const seen = [];
+    vpin.inputHandlers.push((action) => { seen.push(action); });
+
+    await press("Escape", { target: field() });
+    await press("Escape", { target: field(), repeat: true });
+
+    assert.deepEqual(seen, ["back"]);
+  });
+
   test("a checkbox is not a text field, so bindings still work", async () => {
     const { vpin, press } = controller();
     vpin.contract = 2;
