@@ -6844,7 +6844,9 @@ def _table_menu_item(context: dict[str, Any], member: dict[str, Any], table_id: 
     if blocked:
         # It stays open on a click it will not act on: closing would look like the
         # choice was taken.
-        item.props("auto-close=false").tooltip(blocked)
+        item.props("auto-close=false aria-disabled=true")
+        with item:
+            ui.tooltip(blocked).classes("console-menu-tip")
     with item, ui.row().classes("items-center gap-2 no-wrap w-full"):
         if table_id:
             ui.icon(verbs.LOCKED).classes("console-menu-mark")
