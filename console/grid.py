@@ -47,6 +47,7 @@ _BY_A_PERSON = ("e => { if (String(e.source || '').startsWith('ui'))"
 # How the ids of the columns AG Grid adds for itself begin: the checkbox column, chiefly.
 _GENERATED = "ag-Grid-"
 _PIN_SIDES = ("left", "right", None)
+_BODY_AG_GRID_KEEPS_UNPINNED_PX = 50
 
 
 @dataclass
@@ -1075,24 +1076,59 @@ def _suppress_empty_menu(grid: Any, *, rows: bool, headers: bool,
     """)
 
 
+_PINNING = """(() => {
+  const grid = getElement(%(grid)d), api = grid && grid.api;
+  const col = api && api.getColumn(%(col)s);
+  const body = grid && grid.$el.querySelector('.ag-body-viewport');
+  if (!col || !body) return null;
+  const style = getComputedStyle(body);
+  const padding = style.boxSizing === 'border-box'
+    ? parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) : 0;
+  const side = to => api.getAllDisplayedColumns().filter(one => one.getPinned() === to)
+    .reduce((sum, one) => sum + one.getActualWidth(), 0);
+  return {pinned: col.getPinned(), width: col.getActualWidth(), left: side('left'),
+          right: side('right'), body: parseFloat(style.width) - padding};
+})()"""
+
+
+@dataclass(frozen=True)
+class Pinning:
+    """Whether a column is pinned, and whether the grid has room to pin it."""
+
+    pinned: bool = False
+    room: bool = True
+
+    @classmethod
+    def read(cls, measured: dict[str, Any] | None) -> Pinning:
+        """From the grid's own measures, put to the rule AG Grid unpins by. Nothing
+        measured offers the pin."""
+        if not measured:
+            return cls()
+        pinned = bool(measured.get("pinned"))
+        taken = measured["left"] + measured["right"] + (0 if pinned else measured["width"])
+        return cls(pinned, taken < measured["body"] - _BODY_AG_GRID_KEEPS_UNPINNED_PX)
+
+
+async def pinning(table: Any, col_id: str | None) -> Pinning:
+    """Asked of the grid rather than tracked beside it: a column can also be dragged in
+    and out of the pinned area, and the room changes with the window."""
+    if not col_id:
+        return Pinning()
+    return Pinning.read(await table.client.run_javascript(
+        _PINNING % {"grid": table.id, "col": json.dumps(col_id)}))
+
+
 async def header_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
                       col_id: str | None) -> None:
-    """Fill the menu for a right-click on a column header.
-
-    Whether the column is pinned is asked of the grid rather than tracked beside it: a
-    column can also be dragged in and out of the pinned area, and a local flag is then
-    wrong.
-    """
-    state_now: list[dict[str, Any]] = \
-        await table.run_grid_method("getColumnState") or []
-    entry = next((one for one in state_now if one.get("colId") == col_id), {})
+    """Fill the menu for a right-click on a column header."""
+    now = await pinning(table, col_id)
     menu.clear()
     with menu:
-        column_menu(menu, table, columns, col_id, bool(entry.get("pinned")))
+        column_menu(menu, table, columns, col_id, now)
 
 
 def column_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
-                col_id: str | None, pinned: bool) -> bool:
+                col_id: str | None, now: Pinning) -> bool:
     """Fill a context menu with what can be done to a column, or answer False.
 
     The header half of every grid's menu, in one place. Written out per grid, it is how
@@ -1106,9 +1142,15 @@ def column_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
         .classes("console-menu-header")
     ui.separator()
     # One entry that says what it will do, rather than two where one is always a no-op.
-    ui.menu_item(t("word.unpin") if pinned else t("word.pin_left"),
-                 lambda: pin(table, col_id, None if pinned else "left")) \
-        .classes("console-menu-item")
+    if now.pinned or now.room:
+        ui.menu_item(t("word.unpin") if now.pinned else t("word.pin_left"),
+                     lambda: pin(table, col_id, None if now.pinned else "left")) \
+            .classes("console-menu-item")
+    else:
+        with ui.menu_item(t("word.pin_left"), auto_close=False) \
+                .classes("console-menu-item console-menu-blocked") \
+                .props("aria-disabled=true"):
+            ui.tooltip(t("console.grid.no_room_to_pin")).classes("console-menu-tip")
     ui.menu_item(t("word.hide_column"),
                  lambda: table.run_grid_method("setColumnsVisible", [col_id], False)) \
         .classes("console-menu-item")

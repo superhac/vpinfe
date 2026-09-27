@@ -765,6 +765,7 @@
   "console.grid.all_of": "eb230f4b62b8",
   "console.grid.any_of": "725f897818a6",
   "console.grid.filter_this_list": "9d23d902b78f",
+  "console.grid.no_room_to_pin": "53a9cd7a05ee",
   "console.grid.selected_hidden": "884d41413dea",
   "console.import_dialog.always_use_one_not": "a389c1365d07",
   "console.import_dialog.could_not_import": "d8cd055cab1c",

@@ -652,18 +652,10 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     actions.on_click(fill_bulk)
 
     async def on_header_context(col_id: str | None) -> None:
-        # Asked of the grid rather than tracked here: the column can also be dragged in
-        # and out of the pinned area, and a local flag would then be wrong.
-        current: list[dict[str, Any]] = \
-            await table.run_grid_method("getColumnState") or []
-        entry = next((c for c in current if c.get("colId") == col_id), {})
-        _fill_menu(col_id=col_id, pinned=bool(entry.get("pinned")))
-
-    async def hide_column(col_id: str) -> None:
-        table.run_grid_method("setColumnsVisible", [col_id], False)
+        _fill_menu(col_id=col_id, pinning=await grid.pinning(table, col_id))
 
     def _fill_menu(row: dict | None = None, col_id: str | None = None,
-                   pinned: bool = False,
+                   pinning: grid.Pinning | None = None,
                    known: collection_adds.Read | None = None) -> None:
         """One menu, filled for whatever was right-clicked.
 
@@ -673,23 +665,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         """
         context_menu.clear()
         with context_menu:
-            if col_id and not col_id.startswith("ag-Grid-"):
-                header = next((definition.get("headerName") for definition in columns
-                               if definition.get("field") == col_id), col_id)
-                ui.item_label(str(header).replace("\n", " ")) \
-                    .props("header").classes("console-menu-header")
-                ui.separator()
-                # One entry that says what it will do, rather than two where one is
-                # always a no-op.
-                if pinned:
-                    ui.menu_item(t("word.unpin"), lambda: grid.pin(table, col_id, None)) \
-                        .classes("console-menu-item")
-                else:
-                    ui.menu_item(t("word.pin_left"),
-                                 lambda: grid.pin(table, col_id, "left")) \
-                        .classes("console-menu-item")
-                ui.menu_item(t("word.hide_column"), lambda: hide_column(col_id)) \
-                    .classes("console-menu-item")
+            if pinning is not None:
+                grid.column_menu(context_menu, table, columns, col_id, pinning)
             elif row:
                 ui.item_label(row.get("name") or "").props("header") \
                     .classes("console-menu-header")
@@ -1358,12 +1335,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     actions.on_click(fill_bulk)
 
     async def on_header_context(col_id: str | None) -> None:
-        # Asked of the grid rather than tracked here: the column can also be dragged in
-        # and out of the pinned area, and a local flag would then be wrong.
-        state_now: list[dict[str, Any]] = \
-            await table.run_grid_method("getColumnState") or []
-        entry = next((c for c in state_now if c.get("colId") == col_id), {})
-        _fill(None, col_id=col_id, pinned=bool(entry.get("pinned")))
+        _fill(None, col_id=col_id, pinning=await grid.pinning(table, col_id))
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
         # The selection feeds the bulk menu, never `on_select`: that one is about the
@@ -1470,7 +1442,8 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
             await answer
 
     def _fill(row: dict | None, col_id: str | None = None,
-              pinned: bool = False, known: collection_adds.Read | None = None) -> None:
+              pinning: grid.Pinning | None = None,
+              known: collection_adds.Read | None = None) -> None:
         """One menu, filled for whatever was right-clicked.
 
         Two menus cannot both hang off the grid wrapper, and the wrapper sees every
@@ -1478,23 +1451,8 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         """
         menu.clear()
         with menu:
-            if col_id and not col_id.startswith("ag-Grid-"):
-                header = next((definition.get("headerName")
-                               for definition in table_columns
-                               if definition.get("field") == col_id), col_id)
-                ui.item_label(str(header).replace("\n", " ")).props("header") \
-                    .classes("console-menu-header")
-                ui.separator()
-                # One entry that says what it will do, rather than two where one is
-                # always a no-op.
-                ui.menu_item(
-                    t("word.unpin") if pinned else t("word.pin_left"),
-                    lambda c=col_id, p=pinned: grid.pin(table, c, None if p else "left")) \
-                    .classes("console-menu-item")
-                ui.menu_item(t("word.hide_column"),
-                             lambda c=col_id: table.run_grid_method(
-                                 "setColumnsVisible", [c], False)) \
-                    .classes("console-menu-item")
+            if pinning is not None:
+                grid.column_menu(menu, table, table_columns, col_id, pinning)
             elif row:
                 ui.item_label(_table_label(row)).props("header") \
                     .classes("console-menu-header")

@@ -318,10 +318,7 @@ def build(collections: list[dict[str, Any]], library: Any,
         _fill(row)
 
     async def on_header_context(col_id: str | None) -> None:
-        state_now: list[dict[str, Any]] = \
-            await table.run_grid_method("getColumnState") or []
-        entry = next((c for c in state_now if c.get("colId") == col_id), {})
-        _fill(None, col_id=col_id, pinned=bool(entry.get("pinned")))
+        _fill(None, col_id=col_id, pinning=await grid.pinning(table, col_id))
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
         table: ui.aggrid = grid.build(columns, built, SCOPE, on_selected, on_context,
@@ -335,23 +332,12 @@ def build(collections: list[dict[str, Any]], library: Any,
             rerender()
 
     def _fill(row: dict | None, col_id: str | None = None,
-              pinned: bool = False) -> None:
+              pinning: grid.Pinning | None = None) -> None:
         """One menu, filled for whatever was right-clicked."""
         menu.clear()
         with menu:
-            if col_id and not col_id.startswith("ag-Grid-"):
-                header = next((d.get("headerName") for d in columns
-                               if d.get("field") == col_id), col_id)
-                ui.item_label(str(header)).props("header").classes("console-menu-header")
-                ui.separator()
-                ui.menu_item(
-                    t("word.unpin") if pinned else t("word.pin_left"),
-                    lambda c=col_id, p=pinned: grid.pin(table, c, None if p else "left")) \
-                    .classes("console-menu-item")
-                ui.menu_item(t("word.hide_column"),
-                             lambda c=col_id: table.run_grid_method(
-                                 "setColumnsVisible", [c], False)) \
-                    .classes("console-menu-item")
+            if pinning is not None:
+                grid.column_menu(menu, table, columns, col_id, pinning)
             elif row:
                 panel.verb_menu(menu, row["name"],
                                 moves(row["name"])

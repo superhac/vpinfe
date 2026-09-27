@@ -73,7 +73,7 @@ class MenuItemsAreDressed(unittest.TestCase):
             for path in CONSOLE.glob("*.py")
             for node in ast.walk(trees.tree_for(path))
             if isinstance(node, ast.Call) and getattr(node.func, "attr", "") in DRAWN)
-        self.assertGreater(seen, 30)
+        self.assertGreater(seen, 25)
 
 
 if __name__ == "__main__":
