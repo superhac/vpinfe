@@ -1111,6 +1111,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             if purpose and not purpose.startswith("console.purpose."):
                 ui.label(purpose).classes("console-page-purpose truncate")
 
+    def light_nav() -> None:
+        """The page you are on stays lit while you are on it."""
+        for key, row in destinations.items():
+            row.classes(add="console-nav-active") if key == state["view"] \
+                else row.classes(remove="console-nav-active")
+
     def render() -> None:
         # A game shown beside a different destination is stale by definition.
         clear_workbench()
@@ -1123,10 +1129,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         # fill it, so the strip would be a control that reopens an empty panel.
         splitter.classes(remove="console-no-pane") if state["view"] in WORKBENCH_VIEWS \
             else splitter.classes(add="console-no-pane")
-        # The page you are on stays lit while you are on it.
-        for key, row in destinations.items():
-            row.classes(add="console-nav-active") if key == state["view"] \
-                else row.classes(remove="console-nav-active")
+        light_nav()
         content.clear()
         with content:
             page_header()
@@ -1239,7 +1242,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                                              if item.reason)))
 
     def redraw() -> None:
-        read_then_render(state, library, content, render, mark_system)
+        read_then_render(state, library, content, render, mark_system, light_nav)
 
     uploads.install()
     row_drag.install()
@@ -1325,19 +1328,21 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         arrival = show_device({"id": state.get("device_id")
                                or discovery.get("install_id")})
     if arrival is not None:
-        with busy.held(panel):
-            await arrival
+        await arrival
 
 
 def read_then_render(state: dict[str, Any], library: Library, content: ui.element,
-                     render: Callable[[], None], mark_system: Callable[[], None]) -> None:
-    """Render, first reading anything the new subject needs, with `content` busy from now
-    until it is drawn: what it shows stays up while the read runs.
+                     render: Callable[[], None], mark_system: Callable[[], None],
+                     light: Callable[[], None]) -> None:
+    """Light the view's rail row now, then render it, first reading anything it needs,
+    with `content` busy from now until it is drawn: what it shows stays up, dimmed under
+    the spinner, while the read runs.
 
     The by-file lens is a second walk of every folder, so it is read when somebody asks
     for it rather than at startup - and off the loop, because render() runs on it and the
     client refuses an HTTP call there.
     """
+    light()
     if state["view"] == "settings":
         # Asked again on every draw, which is when a path may just have been fixed - and
         # off the loop, because it stats the disk and a share that has gone away is

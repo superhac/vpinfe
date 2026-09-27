@@ -1491,6 +1491,15 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
    last in its region. */
 @keyframes console-busy-late { from { visibility: hidden; height: 0; padding: 0; } }
 .console-busy { order: 1; animation: console-busy-late 0s 250ms backwards; }
+/* Over content that stays up until what replaces it has been read: the content dims in
+   place and the spinner sits over its middle, from the same quarter second. Out of the
+   flow, so nothing under it moves. */
+@keyframes console-busy-dim { to { opacity: 0.4; } }
+:has(> .console-busy--over) { position: relative; }
+:has(> .console-busy--over) > :not(.console-busy--over) {
+  animation: console-busy-dim 0s 250ms forwards;
+}
+.console-busy--over { position: absolute; inset: 0; z-index: 2; padding: 0; }
 /* The panel toggles match: nav and workbench are the same control, same color. */
 .console-panel-header .q-icon { color: var(--ink-2); }
 .console-nav-title {

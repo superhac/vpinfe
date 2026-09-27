@@ -26,12 +26,13 @@ class _Held:
 _HELD: weakref.WeakKeyDictionary[ui.element, _Held] = weakref.WeakKeyDictionary()
 
 
-def _hold(region: ui.element) -> None:
+def _hold(region: ui.element, *, over: bool = False) -> None:
     region.props("aria-busy=true")
     held = _HELD.get(region)
     if held is None or held.shown.is_deleted:
+        treatment = " items-center console-busy--over" if over else ""
         with region:
-            shown = ui.row().classes("w-full justify-center py-8 console-busy") \
+            shown = ui.row().classes(f"w-full justify-center py-8 console-busy{treatment}") \
                 .props("aria-hidden=true")
             with shown:
                 ui.spinner(size="lg").classes("text-primary")
@@ -57,10 +58,11 @@ def until_gone(region: ui.element) -> None:
 
 
 @contextmanager
-def held(region: ui.element) -> Iterator[None]:
+def held(region: ui.element, *, over: bool = False) -> Iterator[None]:
     """`region` busy while the block runs, and not after it - returned, raised or
-    cancelled."""
-    _hold(region)
+    cancelled. `over` for a region whose content stays up until the block replaces it:
+    that content dims under the spinner rather than having it put after it."""
+    _hold(region, over=over)
     try:
         yield
     finally:
@@ -87,9 +89,9 @@ def fill(region: ui.element, work: Callable[[], Awaitable[Any]]) -> None:
 
 def start(region: ui.element, work: Callable[[], Awaitable[Any]]) -> None:
     """`work` begun now, off the caller, with `region` busy from now until it ends: for
-    an act that reads before it draws again, where what `region` shows stays up until
-    `work` replaces it."""
-    _hold(region)
+    an act that reads before it draws again, where what `region` shows stays up, dimmed
+    under the spinner, until `work` replaces it."""
+    _hold(region, over=True)
 
     async def run() -> None:
         try:

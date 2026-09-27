@@ -42,6 +42,11 @@ def _spinners(region: ui.element) -> int:
     return sum(isinstance(one, ui.spinner) for one in region.descendants())
 
 
+def _over(region: ui.element) -> bool:
+    rows = [one for one in region.descendants() if "console-busy" in one.classes]
+    return bool(rows) and all("console-busy--over" in one.classes for one in rows)
+
+
 def _redraws(region: ui.element) -> Callable[[], None]:
     def render() -> None:
         region.clear()
@@ -67,12 +72,15 @@ class ARailClick(unittest.IsolatedAsyncioTestCase):
 
     async def _arrive(self, view: str, library: Any) -> None:
         content = _region()
-        render = Mock(side_effect=_redraws(content))
+        render, light = Mock(side_effect=_redraws(content)), Mock()
 
-        page.read_then_render({"view": view}, library, content, render, Mock())
+        page.read_then_render({"view": view}, library, content, render, Mock(), light)
 
-        self.assertEqual((True, [OLD]), (_busy(content), _says(content)),
-                         "the old view is up and unmarked while the new one reads")
+        light.assert_called_once_with()
+        self.assertEqual((True, True, [OLD]),
+                         (_busy(content), _over(content), _says(content)),
+                         "the old view is up, and busy under the spinner, while the new "
+                         "one reads")
         render.assert_not_called()
         self.read.set()
         await _until(lambda: render.called and not _busy(content))
@@ -103,7 +111,7 @@ class ARailClick(unittest.IsolatedAsyncioTestCase):
         library.has_games_grid.return_value = True
 
         page.read_then_render({"view": "games"}, library, content, _redraws(content),
-                              Mock())
+                              Mock(), Mock())
 
         self.assertEqual((False, [NEW]), (_busy(content), _says(content)))
 
@@ -136,7 +144,8 @@ class APaneBuild(unittest.IsolatedAsyncioTestCase):
                         build(pane, _region(), Mock(), "next", {}))
                     await asyncio.sleep(0)
 
-                    self.assertEqual((True, [OLD]), (_busy(pane), _says(pane)))
+                    self.assertEqual((True, True, [OLD]),
+                                     (_busy(pane), _over(pane), _says(pane)))
                     gate.set()
                     await building
 
@@ -163,6 +172,20 @@ class APaneBuild(unittest.IsolatedAsyncioTestCase):
             await two
 
         self.assertEqual((False, [NEW, NEW]), (_busy(pane), drawn))
+
+
+class Treatments(unittest.TestCase):
+    def test_a_region_being_filled_keeps_its_spinner_after_what_it_has(self) -> None:
+        region = _region()
+
+        with busy.held(region):
+            self.assertFalse(_over(region))
+
+    def test_content_that_stays_up_takes_the_spinner_over_it(self) -> None:
+        region = _region()
+
+        with busy.held(region, over=True):
+            self.assertTrue(_over(region))
 
 
 class OverlappingWork(unittest.TestCase):

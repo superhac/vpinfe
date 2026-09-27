@@ -514,7 +514,7 @@ async def _pane_build(container: ui.column, state: dict[str, Any],
     """
     lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
     state["build_seq"] = mine = state.get("build_seq", 0) + 1
-    with busy.held(container):
+    with busy.held(container, over=True):
         async with lock:
             if state["build_seq"] != mine:
                 return
