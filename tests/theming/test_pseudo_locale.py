@@ -16,6 +16,7 @@ import asyncio
 import json
 import re
 import unittest
+from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -101,6 +102,46 @@ async def _picker_text(walk: ConsoleWalk) -> str:
     await walk.act(clicked(walk.browser, f"(b => b && (b.click(), true))({_PICKER})"),
                    until=_MENU_OPEN)
     return await walk.browser.evaluate(_PICKER_TEXT) or ""
+
+
+# Core has its words once `t` answers from the catalog rather than with the key.
+_READY = ("document.body.dataset.ready === 'true'"
+          " && window.vpin.t('word.all') !== 'word.all'")
+_IDLE = "Object.keys(window.vpin._pendingCalls).length === 0"
+_OVERLAY_S = 30.0
+
+
+def _drawn(frame: str) -> str:
+    return ("(f => !!f && f.style.display === 'block' && !!f.contentDocument"
+            " && !!f.contentDocument.querySelector('.menu-item.selected'))"
+            f"(document.getElementById({json.dumps(frame)})) && {_IDLE}")
+
+
+async def _ready(browser: BrowserSession, instance: LiveInstance) -> None:
+    await browser.navigate(instance.theme_url("playfield"))
+    await browser.wait_for(_READY, timeout=90.0)
+
+
+async def _open(browser: BrowserSession, overlay: str, frame: str) -> None:
+    if await browser.evaluate(_drawn(frame)):
+        raise AssertionError(f"{overlay} reads as drawn before it was opened")
+    await browser.evaluate(f"window.vpin.toggleOverlay({json.dumps(overlay)})")
+    await browser.wait_for(_drawn(frame), timeout=_OVERLAY_S)
+
+
+async def _close(browser: BrowserSession, overlay: str) -> None:
+    await browser.evaluate(f"window.vpin.toggleOverlay({json.dumps(overlay)})")
+    await browser.wait_for("window.vpin.overlay === null", timeout=_OVERLAY_S)
+
+
+async def _changed(browser: BrowserSession, expression: str, before: str) -> str:
+    """`expression` once it is no longer `before` - or still `before` after
+    `_OVERLAY_S`, for the assertion to say so."""
+    with suppress(TimeoutError):
+        return await browser.wait_for(
+            f"(now => now !== {json.dumps(before)} && now)({expression})",
+            timeout=_OVERLAY_S)
+    return await browser.evaluate(expression)
 
 
 class PseudoLocaleTests(unittest.TestCase):
@@ -209,19 +250,15 @@ class FrontendPseudoLocaleTests(unittest.TestCase):
         async def look(instance) -> dict[str, list[str]]:
             found: dict[str, list[str]] = {}
             async with BrowserSession(chromium_path()) as browser:
-                await browser.navigate(instance.theme_url("playfield"))
-                await browser.wait_for("document.body.dataset.ready === 'true'",
-                                       timeout=90.0)
+                await _ready(browser, instance)
                 for overlay, frame in (("menu", "menu-frame"),
                                        ("collectionMenu", "collection-menu-frame")):
-                    await browser.evaluate(f"window.vpin.toggleOverlay('{overlay}')")
-                    await asyncio.sleep(3)
+                    await _open(browser, overlay, frame)
                     text = await browser.evaluate(self.READ % frame) or ""
                     leaked = sorted({w.lower() for w in ASCII_WORD.findall(text)})
                     if leaked:
                         found[overlay] = leaked
-                    await browser.evaluate(f"window.vpin.toggleOverlay('{overlay}')")
-                    await asyncio.sleep(1)
+                    await _close(browser, overlay)
             return found
 
         with TemporaryDirectory() as tmp:
@@ -257,20 +294,15 @@ class FrontendPseudoLocaleTests(unittest.TestCase):
 
         async def look(instance) -> tuple:
             async with BrowserSession(chromium_path()) as browser:
-                await browser.navigate(instance.theme_url("playfield"))
-                await browser.wait_for("document.body.dataset.ready === 'true'",
-                                       timeout=90.0)
-                await browser.evaluate("window.vpin.toggleOverlay('collectionMenu')")
-                await asyncio.sleep(3)
+                await _ready(browser, instance)
+                await _open(browser, "collectionMenu", "collection-menu-frame")
                 said = await browser.evaluate(line)
 
                 told = await browser.evaluate(empty_it)
-                await asyncio.sleep(1)
-                bare = await browser.evaluate(line)
+                bare = await _changed(browser, line, said)
 
                 await browser.evaluate(arrive)
-                await asyncio.sleep(1)
-                return said, bare, await browser.evaluate(line), told
+                return said, bare, await _changed(browser, line, bare), told
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
