@@ -17,7 +17,7 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.games.asset_resolver import apply_audit, resolve_rom_chain
-from common.host import pinmame_catalog
+from common.host import pinmame_catalog, pinmame_worker
 
 
 class LocatorTests(unittest.TestCase):
@@ -159,12 +159,14 @@ class RealLibraryTests(unittest.TestCase):
     """Runs against the actual shipped library where one exists, and self-skips
     elsewhere - CI has no VPX install, and that is the availability story."""
 
-    def _run_worker(self, roms_dir: str, *names: str) -> dict:
+    def _run_worker(self, roms_dir: str, *names: str,
+                    env: dict[str, str] | None = None) -> dict:
         repo = Path(__file__).resolve().parents[2]
         proc = subprocess.run(
             [sys.executable, "-m", "common.host.pinmame_worker",
              _shipped_library(), roms_dir, *names],
             capture_output=True, text=True, timeout=60, cwd=str(repo),
+            env={**os.environ, **env} if env else None,
         )
         return json.loads(proc.stdout)
 
@@ -177,12 +179,44 @@ class RealLibraryTests(unittest.TestCase):
         self.assertIn("Medieval Madness", result["mm_109c"]["description"])
         self.assertFalse(result["GTB2001_1971"]["catalog"])
 
+    def test_a_lookup_removes_its_vpm_home_when_it_ends(self) -> None:
+        with TemporaryDirectory() as roms, TemporaryDirectory() as temp_home:
+            result = self._run_worker(roms, "afm_113b", env={"TMPDIR": temp_home})
+            left = os.listdir(temp_home)
+
+        self.assertTrue(result["afm_113b"]["catalog"])
+        self.assertEqual([], left)
+
     def test_an_empty_roms_folder_audits_as_not_found(self) -> None:
         with TemporaryDirectory() as tmp:
             result = self._run_worker(tmp, "afm_113b")
 
         self.assertTrue(result["afm_113b"]["catalog"])
         self.assertFalse(result["afm_113b"]["found"])
+
+
+class WorkerVpmHomeTests(unittest.TestCase):
+    """No shipped library needed: `ctypes.CDLL` is mocked, so this runs everywhere."""
+
+    def test_a_raised_lookup_still_removes_its_vpm_home(self) -> None:
+        made: list[str] = []
+        real_mkdtemp = pinmame_worker.tempfile.mkdtemp
+
+        def spying_mkdtemp(*args, **kwargs):
+            path = real_mkdtemp(*args, **kwargs)
+            made.append(path)
+            return path
+
+        fake_lib = mock.Mock()
+        fake_lib.PinmameGetGame.side_effect = RuntimeError("worker crashed")
+        with mock.patch.object(pinmame_worker.ctypes, "CDLL", return_value=fake_lib), \
+                mock.patch.object(pinmame_worker.tempfile, "mkdtemp",
+                                  side_effect=spying_mkdtemp), \
+                self.assertRaises(RuntimeError):
+            pinmame_worker.lookup("ignored", "ignored", ["afm_113b"])
+
+        self.assertEqual(1, len(made))
+        self.assertFalse(os.path.exists(made[0]))
 
 
 if __name__ == "__main__":

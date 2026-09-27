@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import ctypes
 import json
+import shutil
 import sys
 import tempfile
 from typing import Any
@@ -49,33 +50,38 @@ def lookup(lib_path: str, roms_dir: str, names: list[str]) -> dict:
     config = PinmameConfig()
     ctypes.memset(ctypes.byref(config), 0, ctypes.sizeof(config))
     # The library insists on a writable vpm home even for catalog reads.
-    vpm_home = tempfile.mkdtemp(prefix="vpinfe-pinmame-").encode()
-    ctypes.memmove(config.vpmPath, vpm_home, min(len(vpm_home), PINMAME_MAX_PATH - 1))
-    lib.PinmameSetConfig(ctypes.byref(config))
-    lib.PinmameSetPath(FILE_TYPE_ROMS, roms_dir.encode())
+    vpm_home = tempfile.mkdtemp(prefix="vpinfe-pinmame-")
+    try:
+        encoded_home = vpm_home.encode()
+        ctypes.memmove(config.vpmPath, encoded_home,
+                       min(len(encoded_home), PINMAME_MAX_PATH - 1))
+        lib.PinmameSetConfig(ctypes.byref(config))
+        lib.PinmameSetPath(FILE_TYPE_ROMS, roms_dir.encode())
 
-    hit: list[dict] = []
+        hit: list[dict] = []
 
-    def on_game(game_ptr: Any, _user: Any) -> None:
-        game = game_ptr.contents
-        hit.append({
-            "clone_of": (game.clone_of or b"").decode() or None,
-            "description": (game.description or b"").decode(),
-            "year": (game.year or b"").decode(),
-            "manufacturer": (game.manufacturer or b"").decode(),
-            "found": bool(game.found),
-        })
+        def on_game(game_ptr: Any, _user: Any) -> None:
+            game = game_ptr.contents
+            hit.append({
+                "clone_of": (game.clone_of or b"").decode() or None,
+                "description": (game.description or b"").decode(),
+                "year": (game.year or b"").decode(),
+                "manufacturer": (game.manufacturer or b"").decode(),
+                "found": bool(game.found),
+            })
 
-    callback = game_callback(on_game)
-    result = {}
-    for name in names:
-        hit.clear()
-        status = lib.PinmameGetGame(name.encode(), callback, None)
-        if status == STATUS_OK and hit:
-            result[name] = {"catalog": True, **hit[0]}
-        else:
-            result[name] = {"catalog": False}
-    return result
+        callback = game_callback(on_game)
+        result = {}
+        for name in names:
+            hit.clear()
+            status = lib.PinmameGetGame(name.encode(), callback, None)
+            if status == STATUS_OK and hit:
+                result[name] = {"catalog": True, **hit[0]}
+            else:
+                result[name] = {"catalog": False}
+        return result
+    finally:
+        shutil.rmtree(vpm_home, ignore_errors=True)
 
 
 def main() -> int:
