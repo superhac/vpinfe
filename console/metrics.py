@@ -114,7 +114,7 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
             _draw_cards(cards, held)
 
     busy.fill(readings_page, tick)
-    ui.timer(EVERY_SECONDS, tick)
+    ui.timer(EVERY_SECONDS, tick, immediate=False)
     _draw_cards(cards, held)
 
 
