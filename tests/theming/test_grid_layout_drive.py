@@ -176,11 +176,11 @@ class GridLayoutDrive(unittest.TestCase):
             await window(WIDE)
             await load("/console?view=games")
             seen["games_wide"] = await browser.evaluate(NAME_DRAWN)
-            await window(NARROW)
-            seen["games_narrowed"] = await browser.evaluate(NAME_DRAWN)
             if await header_menu("name"):
                 await written_by(lambda: browser.click(".q-menu .console-menu-item"))
             seen["games_pinned"] = scopes()
+            await window(NARROW)
+            seen["games_narrowed"] = await browser.evaluate(NAME_DRAWN)
             await window(WIDE)
             seen["games_widened"] = await browser.evaluate(NAME_DRAWN)
 
@@ -209,11 +209,10 @@ class GridLayoutDrive(unittest.TestCase):
             seen["resized"] = (before, scopes())
             seen["resized_on_screen"] = await browser.evaluate(PINNED_ON_SCREEN)
 
+            await window(WIDE)
             if await header_menu("kind"):
                 await written_by(click_text(".q-menu .console-menu-item", "Pin left"))
             seen["pinned"] = scopes()
-
-            await window(WIDE)
             seen["resized_widened"] = await browser.evaluate(NAME_DRAWN)
             seen["reloaded"] = await unchanged_by(lambda: load(BY_LINK))
             seen["resized_reloaded"] = await browser.evaluate(NAME_DRAWN)
