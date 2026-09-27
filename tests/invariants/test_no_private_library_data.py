@@ -73,6 +73,7 @@ def _fixture(path: pathlib.Path) -> bool:
 
 
 class AssetTests(unittest.TestCase):
+    @unittest.skipIf(not (REPO / ".git").exists(), "not a git checkout")
     def test_no_committed_media_is_a_real_file(self) -> None:
         """Every media fixture is a stand-in, not somebody's artwork."""
         too_big = []
@@ -91,6 +92,7 @@ class AssetTests(unittest.TestCase):
 
 
 class IdentifierTests(unittest.TestCase):
+    @unittest.skipIf(not (REPO / ".git").exists(), "not a git checkout")
     def test_no_tracked_file_names_a_private_machine_or_person(self) -> None:
         """A path off somebody's drive is metadata about them, even in a comment."""
         found = []

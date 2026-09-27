@@ -148,6 +148,7 @@ class DocPathReferenceTests(unittest.TestCase):
 
         self.assertEqual(missing, [], "\n".join(missing))
 
+    @unittest.skipIf(not (REPO_ROOT / ".git").exists(), "not a git checkout")
     def test_every_bare_source_filename_a_doc_cites_exists(self) -> None:
         # Tracked files only. rglob walks .venv too, where NiceGUI ships its own
         # elements/table.py - which was enough to make a dead `table.py` reference look
@@ -447,6 +448,7 @@ class CitedMarkdownTests(unittest.TestCase):
     # second is a name inside a fixture archive, picked because nothing claims it.
     KNOWN_ABSENT = {"FileLayout.md", "notes.md"}
 
+    @unittest.skipIf(not (REPO_ROOT / ".git").exists(), "not a git checkout")
     def test_every_markdown_file_a_tracked_file_names_is_in_the_tree(self) -> None:
         listed = subprocess.run(["git", "-C", str(REPO_ROOT), "ls-files"],
                                 capture_output=True, text=True, check=True).stdout.split()

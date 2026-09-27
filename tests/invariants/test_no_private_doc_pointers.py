@@ -128,6 +128,7 @@ def _offenders() -> list[str]:
 
 
 class PrivateDocPointerTests(unittest.TestCase):
+    @unittest.skipIf(not (REPO / ".git").exists(), "not a git checkout")
     def test_nothing_tracked_points_at_an_unpublished_note(self) -> None:
         """Say the reason. A pointer a reader cannot follow is worse than silence."""
         self.assertEqual(_offenders(), [], "\n".join([

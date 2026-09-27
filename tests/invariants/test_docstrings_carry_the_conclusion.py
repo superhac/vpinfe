@@ -104,6 +104,7 @@ def _offenders() -> list[str]:
 
 
 class DocstringsCarryTheConclusionTests(unittest.TestCase):
+    @unittest.skipIf(not (REPO / ".git").exists(), "not a git checkout")
     def test_no_docstring_argues_from_history_or_a_measurement(self) -> None:
         """What changed and what proved it belong in the commit that changed it."""
         found = _offenders()
