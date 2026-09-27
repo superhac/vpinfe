@@ -14,6 +14,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from tests.support.browser_session import BrowserSession, chromium_path
+from tests.support.console_walk import ConsoleWalk
 from tests.support.library import write_game
 from tests.support.live_instance import LiveInstance
 
@@ -53,10 +54,7 @@ class IdentifierInkTests(unittest.TestCase):
     def _look(self, instance, unpin=False):
         async def run():
             async with BrowserSession(chromium_path()) as browser:
-                await browser.navigate(instance.console_url("/console?view=games"))
-                await browser.wait_for(
-                    "document.querySelectorAll('.ag-cell').length > 2", timeout=90.0)
-                await asyncio.sleep(3)
+                await ConsoleWalk(browser, instance).visit("/console?view=games")
                 if unpin:
                     await browser.evaluate(OPEN_MENU)
                     await asyncio.sleep(1.5)
