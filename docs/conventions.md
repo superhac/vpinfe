@@ -502,7 +502,8 @@ until then the chain reports `required: null`.
 
 A catalog string that says *cabinet*, *machine* or *build* fails
 `tests/invariants/test_screen_words.py` unless its key is listed there with what the word
-names in it. One that says *install* as a noun fails `tests/invariants/test_install_word.py`:
+names in it. The same check reads every summary and description in the API's OpenAPI
+document and each capability description discovery serves, listed by where each sits. One that says *install* as a noun fails `tests/invariants/test_install_word.py`:
 the verb passes when it reads as one (*Install unar from your package manager.*, *Could not
 install*), and anything else is listed there with why.
 
