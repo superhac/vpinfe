@@ -121,8 +121,20 @@ class TheViews(unittest.TestCase):
                          [one.name for one in self.built])
 
     def test_everything_is_what_the_cabinet_shows(self) -> None:
-        self.assertEqual(("icon", "name", "kind", "count", "order"), self.built[0].columns)
+        self.assertEqual(("name", "kind", "count", "order"), self.built[0].columns)
         self.assertEqual({}, self.built[0].filters)
+
+    def test_the_picture_is_in_the_name_and_has_no_column_of_its_own(self) -> None:
+        self.assertNotIn("icon", self.fields)
+        self.assertEqual([], [one.name for one in self.built if "icon" in one.columns])
+
+    def test_a_saved_view_naming_the_picture_column_shows_the_rest(self) -> None:
+        saved = views.from_record({"id": "mine", "name": "Mine",
+                                   "columns": ["icon", "name", "kind"]})
+
+        self.assertEqual(["name", "kind"],
+                         views.visible_columns(saved, [one["field"]
+                                                       for one in collections.COLUMNS]))
 
     def test_needs_attention_filters_on_a_column_the_grid_has(self) -> None:
         wanted = self.built[1]

@@ -1,4 +1,4 @@
-"""The picture beside a game or table's name in the Games, Tables, Media and Assets grids.
+"""The picture beside a name in the Games, Tables, Media, Assets and Collections grids.
 
 A real library on disk, read over the API the way the Console reads it, and each grid
 drawn in-process from what that read gave.
@@ -11,6 +11,7 @@ import io
 import os
 import unittest
 from collections.abc import Callable
+from tempfile import TemporaryDirectory
 from typing import Any
 from unittest import mock
 
@@ -20,10 +21,11 @@ from starlette.testclient import TestClient
 
 import httpapi
 from common import icons
-from common.games import game_repository
+from common.games import collection_ops, collections_service, game_repository
+from common.games.collection_store import CollectionStore
 from common.games.locations import KIND_ROOT, Location
 from common.paths import get_ini_config
-from console import assets, games, grid, media, page, themes
+from console import assets, collections, games, grid, media, page, themes
 from console.api import ApiClient
 from console.data import Library
 from tests.support.library import TempTree, game_info, write_game
@@ -32,8 +34,9 @@ TWO = "Two Tables (Maker 2001)"
 PLAIN = "Plain Wheel (Maker 2002)"
 BARE = "No Art (Maker 2003)"
 TWO_ID, PLAIN_ID, BARE_ID = "gameTwo001", "gamePlain1", "gameBare01"
+PICTURED, UNPICTURED = "Pictured", "Unpictured"
 RED, BLUE, GREEN, WHITE = (200, 0, 0), (0, 0, 200), (0, 160, 0), (255, 255, 255)
-GRIDS = ("games", "tables", "media", "assets")
+GRIDS = ("games", "tables", "media", "assets", "collections")
 # The 80px frame and the 12px gap after it.
 ROOM_PX = 92
 
@@ -113,6 +116,22 @@ class _Drawn(TempTree):
 
         self.http = TestClient(httpapi.create_api_app())
         self.client = _OverTheApi(self.http)
+        self._collections()
+
+    def _collections(self) -> None:
+        held = TemporaryDirectory()
+        self.addCleanup(held.cleanup)
+        store = CollectionStore(os.path.join(held.name, "collections.ini"))
+        for module in (collection_ops, collections_service):
+            patcher = mock.patch.object(module, "get_collections_manager", lambda: store)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        for name in (PICTURED, UNPICTURED):
+            self.http.post("/collections", json={"name": name}).raise_for_status()
+        self.http.put(f"/collections/{PICTURED}/image",
+                      files={"file": ("pictured.png", _png(RED), "image/png")}) \
+            .raise_for_status()
+        self.addCleanup(self.http.delete, f"/collections/{PICTURED}/image")
 
     def _list_art(self, value: str) -> None:
         self._write_list_art(value)
@@ -152,6 +171,9 @@ class _Drawn(TempTree):
                                          lambda _row: None, {"view": "media"}),
             "assets": lambda: assets.build(library.asset_rows(), library,
                                            lambda _row: None, {"view": "assets"}),
+            "collections": lambda: collections.build(library.collections(), library,
+                                                     lambda _row: None,
+                                                     {"view": "collections"}),
         }
         holder = ui.card()
 
@@ -193,7 +215,7 @@ class _Drawn(TempTree):
 
 
 class ArtBesideTheName(_Drawn):
-    def test_every_grid_keeps_its_56px_rows(self) -> None:
+    def test_every_grid_draws_56px_rows(self) -> None:
         for view in GRIDS:
             with self.subTest(grid=view):
                 table = self._drawn(view)
@@ -259,9 +281,33 @@ class ArtBesideTheName(_Drawn):
     def test_a_kind_media_kinds_switches_off_draws_no_frame(self) -> None:
         self._hide_media_kinds("wheel")
 
-        rows = self._drawn("games").options["rowData"]
+        for view in ("games", "collections"):
+            with self.subTest(grid=view):
+                rows = self._drawn(view).options["rowData"]
+                self.assertEqual([row for row in rows if "art" in row], [])
 
-        self.assertEqual([row for row in rows if "art" in row], [])
+
+class ACollectionCarriesItsOwnPicture(_Drawn):
+    def test_whatever_kind_is_chosen(self) -> None:
+        self._list_art("backglass")
+
+        rows = self._rows(self._drawn("collections"))
+
+        self.assertEqual(self._color(rows[PICTURED]["art"]), RED)
+
+    def test_or_its_bookmark_where_it_has_none(self) -> None:
+        table = self._drawn("collections")
+
+        self.assertEqual(self._rows(table)[UNPICTURED]["art"], "")
+        self.assertIn("collections_bookmark", self._name_column(table)[":cellRenderer"])
+
+    def test_its_rows_go_back_to_42px_with_art_off(self) -> None:
+        self._list_art("none")
+
+        table = self._drawn("collections")
+
+        self.assertEqual(table.options["rowHeight"], 42)
+        self.assertNotIn("console-grid-two-line", table.classes)
 
 
 class TheArtIsReadBeforeTheDraw(_Drawn):

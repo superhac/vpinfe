@@ -567,15 +567,6 @@ body::before {
    square logo both sit in the same box. */
 .console-slot-image { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-/* A collection's picture in the list. Small and contained: it identifies a row, it is
-   not the row. */
-.console-collection-cell {
-  height: 30px; max-width: 44px;
-  object-fit: contain;
-  display: block;
-  margin: 3px auto;
-}
-
 /* The grip on an arrangeable row. `grab` rather than `move`, because the row is being
    picked up rather than pushed around, and `touch-action: none` or the browser scrolls
    the panel instead of letting the pointer handler have the drag. */

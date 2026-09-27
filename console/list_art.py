@@ -57,6 +57,14 @@ def address(row: dict[str, Any]) -> str:
                      version=str(version), size=art.CELL)
 
 
+def collection(row: dict[str, Any]) -> str:
+    """Where a collection's own picture is served at list size, or "" where it has none."""
+    if not row.get("image"):
+        return ""
+    return art.collection(str(row.get("name") or ""), version=row.get("image_version"),
+                          size=art.CELL)
+
+
 def by_game(rows: list[dict[str, Any]]) -> dict[str, str]:
     """Each game's art from the tables listing: its default table's, else its first's."""
     shown: dict[str, str] = {}

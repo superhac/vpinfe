@@ -13,6 +13,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import quote
 
+from console import collections, grid
 from tests.support.browser_session import BrowserSession, chromium_path
 from tests.support.library import game_info, write_game
 from tests.support.live_instance import LiveInstance
@@ -118,6 +119,8 @@ class GridLayoutDrive(unittest.TestCase):
             seen["narrow_on_screen"] = await browser.evaluate(PINNED_ON_SCREEN)
 
             before = scopes()
+            await browser.evaluate(API + ".ensureColumnVisible('name', 'end')")
+            await asyncio.sleep(0.5)
             x, y = await browser.wait_for(EDGE_OF % "name")
             await mouse("mouseMoved", x, y)
             await mouse("mousePressed", x, y, held=True)
@@ -129,7 +132,9 @@ class GridLayoutDrive(unittest.TestCase):
             seen["resized"] = (before, scopes())
             seen["resized_on_screen"] = await browser.evaluate(PINNED_ON_SCREEN)
 
-            x, y = await browser.wait_for(HEADER_OF % "icon")
+            await browser.evaluate(API + ".ensureColumnVisible('kind')")
+            await asyncio.sleep(0.5)
+            x, y = await browser.wait_for(HEADER_OF % "kind")
             for kind in ("mousePressed", "mouseReleased"):
                 await mouse(kind, x, y, button="right")
             await click_text(".q-menu .console-menu-item", "Pin left")
@@ -166,12 +171,18 @@ class GridLayoutDrive(unittest.TestCase):
         layout = self._layout(after)
         self.assertEqual(["widths"], sorted(layout))
         self.assertEqual(["name"], sorted(layout["widths"]))
-        self.assertLess(layout["widths"]["name"], 240)
+        self.assertLess(layout["widths"]["name"], _declared("name"))
         self.assertIsNone(self.seen["resized_on_screen"][SELECTION])
 
     def test_pinning_from_the_header_menu_is_saved(self) -> None:
         layout = self._layout(self.seen["pinned"])
-        self.assertEqual({"icon": "left"}, layout["pins"])
+        self.assertEqual({"kind": "left"}, layout["pins"])
+
+
+def _declared(field: str) -> int:
+    """The width a fresh instance declares, which draws art in its lists."""
+    return next(one["width"] for one in grid.with_art(collections.COLUMNS, True)
+                if one["field"] == field)
 
 
 if __name__ == "__main__":

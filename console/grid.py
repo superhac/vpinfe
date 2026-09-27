@@ -583,6 +583,7 @@ TWO_LINE_CLASS = "console-cell-two-line"
 FILE_CLASS = "console-file-name"
 FILE_LINE_CLASS = "console-cell-said-file"
 PICTURED_CLASS = "console-cell-art-lead"
+LIST_ART_CLASS = "console-cell-art-list"
 ONE_LINE_ROW_PX = 42
 TWO_LINE_ROW_PX = 56
 PICTURED_ROW_PX = 88
@@ -656,11 +657,6 @@ def identifier(field: str, header: str, width: int = 0, help: str = "",
     return column(field, header, width, help, cellClass=classes, **extra)
 
 
-# Ours, not AG Grid's: what the picker calls a column that draws no header of its own.
-# Without it the picker falls back to the field name and prints `icon`.
-PICKER_KEY = "picker"
-
-
 # Ours, not AG Grid's: it names the group a column sits under in the column picker.
 # Carried on the definition so the list that declares the columns also declares their
 # order and their grouping, and stripped before the defs reach the grid.
@@ -670,7 +666,7 @@ GROUP_KEY = "group"
 def for_grid(columns: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The definitions as AG Grid wants them, without our own keys."""
     return [{k: v for k, v in column.items()
-             if k not in (GROUP_KEY, PICKER_KEY, renderers.CHOICES_KEY)}
+             if k not in (GROUP_KEY, renderers.CHOICES_KEY)}
             for column in columns]
 
 
@@ -803,15 +799,17 @@ def base_row_px(columns: list[dict[str, Any]]) -> int:
     classes = " ".join(str(definition.get("cellClass") or "") for definition in columns)
     if PICTURED_CLASS in classes:
         return PICTURED_ROW_PX
-    return TWO_LINE_ROW_PX if TWO_LINE_CLASS in classes else ONE_LINE_ROW_PX
+    return TWO_LINE_ROW_PX if TWO_LINE_CLASS in classes or LIST_ART_CLASS in classes \
+        else ONE_LINE_ROW_PX
 
 
 def with_art(columns: list[dict[str, Any]], shown: bool) -> list[dict[str, Any]]:
-    """`columns`, with the identifier declared wide enough for the art beside the name
-    while the list draws it."""
+    """`columns`, with the identifier declared wide enough for the art beside the name,
+    and its rows tall enough for the frame, while the list draws it."""
     if not shown:
         return columns
-    return [definition | {"width": definition["width"] + list_art.ROOM_PX}
+    return [definition | {"width": definition["width"] + list_art.ROOM_PX,
+                          "cellClass": f"{definition['cellClass']} {LIST_ART_CLASS}"}
             if IDENTIFIER_CLASS in str(definition.get("cellClass") or "") else definition
             for definition in columns]
 
@@ -823,7 +821,6 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
           on_select_rows: Callable[[list[dict[str, Any]]], Any] | None = None,
           on_context: Callable[[dict | None], Any] | None = None,
           on_header_context: Callable[[str | None], Any] | None = None,
-          html_fields: list[str] | None = None,
           view_of: Callable[[], str] | None = None,
           rows_without_a_menu: list[str] | None = None) -> ui.aggrid:
     """A grid whose column layout is restored from, and saved to, the API.
@@ -890,8 +887,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # False deliberately: preventing the default stops the event reaching Quasar,
         # and ui.context_menu never opens.
         "preventDefaultOnContextMenu": False,
-    }, html_columns=[i for i, d in enumerate(columns)
-                     if d["field"] in (html_fields or [])],
+    },
         theme="quartz",
         # nicegui defaults this True, which fits columns to the grid width and so
         # overrides both the declared widths and any the user saved.

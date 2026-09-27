@@ -20,13 +20,24 @@ from nicegui import run, ui
 from common.failures import why
 from common.games.collection_store import DIRECTION_WORDS, MANUAL_ORDER, SORT_LABELS
 from common.i18n import t
-from console import art, collection_adds, community, confirm, grid, offload, panel, verbs, views
+from console import (
+    collection_adds,
+    community,
+    confirm,
+    grid,
+    list_art,
+    offload,
+    panel,
+    verbs,
+    views,
+)
 from console.games import view_control
 from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.collections")
 
 SCOPE = "console.collections"
+GLYPH = "collections_bookmark"
 
 # The wire's kind, and what a person reads for it.
 KIND_LABELS = {"manual": "console.collections.hand_picked",
@@ -56,7 +67,10 @@ _NAME = (
     " title=\"' + off + '\">" + verbs.HIDE + "</i>';"
     " if (d.unsaved) said += ' <span class=\"console-member-chip console-tier"
     " console-tier--warn\" title=\"' + why + '\">' + unsaved + '</span>';"
-    " return said; }"
+    f" const art = d['{list_art.FIELD}'] ?? null;"
+    " if (art == null) return said;"
+    " const lines = '<span class=\"console-cell-named\">' + said + '</span>';"
+    f" return {list_art.frame_js(GLYPH)}; }}"
 )
 
 _KIND = (
@@ -77,12 +91,6 @@ _GAMES = (
 )
 
 COLUMNS = [
-    # The wheel leads. A collection is recognized by its picture in the wheel long
-    # before its name is read, and a list of collections that showed none of them was
-    # asking the reader to work from the least distinctive thing about each.
-    grid.column("icon", "", 56, pinned="left", sortable=False, filter=False,
-                picker=t("console.collections.wheel"),
-                help=t("console.collections.icon.help")),
     grid.identifier("name", t("word.name"), 240, pinned="left",
                     rowDrag=True, **{":cellRenderer": _NAME}),
     grid.column("kind", t("word.kind"), 120, help=t("console.collections.kind.help"),
@@ -155,23 +163,24 @@ _FOCUS_ROW = """new Promise((done) => {
 
 COLLECTION_VIEWS: dict[str, list[str] | views.Preset] = {
     "console.view.everything": views.Preset(
-        columns=("icon", "name", "kind", "count", "order"),
+        columns=("name", "kind", "count", "order"),
         help=t("console.view.collections_everything.help")),
     "console.collections.needs_attention": views.Preset(
-        columns=("icon", "name", "kind", "added", "matched", "excluded", "missing",
-                 "hidden"),
+        columns=("name", "kind", "added", "matched", "excluded", "missing", "hidden"),
         filters={"attention": {"values": [True]}},
         help=t("console.view.collections_needs_attention.help")),
 }
 
 
 def rows(collections: list[dict[str, Any]], opens_on: str = "",
-         unsaved: set[str] | frozenset[str] = frozenset()) -> list[dict[str, Any]]:
+         unsaved: set[str] | frozenset[str] = frozenset(),
+         art: bool = False) -> list[dict[str, Any]]:
     """One row per collection, in the words the grid shows.
 
     `count` is what the collection resolves to, which is its size. The stored
     membership is a different number and lives in the panel. `opens_on` names the
     collection the cabinet opens on, and `unsaved` the ones with rules not yet saved.
+    `art` carries each one's picture, while the lists draw art.
     """
     built = []
     for row in collections:
@@ -184,7 +193,7 @@ def rows(collections: list[dict[str, Any]], opens_on: str = "",
             "id": row.get("name") or "",
             "name": row.get("name") or "",
             "kind": str(row.get("type") or ""),
-            "icon": _icon_cell(row),
+            **({list_art.FIELD: list_art.collection(row)} if art else {}),
             # Zero is an answer here, not an absence: this is what the collection
             # resolves to, and an empty collection resolves to none.
             "count": count,
@@ -212,16 +221,6 @@ def rows(collections: list[dict[str, Any]], opens_on: str = "",
     return built
 
 
-def _icon_cell(row: dict[str, Any]) -> str:
-    """The collection's picture, or nothing. No placeholder: an icon column of grey
-    squares is louder than the few real pictures in it."""
-    if not row.get("image"):
-        return ""
-    src = art.collection(str(row.get("name") or ""), version=row.get("image_version"),
-                         size=art.CELL)
-    return f'<img src="{src}" loading="lazy" class="console-collection-cell">'
-
-
 def _order_line(row: dict[str, Any]) -> str:
     """How this collection is ordered, in one phrase.
 
@@ -245,8 +244,11 @@ def build(collections: list[dict[str, Any]], library: Any,
           state: dict[str, Any] | None = None,
           rerender: Callable[[], None] | None = None) -> None:
     state = state if state is not None else {}
-    built = rows(collections, library.opens_on(), state.get("unsaved_rules") or set())
-    fields = [definition["field"] for definition in COLUMNS]
+    art_shown = bool(library.list_art())
+    built = rows(collections, library.opens_on(), state.get("unsaved_rules") or set(),
+                 art_shown)
+    columns = grid.with_art(COLUMNS, art_shown)
+    fields = [definition["field"] for definition in columns]
 
     @on_page
     async def act(what: Callable, *args: Any, said: str = "") -> None:
@@ -270,7 +272,7 @@ def build(collections: list[dict[str, Any]], library: Any,
                                   "console-panel console-grid-bar"):
         bar = panel.grid_bar()
         wire_views, _picker, showing, describe = view_control(
-            library, SCOPE, COLLECTION_VIEWS, fields, COLUMNS, bar=bar,
+            library, SCOPE, COLLECTION_VIEWS, fields, columns, bar=bar,
             annotate=annotate, art_in_lists=True)
         describe()
         with bar.top, panel.bar_end():
@@ -322,9 +324,8 @@ def build(collections: list[dict[str, Any]], library: Any,
         _fill(None, col_id=col_id, pinned=bool(entry.get("pinned")))
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table: ui.aggrid = grid.build(COLUMNS, built, SCOPE, on_selected, on_context,
-                                      on_header_context, html_fields=["icon"],
-                                      view_of=showing)
+        table: ui.aggrid = grid.build(columns, built, SCOPE, on_selected, on_context,
+                                      on_header_context, view_of=showing)
         menu = ui.context_menu()
     table.options["rowDragManaged"] = True
     table.options[":rowDragText"] = "params => params.rowNode.data.name"
@@ -339,7 +340,7 @@ def build(collections: list[dict[str, Any]], library: Any,
         menu.clear()
         with menu:
             if col_id and not col_id.startswith("ag-Grid-"):
-                header = next((d.get("headerName") for d in COLUMNS
+                header = next((d.get("headerName") for d in columns
                                if d.get("field") == col_id), col_id)
                 ui.item_label(str(header)).props("header").classes("console-menu-header")
                 ui.separator()
@@ -370,7 +371,7 @@ def build(collections: list[dict[str, Any]], library: Any,
 
     def sorted_said() -> str:
         by = arrangement["sorted"]
-        header = next((d.get("headerName") for d in COLUMNS if d.get("field") == by), by)
+        header = next((d.get("headerName") for d in columns if d.get("field") == by), by)
         return t("console.collections.sorted_to_arrange", column=header)
 
     def moved(name: str, where: str) -> list[str] | None:
@@ -429,7 +430,7 @@ def build(collections: list[dict[str, Any]], library: Any,
     @on_page
     async def reread(focus: str = "") -> None:
         fresh = rows(await offload.io(library.load_collections), library.opens_on(),
-                     state.get("unsaved_rules") or set())
+                     state.get("unsaved_rules") or set(), art_shown)
         built[:] = fresh
         by_id.clear()
         by_id.update({row["id"]: row for row in fresh})

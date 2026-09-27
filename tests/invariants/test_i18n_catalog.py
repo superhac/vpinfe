@@ -1272,7 +1272,7 @@ BYTE_UNITS = {"B", "KB", "MB", "GB", "TB"}
 # Functions and constants in the Console whose values joined by a space are not words.
 JOINED_NOT_SAID = {
     "console/games.py": {"_RATING_CHOICES": "two star glyphs drawn as one mark"},
-    "console/grid.py": {"identifier": "a cell's class list"},
+    "console/grid.py": {"identifier": "a cell's class list", "with_art": "a cell's class list"},
     "console/renderers.py": {"install": "a script's object entries"},
     "console/tag_chips.py": {"dot_class": "a class list", "chip_class": "a class list"},
 }

@@ -705,10 +705,6 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     # The wrapper has to carry the flex chain too, not just anchor the menu: as a plain
     # block it collapsed to its content height and the grid inside it never filled.
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        # No `html_fields` for the media columns: NiceGUI answers that by installing a
-        # renderer of its own, and these columns bring theirs. The cell's value is a
-        # word now, so a column left to render itself would print it - which is the
-        # accident this replaces, not the intent.
         table: ui.aggrid = grid.build(columns, rows, SCOPE, on_select_rows, on_context,
                                       on_header_context, view_of=showing)
         context_menu: ui.context_menu = ui.context_menu()
@@ -1844,8 +1840,7 @@ def view_control(library: Any, scope: str,
                                 .classes("console-menu-header")
                         for definition in group:
                             field = definition["field"]
-                            label = str(definition.get(grid.PICKER_KEY)
-                                        or definition.get("headerName") or field) \
+                            label = str(definition.get("headerName") or field) \
                                 .replace("\n", " ")
                             box = ui.checkbox(label, value=field not in hidden,
                                         on_change=lambda event, f=field:

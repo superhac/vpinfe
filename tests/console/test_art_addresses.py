@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from console import art
-from console.collections import _icon_cell
+from console import art, list_art
 from console.data import _thumb
 
 
@@ -47,9 +46,12 @@ class DrawnArtTests(unittest.TestCase):
         self.assertIn('src="/api/v1/games/G1/media/backglass_video?v=abc#t=0.1"', cell)
 
     def test_a_collection_s_picture_draws_the_small_copy(self) -> None:
-        cell = _icon_cell({"name": "Bally", "image": "b.png", "image_version": "abc"})
+        self.assertEqual(
+            list_art.collection({"name": "Bally", "image": "b.png", "image_version": "abc"}),
+            "/api/v1/collections/Bally/image?size=256&v=abc")
 
-        self.assertIn('src="/api/v1/collections/Bally/image?size=256&v=abc"', cell)
+    def test_a_collection_with_no_picture_asks_for_none(self) -> None:
+        self.assertEqual(list_art.collection({"name": "Bally", "image_version": "abc"}), "")
 
 
 if __name__ == "__main__":
