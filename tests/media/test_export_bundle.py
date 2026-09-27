@@ -13,7 +13,7 @@ import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.games.archive_service import create_vpxz_archive
+from common.games.archive_service import cleanup_archive, create_vpxz_archive
 from common.games.export_bundle import bundle_paths, is_readme, prune_info
 
 FOLDER = "Cactus Canyon (Bally 1998)"
@@ -174,6 +174,7 @@ class ArchiveTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             _library(tmp)
             archive = create_vpxz_archive(FOLDER, tmp)
+            self.addCleanup(cleanup_archive, archive)
             with zipfile.ZipFile(archive.path) as z:
                 names = set(z.namelist())
                 info = json.loads(z.read(f"{FOLDER}/{FOLDER}.info"))
@@ -188,6 +189,7 @@ class ArchiveTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             _library(tmp)
             archive = create_vpxz_archive(FOLDER, tmp, everything=True)
+            self.addCleanup(cleanup_archive, archive)
             with zipfile.ZipFile(archive.path) as z:
                 names = set(z.namelist())
 
