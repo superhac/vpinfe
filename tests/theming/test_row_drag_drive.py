@@ -14,11 +14,13 @@ import asyncio
 import json
 import unittest
 import urllib.request
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import parse_qs, quote, urlparse
 
 from tests.support.browser_session import BrowserSession, chromium_path
+from tests.support.console_walk import MARK, ConsoleWalk, newer, notice
 from tests.support.library import game_info, write_game
 from tests.support.live_instance import LiveInstance
 
@@ -36,9 +38,6 @@ API = ("(() => { const el = document.querySelector('.ag-root-wrapper')"
 BOX = ("(() => { const el = document.querySelector(%s); if (!el) return null;"
        " const r = el.getBoundingClientRect();"
        " return [r.left + r.width / 2, r.top + r.height / 2, r.top, r.height]; })()")
-NOTE = ("(() => { const n = [...document.querySelectorAll('.q-notification')]"
-        ".find(n => n.innerText.includes(%s)); return n ? [n.innerText, n.className] : null;"
-        " })()")
 RAIL = ("[...document.querySelectorAll('.console-rail-drops .console-drop-target')]"
         ".map(e => [e.innerText.replace(/\\n+/g, ' / '), e.getBoundingClientRect().height > 0])")
 LINE = ("(() => { const line = document.querySelector('.console-drop-line');"
@@ -53,6 +52,11 @@ ELSEWHERE_IN_ROW = ("(() => { const id = %s;"
                     ".map(cell => cell.getBoundingClientRect())"
                     ".reduce((a, b) => (b.left < a.left ? b : a));"
                     " return [box.left + box.width / 2, box.top + box.height / 2]; })()")
+HOVERED = "!!document.querySelector('.ag-row-hover[row-id=%s]')"
+DRAGGING = "document.body.classList.contains('console-dragging-rows')"
+PINNED_CELLS = "document.querySelectorAll('.ag-pinned-left-cols-container .ag-cell').length"
+# How many drops the page has sent the server.
+TURN = "window.__hubDropTurn || 0"
 RING = ("(() => { const panel = document.querySelector('.console-workbench');"
         " return [panel.classList.contains('console-drop-hot'),"
         " getComputedStyle(panel).outlineStyle]; })()")
@@ -113,9 +117,7 @@ class RowDragDrive(unittest.TestCase):
 
             browser._on_event = hearing  # type: ignore[method-assign]
             await browser.send("Input.setInterceptDrags", {"enabled": True})
-
-            async def settled() -> None:
-                await asyncio.sleep(1.5)
+            walk = ConsoleWalk(browser, instance)
 
             async def mouse(kind: str, x: float, y: float) -> None:
                 await browser.send("Input.dispatchMouseEvent",
@@ -127,12 +129,11 @@ class RowDragDrive(unittest.TestCase):
                 """Drag this row by its grip, and answer what the drag carries."""
                 await browser.evaluate(API + ".ensureNodeVisible(" + API + ".getRowNode("
                                        + json.dumps(row_id) + "), 'middle')")
-                await asyncio.sleep(0.4)
                 cell = f'.ag-row[row-id="{row_id}"] .ag-cell[col-id="{column}"]'
-                x, y, _top, _height = await browser.evaluate(BOX % json.dumps(cell))
+                x, y, _top, _height = await browser.wait_for(BOX % json.dumps(cell))
                 await browser.send("Input.dispatchMouseEvent",
                                    {"type": "mouseMoved", "x": x, "y": y, "button": "none"})
-                await asyncio.sleep(0.3)
+                await browser.wait_for(HOVERED % json.dumps(row_id))
                 gx, gy, _top, _height = await browser.evaluate(
                     BOX % json.dumps(cell + " .ag-drag-handle"))
                 before = len(caught)
@@ -147,30 +148,40 @@ class RowDragDrive(unittest.TestCase):
                     if len(caught) > before:
                         break
                     await asyncio.sleep(0.05)
+                else:
+                    raise AssertionError(f"dragging {row_id} started no drag")
                 await mouse("mouseReleased", gx + 84, gy + 42)
                 return caught[-1]
 
             async def let_go(data: dict) -> None:
                 """End an intercepted drag nowhere, as dropping outside the page does."""
-                await browser.send("Input.dispatchDragEvent",
-                                   {"type": "dragCancel", "x": 0, "y": 0, "data": data})
-                await asyncio.sleep(0.3)
+                await walk.act(lambda: browser.send(
+                    "Input.dispatchDragEvent",
+                    {"type": "dragCancel", "x": 0, "y": 0, "data": data}),
+                    until=f"!{DRAGGING}")
 
-            async def drop(data: dict, x: float, y: float) -> None:
+            async def hover(data: dict, x: float, y: float) -> None:
                 for kind in ("dragEnter", "dragOver", "dragOver"):
                     await browser.send("Input.dispatchDragEvent",
                                        {"type": kind, "x": x, "y": y, "data": data})
                     await asyncio.sleep(0.15)
+
+            def let_fall(data: dict, x: float, y: float) -> Callable[[], Awaitable[dict]]:
+                return lambda: browser.send("Input.dispatchDragEvent",
+                                            {"type": "drop", "x": x, "y": y, "data": data})
+
+            async def drop(data: dict, x: float, y: float, text: str, *,
+                           drawn: str = "") -> list:
+                """`data` let go here, and the notice holding `text` that it gives - and,
+                where the panel is drawn again after, `drawn` too."""
+                await hover(data, x, y)
                 seen.setdefault("lines", []).append(await browser.evaluate(LINE))
-                await browser.send("Input.dispatchDragEvent",
-                                   {"type": "drop", "x": x, "y": y, "data": data})
+                await walk.act(let_fall(data, x, y), mark=MARK,
+                               until=notice(text) + (f" && {drawn}" if drawn else ""))
+                return await browser.evaluate(notice(text))
 
-            async def said(text: str) -> list:
-                return await browser.wait_for(NOTE % json.dumps(text), timeout=15.0)
-
-            await browser.navigate(instance.console_url("/console?view=games"))
-            await browser.wait_for(API + ".getDisplayedRowCount() > 0", timeout=90.0)
-            await settled()
+            await walk.visit("/console?view=games")
+            await browser.wait_for(API + ".getDisplayedRowCount() > 0")
 
             await browser.evaluate(
                 "(() => { const real = DataTransfer.prototype.setDragImage;"
@@ -178,17 +189,17 @@ class RowDragDrive(unittest.TestCase):
                 " window.__dragImage = el.innerText; return real.call(this, el, x, y); };"
                 " })()")
             pinned = ".applyColumnState({state: [{colId: 'ag-Grid-SelectionColumn', pinned: %s}]})"
-            await browser.evaluate(API + pinned % "'left'")
-            await asyncio.sleep(0.3)
+            await walk.act(lambda: browser.evaluate(API + pinned % "'left'"),
+                           until=f"{PINNED_CELLS} > 0")
             x, y = await browser.evaluate(ELSEWHERE_IN_ROW % json.dumps("echo"))
             await browser.send("Input.dispatchMouseEvent",
                                {"type": "mouseMoved", "x": x, "y": y, "button": "none"})
-            await asyncio.sleep(0.3)
+            await browser.wait_for(HOVERED % json.dumps("echo"))
             seen["grip_from_elsewhere_in_row"] = await browser.evaluate(
                 "getComputedStyle(document.querySelector("
                 "'.ag-row[row-id=\"echo\"] .ag-drag-handle')).opacity")
-            await browser.evaluate(API + pinned % "null")
-            await asyncio.sleep(0.3)
+            await walk.act(lambda: browser.evaluate(API + pinned % "null"),
+                           until=f"{PINNED_CELLS} === 0")
             lone = await grab("echo", "name")
             seen["image"] = await browser.evaluate("window.__dragImage")
             await let_go(lone)
@@ -202,51 +213,37 @@ class RowDragDrive(unittest.TestCase):
             await let_go(both)
             await browser.evaluate(API + ".deselectAll()")
 
+            await browser.evaluate(MARK)
             one = await grab("delta", "name")
-            await browser.wait_for("document.querySelectorAll('.console-rail-drops"
-                                   " .console-drop-target').length > 1")
-            await asyncio.sleep(0.4)
+            await browser.wait_for(newer(".console-rail-drops .console-drop-target"))
+            await walk.drawn()
             seen["rail"] = await browser.evaluate(RAIL)
             target = f'.console-rail-drops [data-drop-collection="{SMART}"]'
             x, y, _top, _height = await browser.evaluate(BOX % json.dumps(target))
-            await drop(one, x, y)
-            seen["rail_note"] = await said("exception")
+            seen["rail_note"] = await drop(one, x, y, "exception")
             seen["rail_refs"] = refs(SMART)
             seen["rail_after"] = await browser.evaluate(
                 "getComputedStyle(document.querySelector('.console-rail-drops')).display")
 
-            await browser.navigate(instance.console_url("/console?view=tables"))
-            await browser.wait_for(API + ".getDisplayedRowCount() > 0", timeout=60.0)
-            await settled()
+            await walk.visit("/console?view=tables")
+            await browser.wait_for(API + ".getDisplayedRowCount() > 0")
             table = await grab("t-a1", "game")
             await let_go(table)
 
-            await browser.navigate(instance.console_url(
-                f"/console?view=collections&collection={quote(HAND)}"))
-            await browser.wait_for("document.body.innerText.includes('Add Games')",
-                                   timeout=60.0)
-            await settled()
+            redrawn = newer("[data-drop-list] .console-member-row")
+            await walk.visit(f"/console?view=collections&collection={quote(HAND)}")
+            await browser.wait_for("document.body.innerText.includes('Add Games')")
             rows = "[data-drop-list] .console-member-row"
             x, _y, top, _height = await browser.evaluate(
                 BOX.replace("querySelector(%s)", "querySelectorAll(%s)[1]")
                 % json.dumps(rows))
-            await drop(both, x, top + 4)
-            seen["placed_note"] = await said("Added 2 games")
+            seen["placed_note"] = await drop(both, x, top + 4, "Added 2 games", drawn=redrawn)
             seen["placed"] = refs(HAND)
-            await settled()
 
             zone = "[data-drop-collection]"
             x, y, _top, _height = await browser.evaluate(BOX % json.dumps(zone))
-            await drop(table, x, y)
-            await said("Added to")
-            await settled()
+            await drop(table, x, y, "Added to", drawn=redrawn)
             seen["table_refs"] = refs(HAND)
-
-            async def hover(data: dict, x: float, y: float) -> None:
-                for kind in ("dragEnter", "dragOver", "dragOver"):
-                    await browser.send("Input.dispatchDragEvent",
-                                       {"type": kind, "x": x, "y": y, "data": data})
-                    await asyncio.sleep(0.15)
 
             await browser.evaluate(
                 "document.addEventListener('dragover', event => { window.__over ="
@@ -260,23 +257,21 @@ class RowDragDrive(unittest.TestCase):
             await hover(lone, x, top + height + 40)
             seen["line_at_end"] = await browser.evaluate(LINE_AT)
             seen["rows_moved"] = still != await browser.evaluate(TOPS)
-            await browser.send("Input.dispatchDragEvent",
-                               {"type": "drop", "x": x, "y": top + height + 40, "data": lone})
-            for _ in range(40):
-                seen["appended"] = refs(HAND)
-                if any(game == "echo" for game, _t, _o in seen["appended"]):
-                    break
-                await asyncio.sleep(0.25)
-            await settled()
+            await walk.act(let_fall(lone, x, top + height + 40), mark=MARK,
+                           until=notice(f"“{HAND}”") + f" && {redrawn}")
+            seen["appended"] = refs(HAND)
 
             x, y, _top, _height = await browser.evaluate(
                 BOX % json.dumps("a.console-nav-row"))
             await hover(spare, x, y)
             seen["outside"] = await browser.evaluate("window.__over")
             seen["ring_outside"] = await browser.evaluate(RING)
-            await browser.send("Input.dispatchDragEvent",
-                               {"type": "drop", "x": x, "y": y, "data": spare})
-            await asyncio.sleep(1.5)
+            await browser.evaluate(MARK)
+            turn = await browser.evaluate(TURN)
+            await let_fall(spare, x, y)()
+            if await browser.evaluate(TURN) != turn:
+                # Sent after all: read the collection once the add it asked for is said.
+                await browser.wait_for(notice(f"“{HAND}”"))
             seen["after_outside_drop"] = refs(HAND)
             zone = "[data-drop-collection]"
             x, y, _top, _height = await browser.evaluate(BOX % json.dumps(zone))
@@ -284,20 +279,14 @@ class RowDragDrive(unittest.TestCase):
             elsewhere = {"items": [{"mimeType": "text/uri-list",
                                     "data": "http://elsewhere.example:8001/console?view=games"
                                             "&game=bravo"}], "dragOperationsMask": 1}
-            await drop(elsewhere, x, y)
-            seen["refused"] = await said("another VPinFE")
-            await settled()
+            seen["refused"] = await drop(elsewhere, x, y, "another VPinFE")
 
             many = {"items": [{"mimeType": "text/uri-list", "data": "\r\n".join(
                 [instance.console_url("/console?view=games&game=delta")] * MANY
                 + [instance.console_url("/console?view=games&game=foxtrot")])}],
                 "dragOperationsMask": 1}
-            await drop(many, x, y)
-            for _ in range(60):
-                seen["many"] = refs(HAND)
-                if any(game == "foxtrot" for game, _t, _o in seen["many"]):
-                    break
-                await asyncio.sleep(0.25)
+            await drop(many, x, y, f"“{HAND}”")
+            seen["many"] = refs(HAND)
         return seen
 
     def test_a_drag_carries_each_row_s_console_address(self) -> None:

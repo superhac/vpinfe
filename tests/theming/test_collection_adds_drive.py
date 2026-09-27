@@ -10,11 +10,14 @@ import asyncio
 import json
 import unittest
 import urllib.request
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import quote
 
+from common.i18n import t
 from tests.support.browser_session import BrowserSession, chromium_path
+from tests.support.console_walk import MARK, ConsoleWalk, newer, notice
 from tests.support.library import game_info, write_game
 from tests.support.live_instance import LiveInstance
 
@@ -30,9 +33,22 @@ SHOWN = ("(() => { const out = []; " + API + ".forEachNodeAfterFilterAndSort("
 MENU = ("[...document.querySelectorAll('.q-menu .console-menu-item')]"
         ".map(e => [e.innerText.replace(/\\n+/g, ' / '),"
         " e.classList.contains('console-menu-blocked')])")
-NOTE = ("(() => { const n = [...document.querySelectorAll('.q-notification')]"
-        ".find(n => n.innerText.includes(%s)); return n ? [n.innerText, n.className] : null;"
-        " })()")
+MENU_OPEN = "!!document.querySelector('.q-menu')"
+HAS = "[...document.querySelectorAll(%s)].some(el => el.innerText.includes(%s))"
+# The middle of a row's cell, once the grid shows it whole.
+CELL_AT = ("(() => { const c = document.querySelector("
+           "'.ag-row[row-id=%s] .ag-cell[col-id=\"%s\"]');"
+           " const body = document.querySelector('.ag-body-viewport');"
+           " if (!c || !body) return null; const r = c.getBoundingClientRect();"
+           " const b = body.getBoundingClientRect();"
+           " return r.height && r.top >= b.top && r.bottom <= b.bottom"
+           " ? [r.left + r.width / 2, r.top + r.height / 2] : null; })()")
+# The add box holding what was typed, with an option picked out for Enter: the box has
+# filtered for it.
+PICKING = ("(typed => { const box = document.activeElement;"
+           " const lit = document.querySelector('.q-menu .q-item.q-manual-focusable--focused');"
+           " return !!box && box.value === typed && !!lit"
+           " && lit.innerText.toLowerCase().includes(typed); })(%s)")
 ADD_BOX = ("[...document.querySelectorAll('.console-section-work .q-select')]"
            ".findIndex(e => e.innerText.includes('Add Games'))")
 OPTIONS = ("[...document.querySelectorAll('.q-menu .q-item')].map(e => ["
@@ -98,8 +114,7 @@ class CollectionAddsDrive(unittest.TestCase):
                 f"/api/v1/collections/{quote(name)}/members")["members"]]
 
         async with BrowserSession(chromium_path()) as browser:
-            async def settled() -> None:
-                await asyncio.sleep(1.5)
+            walk = ConsoleWalk(browser, instance)
 
             async def mouse(kind: str, x: float, y: float, button: str = "left") -> None:
                 await browser.send("Input.dispatchMouseEvent",
@@ -108,34 +123,44 @@ class CollectionAddsDrive(unittest.TestCase):
                                     "clickCount": 1})
 
             async def right_click(row_id: str, column: str) -> None:
+                """The row's menu, once the server has filled it for this row: until
+                then it shows what it held last."""
                 await browser.evaluate(API + ".ensureNodeVisible(" + API + ".getRowNode("
                                        + json.dumps(row_id) + "), 'middle')")
-                await asyncio.sleep(0.4)
-                where = await browser.evaluate(
-                    "(() => { const c = document.querySelector('.ag-row[row-id="
-                    + json.dumps(row_id) + "] .ag-cell[col-id=\"" + column + "\"]');"
-                    " const r = c.getBoundingClientRect();"
-                    " return [r.left + r.width / 2, r.top + r.height / 2]; })()")
-                await mouse("mousePressed", where[0], where[1], "right")
-                await mouse("mouseReleased", where[0], where[1], "right")
-                await browser.wait_for("document.querySelectorAll('.q-menu"
-                                       " .console-menu-item').length > 0")
-                await asyncio.sleep(0.6)
+                x, y = await browser.wait_for(CELL_AT % (json.dumps(row_id), column))
 
-            async def click_text(selector: str, text: str) -> None:
-                at = await browser.wait_for(
-                    f"(() => {{ const i = {INDEX_OF % (json.dumps(selector), json.dumps(text))};"
-                    " return i >= 0 ? i + 1 : 0; })()")
-                await browser.click(selector, nth=int(at) - 1)
-                await asyncio.sleep(0.6)
+                async def press() -> None:
+                    await mouse("mousePressed", x, y, "right")
+                    await mouse("mouseReleased", x, y, "right")
+
+                await walk.act(press, mark=MARK, until=newer(".q-menu .console-menu-item"))
+
+            def click_text(selector: str, text: str) -> Callable[[], Awaitable[None]]:
+                async def click() -> None:
+                    at = await browser.wait_for(
+                        f"(() => {{ const i = "
+                        f"{INDEX_OF % (json.dumps(selector), json.dumps(text))};"
+                        " return i >= 0 ? i + 1 : 0; })()")
+                    await browser.click(selector, nth=int(at) - 1)
+                return click
 
             async def outside() -> None:
-                await mouse("mousePressed", 1200, 700)
-                await mouse("mouseReleased", 1200, 700)
-                await asyncio.sleep(0.5)
+                async def press() -> None:
+                    await mouse("mousePressed", 1200, 700)
+                    await mouse("mouseReleased", 1200, 700)
 
-            async def said(text: str) -> list:
-                return await browser.wait_for(NOTE % json.dumps(text), timeout=15.0)
+                if await browser.evaluate(MENU_OPEN):
+                    await walk.act(press, until=f"!{MENU_OPEN}")
+                else:
+                    await press()
+
+            async def said(text: str, action: Callable[[], Awaitable[None]], *,
+                           drawn: str = "") -> list:
+                """`action`, and the notice it gives holding `text` - and, where the
+                server draws something after saying so, `drawn` too."""
+                await walk.act(action, mark=MARK,
+                               until=notice(text) + (f" && {drawn}" if drawn else ""))
+                return await browser.evaluate(notice(text))
 
             async def undo(text: str) -> None:
                 last = None
@@ -145,29 +170,33 @@ class CollectionAddsDrive(unittest.TestCase):
                         break
                     last = where
                     await asyncio.sleep(0.1)
-                await mouse("mousePressed", where[0], where[1])
-                await mouse("mouseReleased", where[0], where[1])
-                await settled()
 
-            async def pick_from_dialog(name: str) -> None:
-                await click_text(".q-menu .console-menu-item", "Add to Collection")
-                await click_text(".q-menu .console-menu-item", "More Collections")
-                await browser.wait_for("!!document.querySelector('.q-dialog"
-                                       " .console-collection-pick')")
-                await asyncio.sleep(0.6)
+                async def press() -> None:
+                    await mouse("mousePressed", where[0], where[1])
+                    await mouse("mouseReleased", where[0], where[1])
+
+                await said(t("console.undo.undone"), press)
+
+            async def pick_from_dialog(name: str, text: str) -> list:
+                await walk.act(click_text(".q-menu .console-menu-item", "Add to Collection"),
+                               until=HAS % (json.dumps(".q-menu .console-menu-item"),
+                                            json.dumps("More Collections")))
+                await walk.act(click_text(".q-menu .console-menu-item", "More Collections"),
+                               until="!!document.querySelector('.q-dialog"
+                                     " .console-collection-pick')")
                 seen.setdefault("dialogs", []).append(await browser.evaluate(
                     "document.querySelector('.q-dialog').innerText"))
-                await click_text(".q-dialog .console-source-row", name)
-                await click_text(".q-dialog button", "Add")
+                await walk.act(click_text(".q-dialog .console-source-row", name),
+                               until=HAS % (json.dumps(".q-dialog .console-source-row--chosen"),
+                                            json.dumps(name)))
+                return await said(text, click_text(".q-dialog button", "Add"))
 
-            await browser.navigate(instance.console_url("/console?view=games"))
-            await browser.wait_for(API + ".getDisplayedRowCount() > 0", timeout=90.0)
-            await settled()
+            await walk.visit("/console?view=games")
+            await browser.wait_for(API + ".getDisplayedRowCount() > 0")
 
             await right_click("delta", "name")
             seen["first_menu"] = await browser.evaluate(MENU)
-            await pick_from_dialog(HAND)
-            seen["added"] = await said("Added to")
+            seen["added"] = await pick_from_dialog(HAND, "Added to")
             seen["added_refs"] = refs(HAND)
 
             await right_click("delta", "name")
@@ -177,29 +206,23 @@ class CollectionAddsDrive(unittest.TestCase):
             seen["undone"] = refs(HAND)
 
             await right_click("charlie", "name")
-            await pick_from_dialog(SMART)
-            seen["exception"] = await said("exception")
+            seen["exception"] = await pick_from_dialog(SMART, "exception")
             seen["exception_refs"] = refs(SMART)
 
-            await browser.navigate(instance.console_url("/console?view=tables"))
-            await browser.wait_for(API + ".getDisplayedRowCount() > 0", timeout=60.0)
-            await settled()
+            await walk.visit("/console?view=tables")
+            await browser.wait_for(API + ".getDisplayedRowCount() > 0")
             await right_click("t-a1", "game")
             seen["table_menu"] = await browser.evaluate(MENU)
-            await pick_from_dialog(HAND)
-            await said("Added to")
+            await pick_from_dialog(HAND, "Added to")
             seen["table_refs"] = refs(HAND)
 
-            await browser.navigate(instance.console_url(
-                f"/console?view=games&collection={quote(HAND)}"))
-            await browser.wait_for(API + ".getDisplayedRowCount() > 0", timeout=60.0)
-            await settled()
+            await walk.visit(f"/console?view=games&collection={quote(HAND)}")
+            await browser.wait_for(API + ".getDisplayedRowCount() > 0")
             seen["narrowed"] = await browser.evaluate(SHOWN)
             await right_click("bravo", "name")
             seen["narrowed_menu"] = await browser.evaluate(MENU)
-            await click_text(".q-menu .console-menu-item", f"Remove from “{HAND}”")
-            seen["removed"] = await said("Removed from")
-            await settled()
+            seen["removed"] = await said("Removed from", click_text(
+                ".q-menu .console-menu-item", f"Remove from “{HAND}”"))
             seen["removed_refs"] = refs(HAND)
             seen["removed_shown"] = await browser.evaluate(SHOWN)
             await undo("Removed from")
@@ -214,58 +237,56 @@ class CollectionAddsDrive(unittest.TestCase):
                         **({"text": text} if kind == "keyDown" and text else {})})
                     await asyncio.sleep(0.05)
 
-            await browser.navigate(instance.console_url(
-                f"/console?view=collections&collection={quote(HAND)}"))
-            await browser.wait_for("document.body.innerText.includes('Add Games')",
-                                   timeout=60.0)
-            await settled()
+            async def typed(letters: str, *, first: str = "") -> None:
+                if first:
+                    await key(first, 8, "")
+                for letter in letters:
+                    await key(letter, ord(letter.upper()), letter)
+
+            await walk.visit(f"/console?view=collections&collection={quote(HAND)}")
+            await browser.wait_for("document.body.innerText.includes('Add Games')")
             box = await browser.evaluate(ADD_BOX)
-            await browser.click(".console-section-work .q-select input", nth=box)
-            for letter in "a":
-                await key(letter, ord(letter.upper()), letter)
-            await asyncio.sleep(0.8)
+
+            async def type_a() -> None:
+                await browser.click(".console-section-work .q-select input", nth=box)
+                await typed("a")
+
+            await walk.act(type_a, until=PICKING % json.dumps("a"))
             seen["options"] = await browser.evaluate(OPTIONS)
-            await key("Backspace", 8, "")
-            for letter in "delta":
-                await key(letter, ord(letter.upper()), letter)
-            await asyncio.sleep(0.5)
-            await key("Enter", 13, "\r")
-            await said("Added to")
-            await settled()
+            await walk.act(lambda: typed("delta", first="Backspace"),
+                           until=PICKING % json.dumps("delta"))
+            await said("Added to", lambda: key("Enter", 13, "\r"),
+                       drawn=newer(".console-section-work .console-member-row"))
             seen["box_after"] = await browser.evaluate(BOX_AFTER)
 
             await outside()
             seen["before_x"] = refs(HAND)
-            await browser.click(".console-section-work .console-member-row button",
-                                nth=await browser.evaluate(ROW_X % json.dumps("Alpha")))
-            seen["x_said"] = await said("Removed from")
-            await settled()
+            alpha_x = await browser.evaluate(ROW_X % json.dumps("Alpha"))
+            seen["x_said"] = await said("Removed from", lambda: browser.click(
+                ".console-section-work .console-member-row button", nth=alpha_x))
             seen["x_refs"] = refs(HAND)
             await undo("Removed from")
             seen["x_undone"] = refs(HAND)
 
             send("PUT", f"/api/v1/collections/{quote(SMART)}/excluded/bravo", {"table": ""})
-            await browser.navigate(instance.console_url(
-                "/console?view=games&game=bravo&section=collections"))
-            await browser.wait_for("document.body.innerText.includes('Add to Collection')",
-                                   timeout=60.0)
-            await settled()
+            await walk.visit("/console?view=games&game=bravo&section=collections")
+            await browser.wait_for("document.body.innerText.includes('Add to Collection')")
             seen["game_panel"] = await browser.evaluate(PANEL_ROWS)
-            await click_text(".console-section-work button", "Add to Collection")
+            await walk.act(click_text(".console-section-work button", "Add to Collection"),
+                           until="!!document.querySelector('.q-menu .console-menu-item')")
             seen["game_menu"] = await browser.evaluate(MENU)
             await outside()
-            await browser.click(".console-section-work .console-member-row button",
-                                nth=[row for row, _b in seen["game_panel"]].index(
-                                    f"{SMART} / Taken out"))
-            await settled()
+            await said(t("console.workbench.put_back_in", name=SMART), lambda: browser.click(
+                ".console-section-work .console-member-row button",
+                nth=[row for row, _b in seen["game_panel"]].index(f"{SMART} / Taken out")),
+                drawn=newer(".console-section-work .console-member-row"))
             seen["put_back"] = refs(SMART)
 
             seen["before_panel_x"] = refs(HAND)
             rows = [row for row, _b in await browser.evaluate(PANEL_ROWS)]
-            await browser.click(".console-section-work .console-member-row button",
-                                nth=rows.index(f"{HAND} / Added"))
-            seen["panel_x_said"] = await said("Removed from")
-            await settled()
+            seen["panel_x_said"] = await said("Removed from", lambda: browser.click(
+                ".console-section-work .console-member-row button",
+                nth=rows.index(f"{HAND} / Added")))
             seen["panel_x_refs"] = refs(HAND)
             await undo("Removed from")
             seen["panel_x_undone"] = refs(HAND)
