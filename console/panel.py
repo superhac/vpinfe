@@ -17,8 +17,9 @@ from typing import Any
 
 from nicegui import ui
 
+from common import icons
 from common.i18n import t
-from console import game_tables, offload, tag_chips, verbs
+from console import game_tables, list_art, offload, tag_chips, verbs
 
 # Rows that are not a fact. A group's title and an action strip span both columns, so
 # every group keeps the one shared label width.
@@ -521,14 +522,17 @@ class MarkedSelect(ui.select):
 
 class GamePicker(ui.select):
     """One game from the library, typed into, each option with its maker and year. A
-    game in `held` is ticked and cannot be picked."""
+    game in `held` is ticked and cannot be picked. `art` is each game's list art, or None
+    while the lists draw none."""
 
-    SLOT = """
-        <q-item v-bind="props.itemProps">
-          <q-item-section>
+    LINES = """
             <q-item-label>{{ props.opt.label }}</q-item-label>
             <q-item-label caption v-if="props.opt.made" class="console-cell-made">
-              {{ props.opt.made }}</q-item-label>
+              {{ props.opt.made }}</q-item-label>"""
+    SLOT = f"""
+        <q-item v-bind="props.itemProps">
+          <q-item-section>
+            {list_art.option_html(LINES, icons.GAMES)}
           </q-item-section>
           <q-item-section side class="console-pick-held">
             <q-icon v-if="props.opt.held" name="check" class="console-tick" />
@@ -537,10 +541,11 @@ class GamePicker(ui.select):
     """
 
     def __init__(self, games: Sequence[dict[str, Any]], held: set[str], *,
-                 label: str) -> None:
+                 label: str, art: dict[str, str] | None = None) -> None:
         # Before `super().__init__`, which builds the payload for the first time.
         self.made = {str(game["id"]): game_tables.made(game) for game in games}
         self.held = set(held)
+        self.art = art
         super().__init__({str(game["id"]): str(game.get("name") or game["id"])
                           for game in games}, with_input=True, label=label)
         self.add_slot("option", self.SLOT)
@@ -551,6 +556,8 @@ class GamePicker(ui.select):
             game = str(self._values[option["value"]])
             option["made"] = self.made.get(game, "")
             option["held"] = option["disable"] = game in self.held
+            if self.art is not None:
+                option[list_art.FIELD] = self.art.get(game, "")
 
 
 class SettingPicker(ui.select):

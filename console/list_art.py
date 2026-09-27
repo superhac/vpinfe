@@ -9,7 +9,11 @@ from __future__ import annotations
 import html
 import json
 import re
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
+
+from nicegui import ui
 
 from common import config_schema
 from common.config_access import cfg_get
@@ -32,6 +36,9 @@ _GLYPH_BOX = f"{_BOX}--glyph"
 _NO_ART = "console-cell-noart"
 _LINES = "console-cell-lines"
 _PATH_DATA = re.compile(r"^[Mm]\s?[-+]?\.?\d")
+# A picture that fails to load gives way to the glyph.
+_SWAP = f"this.parentNode.classList.add('{_GLYPH_BOX}');this.remove()"
+_IMG = f'loading="lazy" alt="" draggable="false" onerror="{_SWAP}"'
 
 
 def chosen(kept: set[str]) -> str:
@@ -75,6 +82,12 @@ def by_game(rows: list[dict[str, Any]]) -> dict[str, str]:
     return shown
 
 
+def by_table(rows: list[dict[str, Any]]) -> dict[tuple[str, str], str]:
+    """Each table's art from the tables listing, by its game's id and its own."""
+    return {(str(row.get("game_id") or ""), str(row.get("id") or "")): address(row)
+            for row in rows}
+
+
 def glyph_html(glyph: str) -> str:
     """A glyph as the frame holds it: SVG path data, or a Material icon's name."""
     if _PATH_DATA.match(glyph):
@@ -87,13 +100,47 @@ def frame_js(glyph: str, size: str = LIST) -> str:
     """A grid cell renderer's expression for the frame and the name's lines beside it.
 
     Reads `art`, `lines` and `esc` from the renderer: `art` is the address, or "" for
-    the glyph. A picture that fails to load gives way to the glyph.
+    the glyph.
     """
-    swap = f"this.parentNode.classList.add('{_GLYPH_BOX}');this.remove()"
     opened = f'<span class="{_PICTURED}"><span class="{_SIZED[size]}'
-    with_picture = json.dumps(
-        f'{opened}"><img loading="lazy" alt="" draggable="false" onerror="{swap}" src="')
+    with_picture = json.dumps(f'{opened}"><img {_IMG} src="')
     without = json.dumps(f'{opened} {_GLYPH_BOX}">')
     beside = json.dumps(f'{glyph_html(glyph)}</span><span class="{_LINES}">')
     return (f"(art ? {with_picture} + esc(art) + '\">' : {without})"
             f" + {beside} + lines + '</span></span>'")
+
+
+def frame_html(address: str, glyph: str, *, to: str = "") -> str:
+    """The list frame as HTML: the picture at `address`, or the glyph where it is "".
+
+    `to` makes it a link there, for a row whose name links there too."""
+    sized = _SIZED[LIST] + ("" if address else f" {_GLYPH_BOX}")
+    picture = f'<img {_IMG} src="{html.escape(address)}">' if address else ""
+    opened = (f'<a href="{html.escape(to)}" tabindex="-1" aria-hidden="true" '
+              f'class="{sized}">' if to else f'<span class="{sized}">')
+    return f'{opened}{picture}{glyph_html(glyph)}{"</a>" if to else "</span>"}'
+
+
+@contextmanager
+def beside(address: str | None, glyph: str, *, to: str = "") -> Iterator[None]:
+    """A row drawn in Python: the list frame, with what the block draws as the name's
+    lines beside it. `address` as `frame_html` takes it, or None for no frame at all."""
+    if address is None:
+        yield
+        return
+    with ui.element("span").classes(f"{_PICTURED} grow"):
+        ui.html(frame_html(address, glyph, to=to), sanitize=False, tag="span")
+        with ui.element("span").classes(f"{_LINES} grow"):
+            yield
+
+
+def option_html(lines: str, glyph: str) -> str:
+    """A `ui.select` option template's frame with `lines` beside it, read from the
+    option's `art`. An option without the field shows `lines` alone."""
+    art_of = f"props.opt.{FIELD}"
+    sized = _SIZED[LIST]
+    frame = (f'<span :key="{art_of}" :class="{art_of} ? \'{sized}\' '
+             f': \'{sized} {_GLYPH_BOX}\'"><img v-if="{art_of}" {_IMG} :src="{art_of}">'
+             f'{glyph_html(glyph)}</span>')
+    return (f'<span v-if="{art_of} !== undefined" class="{_PICTURED}">{frame}'
+            f'<span class="{_LINES}">{lines}</span></span><template v-else>{lines}</template>')

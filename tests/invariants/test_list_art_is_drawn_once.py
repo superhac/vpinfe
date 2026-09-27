@@ -24,12 +24,27 @@ def _fragments(source: str) -> list[tuple[int, str]]:
             if isinstance(node, ast.Constant) and isinstance(node.value, str)]
 
 
-def _frames(path: pathlib.Path) -> list[str]:
-    source = path.read_text(encoding="utf-8")
-    pieces = (_fragments(source) if path.suffix == ".py"
+def _marked(source: str, suffix: str) -> list[int]:
+    pieces = (_fragments(source) if suffix == ".py"
               else list(enumerate(source.splitlines(), 1)))
-    return [f"{path.relative_to(REPO)}:{line}" for line, text in pieces
-            if any(name in text for name in FRAME_CLASSES)]
+    return [line for line, text in pieces if any(name in text for name in FRAME_CLASSES)]
+
+
+def _frames(path: pathlib.Path) -> list[str]:
+    return [f"{path.relative_to(REPO)}:{line}"
+            for line in _marked(path.read_text(encoding="utf-8"), path.suffix)]
+
+
+# Each shape a list's frame could be drawn in outside the helper: a grid renderer, an
+# element's classes, HTML for `ui.html`, and a `ui.select` option template.
+SHAPES = {
+    ".js": "cell.innerHTML = '<span class=\"console-cell-art-box\"></span>';",
+    ".py": '''
+ui.element("span").classes("console-cell-pictured grow")
+ui.html(f'<span class="console-cell-art-box {sized}"><img src="{address}"></span>')
+SLOT = f"""<q-item-section>{lines}<i class="console-cell-noart"></i></q-item-section>"""
+''',
+}
 
 
 class ListArtIsDrawnOnceTests(unittest.TestCase):
@@ -39,6 +54,10 @@ class ListArtIsDrawnOnceTests(unittest.TestCase):
             if path != HELPER:
                 offenders += _frames(path)
         self.assertEqual(offenders, [], "draw it with console/list_art.py")
+
+    def test_the_scan_finds_the_frame_in_every_shape_a_list_draws(self) -> None:
+        self.assertEqual(_marked(SHAPES[".js"], ".js"), [1])
+        self.assertEqual(sorted(_marked(SHAPES[".py"], ".py")), [2, 3, 4])
 
     def test_the_scan_finds_each_of_the_helper_s_classes(self) -> None:
         """Or a scan that matches nothing would pass the test above as well."""

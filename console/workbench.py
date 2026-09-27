@@ -58,6 +58,7 @@ from console import (
     deeplink,
     game_tables,
     grid,
+    list_art,
     media_ownership,
     mediamap,
     mediasource,
@@ -704,27 +705,33 @@ async def _tag_games(context: dict[str, Any]) -> None:
     name = context["name"]
     library = context["library"]
     carrying = [one for one in library.games if name in _carried(one)]
-    tables = ([one for one in await offload.io(library.load_tables)
-               if name in _carried(one)]
-              if context["tag"].get("tables") else [])
+    wants_tables = context["tag"].get("tables")
+    listing = (await offload.io(library.load_tables)
+               if wants_tables or library.list_art() else [])
+    tables = [one for one in listing if name in _carried(one)] if wants_tables else []
+    shown = library.game_art()
     with ui.column().classes("gap-0 console-form w-full min-w-0"):
         if not carrying and not tables:
             ui.label(t("console.tags.on_no_games")).classes("console-help px-3")
         for game in sorted(carrying, key=lambda one: str(one.get("name") or "").lower()):
+            to = "/console?" + deeplink.query({"view": "games", "game": game["id"]})
             with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row"), \
+                    list_art.beside(None if shown is None else shown.get(game["id"], ""),
+                                    icons.GAMES, to=to), \
                     ui.column().classes("gap-0 grow min-w-0"):
-                panel.link(str(game.get("name") or ""), to="/console?" + deeplink.query(
-                    {"view": "games", "game": game["id"]}))()
+                panel.link(str(game.get("name") or ""), to=to)()
                 _said_line(game_tables.made(game))
         if tables:
             ui.label(t("console.tageditor.tables")).classes("console-group px-3 mt-2")
         for table in tables:
+            to = "/console?" + deeplink.query({"view": "tables",
+                                               "game": str(table.get("game_id") or ""),
+                                               "table": str(table.get("id") or "")})
             with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row"), \
+                    list_art.beside(None if shown is None else list_art.address(table),
+                                    icons.TABLES, to=to), \
                     ui.column().classes("gap-0 grow min-w-0"):
-                panel.link(str(table.get("game") or table.get("name") or ""),
-                           to="/console?" + deeplink.query(
-                               {"view": "tables", "game": str(table.get("game_id") or ""),
-                                "table": str(table.get("id") or "")}))()
+                panel.link(str(table.get("game") or table.get("name") or ""), to=to)()
                 _said_line(game_tables.made(table), table)
 
 
@@ -1341,11 +1348,13 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
         _blank(container, title, t("console.page.collection"),
                t("console.page.no_longer_library"))
         return
-    # Independent of each other, so one wait rather than three.
-    membership, axes, settings = await asyncio.gather(
+    # Independent of each other, so one wait rather than four.
+    membership, axes, settings, _ = await asyncio.gather(
         run.io_bound(library.collection_members, name),
         run.io_bound(library.filter_axes),
-        run.io_bound(library.config_values))
+        run.io_bound(library.config_values),
+        run.io_bound(library.load_list_art))
+    membership = library.with_entry_art(membership)
     known = collection_rules.fields(axes or [])
     # The rules being edited, which are not always the rules that are stored. Held on
     # the client rather than in this build of the panel, so a section change or a
@@ -1360,9 +1369,9 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
     preview: dict[str, Any] | None = None
     if name in waiting:
         try:
-            preview = await offload.io(
+            preview = library.with_entry_art(await offload.io(
                 library.preview_collection, name,
-                collection_rules.filters_from(draft["rules"], known))
+                collection_rules.filters_from(draft["rules"], known)))
         except Exception as exc:  # noqa: BLE001 - the list says why in its place
             preview = {"error": why(exc)}
 
@@ -6672,7 +6681,8 @@ def _member_line(context: dict[str, Any], member: dict[str, Any], *,
             ui.icon("drag_indicator").classes("console-drag-handle") \
                 .props('tabindex=0 role=button') \
                 .tooltip(t("console.workbench.drag_move_press_space"))
-        with ui.column().classes("gap-0 grow min-w-0"):
+        with list_art.beside(member.get(list_art.FIELD), icons.GAMES), \
+                ui.column().classes("gap-0 grow min-w-0"):
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 ui.label(member.get("name") or member.get("game") or "") \
                     .classes("console-member-name console-cell-identifier grow min-w-0 "
@@ -6953,7 +6963,8 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
     # that long is searched. `use-input` with no debounce filters from the first
     # character; `new-value-mode` is left off so only a real game can be chosen.
     picker = panel.GamePicker(games, collection_adds.holds(members)[0],
-                              label=t("console.workbench.add_games")) \
+                              label=t("console.workbench.add_games"),
+                              art=context["library"].game_art()) \
         .props('dense outlined options-dense input-debounce=0 '
                'hide-selected fill-input clearable '
                'popup-content-class="console-picker-popup"') \

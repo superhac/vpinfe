@@ -712,16 +712,31 @@ class Library:
         draw on the event loop may call it."""
         return list_art.chosen(self.kept_kinds()["media"])
 
-    def _load_list_art(self) -> None:
+    def load_list_art(self) -> None:
+        """Read what the lists draw beside a name, while they draw something. Off the
+        loop."""
         if self.list_art():
             self.load_tables()
 
     def _holds_list_art(self) -> bool:
         return not self.list_art() or self.has_table_rows()
 
-    def _game_art(self) -> dict[str, str] | None:
+    def game_art(self) -> dict[str, str] | None:
         """Each game's list art, or None while the lists draw none."""
         return list_art.by_game(self._table_rows or []) if self.list_art() else None
+
+    def with_entry_art(self, lens: dict[str, Any] | None) -> dict[str, Any] | None:
+        """A collection's members, each with its list art: the table it names, else its
+        game's."""
+        shown = self.game_art()
+        if shown is None or not lens or "members" not in lens:
+            return lens
+        named = list_art.by_table(self._table_rows or [])
+        return {**lens, "members": [
+            {**one, list_art.FIELD: named.get((str(one.get("game") or ""),
+                                               str(one["ref_table"])), "")
+             if one.get("ref_table") else shown.get(str(one.get("game") or ""), "")}
+            for one in lens["members"]]}
 
     def table_rows(self) -> list[dict[str, Any]]:
         """The by-file lens as it stands, or empty if nobody has read it yet.
@@ -857,7 +872,7 @@ class Library:
         `again` as `load_game_collections` takes it."""
         self.load_game_collections(again)
         self._read_missing_media()
-        self._load_list_art()
+        self.load_list_art()
 
     def has_games_grid(self) -> bool:
         return (self.has_game_collections() and not self._media_missing()
@@ -1028,7 +1043,7 @@ class Library:
         if rows is None:
             rows = self._media_rows = self._client.all_media()
         self.load_kept_kinds()
-        self._load_list_art()
+        self.load_list_art()
         return self._kept_media(rows)
 
     def media_rows(self) -> list[dict[str, Any]]:
@@ -1042,7 +1057,7 @@ class Library:
 
     def _kept_media(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         kept = self.kept_kinds()["media"]
-        shown = self._game_art()
+        shown = self.game_art()
         return [{**row, "said": game_tables.made(row), **_art_of(shown, row.get("game_id"))}
                 for row in rows if row.get("kind") in kept]
 
@@ -1055,7 +1070,7 @@ class Library:
         if rows is None:
             rows = self._asset_rows = self._client.all_assets()
         self.load_kept_kinds()
-        self._load_list_art()
+        self.load_list_art()
         return self._kept_assets(rows)
 
     def asset_rows(self) -> list[dict[str, Any]]:
@@ -1064,14 +1079,14 @@ class Library:
 
     def _kept_assets(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         kept = self.kept_kinds()["asset"]
-        shown = self._game_art()
+        shown = self.game_art()
         return [{**row, "said": game_tables.made(row), **_art_of(shown, row.get("game_id"))}
                 for row in rows if row.get("kind") in kept]
 
     def files_of(self, family: str, game_id: str) -> list[dict[str, Any]]:
         """One game's rows in the media or asset lens, read fresh and kept as the whole
         lens is."""
-        self._load_list_art()
+        self.load_list_art()
         if family == "media":
             return self._kept_media(self._client.media_of(game_id))
         return self._kept_assets(self._client.assets_of(game_id))
@@ -1391,7 +1406,7 @@ class Library:
 
     def game_rows(self) -> list[dict[str, Any]]:
         rows = []
-        shown = self._game_art()
+        shown = self.game_art()
         for game in self.games:
             game_id = game["id"]
             entries = self.media.get(game_id, {})
