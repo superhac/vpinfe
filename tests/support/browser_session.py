@@ -82,8 +82,8 @@ def chromium_path() -> str | None:
     return path if asyncio.run(drivable()) else None
 
 
-_PROFILE_REMOVE_ATTEMPTS = 5
-_PROFILE_REMOVE_DELAY = 0.2
+_PROFILE_REMOVE_ATTEMPTS = 15
+_PROFILE_REMOVE_DELAY = 0.3
 
 
 async def _rmtree_persistently(path: str) -> None:
