@@ -16,6 +16,7 @@ import asyncio
 import json
 import os
 import shutil
+import signal
 import socket
 import subprocess
 import tempfile
@@ -109,6 +110,7 @@ class BrowserSession:
         self.binary = binary
         self.timeout = timeout
         self._proc: subprocess.Popen | None = None
+        self._group = False
         self._profile: str | None = None
         self._ws = None
         self._next_id = 0
@@ -133,7 +135,9 @@ class BrowserSession:
                  # are ours, on loopback, in a profile thrown away afterwards.
                  "--no-sandbox", "--disable-setuid-sandbox",
                  "--window-size=1280,720", "about:blank"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                start_new_session=os.name == "posix")
+            self._group = os.name == "posix"
 
             endpoint = await self._page_endpoint(port)
             # 30s, not the 10s default: a cold CI runner can take longer than that to
@@ -155,10 +159,17 @@ class BrowserSession:
         if self._proc is not None:
             # The child can already be gone - a crash, or the exit `_page_endpoint`
             # detects through `poll()` - and terminate() then signals a reaped pid.
-            with suppress(ProcessLookupError):
-                self._proc.terminate()
+            group = getattr(self._proc, "pid", None) if self._group else None
+            with suppress(ProcessLookupError, PermissionError):
+                if isinstance(group, int):
+                    os.killpg(group, signal.SIGTERM)
+                else:
+                    self._proc.terminate()
             with suppress(Exception):
                 self._proc.wait(timeout=10)
+            if isinstance(group, int):
+                with suppress(ProcessLookupError, PermissionError):
+                    os.killpg(group, signal.SIGKILL)
             for pipe in (self._proc.stdout, self._proc.stderr, self._proc.stdin):
                 if pipe is not None:
                     with suppress(Exception):

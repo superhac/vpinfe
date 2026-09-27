@@ -106,5 +106,23 @@ class ProfileRemovalRetryTests(unittest.TestCase):
         self.assertEqual(browser_session._PROFILE_REMOVE_ATTEMPTS, len(calls))
 
 
+@unittest.skipUnless(os.name == "posix", "process groups are POSIX")
+class HelperProcessTests(unittest.TestCase):
+    def test_a_helper_that_outlives_the_browser_is_stopped_before_the_profile_goes(self) -> None:
+        profile = tempfile.mkdtemp(prefix="vpinfe-smoke-")
+        browser = browser_session.subprocess.Popen(
+            ["sh", "-c", "sleep 30 & echo $!; wait"], stdout=browser_session.subprocess.PIPE,
+            text=True, start_new_session=True)
+        helper = int(browser.stdout.readline())
+        session = browser_session.BrowserSession("ignored-binary")
+        session._proc, session._profile, session._group = browser, profile, True
+
+        asyncio.run(session.__aexit__(None, None, None))
+
+        with self.assertRaises(ProcessLookupError):
+            os.kill(helper, 0)
+        self.assertFalse(os.path.exists(profile))
+
+
 if __name__ == "__main__":
     unittest.main()
