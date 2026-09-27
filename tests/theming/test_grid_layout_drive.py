@@ -9,15 +9,21 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 import unittest
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import quote
 
 from console import collections, games, grid
 from tests.support.browser_session import BrowserSession, chromium_path
+from tests.support.console_walk import MARK, ConsoleWalk, newer
 from tests.support.library import game_info, write_game
 from tests.support.live_instance import LiveInstance
+
+NOTHING_WRITTEN_S = grid.SAVE_THROTTLE_S + 0.5
+WRITE_LIMIT_S = 30.0
 
 COLLECTION = "Probe"
 BY_LINK = (f"/console?view=collections&collection={quote(COLLECTION)}"
@@ -50,6 +56,9 @@ NAME_DRAWN = ("(() => { const handle = document.querySelector("
               " body: " + BODY_RIGHT + "}; })()")
 PICK = ("(() => { const i = [...document.querySelectorAll(%s)]"
         ".findIndex(el => el.innerText.trim() === %s); return i >= 0 ? i + 1 : 0; })()")
+PICKER = "document.querySelector('.console-view-picker').innerText"
+RESIZED_FLAG = ("(() => { window.__resized = false; " + API + ".addEventListener("
+                "'gridSizeChanged', () => { window.__resized = true; }); })()")
 
 
 class GridLayoutDrive(unittest.TestCase):
@@ -82,28 +91,48 @@ class GridLayoutDrive(unittest.TestCase):
             return json.loads(stored.read_text())["scopes"] if stored.exists() else {}
 
         async with BrowserSession(chromium_path()) as browser:
-            async def settled() -> None:
-                await asyncio.sleep(4.0)
+            walk = ConsoleWalk(browser, instance)
 
             async def load(path: str) -> None:
-                await browser.navigate(instance.console_url(path))
-                await browser.wait_for(API + ".getDisplayedRowCount() > 0", timeout=90.0)
-                await settled()
+                await walk.visit(path)
+                await browser.wait_for(API + ".getDisplayedRowCount() > 0")
+                await walk.listen()
 
             async def unchanged_by(step) -> bool:
                 before = stamp()
                 await step()
+                await asyncio.sleep(NOTHING_WRITTEN_S)
                 return stamp() == before
 
-            async def window(size: tuple[int, int]) -> None:
-                await browser.send("Emulation.setDeviceMetricsOverride",
-                                   {"width": size[0], "height": size[1],
-                                    "deviceScaleFactor": 1, "mobile": False})
-                await settled()
+            async def written_by(step) -> None:
+                before = stamp()
+                await step()
+                deadline = time.monotonic() + WRITE_LIMIT_S
+                while stamp() == before:
+                    if time.monotonic() > deadline:
+                        raise AssertionError("nothing was written")
+                    await asyncio.sleep(0.05)
+                last, still = stamp(), time.monotonic()
+                while time.monotonic() - still < NOTHING_WRITTEN_S:
+                    if time.monotonic() > deadline:
+                        raise AssertionError("the file never stopped changing")
+                    await asyncio.sleep(0.05)
+                    if stamp() != last:
+                        last, still = stamp(), time.monotonic()
 
-            async def click_text(selector: str, text: str) -> None:
-                at = await browser.wait_for(PICK % (json.dumps(selector), json.dumps(text)))
-                await browser.click(selector, nth=int(at) - 1)
+            async def window(size: tuple[int, int]) -> None:
+                await walk.act(lambda: browser.send(
+                    "Emulation.setDeviceMetricsOverride",
+                    {"width": size[0], "height": size[1], "deviceScaleFactor": 1,
+                     "mobile": False}),
+                    mark=RESIZED_FLAG, until=f"window.__resized && innerWidth === {size[0]}")
+
+            def click_text(selector: str, text: str) -> Callable[[], Awaitable[None]]:
+                async def click() -> None:
+                    at = await browser.wait_for(
+                        PICK % (json.dumps(selector), json.dumps(text)))
+                    await browser.click(selector, nth=int(at) - 1)
+                return click
 
             async def mouse(kind: str, x: float, y: float, button: str = "left",
                             held: bool = False) -> None:
@@ -112,11 +141,17 @@ class GridLayoutDrive(unittest.TestCase):
                                     "buttons": 1 if held else 0, "clickCount": 1})
 
             async def header_menu(col_id: str) -> bool:
+                """The column's menu, once the server has filled it for this column:
+                until then it shows what it held last."""
                 at = await browser.evaluate(HEADER_OF % col_id)
                 if not at:
                     return False
-                for kind in ("mousePressed", "mouseReleased"):
-                    await mouse(kind, *at, button="right")
+
+                async def press() -> None:
+                    for kind in ("mousePressed", "mouseReleased"):
+                        await mouse(kind, *at, button="right")
+
+                await walk.act(press, mark=MARK, until=newer(".q-menu .console-menu-item"))
                 return True
 
             seen["first_load"] = await unchanged_by(
@@ -126,17 +161,17 @@ class GridLayoutDrive(unittest.TestCase):
 
             async def turn_a_column_on() -> None:
                 await load("/console?view=tables")
-                await browser.click(".console-view-menu")
-                await asyncio.sleep(0.8)
+                await walk.act(lambda: browser.click(".console-view-menu"),
+                               until="!!document.querySelector('.q-menu .q-checkbox')")
                 at = await browser.evaluate(
                     "[...document.querySelectorAll('.q-menu .q-checkbox')]"
                     ".findIndex(c => c.getAttribute('aria-checked') === 'false')")
-                await browser.click(".q-menu .q-checkbox", nth=int(at))
-                await settled()
+                await walk.act(lambda: browser.click(".q-menu .q-checkbox", nth=int(at)),
+                               mark=f"window.__picker = {PICKER}",
+                               until=f"{PICKER} !== window.__picker")
 
             seen["column_on"] = await unchanged_by(turn_a_column_on)
-            seen["column_on_picker"] = await browser.evaluate(
-                "document.querySelector('.console-view-picker').innerText")
+            seen["column_on_picker"] = await browser.evaluate(PICKER)
 
             await window(WIDE)
             await load("/console?view=games")
@@ -144,9 +179,7 @@ class GridLayoutDrive(unittest.TestCase):
             await window(NARROW)
             seen["games_narrowed"] = await browser.evaluate(NAME_DRAWN)
             if await header_menu("name"):
-                await browser.wait_for("!!document.querySelector('.q-menu .console-menu-item')")
-                await browser.click(".q-menu .console-menu-item")
-                await settled()
+                await written_by(lambda: browser.click(".q-menu .console-menu-item"))
             seen["games_pinned"] = scopes()
             await window(WIDE)
             seen["games_widened"] = await browser.evaluate(NAME_DRAWN)
@@ -163,19 +196,21 @@ class GridLayoutDrive(unittest.TestCase):
             at = await browser.evaluate(EDGE_OF % "name")
             if at:
                 x, y = at
-                await mouse("mouseMoved", x, y)
-                await mouse("mousePressed", x, y, held=True)
-                for step in range(1, 9):
-                    await mouse("mouseMoved", x - 5 * step, y, held=True)
-                    await asyncio.sleep(0.05)
-                await mouse("mouseReleased", x - 40, y)
-                await settled()
+
+                async def drag() -> None:
+                    await mouse("mouseMoved", x, y)
+                    await mouse("mousePressed", x, y, held=True)
+                    for step in range(1, 9):
+                        await mouse("mouseMoved", x - 5 * step, y, held=True)
+                        await asyncio.sleep(0.05)
+                    await mouse("mouseReleased", x - 40, y)
+
+                await written_by(drag)
             seen["resized"] = (before, scopes())
             seen["resized_on_screen"] = await browser.evaluate(PINNED_ON_SCREEN)
 
             if await header_menu("kind"):
-                await click_text(".q-menu .console-menu-item", "Pin left")
-                await settled()
+                await written_by(click_text(".q-menu .console-menu-item", "Pin left"))
             seen["pinned"] = scopes()
 
             await window(WIDE)

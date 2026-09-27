@@ -40,6 +40,7 @@ DEFAULT_COL_DEF: dict[str, Any] = {
 #
 # Each event, and the part of a `Layout` it changes.
 _SAVE_EVENTS = {"columnMoved": "order", "columnResized": "widths", "columnPinned": "pins"}
+SAVE_THROTTLE_S = 0.6
 # Emits only a person's own gestures, the events whose AG Grid source starts `ui`.
 _BY_A_PERSON = ("e => { if (String(e.source || '').startsWith('ui'))"
                 " emit({colId: e.colId, pinned: e.pinned}); }")
@@ -1250,4 +1251,4 @@ def _save_on_change(grid: ui.aggrid, scope: str,
         # A resize fires per pixel. nicegui's own throttle, so no timer outlives the
         # element; trailing_events keeps the final width.
         grid.on(event, lambda said, change=change: save(said.args or {}, change),
-                throttle=0.6, trailing_events=True, js_handler=_BY_A_PERSON)
+                throttle=SAVE_THROTTLE_S, trailing_events=True, js_handler=_BY_A_PERSON)
