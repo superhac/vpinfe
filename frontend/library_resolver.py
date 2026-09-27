@@ -46,6 +46,7 @@ from common.games.game_repository import all_games
 from common.games.media_lookup import resolved_kinds
 from common.i18n import t
 from common.service_errors import BlockedError, NotFoundError, ServiceError
+from common.values import is_truthy
 from frontend import game_state
 
 logger = logging.getLogger("vpinfe.frontend.library_resolver")
@@ -59,6 +60,31 @@ def library_url(ini_config: ConfigSource) -> str:
         logger.debug("Could not read the library URL; holding a local library",
                      exc_info=True)
         return ""
+
+
+_MANY_AXES = ("letter", "theme", "game_type", "manufacturer", "year", "tags",
+              "theme_none_of", "game_type_none_of", "manufacturer_none_of", "year_none_of",
+              "tags_none_of")
+
+
+def _chosen(value: Any) -> tuple[str, ...]:
+    items = value if isinstance(value, (list, tuple)) else str(value or "").split(",")
+    return tuple(sorted({str(item).strip() for item in items} - {"", "All"}))
+
+
+def _flag(value: Any) -> bool | None:
+    return None if value is None else is_truthy(value)
+
+
+def rules(filters: dict[str, Any], order_by: str, direction: str) -> tuple:
+    """A collection's rules in one shape, whether a store holds them or a library's API
+    reported them."""
+    rating = str(filters.get("rating") or "All")
+    return (tuple(_chosen(filters.get(axis)) for axis in _MANY_AXES),
+            rating, rating != "All" and is_truthy(filters.get("rating_or_higher")),
+            _flag(filters.get("played")), _flag(filters.get("favorite")),
+            bool(filters.get("year_range")),
+            str(order_by or DEFAULT_ORDER_BY), normalize_direction(direction))
 
 
 class LibraryResolver:
@@ -218,6 +244,42 @@ class LibraryResolver:
         self._ask(remote_library.create_collection,
                   {"name": name, "filters": {**criteria, "order_by": order_by,
                                              "direction": direction}})
+
+    def keep_filter(self, name: str, criteria: dict[str, Any], order_by: str,
+                    direction: str) -> tuple[str, bool]:
+        """`save_filter` once per set of rules: the name a collection holding exactly
+        these rules already has, and True; else the rules saved under `name` or the next
+        free `name N`, and False."""
+        wanted = rules(criteria, order_by, direction)
+        held = self._rules_by_name()
+        for existing, theirs in held.items():
+            if theirs == wanted:
+                return existing, True
+        kept, number = name, 1
+        while kept in held:
+            number += 1
+            kept = f"{name} {number}"
+        self.save_filter(kept, criteria, order_by, direction)
+        return kept, False
+
+    def _rules_by_name(self) -> dict[str, tuple | None]:
+        """Every collection's name, with its rules where it is made by rules alone."""
+        if self._remote:
+            return {str(row["name"]): rules(row["filters"], row.get("order_by", ""),
+                                            row.get("direction", ""))
+                    if row.get("filters") and not row.get("added")
+                    and not row.get("excluded") and row.get("limit") is None else None
+                    for row in self._ask(remote_library.fetch_collections)}
+        store = self.collections()
+        found: dict[str, tuple | None] = {}
+        for name in store.get_collections_name():
+            filters = store.get_filters(name)
+            alone = (filters is not None and not store.get_member_refs(name)
+                     and not store.get_excluded_refs(name) and store.get_limit(name) is None)
+            order = store.get_order(name)
+            found[name] = (rules(filters, order[ORDER_BY_KEY], order[ORDER_DIRECTION_KEY])
+                           if filters is not None and alone else None)
+        return found
 
     def paging_group(self, name: str) -> str | None:
         """How a page press moves through `name`, or None to follow the player. A

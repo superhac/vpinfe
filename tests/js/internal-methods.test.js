@@ -32,6 +32,7 @@ describe("vpin.call refuses core's own methods", () => {
       "get_current_order_state",
       "get_current_sort_state",
       "get_paging_state",
+      "keep_filter_collection",
     ]);
   });
 

@@ -151,6 +151,7 @@ API_INTERNAL_METHODS = {
     'get_current_sort_state',
     'get_current_order_state',
     'get_paging_state',
+    'keep_filter_collection',
 }
 
 
@@ -497,6 +498,29 @@ class API:
         """Save current filter settings as a named collection."""
         try:
             return game_state.save_current_filter_collection(
+                self, name, letter, theme, game_type, manufacturer, year, order_by,
+                rating, rating_or_higher, direction,
+            )
+        except (ValueError, ServiceError) as e:
+            return {"success": False, "message": why(e)}
+
+    def keep_filter_collection(
+        self,
+        name: str,
+        letter: str = "All",
+        theme: str = "All",
+        game_type: str = "All",
+        manufacturer: str = "All",
+        year: str = "All",
+        order_by: str = DEFAULT_ORDER_BY,
+        rating: str = "All",
+        rating_or_higher: object = False,
+        direction: str = DEFAULT_DIRECTION,
+    ) -> dict[str, Any]:
+        """`save_filter_collection` once per set of rules, under a free name: answers the
+        name it is kept under, and whether a collection already held those rules."""
+        try:
+            return game_state.keep_filter_collection(
                 self, name, letter, theme, game_type, manufacturer, year, order_by,
                 rating, rating_or_higher, direction,
             )

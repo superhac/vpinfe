@@ -64,6 +64,7 @@ LEDGER_ALLOWS = {
     # Additive, and refused to themes - it is core's own overlay asking.
     "PAR-88": {"get_paging_state"},
     "PAR-95": {"get_collection_picker_items"},
+    "PAR-96": {"keep_filter_collection"},
     # New media kinds add theme-payload keys. Additive only: every key master
     # had must still be present and equal.
     "PAR-11": {"InstructionCardImagePath", "TopperPath", "TopperVideoPath",
@@ -172,7 +173,8 @@ class ParityTests(unittest.TestCase):
                 | LEDGER_ALLOWS["PAR-33"]
             | LEDGER_ALLOWS["PAR-40"] | LEDGER_ALLOWS["PAR-45"]
             | LEDGER_ALLOWS["PAR-48"] | LEDGER_ALLOWS["PAR-63"]
-            | LEDGER_ALLOWS["PAR-88"] | LEDGER_ALLOWS["PAR-95"],
+            | LEDGER_ALLOWS["PAR-88"] | LEDGER_ALLOWS["PAR-95"]
+            | LEDGER_ALLOWS["PAR-96"],
             "only PAR-04's, PAR-21's and PAR-27's additions are permitted")
 
     def test_legacy_endpoints_served_on_master_and_do_not_serve_here(self) -> None:

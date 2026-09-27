@@ -390,6 +390,7 @@ const INTERNAL_METHODS = new Set([
   "get_current_sort_state",
   "get_current_order_state",
   "get_paging_state",
+  "keep_filter_collection",
 ]);
 
 // Same once-per-name reporting as announceLegacy, and for the same reason: without it the

@@ -1415,6 +1415,17 @@ under a contract-1 theme the payload carries no collection name, so the browser 
 tell which row to open on. Covered by `tests/js/list-stack.test.js`,
 `tests/theming/test_collection_view.py` and `tests/invariants/test_theme_api_surface.py`.
 
+**PAR-96 - A collection can be kept once per set of rules, under a free name.**
+One WebSocket method, `keep_filter_collection`, saves the collection menu's filters, sort
+and order under the name it is given, or the next free one when other rules hold that name.
+Where a collection already holds exactly those rules it makes nothing and answers with that
+collection's name. Refused to themes, like `get_paging_state`: its caller is the cabinet's
+Save as Collection. A theme saving a collection still calls `save_filter_collection`,
+unchanged.
+*Why:* a cabinet has no keyboard, so its save names the collection from what is chosen, and
+pressing it twice must not make two. Covered by `tests/theming/test_keep_filter_collection.py`,
+`tests/js/internal-methods.test.js` and `tests/invariants/test_theme_api_surface.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

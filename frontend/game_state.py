@@ -330,6 +330,17 @@ def save_current_filter_collection(api: API, name: str, letter: str, theme: str,
     return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
 
 
+def keep_filter_collection(api: API, name: str, letter: str, theme: str, game_type: str,
+                           manufacturer: str, year: str, order_by: str, rating: str,
+                           rating_or_higher: object, direction: str) -> dict[str, Any]:
+    kept, already = api.library.keep_filter(
+        name, {"letter": letter, "theme": theme, "game_type": game_type,
+               "manufacturer": manufacturer, "year": year, "rating": rating,
+               "rating_or_higher": is_truthy(rating_or_higher)},
+        order_by, direction)
+    return {"success": True, "name": kept, "already": already}
+
+
 def filter_options(games: Sequence[GameRecord]) -> dict[str, list[str]]:
     return GameListFilters(games).available_options()
 
