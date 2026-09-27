@@ -382,5 +382,66 @@ class MovedSectionTests(ConfigStoreTests):
         self.assertIs(after["behavior"]["confirm"], False)
 
 
+class TwoStoresTests(ConfigStoreTests):
+    def test_an_id_minted_elsewhere_survives_a_save_by_a_store_that_never_saw_it(
+            self) -> None:
+        from common import install_identity
+
+        kept = ConfigStore(str(self.ini))
+        minted = install_identity.ensure_id(ConfigStore(str(self.ini)))
+
+        kept.config.set("network", "http_port", "9001")
+        kept.save()
+
+        after = ConfigStore(str(self.ini))
+        self.assertEqual(install_identity.install_id(after), minted)
+        self.assertEqual(after.config.get("network", "http_port"), "9001")
+
+    def test_a_save_with_nothing_changed_writes_nothing_back(self) -> None:
+        kept = ConfigStore(str(self.ini))
+        other = ConfigStore(str(self.ini))
+        other.config.set("general", "game_root_dir", "/elsewhere")
+        other.save()
+
+        kept.save()
+
+        self.assertEqual(self._payload()[SETTINGS_KEY]["general"]["game_root_dir"],
+                         "/elsewhere")
+
+    def test_a_key_both_stores_changed_takes_the_later_save(self) -> None:
+        kept = ConfigStore(str(self.ini))
+        other = ConfigStore(str(self.ini))
+        other.config.set("network", "http_port", "9001")
+        other.save()
+
+        kept.config.set("network", "http_port", "9002")
+        kept.save()
+
+        self.assertEqual(self._payload()[SETTINGS_KEY]["network"]["http_port"], 9002)
+
+    def test_a_key_the_store_removed_is_gone_and_the_rest_are_kept(self) -> None:
+        kept = ConfigStore(str(self.ini))
+        other = ConfigStore(str(self.ini))
+        other.config.set("general", "game_root_dir", "/elsewhere")
+        other.save()
+
+        kept.config.remove_option("logger", "terminal")
+        kept.save()
+
+        settings = self._payload()[SETTINGS_KEY]
+        self.assertNotIn("terminal", settings["logger"])
+        self.assertEqual(settings["general"]["game_root_dir"], "/elsewhere")
+
+    def test_after_a_save_the_store_holds_what_the_file_holds(self) -> None:
+        kept = ConfigStore(str(self.ini))
+        other = ConfigStore(str(self.ini))
+        other.config.set("general", "game_root_dir", "/elsewhere")
+        other.save()
+
+        kept.save()
+
+        self.assertEqual(kept.config.get("general", "game_root_dir"), "/elsewhere")
+
+
 if __name__ == "__main__":
     unittest.main()

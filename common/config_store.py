@@ -15,6 +15,7 @@ import configparser
 import json
 import logging
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -121,6 +122,14 @@ def _flatten(tree: dict, prefix: str = '') -> dict:
     return out
 
 
+_SAVING = threading.Lock()
+
+
+def _options(parser: configparser.ConfigParser) -> dict[tuple[str, str], str]:
+    return {(section, key): value for section in parser.sections()
+            for key, value in parser.items(section, raw=True)}
+
+
 class ConfigStore:
     """The settings file, read once and written atomically."""
 
@@ -152,6 +161,7 @@ class ConfigStore:
         self.configfilepath = str(self.json_path)
         self._schema = CONFIG_SCHEMA
         self._converted_from_ini = False
+        self._saved: dict[tuple[str, str], str] | None = None
 
         self.is_new = False
         if os.path.exists(self.json_path):
@@ -334,6 +344,7 @@ class ConfigStore:
 
         if changed:
             self.save()
+        self._saved = _options(self.config)
 
     def _typed(self, section: str, key: str, raw: str) -> Any:
         """The value as JSON should hold it. Unknown keys stay strings.
@@ -369,17 +380,41 @@ class ConfigStore:
             return ','.join(str(v) for v in value)
         return '' if value is None else str(value)
 
-    def _load_json(self) -> None:
+    def _read_json(self) -> tuple[int, configparser.ConfigParser]:
         with open(self.json_path, encoding='utf-8') as handle:
             payload = json.load(handle) or {}
-        self._schema = int(payload.get(SCHEMA_KEY, CONFIG_SCHEMA) or CONFIG_SCHEMA)
+        parser = configparser.ConfigParser()
         for section, values in _flatten(payload.get(SETTINGS_KEY) or {}).items():
-            if not self.config.has_section(section):
-                self.config.add_section(section)
+            if not parser.has_section(section):
+                parser.add_section(section)
             for key, value in (values or {}).items():
                 # Any spelling a file has ever used lands under the name we store now.
-                self.config.set(section, config_schema.canonical(section, key),
-                                self._as_text(value))
+                parser.set(section, config_schema.canonical(section, key),
+                           self._as_text(value))
+        return int(payload.get(SCHEMA_KEY, CONFIG_SCHEMA) or CONFIG_SCHEMA), parser
+
+    def _load_json(self) -> None:
+        self._schema, self.config = self._read_json()
+
+    def _take_in_the_file(self, saved: dict[tuple[str, str], str]) -> None:
+        """What the file gained, changed or lost since `saved`, for every key this store
+        left alone. A key this store changed keeps this store's value."""
+        try:
+            schema, current = self._read_json()
+        except (OSError, ValueError) as exc:
+            logger.warning("Could not read %s before saving, so it is written whole: %s",
+                           self.json_path, exc)
+            return
+        ours, theirs = _options(self.config), _options(current)
+        for (section, key), value in theirs.items():
+            if ours.get((section, key)) == saved.get((section, key)) != value:
+                if not self.config.has_section(section):
+                    self.config.add_section(section)
+                self.config.set(section, key, value)
+        for section, key in saved.keys() - theirs.keys():
+            if ours.get((section, key)) == saved[(section, key)]:
+                self.config.remove_option(section, key)
+        self._schema = max(self._schema, schema)
 
     def value(self, section: str, key: str) -> Any:
         """One setting, typed the way this store would write it back.
@@ -402,6 +437,13 @@ class ConfigStore:
         self.config.set(section, key, self._as_text(value))
 
     def save(self) -> None:
+        with _SAVING:
+            if self._saved is not None and os.path.exists(self.json_path):
+                self._take_in_the_file(self._saved)
+            self._write()
+            self._saved = _options(self.config)
+
+    def _write(self) -> None:
         # The first save after reading an ini keeps a copy and leaves the original alone:
         # a downgrade needs the file the older build reads.
         if self._converted_from_ini and os.path.exists(self.ini_path):
