@@ -1215,6 +1215,22 @@ decorated. Under the page, what it draws goes to the page's end.
 mistake. A test calls a decorated handler from a slot, as a click does, with `press` from
 `tests/support/clicks.py`.
 
+### A region still being drawn says so
+
+A region the Console fills after the page is up is marked while it waits: `busy.fill(region,
+work)` for a first draw put off until the browser has the page, and `with busy.held(region):`
+around an awaited build. Both put `aria-busy="true"` on the region at once and take it off when
+the work ends, however it ends. The spinner goes in with the mark, and `.console-busy` keeps it
+hidden for its first quarter second, so a region that fills quickly never shows one.
+
+`tests/invariants/test_a_region_filled_later_says_so.py` fails on a one-shot `ui.timer`
+anywhere else in `console/`; a timer that fills no region is listed there with its reason.
+
+A page is drawn when its handshake is done and nothing on it is marked `aria-busy`. The loading
+screen holds its region until the view is drawn (`busy.until_gone`), a linked subject's pane is
+held until it is built, and a grid's saved view is filled through `busy.fill` on its wrapper
+(`9e365d7c`).
+
 ## Typing
 
 Annotate what you write. A signature that says what it takes and what it gives back is the
@@ -1316,3 +1332,46 @@ import managerui.managerui  # noqa: F401
 ```
 
 Run the tests after `--fix`, not just the linter.
+
+## Tests
+
+### Running them
+
+`python -m tests` runs the suite across processes, whole modules to a process, longest first
+by how long each took last time; `-j N` sets how many (half the cores by default) and `-j 1`
+runs them in the calling process. Paths after the options narrow the run to a directory or a
+file under `tests/`. Each process gets its own config directory and temp directory, and a
+process that leaves anything in its temp directory fails the run, naming what it left.
+`python -m unittest discover -t . -s tests` runs the same tests in one process and is what CI
+runs; `tests/invariants/test_parallel_runner.py` holds the runner to it.
+
+### A source file is parsed once
+
+A test that reads the tree as Python gets it from `tests/support/trees.py`: `tree_for(path)`
+for a file in the repo, cached for the run, and `parse_snippet(source)` for a checker's own
+sample. `tests/invariants/test_a_source_tree_is_parsed_once.py` fails on an `ast.parse`
+anywhere else under `tests/`, and on a cached tree that no longer matches a fresh parse of
+its file.
+
+### A browser test waits on the app, never on the clock
+
+A test that drives a browser waits on the change its action causes: `tests/support/console_walk.py`'s
+`visit`, `act(action, until=...)` and `open_pane` for the Console, `BrowserSession.wait_for`,
+or the app's own signal - a theme's `document.body.dataset.ready`, an overlay's selected row
+with no bridge call outstanding, the Console's handshake with nothing `aria-busy`. The change
+waited on is false before the action, so something already on screen never answers it. Every
+wait has a limit, and reaching it is a failure. A check that nothing happened waits out a named
+window, and the name says what it is sized from (`grid.SAVE_THROTTLE_S`).
+
+`tests/invariants/test_a_browser_test_waits_on_the_app.py` fails on a `sleep` of a literal
+0.25s or more, or an in-page `setTimeout` with a literal delay of 250ms or more, in a test file
+that imports `tests.support.browser_session` or `tests.support.live_instance`. Below that is
+input pacing, a poll's step, or a `setTimeout(fn, 0)` deferral.
+
+### An instance is booted once per class
+
+A `LiveInstance` costs seconds, so a test class boots one in `setUpClass` and its tests share
+it. A class whose tests each need their own says why in `BOOTS_PER_TEST`.
+`tests/invariants/test_a_test_that_boots_its_own_instance_says_why.py` fails on a
+`LiveInstance(` outside `setUpClass` or `setUpModule` without that declaration, and on a
+declaration left on a class that boots once.
