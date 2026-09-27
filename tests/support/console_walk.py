@@ -10,16 +10,38 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import Any
+from typing import Any, Protocol
 
 from tests.support.browser_session import BrowserSession
-from tests.support.live_instance import LiveInstance
 
 DRAWN = ("window.did_handshake === true"
          " && document.querySelector('[aria-busy=\"true\"]') === null")
 
 QUIET_MS = 200
 LISTEN_MS = 500
+
+# For an action's `mark`: the newest element the server has drawn, for `newer`, and
+# every notice on screen, for `notice`. What either finds afterwards is the action's.
+MARK = ("window.__walkNewest = Math.max(0, ...Object.keys(mounted_app.elements).map(Number));"
+        " document.querySelectorAll('.q-notification')"
+        ".forEach(n => { n.dataset.walkSeen = '1'; })")
+
+
+def newer(selector: str) -> str:
+    """Something matching `selector` that the server drew since `MARK`."""
+    return (f"[...document.querySelectorAll({json.dumps(selector)})]"
+            ".some(el => Number(el.id.slice(1)) > window.__walkNewest)")
+
+
+def notice(text: str) -> str:
+    """A notice holding `text` said since `MARK`, as its words and classes, else null."""
+    return ("(() => { const n = [...document.querySelectorAll('.q-notification')]"
+            f".find(n => !n.dataset.walkSeen && n.innerText.includes({json.dumps(text)}));"
+            " return n ? [n.innerText, n.className] : null; })()")
+
+
+class Served(Protocol):
+    def console_url(self, path: str = "/") -> str: ...
 
 _POLL_S = 0.025
 _LOAD_S = 90.0
@@ -63,9 +85,9 @@ _PANE = "document.querySelector('.console-sections')"
 
 
 class ConsoleWalk:
-    """One browser tab on one instance's Console."""
+    """One browser tab on one instance's Console, or on any page NiceGUI serves."""
 
-    def __init__(self, browser: BrowserSession, instance: LiveInstance) -> None:
+    def __init__(self, browser: BrowserSession, instance: Served) -> None:
         self.browser = browser
         self.instance = instance
         self.path = ""
@@ -86,9 +108,20 @@ class ConsoleWalk:
         await self._until(f"!window.__walkLeft && {DRAWN}", _LOAD_S)
         await self.drawn()
         if listen:
-            await self._until(f"performance.now() - window.__walk.said >= {LISTEN_MS}",
-                              _QUIET_CAP_S, required=False)
+            await self.listen()
         return list(self.browser.console)
+
+    async def listen(self) -> None:
+        """Until the server has said nothing for `LISTEN_MS`, or `_QUIET_CAP_S`."""
+        await self._until(f"performance.now() - window.__walk.said >= {LISTEN_MS}",
+                          _QUIET_CAP_S, required=False)
+
+    async def answered(self, action: Callable[[], Awaitable[Any]]) -> None:
+        """`action`, the server's answer to it, and then nothing more from the server
+        for `LISTEN_MS`: the window a check that `action` changed nothing reads after."""
+        await self.act(action, mark="window.__walkHeard = window.__walk.said",
+                       until="window.__walk.said > window.__walkHeard")
+        await self.listen()
 
     async def drawn(self, timeout: float = _ACT_S) -> None:
         """The page says it is drawn, then nothing changes for `QUIET_MS`, and it still

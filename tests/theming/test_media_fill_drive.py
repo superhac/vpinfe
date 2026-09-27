@@ -17,6 +17,7 @@ from typing import Any
 
 from common.i18n import t
 from tests.support.browser_session import BrowserSession
+from tests.support.console_walk import ConsoleWalk
 from tests.theming.test_grid_selection_drive import (
     API,
     HEADER_BOX,
@@ -27,6 +28,20 @@ from tests.theming.test_grid_selection_drive import (
 
 SEARCH = "Alpha"
 FILLED = "alpha1:wheel:"
+COUNT_SAYS = t("console.media.selected", picked="{picked}", shown="{shown}")
+# The bar's count is the grid's own: the rows selected and the rows on screen.
+COUNTED = ("[...document.querySelectorAll('.console-grid-bar .console-label')]"
+           ".some(el => el.textContent.trim() === %s"
+           f".replace('{{picked}}', {API}.getSelectedNodes().length)"
+           f".replace('{{shown}}', {API}.getDisplayedRowCount()))")
+
+
+class _Page:
+    def __init__(self, port: int) -> None:
+        self.port = port
+
+    def console_url(self, path: str = "/") -> str:
+        return f"http://127.0.0.1:{self.port}{path}"
 
 
 def _gaps() -> list[dict]:
@@ -131,7 +146,8 @@ class MediaFillDrive(unittest.TestCase):
                 ".map(el => el.textContent.trim())})")
 
         async with BrowserSession(binary) as browser:
-            await browser.navigate(f"http://127.0.0.1:{port}/")
+            walk = ConsoleWalk(browser, _Page(port))
+            await walk.visit("/")
             await browser.wait_for(API + ".getDisplayedRowCount() === 20", timeout=60.0)
             await browser.click(search)
             await browser.send("Input.insertText", {"text": SEARCH})
@@ -149,12 +165,9 @@ class MediaFillDrive(unittest.TestCase):
                 ".setAttribute('data-drive', 'actions')")
             await browser.click("[data-drive=actions]")
             await browser.wait_for("!!document.querySelector('.console-menu-item')")
-            await browser.click(".console-menu-item")
-            for _ in range(100):
-                if (await asyncio.to_thread(_heard, port))["placed"]:
-                    break
-                await asyncio.sleep(0.1)
-            await asyncio.sleep(1.0)
+            await walk.act(lambda: browser.click(".console-menu-item"),
+                           until=f"{API}.getDisplayedRowCount() !== {before['shown']}"
+                                 f" && {COUNTED % json.dumps(COUNT_SAYS)}")
             return {"before": before, "after": await looking(),
                     "heard": await asyncio.to_thread(_heard, port)}
 
