@@ -40,13 +40,13 @@ def _peek(src: str, family: str) -> None:
 
 def _body(src: str, name: str, meta: str, tag: str, family: str, glyph: str,
           small: bool = False, line: bool = False, peek: str = "",
-          more: tuple[str, ...] = ()) -> None:
+          more: tuple[str, ...] = (), missing: str = "") -> None:
     """The picture and the words, which both shapes draw the same way."""
     frame = "console-source-thumb" + (" console-source-thumb--small" if small else "")
     if line:
         ui.icon(glyph or GLYPHS.get(family, FALLBACK)).classes("shrink-0")
     else:
-        _frame(frame, src, family, glyph, peek)
+        _frame(frame, src, family, glyph, peek, missing)
     with ui.column().classes("gap-0 min-w-0 grow"):
         ui.label(name).classes("console-source-name")
         if meta:
@@ -57,8 +57,9 @@ def _body(src: str, name: str, meta: str, tag: str, family: str, glyph: str,
             ui.label(tag).classes("console-source-tag")
 
 
-def _frame(frame: str, src: str, family: str, glyph: str, peek: str = "") -> None:
-    with ui.element("div").classes(frame):
+def _frame(frame: str, src: str, family: str, glyph: str, peek: str = "",
+           missing: str = "") -> None:
+    with ui.element("div").classes(frame) as box:
         if src and family == "video":
             ui.html(f'<video src="{src}#t=0.1" preload="metadata" muted '
                     f'playsinline></video>')
@@ -69,6 +70,8 @@ def _frame(frame: str, src: str, family: str, glyph: str, peek: str = "") -> Non
                 .classes("console-source-thumb-glyph")
         if src and family in SHOWABLE:
             _peek(peek or src, family)
+    if missing and not src:
+        box.tooltip(missing)
 
 
 def row(src: str, name: str, meta: str, tag: str, take: Callable, *,
@@ -94,7 +97,7 @@ def row(src: str, name: str, meta: str, tag: str, take: Callable, *,
 def choice(src: str, name: str, meta: str, pick: Callable | None = None, *,
            family: str = "image", glyph: str = "", chosen: bool = False,
            trailing: Callable[[], None] | None = None, entry: bool = False,
-           more: tuple[str, ...] = ()) -> Any:
+           more: tuple[str, ...] = (), missing: str = "") -> Any:
     """A row whose target is the whole row, with no button on it.
 
     For the lists you scan rather than compare: forty candidates with forty buttons is
@@ -107,7 +110,7 @@ def choice(src: str, name: str, meta: str, pick: Callable | None = None, *,
     `chosen` lights it. `trailing` puts one control at the end, for an act about that
     row rather than about the list. `entry` takes the grid's two-line type, for a row
     naming the same kind of thing a grid row names. `more` is lines under `meta`, as
-    quiet as it is.
+    quiet as it is. `missing` is what the frame says on hover when there is no picture.
     """
     classes = "items-center gap-3 w-full no-wrap console-source-row"
     if pick is not None:
@@ -118,7 +121,7 @@ def choice(src: str, name: str, meta: str, pick: Callable | None = None, *,
         classes += " console-source-row--entry"
     element = ui.row().classes(classes)
     with element:
-        _body(src, name, meta, "", family, glyph, small=True, more=more)
+        _body(src, name, meta, "", family, glyph, small=True, more=more, missing=missing)
         if trailing is not None:
             trailing()
     if pick is not None:

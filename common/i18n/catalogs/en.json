@@ -1703,6 +1703,7 @@
   },
   "console.vps_match.match_to_this": "Match to this",
   "console.vps_match.matched_to": "Matched To",
+  "console.vps_match.no_picture": "No picture on VPS",
   "console.vps_match.nothing_changed": "Nothing changed",
   "console.vps_match.nothing_vps_matches": "Nothing in VPS matches “{said}”",
   "console.vps_match.open_in_vps": "Open this entry in the Visual Pinball Spreadsheet",

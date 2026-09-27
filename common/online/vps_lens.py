@@ -29,11 +29,20 @@ def _resource(entry: dict) -> dict:
         "manufacturer": entry.get("manufacturer"), "year": entry.get("year"),
         "type": entry.get("type"), "folder_name": vps_folder_name(entry),
         "releases": len(entry.get("tableFiles") or []),
-        # Present on 39% of entries, measured on a 2570-entry snapshot. A surface that
-        # leads with it has to hold its own shape when there is none.
-        "img_url": entry.get("imgUrl") or "",
+        "img_url": _picture(entry),
         "url": entry_address(str(entry.get("id") or "")),
     }
+
+
+def _picture(entry: dict) -> str:
+    """The picture VPS's own page leads with for this machine, or "" for none."""
+    if entry.get("imgUrl"):
+        return str(entry["imgUrl"])
+    for listed_as in ("b2sFiles", "tableFiles"):
+        pictured = [one for one in (entry.get(listed_as) or []) if one.get("imgUrl")]
+        if pictured:
+            return str(max(pictured, key=lambda one: one.get("createdAt") or 0)["imgUrl"])
+    return ""
 
 
 def entry_address(vps_id: str) -> str:
@@ -71,8 +80,6 @@ def _release(release: dict, entry: dict) -> dict:
         "format": str(release.get("tableFormat") or ""),
         "features": [str(word) for word in (release.get("features") or [])],
         "comment": str(release.get("comment") or ""),
-        # On 95% of releases, against 39% of the entries they belong to - so unlike the
-        # entry list, a surface here can lead with the picture.
         "img_url": str(release.get("imgUrl") or ""),
         "updated_at": _as_iso(release.get("updatedAt")),
         "url": next((link for link in urls if link), ""),

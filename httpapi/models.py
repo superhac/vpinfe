@@ -2695,8 +2695,7 @@ class VpsSearchResult(ApiModel):
     # How many builds exist for this machine. Context for choosing which machine you
     # have, not a choice in itself - the release is a later question.
     releases: int = 0
-    # A photograph of the machine, where VPS has one - it does for 39% of entries, so
-    # a consumer cannot lay out around it being there.
+    # The picture VPS's own page leads with for this machine, blank where there is none.
     img_url: str = ""
     # The entry on VPS, so a surface can link out rather than making somebody search
     # for what it has already identified.
@@ -2735,8 +2734,8 @@ class VpsRelease(ApiModel):
     """One release for a game, as VPSdb lists it.
 
     Every field is as optional as the catalog is. `img_url` is the exception worth
-    naming: it is present on nearly every release where it is on a minority of the
-    entries above, so a surface over releases can lay out around having a picture.
+    naming: it is present on nearly every release, so a surface over releases can lay
+    out around having a picture.
     """
 
     vps_file_id: str

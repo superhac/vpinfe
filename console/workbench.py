@@ -4060,7 +4060,7 @@ def _record_row(record: dict[str, Any], dialog: Any, bound: str) -> None:
         name = f"{name}  ✓"
     candidates.choice(str(record.get("img_url") or ""), name,
                       " · ".join(meta), lambda: dialog.submit(said),
-                      glyph="inventory_2")
+                      glyph="inventory_2", missing=vps_match.NO_PICTURE)
 
 
 async def _listed_by_vps(context: dict[str, Any], none_listed: str,
@@ -4151,15 +4151,14 @@ def _release_words(release: dict[str, Any]) -> tuple[str, str]:
 
 def _release_row(release: dict[str, Any], dialog: Any, bound: str,
                  under: bool = False) -> None:
-    """One build, with its picture - VPS has one for 95% of them, against 39% of the
-    machines they belong to, so here the art is the ordinary case and not the exception."""
+    """One build, with its picture."""
     said = str(release.get("vps_file_id") or "")
     name, meta = _release_words(release)
     if said == bound:
         name = f"{name}  \u2713"
     row = candidates.choice(str(release.get("img_url") or ""), name, meta,
                             lambda: dialog.submit(said), glyph=icons.TABLES,
-                            more=_mod_words(release))
+                            more=_mod_words(release), missing=vps_match.NO_PICTURE)
     if under:
         row.classes("console-source-row--under")
 
@@ -4213,7 +4212,8 @@ def _release_shown(release: dict[str, Any]) -> None:
 
     name, meta = _release_words(release)
     candidates.choice(str(release.get("img_url") or ""), name, meta,
-                      glyph=icons.TABLES, trailing=end, entry=True)
+                      glyph=icons.TABLES, trailing=end, entry=True,
+                      missing=vps_match.NO_PICTURE)
 
 
 async def _read_releases(context: dict[str, Any],

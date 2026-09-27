@@ -30,6 +30,8 @@ CANCELLED = None
 CLEARED = "\x00none"
 STOPPED = "\x00stopped"
 
+NO_PICTURE = t("console.vps_match.no_picture")
+
 
 @on_page
 async def ask(library: Any, game: dict[str, Any], place: str = "",
@@ -235,4 +237,4 @@ def entry_row(row: dict[str, Any], *, pick: Callable[[], None] | None = None,
 
     candidates.choice(str(row.get("img_url") or ""), str(row.get("name") or ""),
                       said, pick, glyph=icons.GAMES, chosen=chosen,
-                      trailing=end, entry=True)
+                      trailing=end, entry=True, missing=NO_PICTURE)

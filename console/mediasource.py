@@ -43,6 +43,7 @@ from console import (
     panel,
     uploads,
     verbs,
+    vps_match,
 )
 from console import dialog as frame
 from console.on_page import on_page
@@ -760,7 +761,7 @@ class _Slot(_OneFile):
                           lambda i=item: self._show_offers(
                               self.online_body, i.get("vps_id") or "",
                               i.get("name") or t("console.mediasource.game")),
-                          glyph="videogame_asset")
+                          glyph=icons.GAMES, missing=vps_match.NO_PICTURE)
 
     async def _show_offers(self, body: ui.column, vps_id: str, name: str) -> None:
         """The files one game is offered, under a heading that names that game.
