@@ -205,6 +205,7 @@
     <!-- What a page press will do here. The sort decides the groups, so this changes
          with the sort above rather than being a setting of its own. -->
     <div class="table-count" id="paging-state"></div>
+    <div class="table-count" id="menu-message"></div>
 
     <!-- Popup for dropdown -->
     <div id="dropdown-popup" class="popup" style="display: none;"></div>
@@ -393,6 +394,7 @@ function t(key, english, params) {
       if (message.event === "reset state") {
         if (rows) rows.moveTo(0);
         dropdownOpen = false;
+        say('');
         updateMenu();
       }
     });
@@ -468,7 +470,8 @@ function t(key, english, params) {
           } else if (selectedItem.id === 'orderby-item') {
             openDropdown(selectedItem, 'orderby');
           } else if (selectedItem.id === 'save-filter-item') {
-            openSaveFilterDialog();
+            if (onCabinet()) keepAsCollection();
+            else openSaveFilterDialog();
           } else if (selectedItem.id === 'close-item') {
             window.parent.vpin.toggleOverlay("collectionMenu");
           }
@@ -502,6 +505,66 @@ function t(key, english, params) {
       showCount(window.parent.vpin.tableData ? window.parent.vpin.tableData.length : 0);
     }
 
+    function onCabinet() {
+      const layout = window.parent.vpin.layout;
+      return !!(layout && layout.cabinet);
+    }
+
+    function say(text, failed = false) {
+      const line = document.getElementById('menu-message');
+      line.textContent = text;
+      line.style.color = failed ? '#f88' : '';
+    }
+
+    function nameForChoices() {
+      const parts = [];
+      if (letterIndex > 0) {
+        parts.push(t('frontend.collectionmenu.named_starting_with', 'Starting with {letter}',
+                     { letter: letters[letterIndex] }));
+      }
+      for (const [values, index] of [[themes, themeIndex], [types, typeIndex],
+                                     [manufacturers, manufacturerIndex], [years, yearIndex]]) {
+        if (index > 0) parts.push(word(values[index]));
+      }
+      if (ratingIndex > 0) {
+        const count = Number(ratings[ratingIndex]);
+        parts.push(ratingModes[ratingModeIndex] === 'Or Higher'
+          ? t('frontend.collectionmenu.named_stars_or_higher', '{count}+ Stars', { count })
+          : t('frontend.collectionmenu.named_stars',
+              { one: '{count} Star', other: '{count} Stars' }, { count }));
+      }
+      if (!parts.length) {
+        parts.push(t('frontend.collectionmenu.named_by_sort', 'By {sort}',
+                     { sort: sortLabel(sortOptions[sortByIndex]) }));
+        if (orderByIndex > 0) parts.push(directionLabel(orderOptions[orderByIndex]));
+      }
+      return parts.join(t('frontend.collectionmenu.list_join', ', '));
+    }
+
+    async function showAsCurrent(name) {
+      await window.parent.vpin.call("set_tables_by_collection", name);
+      collections = ['None'].concat(await window.parent.vpin.call('get_collections'));
+      collectionIndex = Math.max(0, collections.indexOf(name));
+      updateMenu();
+    }
+
+    async function keepAsCollection() {
+      const chosen = getSelectedFilterValues();
+      const result = await window.parent.vpin.callInternal("keep_filter_collection",
+        nameForChoices(), chosen.letter, chosen.theme, chosen.type, chosen.manufacturer,
+        chosen.year, sortOptions[sortByIndex], chosen.rating, chosen.rating_or_higher,
+        orderOptions[orderByIndex]);
+      if (!result || !result.success) {
+        say(result ? result.message : '', true);
+        return;
+      }
+      say(result.already
+        ? t('frontend.collectionmenu.already_saved_as', 'Already saved as {name}',
+            { name: result.name })
+        : t('frontend.collectionmenu.saved_as', 'Saved as {name}', { name: result.name }));
+      await showAsCurrent(result.name);
+    }
+
     function somethingChosen() {
       return [letterIndex, themeIndex, typeIndex, manufacturerIndex, yearIndex,
               ratingIndex, sortByIndex, orderByIndex].some((index) => index > 0);
@@ -509,7 +572,12 @@ function t(key, english, params) {
 
     function updateMenu() {
       const current = rows.current;
-      document.getElementById('save-filter-item').hidden = !somethingChosen();
+      const save = document.getElementById('save-filter-item');
+      save.hidden = !somethingChosen();
+      save.dataset.i18n = onCabinet() ? 'frontend.collectionmenu.save_as_collection_now'
+        : 'frontend.collectionmenu.save_as_collection';
+      save.textContent = t(save.dataset.i18n,
+                           onCabinet() ? 'Save as Collection' : 'Save as Collection...');
       rows.items = menuItems.filter((item) => !item.hidden);
       rows.moveTo(Math.max(0, rows.items.indexOf(current)));
       rows.items.forEach((item, i) => {
@@ -835,11 +903,12 @@ function t(key, english, params) {
       const input = document.getElementById('filter-name-input');
       const message = document.getElementById('save-message');
 
-      input.value = '';
+      input.value = nameForChoices();
       input.placeholder = t('frontend.collectionmenu.name_collection', 'Name the collection');
       message.textContent = '';
       dialog.style.display = 'block';
       input.focus();
+      input.select();
       // Typing owns the keys now. Without this the menu behind the dialog kept
       // driving on the arrows, and Enter fired select and opened a dropdown instead
       // of reaching the field - so the dialog could not be completed from a cabinet.
@@ -882,11 +951,10 @@ function t(key, english, params) {
       );
 
       if (result.success) {
-        message.textContent = result.message;
+        message.textContent =
+          t('frontend.collectionmenu.saved_as', 'Saved as {name}', { name: filterName });
         message.style.color = '#8f8';
-
-        // Reload collections list
-        collections = ['None'].concat(await window.parent.vpin.call('get_collections'));
+        await showAsCurrent(filterName);
 
         // Close dialog after 2 seconds
         setTimeout(() => {

@@ -1257,8 +1257,8 @@ class TestTheCatalogHoldsWords(unittest.TestCase):
 
     def test_no_entry_is_a_fragment_glued_onto_another(self) -> None:
         """A space at either end is the seam of a sentence built from pieces."""
-        joiners = {"console.collection_rules.list_join"}
-        found = [key for key, value in served().items() if key not in joiners
+        found = [key for key, value in served().items()
+                 if key.rsplit(".", 1)[-1] != "list_join"
                  for said in (value.values() if isinstance(value, dict) else [value])
                  if str(said) != str(said).strip()]
         self.assertEqual([], found, "take the other string as a slot")
