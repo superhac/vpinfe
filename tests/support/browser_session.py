@@ -105,28 +105,35 @@ class BrowserSession:
         self._status: dict[str, int] = {}
 
     async def __aenter__(self) -> BrowserSession:
-        port = free_port()
-        self._profile = tempfile.mkdtemp(prefix="vpinfe-smoke-")
-        self._proc = subprocess.Popen(
-            [self.binary, "--headless=new", f"--remote-debugging-port={port}",
-             f"--user-data-dir={self._profile}", "--no-first-run",
-             "--no-default-browser-check", "--disable-gpu", "--disable-dev-shm-usage",
-             # A CI runner has no user namespaces to build a sandbox in, so Chrome exits
-             # immediately without this. Safe here: the only pages it opens are ours, on
-             # loopback, in a profile thrown away afterwards.
-             "--no-sandbox", "--disable-setuid-sandbox",
-             "--window-size=1280,720", "about:blank"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        # __aexit__ only runs after this returns, so a raise partway through - the
+        # handshake below never coming up - has to tear down through it directly, or
+        # the process and its profile outlive the session with nothing watching them.
+        try:
+            port = free_port()
+            self._profile = tempfile.mkdtemp(prefix="vpinfe-smoke-")
+            self._proc = subprocess.Popen(
+                [self.binary, "--headless=new", f"--remote-debugging-port={port}",
+                 f"--user-data-dir={self._profile}", "--no-first-run",
+                 "--no-default-browser-check", "--disable-gpu", "--disable-dev-shm-usage",
+                 # A CI runner has no user namespaces to build a sandbox in, so Chrome
+                 # exits immediately without this. Safe here: the only pages it opens
+                 # are ours, on loopback, in a profile thrown away afterwards.
+                 "--no-sandbox", "--disable-setuid-sandbox",
+                 "--window-size=1280,720", "about:blank"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
 
-        endpoint = await self._page_endpoint(port)
-        # 30s, not the 10s default: a cold CI runner can take longer than that to
-        # get Chrome to the point of answering a WebSocket upgrade, and the failure
-        # reads as a render regression rather than as a slow machine.
-        self._ws = await websockets.connect(endpoint, max_size=None, open_timeout=30)
-        asyncio.create_task(self._pump())
-        for domain in ("Page", "Runtime", "Network", "Log"):
-            await self.send(f"{domain}.enable")
-        return self
+            endpoint = await self._page_endpoint(port)
+            # 30s, not the 10s default: a cold CI runner can take longer than that to
+            # get Chrome to the point of answering a WebSocket upgrade, and the failure
+            # reads as a render regression rather than as a slow machine.
+            self._ws = await websockets.connect(endpoint, max_size=None, open_timeout=30)
+            asyncio.create_task(self._pump())
+            for domain in ("Page", "Runtime", "Network", "Log"):
+                await self.send(f"{domain}.enable")
+            return self
+        except BaseException:
+            await self.__aexit__(None, None, None)
+            raise
 
     async def __aexit__(self, *_exc) -> None:
         if self._ws is not None:
