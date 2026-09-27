@@ -30,6 +30,7 @@ from common.config_access import NetworkConfig
 from common.failures import why
 from common.i18n import t
 from common.labels import humanize
+from console import dialog as frame
 from console import game_tables, offload, stars, theme, verbs
 from console.api import ApiClient, ApiError, local_base_url
 from console.on_page import on_page
@@ -823,7 +824,7 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target: 
     about the row you just touched, and pushing a screen would take the list away to
     answer a question about one line of it.
     """
-    with ui.dialog().props("position=bottom") as sheet, \
+    with frame.made().props("position=bottom") as sheet, \
             ui.card().classes("w-full remote-sheet"):
         ui.label(str(game.get("name") or "")).classes("remote-headline")
         made = game_tables.made(game)
@@ -1146,7 +1147,7 @@ def invite(labels: list) -> None:
         return
 
     def show() -> None:
-        with ui.dialog() as sheet, ui.card().classes("console-confirm items-center"):
+        with frame.made() as sheet, ui.card().classes("console-confirm items-center"):
             ui.label(t("console.remote.vpinfe_phone")).classes("console-confirm-title")
             art = _qr_svg(said)
             if art:

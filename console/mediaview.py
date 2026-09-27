@@ -15,6 +15,7 @@ from nicegui import ui
 
 from common.i18n import t
 from common.media_specs import media_family
+from console import dialog as frame
 from console import verbs
 
 # Rotated a quarter turn, the picture's visual bounds swap - so the limits that keep it
@@ -232,7 +233,7 @@ def _open(src: str, family: str, label: str) -> None:
 
     # A panel over a dimmed page rather than a takeover: the card is sized by what is
     # in it, so the media being the content is what centers it.
-    with ui.dialog() as dialog, ui.card().classes("console-viewer-card"):
+    with frame.made() as dialog, ui.card().classes("console-viewer-card"):
         with ui.row().classes("items-center gap-2 w-full no-wrap console-viewer-bar"):
             ui.label(label).classes("console-card-title shrink-0")
             if family == "video":
@@ -269,7 +270,7 @@ def _open(src: str, family: str, label: str) -> None:
 
 def open_text(label: str, text: str) -> None:
     """Show a text file whole, in the viewer's frame."""
-    with ui.dialog() as dialog, ui.card().classes("console-viewer-card"):
+    with frame.made() as dialog, ui.card().classes("console-viewer-card"):
         with ui.row().classes("items-center gap-2 w-full no-wrap console-viewer-bar"):
             ui.label(label).classes("console-card-title shrink-0")
             ui.space()

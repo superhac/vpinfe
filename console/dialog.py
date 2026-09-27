@@ -17,15 +17,10 @@ def opened(title: str, *, wide: bool = False, full: bool = False,
     """Draw the dialog's contents inside; the caller awaits the dialog it yields.
 
     A title of "" draws none, for a dialog whose title changes as it goes.
-
-    It is deleted once hidden, so it opens once; a `hide` listener goes on before that.
     """
     props = " ".join(p for p in ("persistent" if persistent else "",
                                  "maximized" if full else "") if p)
-    with ui.element() as origin:
-        origin.visible = False
-        dialog = ui.dialog().props(props)
-    _gone_once_hidden(dialog, origin)
+    dialog = made().props(props)
     with dialog, ui.card().classes(" ".join(("console-dialog",
                                              "console-dialog--wide" if wide else "",
                                              "console-dialog--full" if full else "",
@@ -35,7 +30,15 @@ def opened(title: str, *, wide: bool = False, full: bool = False,
         yield dialog
 
 
-def _gone_once_hidden(dialog: ui.dialog, origin: ui.element) -> None:
+def made() -> ui.dialog:
+    """An empty dialog, for one that is not a question and draws its own card.
+
+    It is deleted once hidden, so it opens once; a `hide` listener goes on before that.
+    """
+    with ui.element() as origin:
+        origin.visible = False
+        dialog = ui.dialog()
+
     def gone() -> None:
         if dialog.value:
             return
@@ -50,6 +53,7 @@ def _gone_once_hidden(dialog: ui.dialog, origin: ui.element) -> None:
 
     listening: list[bool] = []
     dialog.on_value_change(opening)
+    return dialog
 
 
 def footer() -> ui.row:

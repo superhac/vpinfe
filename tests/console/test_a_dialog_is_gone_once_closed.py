@@ -5,11 +5,14 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from collections.abc import Callable
 from typing import Any
+from unittest import mock
 
 from nicegui import ui
 
 from console import dialog as frame
+from console import mediaview, remote
 from tests.support.clicks import said
 
 # Made at import, outside any task, where NiceGUI still hands out the script's own page.
@@ -41,6 +44,10 @@ async def _asked(*, persistent: bool = False, dismissed: bool = False
 
 def _elements() -> int:
     return len(_PAGE.client.elements)
+
+
+def _dialogs() -> set[ui.dialog]:
+    return {one for one in _PAGE.client.layout.descendants() if isinstance(one, ui.dialog)}
 
 
 class ADialogIsGoneOnceClosed(unittest.TestCase):
@@ -103,6 +110,49 @@ class ADialogIsGoneOnceClosed(unittest.TestCase):
             return kept, box.is_deleted
 
         self.assertEqual((True, True), asyncio.run(run()))
+
+
+class OnesWithTheirOwnCardGoToo(unittest.TestCase):
+    def setUp(self) -> None:
+        for patcher in (mock.patch.object(ui, "run_javascript"),
+                        mock.patch.object(remote, "where_to_find_it",
+                                          return_value="http://10.0.0.9:8080/remote")):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def _each_time(self, show: Callable[[], Any]) -> None:
+        """Shown, dismissed as Escape or a click outside does, and hidden, again and again."""
+        before = _elements()
+        for _ in range(TIMES):
+            was = _dialogs()
+            with _PAGE:
+                show()
+            box = next(one for one in _dialogs() - was if one.value)
+            said(box, "update:modelValue", False)
+            said(box, "hide")
+            self.assertTrue(box.is_deleted)
+        self.assertEqual(before, _elements())
+
+    def test_an_enlarged_picture(self) -> None:
+        self._each_time(lambda: mediaview.open_image("/media/wheel.png", "Wheel"))
+
+    def test_an_enlarged_video(self) -> None:
+        self._each_time(lambda: mediaview.open_viewer("/media/loading.mp4", "loading",
+                                                      "Loading"))
+
+    def test_a_text_file_shown_whole(self) -> None:
+        self._each_time(lambda: mediaview.open_text("notes.txt", "A line"))
+
+    def test_the_remote_sheet_for_a_game(self) -> None:
+        self._each_time(lambda: remote._game_sheet(
+            {"id": "g-1", "name": "Alpha"}, {"collections": []}, lambda: None, lambda: None))
+
+    def test_the_remote_address_for_a_phone(self) -> None:
+        with _PAGE:
+            remote.invite([])
+        way_in = next(one for one in _PAGE.descendants() if "console-invite" in one.classes)
+
+        self._each_time(lambda: said(way_in, "click"))
 
 
 if __name__ == "__main__":
