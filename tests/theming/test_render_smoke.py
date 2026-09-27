@@ -457,7 +457,7 @@ class RenderSmokeTests(TempTree):
                 await browser.evaluate(
                     'document.getElementById("menu-frame").contentWindow.eval('
                     '"setTimeout(function () { throw new Error(\'menu exploded\'); }, 0)")')
-                await asyncio.sleep(1.5)
+                await _logged(instance, "menu exploded")
 
         with LiveInstance(self.root) as instance:
             asyncio.run(run(instance))
@@ -472,7 +472,7 @@ class RenderSmokeTests(TempTree):
                 await self._open(browser, instance, "playfield")
                 await browser.evaluate(
                     "setTimeout(() => { throw new Error('theme exploded'); }, 0)")
-                await asyncio.sleep(1.5)
+                await _logged(instance, "theme exploded")
 
         with LiveInstance(self.root) as instance:
             asyncio.run(run(instance))
@@ -480,24 +480,43 @@ class RenderSmokeTests(TempTree):
         self.assertIn("theme exploded", log)
 
 
-async def _settles(browser, quiet: float = 1.0, patience: float = 15.0):
-    """Wait for the wheel to stop moving, then say whether it stayed stopped.
+_LATE_STEP_S = 0.2
+_LOG_S = 30.0
+
+
+async def _settles(browser, patience: float = 15.0):
+    """Wait for the page to let go of the hold and the wheel to stop moving, then say
+    whether it stayed stopped.
 
     Two readings a fixed pause apart is the obvious way to write this and it is wrong:
     the repeat already in flight when the release was sent lands whenever the machine
     gets round to it, so under load a correct stop reads as a runaway. This waits for
-    the count to hold still first, and only then asks whether it holds still again.
+    the count to hold still first, and only then asks whether it holds still again -
+    each time for as long as a running hold goes between two steps.
     """
+    try:
+        await browser.wait_for("window.vpin._hold === null", timeout=patience)
+    except TimeoutError:
+        raise AssertionError("the page never let go of the hold") from None
+    window = await browser.evaluate("window.vpin.repeatDelayMs") / 1000 + _LATE_STEP_S
     deadline = asyncio.get_event_loop().time() + patience
     seen = await browser.evaluate("window.__moves")
     while asyncio.get_event_loop().time() < deadline:
-        await asyncio.sleep(quiet)
+        await asyncio.sleep(window)
         now = await browser.evaluate("window.__moves")
         if now == seen:
-            await asyncio.sleep(quiet)
+            await asyncio.sleep(window)
             return now, await browser.evaluate("window.__moves")
         seen = now
     raise AssertionError(f"the wheel never stopped moving ({seen} steps and counting)")
+
+
+async def _logged(instance: LiveInstance, text: str) -> None:
+    """Until the instance's log holds `text`, or `_LOG_S` - the assertion says which."""
+    deadline = asyncio.get_event_loop().time() + _LOG_S
+    while text not in instance.output(tail=None) \
+            and asyncio.get_event_loop().time() < deadline:
+        await asyncio.sleep(0.1)
 
 
 if __name__ == "__main__":
