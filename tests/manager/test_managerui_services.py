@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import importlib
+import json
+import subprocess
+import sys
 import unittest
+from importlib.util import find_spec
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -265,7 +269,6 @@ class ManagerUiServiceTests(unittest.TestCase):
         importlib.import_module("managerui.managerui")
 
     def test_keysimulator_pynput_backend_includes_printable_keys(self):
-        import sys
         import types
 
         class FakeKey:
@@ -308,6 +311,8 @@ class ManagerUiServiceTests(unittest.TestCase):
 
         fake_keyboard = types.SimpleNamespace(Key=FakeKey, Controller=object)
         fake_pynput = types.SimpleNamespace(keyboard=fake_keyboard)
+        if sys.platform == "darwin":
+            importlib.import_module("Quartz")
         original = sys.modules.pop("managerui.key_simulator", None)
         try:
             with mock.patch.dict(sys.modules, {"pynput": fake_pynput,
@@ -410,6 +415,37 @@ class ManagerUiServiceTests(unittest.TestCase):
             self.assertEqual({o["key"]: o["value"] for o in untouched["options"]},
                              {"audio.enabled": True, "layout.mode": "wide"},
                              "the author's file must not be written to")
+
+
+_STUB_THEN_QUARTZ = """
+import json, sys, unittest
+import tests
+from tests.manager.test_managerui_services import ManagerUiServiceTests
+loaded_before = "objc" in sys.modules
+result = unittest.TestResult()
+ManagerUiServiceTests("test_keysimulator_pynput_backend_includes_printable_keys").run(result)
+try:
+    import Quartz  # noqa: F401
+    refused = ""
+except Exception as exc:
+    refused = f"{type(exc).__name__}: {exc}"
+print(json.dumps({"loaded_before": loaded_before, "passed": result.wasSuccessful(),
+                  "refused": refused}))
+"""
+
+
+@unittest.skipUnless(sys.platform == "darwin" and find_spec("Quartz"), "no PyObjC here")
+class KeySimulatorStubTests(unittest.TestCase):
+    def test_quartz_still_imports_once_the_stub_is_gone(self) -> None:
+        ran = subprocess.run([sys.executable, "-c", _STUB_THEN_QUARTZ],
+                             cwd=Path(__file__).resolve().parents[2],
+                             capture_output=True, text=True, timeout=120)
+        self.assertEqual(ran.returncode, 0, ran.stderr[-2000:])
+        seen = json.loads(ran.stdout.strip().splitlines()[-1])
+        self.assertFalse(seen["loaded_before"],
+                         "PyObjC was loaded before the stub ran, so this proves nothing")
+        self.assertTrue(seen["passed"])
+        self.assertEqual(seen["refused"], "")
 
 
 class PageStylesheetTests(unittest.TestCase):
