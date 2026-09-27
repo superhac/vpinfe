@@ -497,17 +497,28 @@ async def build(container: ui.column, title: ui.column, library: Library,
     game itself, which is what the Games lens selects.
     """
     state = state if state is not None else {}
-    # Builds are serialized, and a superseded one gives up rather than drawing.
-    # Without this the panel doubles: clearing happens before the tables fetch and the
-    # drawing after it, so two builds that overlap both clear an empty container and
-    # then both append. A drag can start three - the divider, the mode it settles, and
-    # the window listener - so this is the ordinary case, not the rare one.
+    await _pane_build(container, state,
+                      lambda: _draw(container, title, library, game_id, state, table_id))
+
+
+async def _pane_build(container: ui.column, state: dict[str, Any],
+                      draw: Callable[[], Awaitable[None]]) -> None:
+    """One pane build, after any already running, with the pane busy from the call
+    until the build that draws has drawn.
+
+    Builds are serialized, and a superseded one gives up rather than drawing. Without
+    this the panel doubles: clearing happens after the reads and the drawing after that,
+    so two builds that overlap both clear an empty container and then both append. A
+    drag can start three - the divider, the mode it settles, and the window listener -
+    so this is the ordinary case, not the rare one.
+    """
     lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
     state["build_seq"] = mine = state.get("build_seq", 0) + 1
-    async with lock:
-        if state["build_seq"] != mine:
-            return
-        await _draw(container, title, library, game_id, state, table_id)
+    with busy.held(container):
+        async with lock:
+            if state["build_seq"] != mine:
+                return
+            await draw()
 
 
 async def _draw(container: ui.column, title: ui.column, library: Library,
@@ -580,24 +591,16 @@ async def build_collection(container: ui.column, title: ui.column, library: Libr
     a chain of empty values threaded through to sections that never read them.
     """
     state = state if state is not None else {}
-    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
-    state["build_seq"] = mine = state.get("build_seq", 0) + 1
-    async with lock:
-        if state["build_seq"] != mine:
-            return
-        await _draw_collection(container, title, library, name, state)
+    await _pane_build(container, state,
+                      lambda: _draw_collection(container, title, library, name, state))
 
 
 async def build_tag(container: ui.column, title: ui.column, library: Library,
                     name: str | None, state: dict[str, Any] | None = None) -> None:
     """The panel, for one tag."""
     state = state if state is not None else {}
-    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
-    state["build_seq"] = mine = state.get("build_seq", 0) + 1
-    async with lock:
-        if state["build_seq"] != mine:
-            return
-        await _draw_tag(container, title, library, name, state)
+    await _pane_build(container, state,
+                      lambda: _draw_tag(container, title, library, name, state))
 
 
 async def _draw_tag(container: ui.column, title: ui.column, library: Library,
@@ -741,12 +744,8 @@ async def build_file(container: ui.column, title: ui.column, library: Library,
                      family: str = "media") -> None:
     """The panel, for one media or asset file. `family` is `media` or `assets`."""
     state = state if state is not None else {}
-    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
-    state["build_seq"] = mine = state.get("build_seq", 0) + 1
-    async with lock:
-        if state["build_seq"] != mine:
-            return
-        await _draw_file(container, title, library, row, state, family)
+    await _pane_build(container, state,
+                      lambda: _draw_file(container, title, library, row, state, family))
 
 
 def _same_file(rows: list[dict[str, Any]], wanted: dict[str, Any]) -> dict[str, Any] | None:
@@ -1133,12 +1132,8 @@ async def build_location(container: ui.column, title: ui.column, library: Librar
     values threaded through to sections that never read them.
     """
     state = state if state is not None else {}
-    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
-    state["build_seq"] = mine = state.get("build_seq", 0) + 1
-    async with lock:
-        if state["build_seq"] != mine:
-            return
-        await _draw_location(container, title, library, location_id, state)
+    await _pane_build(container, state,
+                      lambda: _draw_location(container, title, library, location_id, state))
 
 
 async def _draw_location(container: ui.column, title: ui.column, library: Library,
@@ -1181,12 +1176,8 @@ async def build_launcher(container: ui.column, title: ui.column, library: Librar
                          state: dict[str, Any] | None = None) -> None:
     """The panel, for a launcher rather than a game."""
     state = state if state is not None else {}
-    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
-    state["build_seq"] = mine = state.get("build_seq", 0) + 1
-    async with lock:
-        if state["build_seq"] != mine:
-            return
-        await _draw_launcher(container, title, library, launcher_id, state)
+    await _pane_build(container, state,
+                      lambda: _draw_launcher(container, title, library, launcher_id, state))
 
 
 async def _draw_launcher(container: ui.column, title: ui.column, library: Library,
@@ -1241,13 +1232,9 @@ async def build_device(container: ui.column, title: ui.column, library: Library,
     no tables and no media lens, so everything `build` assembles would be a chain of
     empty values threaded through to sections that never read them.
     """
-    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
-    state["build_seq"] = mine = state.get("build_seq", 0) + 1
-    async with lock:
-        if state["build_seq"] != mine:
-            return
-        await _draw_device(container, title, library, device, state, local_device_id,
-                           device_capabilities or [], local_capabilities or set())
+    await _pane_build(container, state, lambda: _draw_device(
+        container, title, library, device, state, local_device_id,
+        device_capabilities or [], local_capabilities or set()))
 
 
 async def _draw_device(container: ui.column, title: ui.column, library: Library,
@@ -1286,12 +1273,8 @@ async def _draw_device(container: ui.column, title: ui.column, library: Library,
 async def build_theme(container: ui.column, title: ui.column, library: Library,
                       key: str | None, state: dict[str, Any]) -> None:
     """The panel, for a frontend theme."""
-    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
-    state["build_seq"] = mine = state.get("build_seq", 0) + 1
-    async with lock:
-        if state["build_seq"] != mine:
-            return
-        await _draw_theme(container, title, library, key, state)
+    await _pane_build(container, state,
+                      lambda: _draw_theme(container, title, library, key, state))
 
 
 async def _draw_theme(container: ui.column, title: ui.column, library: Library,

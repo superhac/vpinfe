@@ -2,31 +2,51 @@
 while, and neither after the work ends, however it ends.
 
 The spinner goes in with the mark. How long it stays hidden is the stylesheet's
-(`.console-busy`), not a timer here.
+(`.console-busy`), not a timer here. Work that overlaps on one region shares one mark and
+one spinner, and the region is let go when the last of it ends.
 """
 
 from __future__ import annotations
 
+import weakref
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Any
 
-from nicegui import ui
+from nicegui import background_tasks, ui
 
 
-def _hold(region: ui.element) -> ui.element:
+@dataclass
+class _Held:
+    count: int
+    shown: ui.element
+
+
+_HELD: weakref.WeakKeyDictionary[ui.element, _Held] = weakref.WeakKeyDictionary()
+
+
+def _hold(region: ui.element) -> None:
     region.props("aria-busy=true")
-    with region:
-        shown = ui.row().classes("w-full justify-center py-8 console-busy") \
-            .props("aria-hidden=true")
-        with shown:
-            ui.spinner(size="lg").classes("text-primary")
-    return shown
+    held = _HELD.get(region)
+    if held is None or held.shown.is_deleted:
+        with region:
+            shown = ui.row().classes("w-full justify-center py-8 console-busy") \
+                .props("aria-hidden=true")
+            with shown:
+                ui.spinner(size="lg").classes("text-primary")
+        held = _HELD[region] = _Held(held.count if held else 0, shown)
+    held.count += 1
 
 
-def _let_go(region: ui.element, shown: ui.element) -> None:
-    if not shown.is_deleted:
-        shown.delete()
+def _let_go(region: ui.element) -> None:
+    held = _HELD.get(region)
+    if held is not None and held.count > 1:
+        held.count -= 1
+        return
+    _HELD.pop(region, None)
+    if held is not None and not held.shown.is_deleted:
+        held.shown.delete()
     region.props(remove="aria-busy")
 
 
@@ -40,11 +60,11 @@ def until_gone(region: ui.element) -> None:
 def held(region: ui.element) -> Iterator[None]:
     """`region` busy while the block runs, and not after it - returned, raised or
     cancelled."""
-    shown = _hold(region)
+    _hold(region)
     try:
         yield
     finally:
-        _let_go(region, shown)
+        _let_go(region)
 
 
 def fill(region: ui.element, work: Callable[[], Awaitable[Any]]) -> None:
@@ -54,12 +74,27 @@ def fill(region: ui.element, work: Callable[[], Awaitable[Any]]) -> None:
     The one way to defer a region's first draw. A one-shot `ui.timer` anywhere else in
     the Console fails `tests/invariants/test_a_region_filled_later_says_so.py`.
     """
-    shown = _hold(region)
+    _hold(region)
 
     async def run() -> None:
         try:
             await work()
         finally:
-            _let_go(region, shown)
+            _let_go(region)
 
     ui.timer(0.01, run, once=True)
+
+
+def start(region: ui.element, work: Callable[[], Awaitable[Any]]) -> None:
+    """`work` begun now, off the caller, with `region` busy from now until it ends: for
+    an act that reads before it draws again, where what `region` shows stays up until
+    `work` replaces it."""
+    _hold(region)
+
+    async def run() -> None:
+        try:
+            await work()
+        finally:
+            _let_go(region)
+
+    background_tasks.create(run(), name="busy-start")

@@ -1239,36 +1239,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                                              if item.reason)))
 
     def redraw() -> None:
-        """Render, first reading anything the new subject needs.
-
-        The by-file lens is a second walk of every folder, so it is read when somebody
-        asks for it rather than at startup - and off the loop, because render() runs on
-        it and the client refuses an HTTP call there.
-        """
-        if state["view"] == "settings":
-            # Asked again on every draw, which is when a path may just have been fixed -
-            # and off the loop, because it stats the disk and a share that has gone away
-            # is exactly the case this reports.
-            async def read_trouble_then_draw() -> None:
-                state["trouble"] = await offload.io(settings_page.local_trouble)
-                render()
-                mark_system()
-            asyncio.create_task(read_trouble_then_draw())
-            return
-        if state["view"] == "extensions":
-            async def read_extensions_then_draw() -> None:
-                state["extensions"] = await offload.io(ApiClient().extensions)
-                render()
-            asyncio.create_task(read_extensions_then_draw())
-            return
-        reads = reads_before_drawing(state["view"], library)
-        if reads is not None:
-            async def read_then_draw() -> None:
-                await run.io_bound(reads)
-                render()
-            asyncio.create_task(read_then_draw())
-            return
-        render()
+        read_then_render(state, library, content, render, mark_system)
 
     uploads.install()
     row_drag.install()
@@ -1356,6 +1327,41 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     if arrival is not None:
         with busy.held(panel):
             await arrival
+
+
+def read_then_render(state: dict[str, Any], library: Library, content: ui.element,
+                     render: Callable[[], None], mark_system: Callable[[], None]) -> None:
+    """Render, first reading anything the new subject needs, with `content` busy from now
+    until it is drawn: what it shows stays up while the read runs.
+
+    The by-file lens is a second walk of every folder, so it is read when somebody asks
+    for it rather than at startup - and off the loop, because render() runs on it and the
+    client refuses an HTTP call there.
+    """
+    if state["view"] == "settings":
+        # Asked again on every draw, which is when a path may just have been fixed - and
+        # off the loop, because it stats the disk and a share that has gone away is
+        # exactly the case this reports.
+        async def read_trouble_then_draw() -> None:
+            state["trouble"] = await offload.io(settings_page.local_trouble)
+            render()
+            mark_system()
+        busy.start(content, read_trouble_then_draw)
+        return
+    if state["view"] == "extensions":
+        async def read_extensions_then_draw() -> None:
+            state["extensions"] = await offload.io(ApiClient().extensions)
+            render()
+        busy.start(content, read_extensions_then_draw)
+        return
+    reads = reads_before_drawing(state["view"], library)
+    if reads is not None:
+        async def read_then_draw() -> None:
+            await run.io_bound(reads)
+            render()
+        busy.start(content, read_then_draw)
+        return
+    render()
 
 
 def _land(state: dict[str, Any]) -> None:
