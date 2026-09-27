@@ -408,18 +408,19 @@ def _inside(root: str, path: str) -> bool:
 def configured() -> list[Location]:
     """Every location the scan walks.
 
-    The store, and the configured root only when the store has nothing - which is an
-    install that has not started since locations arrived, or one whose file was deleted.
-    Falling back rather than reading empty means a library never disappears because a
-    seed did not run.
+    The store, and the configured root only while the store has nothing and the seed has
+    not run - an install that has not started since locations arrived, or one whose file
+    was deleted. Falling back rather than reading empty means a library never disappears
+    because a seed did not run; after it has, an empty store is no locations.
     """
-    held = get_location_store().locations()
-    if held:
+    store = get_location_store()
+    held = store.locations()
+    if held or SEEDED in store.migrations():
         return held
 
     from common.paths import get_games_path
 
-    root = get_games_path()
+    root = get_games_path(default="")
     return [Location(location_id=CONFIGURED_ID, path=root, kind=KIND_ROOT)] if root else []
 
 

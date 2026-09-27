@@ -8,6 +8,7 @@ import unittest
 from configparser import ConfigParser
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from common.games import locations
 from common.games.locations import (
@@ -194,6 +195,38 @@ class SeedTests(_WithStore, unittest.TestCase):
         games = self.root / "games"
         games.mkdir()
         self.assertTrue(locations.seed(self.store, _config(game_root_dir=str(games))))
+
+
+class ConfiguredTests(_WithStore, unittest.TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        patch.object(locations, "get_location_store", return_value=self.store).start()
+        self.addCleanup(patch.stopall)
+
+    def _walked(self, config: ConfigParser) -> list[Location]:
+        with patch("common.paths.get_ini_config", return_value=config):
+            return locations.configured()
+
+    def test_the_last_location_removed_stays_out_of_the_scan(self) -> None:
+        games = self.root / "games"
+        games.mkdir()
+        config = _config(game_root_dir=str(games))
+        locations.seed(self.store, config)
+        self.store.remove(self.store.locations()[0].location_id)
+
+        self.assertEqual(self._walked(config), [])
+
+    def test_nothing_configured_is_no_locations(self) -> None:
+        self.assertEqual(self._walked(_config()), [])
+
+    def test_before_the_seed_has_run_the_configured_root_is_walked(self) -> None:
+        games = self.root / "games"
+        games.mkdir()
+
+        walked = self._walked(_config(game_root_dir=str(games)))
+
+        self.assertEqual([(one.location_id, one.path) for one in walked],
+                         [(locations.CONFIGURED_ID, str(games))])
 
 
 if __name__ == "__main__":
