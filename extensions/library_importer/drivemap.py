@@ -71,17 +71,18 @@ def _child(base: Path, name: str) -> Path | None:
     """
     folded = name.lower()
     try:
-        entries = [one for one in base.iterdir() if one.is_dir()]
+        entries = list(base.iterdir())
     except OSError:
         entries = []
     exact = next((one for one in entries if one.name == name), None)
-    if exact is not None:
+    if exact is not None and exact.is_dir():
         return exact
-    # Asked of the listing rather than answered by `is_dir()`. A case-insensitive mount
-    # says yes to the recorded spelling, so trusting it stores a name that is not the
-    # one on disk - fine here, wrong the day the library moves to a filesystem that
+    # Asked of the listing rather than answered by `is_dir()` alone. A case-insensitive
+    # mount says yes to the recorded spelling, so trusting it stores a name that is not
+    # the one on disk - fine here, wrong the day the library moves to a filesystem that
     # cares.
-    return next((one for one in entries if one.name.lower() == folded), None)
+    return next((one for one in entries
+                if one is not exact and one.name.lower() == folded and one.is_dir()), None)
 
 
 def _walk(base: Path, parts: list[str]) -> Path | None:

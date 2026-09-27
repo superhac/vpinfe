@@ -14,6 +14,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from common.extensions import host
 
@@ -119,6 +120,23 @@ class SymlinkTests(ResolveCase):
 
         self.assertTrue(found)
         self.assertTrue(Path(found.path).is_dir())
+
+
+class ChildStatCostTests(unittest.TestCase):
+    def test_a_lookup_among_thousands_of_entries_costs_a_handful_of_stats(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            for index in range(4000):
+                (base / f"unrelated{index:05d}.txt").write_bytes(b"")
+            wanted = base / "VisualPinball"
+            wanted.mkdir()
+
+            with mock.patch.object(Path, "is_dir", autospec=True,
+                                   side_effect=Path.is_dir) as spy:
+                found = drivemap._child(base, "visualpinball")
+
+        self.assertEqual(wanted, found)
+        self.assertLess(spy.call_count, 10)
 
 
 if __name__ == "__main__":
