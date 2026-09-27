@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -10,7 +11,18 @@ from common.failures import why
 from common.games import rankings
 from common.games.community_lists import keep, kept
 from common.i18n import t
-from console import collection_rules, deeplink, grid, offload, panel, tag_chips, verbs, views, when
+from console import (
+    busy,
+    collection_rules,
+    deeplink,
+    grid,
+    offload,
+    panel,
+    tag_chips,
+    verbs,
+    views,
+    when,
+)
 from console.api import ApiClient, ApiError
 from console.data import Library, read_state, sources_of
 from console.on_page import on_page
@@ -247,7 +259,7 @@ def not_running(extension: dict[str, Any]) -> None:
 
 def build(extension: dict[str, Any], declared: dict[str, Any], library: Library) -> None:
     body = ui.column().classes("w-full grow min-h-0 gap-0")
-    ui.timer(0.01, lambda: _fill(extension, declared, library, body), once=True)
+    busy.fill(body, lambda: _fill(extension, declared, library, body))
 
 
 @on_page
@@ -279,9 +291,6 @@ async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Li
     if stopped:
         state = {**state, "stale": True}
     if reading:
-        body.clear()
-        with body, ui.row().classes("w-full justify-center py-8"):
-            ui.spinner(size="lg").classes("text-primary")
         state = await offload.io(read, name, key, fetch)
     if state["rows"] is None:
         body.clear()
@@ -384,4 +393,4 @@ async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Li
                       caption=str(fresh["error"]), type="negative")
 
     if not reading and not stopped:
-        await read_again()
+        asyncio.create_task(read_again())

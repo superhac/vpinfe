@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import tempfile
 import unittest
 from collections.abc import Callable
@@ -14,7 +15,7 @@ from nicegui import ui
 from common import install_identity
 from common.extensions import host
 from common.i18n import t
-from console import community, page, verbs, views
+from console import busy, community, page, verbs, views
 from console.api import ApiError
 from console.data import read_state
 
@@ -230,8 +231,17 @@ class ItsExtensionNotRunning(unittest.IsolatedAsyncioTestCase):
         # Outside the test's task, which has no page to draw into.
         self.body = ui.column()
 
-    async def fill(self, now: dict, kept: dict) -> tuple[list[str], list[str], Mock]:
-        read = self.enterContext(patch.object(community, "read", return_value=kept))
+    async def fill(self, now: dict, kept: dict, *,
+                   opened: bool = False) -> tuple[list[str], list[str], Mock]:
+        """`_fill` drawn into the body, or the page `build` opens when `opened`."""
+        self.held_when_read: list[bool] = []
+
+        def reading(*_args: Any) -> dict:
+            self.held_when_read.append(any(one.props.get("aria-busy")
+                                           for one in self.body.descendants()))
+            return kept
+
+        read = self.enterContext(patch.object(community, "read", side_effect=reading))
         self.enterContext(patch.object(community.offload, "io", new=_here))
         self.enterContext(patch.object(community, "as_it_stands", return_value=now))
         self.enterContext(patch.object(community, "kept", return_value=kept))
@@ -241,8 +251,16 @@ class ItsExtensionNotRunning(unittest.IsolatedAsyncioTestCase):
         self.enterContext(patch.object(community.grid, "build",
                                        return_value=Mock(is_deleted=False)))
         self.enterContext(patch.object(community.grid, "replace_rows"))
-        with self.body:
-            await community._fill(LOADED, PLAIN, Mock(), self.body)
+        if opened:
+            with self.body:
+                with patch.object(busy.ui, "timer") as timer:
+                    community.build(LOADED, PLAIN, Mock())
+                await timer.call_args.args[1]()
+        else:
+            with self.body:
+                await community._fill(LOADED, PLAIN, Mock(), self.body)
+        # A kept list is read again after it is drawn, in a task of its own.
+        await asyncio.gather(*(asyncio.all_tasks() - {asyncio.current_task()}))
         drawn = list(self.body.descendants())
         return ([str(getattr(one, "text", "")) for one in drawn],
                 [str(one.props.get("icon")) for one in drawn if isinstance(one, ui.button)],
@@ -278,6 +296,16 @@ class ItsExtensionNotRunning(unittest.IsolatedAsyncioTestCase):
 
         read.assert_called_once()
         self.assertIn(verbs.REFRESH, icons)
+
+    async def test_with_nothing_kept_the_read_is_part_of_opening_the_page(self) -> None:
+        await self.fill(LOADED, {**KEPT, "rows": None}, opened=True)
+
+        self.assertEqual([True], self.held_when_read)
+
+    async def test_a_kept_list_is_read_again_once_the_page_is_open(self) -> None:
+        await self.fill(LOADED, KEPT, opened=True)
+
+        self.assertEqual([False], self.held_when_read)
 
 
 class AsItStands(unittest.TestCase):

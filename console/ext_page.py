@@ -20,7 +20,7 @@ from nicegui import run, ui
 
 from common.failures import why
 from common.i18n import t
-from console import ext_action, offload, panel, verbs
+from console import busy, ext_action, offload, panel, verbs
 from console.api import ApiClient
 from console.on_page import on_page
 
@@ -81,7 +81,7 @@ def _settings(name: str, surfaces: dict) -> None:
             if entries:
                 panel.facts(ui, entries)
 
-    ui.timer(0, draw, once=True)
+    busy.fill(card, draw)
 
 
 def _control(client: Any, base: str, key: str, field: dict,
@@ -153,7 +153,7 @@ def _state(name: str, surfaces: dict) -> None:
             for row in rows:
                 _row(client, base, row, draw)
 
-    ui.timer(0, draw, once=True)
+    busy.fill(card, draw)
 
 
 def _row(client: Any, base: str, row: dict, redraw: Callable[[], Awaitable[None]]) -> None:

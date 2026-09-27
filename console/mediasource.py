@@ -34,6 +34,7 @@ from common.media_specs import (
 )
 from console import (
     art,
+    busy,
     candidates,
     confirm,
     deeplink,
@@ -283,7 +284,7 @@ class _Sources:
         if first == "host":
             loaded.add("host")
             with box:
-                ui.timer(0, lambda: self.host_tab(host_body), once=True)
+                busy.fill(host_body, lambda: self.host_tab(host_body))
 
     async def finish(self, message: str) -> None:
         self.dialog.close()
@@ -502,7 +503,7 @@ class _Slot(_OneFile):
             with above:
                 self._destination_row()
 
-        ui.timer(0, start, once=True)
+        busy.fill(above, start)
 
     async def load_placements(self) -> None:
         """Where a file could land here, so it can be chosen rather than inferred."""

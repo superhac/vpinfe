@@ -1487,6 +1487,10 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
 /* A section's search and filters. They act on the whole section, so no group heading
    goes over them. */
 .console-section-bar { width: 100%; padding-bottom: 0.5rem; }
+/* A region still being drawn (`console/busy.py`): shown from a quarter second in, and
+   last in its region. */
+@keyframes console-busy-late { from { visibility: hidden; height: 0; padding: 0; } }
+.console-busy { order: 1; animation: console-busy-late 0s 250ms backwards; }
 /* The panel toggles match: nav and workbench are the same control, same color. */
 .console-panel-header .q-icon { color: var(--ink-2); }
 .console-nav-title {

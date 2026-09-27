@@ -28,8 +28,8 @@ from nicegui import ui
 
 from common.failures import why
 from common.i18n import t
+from console import busy, offload, panel, verbs
 from console import devices as devices_page
-from console import offload, panel, verbs
 from console.data import Library
 from console.on_page import on_page
 
@@ -85,7 +85,7 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
         _draw_bar(bar, held, load, state)
         await _draw(viewport, held)
 
-    ui.timer(0.01, load, once=True)
+    busy.fill(viewport, load)
     # Only while following, and only on the live file: a rotated log does not change,
     # so re-reading it is a request that can only return what it just returned.
     ui.timer(EVERY_SECONDS,

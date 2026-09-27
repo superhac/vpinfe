@@ -26,8 +26,8 @@ from nicegui import ui
 
 from common.failures import why
 from common.i18n import t
+from console import busy, offload, panel, verbs
 from console import dialog as frame
-from console import offload, panel, verbs
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.about")
@@ -76,7 +76,7 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
         held["text"] = str(found.get("text") or "")
         _draw(body, found.get("groups") or [], held, load)
 
-    ui.timer(0.01, load, once=True)
+    busy.fill(body, load)
 
 
 def _draw(body: Any, groups: list[dict[str, Any]], held: dict[str, Any],

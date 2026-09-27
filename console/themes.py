@@ -22,6 +22,7 @@ from nicegui import run, ui
 from common.failures import why
 from common.i18n import t
 from console import (
+    busy,
     confirm,
     grid,
     list_art,
@@ -147,8 +148,7 @@ def _row(theme: dict[str, Any]) -> dict[str, Any]:
 def build(library: Library, state: dict[str, Any],
           on_select: Callable[[dict | None], Any], redraw: Callable[[], None]) -> None:
     body = ui.column().classes("w-full grow min-h-0 gap-0")
-    ui.timer(0.01, lambda: _fill(library, state, on_select, redraw, body, refresh=False),
-             once=True)
+    busy.fill(body, lambda: _fill(library, state, on_select, redraw, body, refresh=False))
 
 
 async def _fill(library: Library, state: dict[str, Any],

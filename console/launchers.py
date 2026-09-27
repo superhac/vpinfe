@@ -23,7 +23,7 @@ from nicegui import run, ui
 from common import install_identity, path_checks
 from common.failures import why
 from common.i18n import t
-from console import confirm, grid, offload, panel, verbs, views
+from console import busy, confirm, grid, offload, panel, verbs, views
 from console import dialog as frame
 from console.data import Library
 from console.on_page import on_page
@@ -117,9 +117,9 @@ def build(library: Library, state: dict[str, Any],
     """The grid. Read on every draw, because this page edits it and what the disk says
     can change without anybody editing anything."""
     body = ui.column().classes("w-full grow min-h-0 gap-0")
-    # On a timer, because reading goes over HTTP and the draw it is part of runs on the
-    # event loop, where the client refuses a call.
-    ui.timer(0.01, lambda: _fill(library, state, on_select, redraw, body), once=True)
+    # Later, because reading goes over HTTP and the draw it is part of runs on the event
+    # loop, where the client refuses a call.
+    busy.fill(body, lambda: _fill(library, state, on_select, redraw, body))
 
 
 async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[dict | None], Any],

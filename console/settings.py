@@ -29,6 +29,7 @@ from common.labels import humanize
 from common.media_specs import media_label_map
 from console import (
     binding_editor,
+    busy,
     deeplink,
     input_watch,
     offload,
@@ -299,9 +300,7 @@ def _kind_page(library: Library, rerender: Callable[[], None], note: str,
     in it may import a domain package. The Console may, so the rendering lives here.
     """
     body = ui.column().classes("w-full gap-0")
-    ui.timer(0.01,
-             lambda: _fill_kinds(library, rerender, body, note, section, key, items),
-             once=True)
+    busy.fill(body, lambda: _fill_kinds(library, rerender, body, note, section, key, items))
 
 
 def _listed(value: Any) -> set[str]:
@@ -933,12 +932,10 @@ def build_system(library: Library, state: dict[str, Any], redraw: Callable[[], N
     with work:
         body = ui.column().classes("min-w-0 overflow-auto gap-0 console-workbench-body "
                                    "console-settings-body")
-    # On a timer, because a page reads the schema and the values over HTTP and the draw
-    # it is part of runs on the event loop, where the client refuses a call.
-    ui.timer(0.01,
-             lambda: _draw_system_page(library, redraw, body, known[chosen], discovery,
-                                       state.get("trouble") or []),
-             once=True)
+    # Later, because a page reads the schema and the values over HTTP and the draw it is
+    # part of runs on the event loop, where the client refuses a call.
+    busy.fill(body, lambda: _draw_system_page(library, redraw, body, known[chosen],
+                                              discovery, state.get("trouble") or []))
 
 
 def _said(items: Any) -> str:

@@ -50,6 +50,7 @@ from common.online import vps_kinds
 from console import (
     art,
     art_fill,
+    busy,
     candidates,
     collection_adds,
     collection_rules,
@@ -1481,7 +1482,7 @@ async def _rail(context: dict[str, Any], subject: str,
                 else:
                     context["dock"] = None
     if body is not None:
-        with body:
+        with body, busy.held(body):
             await _one_section(context, section)
         if context.get("dock") is not None:
             ui.run_javascript(_GRIP)

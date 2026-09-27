@@ -21,7 +21,7 @@ from nicegui import ui
 from common import i18n
 from common.failures import why
 from common.i18n import t
-from console import offload, panel
+from console import busy, offload, panel
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.metrics")
@@ -48,7 +48,7 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
     """
     held: dict[str, Any] = {"gpu": None, "watch_gpu": bool(state.get("metrics_gpu"))}
 
-    with ui.column().classes("w-full gap-3"):
+    with ui.column().classes("w-full gap-3") as readings_page:
         note = ui.element("div")
         note.set_visibility(False)
         with ui.row().classes("w-full gap-4 no-wrap items-stretch") as readings:
@@ -113,7 +113,7 @@ def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -
                                "detail": why(exc)}
             _draw_cards(cards, held)
 
-    ui.timer(0.01, tick, once=True)
+    busy.fill(readings_page, tick)
     ui.timer(EVERY_SECONDS, tick)
     _draw_cards(cards, held)
 
