@@ -61,7 +61,17 @@ class Found:
         return bool(self.path)
 
 
-def _child(base: Path, name: str) -> Path | None:
+def _listing(base: Path, cache: dict[Path, list[Path]]) -> list[Path]:
+    """`base`'s entries, from `cache` once it has been asked before."""
+    if base not in cache:
+        try:
+            cache[base] = list(base.iterdir())
+        except OSError:
+            cache[base] = []
+    return cache[base]
+
+
+def _child(base: Path, name: str, cache: dict[Path, list[Path]] | None = None) -> Path | None:
     """The entry called `name` under `base`, whatever case it is really in.
 
     A source records the case its own filesystem accepted, which is not necessarily the
@@ -69,11 +79,8 @@ def _child(base: Path, name: str) -> Path | None:
     the difference is invisible until the day the library is on one that is not, so the
     real name is what gets used.
     """
+    entries = _listing(base, cache if cache is not None else {})
     folded = name.lower()
-    try:
-        entries = list(base.iterdir())
-    except OSError:
-        entries = []
     exact = next((one for one in entries if one.name == name), None)
     if exact is not None and exact.is_dir():
         return exact
@@ -85,9 +92,9 @@ def _child(base: Path, name: str) -> Path | None:
                 if one is not exact and one.name.lower() == folded and one.is_dir()), None)
 
 
-def _walk(base: Path, parts: list[str]) -> Path | None:
+def _walk(base: Path, parts: list[str], cache: dict[Path, list[Path]]) -> Path | None:
     for part in parts:
-        found = _child(base, part)
+        found = _child(base, part, cache)
         if found is None:
             return None
         base = found
@@ -115,10 +122,11 @@ def resolve(recorded: str, source_root: Path | str) -> Found:
         return Found()
 
     ancestors = [here, *list(here.parents)[:ANCESTORS]]
+    cache: dict[Path, list[Path]] = {}
     for depth in range(len(parts), 0, -1):
         tail = parts[-depth:]
         for base in ancestors:
-            found = _walk(base, tail)
+            found = _walk(base, tail, cache)
             if found is not None:
                 # The pair comes from the match rather than being worked out again
                 # afterwards: two derivations of one fact is how they disagree.

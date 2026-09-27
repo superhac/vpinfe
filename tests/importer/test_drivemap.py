@@ -139,5 +139,25 @@ class ChildStatCostTests(unittest.TestCase):
         self.assertLess(spy.call_count, 10)
 
 
+class ResolveListingCostTests(ResolveCase):
+    def test_each_folder_is_listed_at_most_once_per_resolve(self) -> None:
+        for folder in (self.mount, self.mount.parent):
+            for index in range(2000):
+                (folder / f"unrelated{index:05d}.txt").write_bytes(b"")
+
+        real_iterdir = Path.iterdir
+        listed: list[Path] = []
+
+        def spy(self: Path):
+            listed.append(self)
+            return real_iterdir(self)
+
+        with mock.patch.object(Path, "iterdir", autospec=True, side_effect=spy):
+            found = drivemap.resolve(r"C:\share\VisualPinball\Tables", self.source)
+
+        self.assertTrue(found)
+        self.assertEqual(len(listed), len(set(listed)), sorted(str(p) for p in listed))
+
+
 if __name__ == "__main__":
     unittest.main()
