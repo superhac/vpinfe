@@ -814,6 +814,18 @@ def with_art(columns: list[dict[str, Any]], shown: bool) -> list[dict[str, Any]]
             for definition in columns]
 
 
+def _fit_of(columns: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The column `window.__hubFit` narrows to the grid, and the width it stops at: the
+    identifier while art is beside it, never below its width without the art."""
+    return next(({"col": definition["field"],
+                  "least": definition["width"] - list_art.ROOM_PX}
+                 for definition in columns
+                 if LIST_ART_CLASS in str(definition.get("cellClass") or "")), None)
+
+
+_FIT = "params => window.__hubFit && window.__hubFit(params.api, params.context)"
+
+
 def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
           # Any, not None: NiceGUI takes a sync or an async handler and so do these,
           # so a coroutine is as valid a return as nothing. Its own Handler type is
@@ -837,6 +849,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
             f"{scope}: a grid declares exactly one grid.identifier() column, "
             f"the one its rows are scanned by; this one declares {len(marked)}"
             + (f" ({', '.join(str(m) for m in marked)})" if marked else ""))
+    fit = _fit_of(columns)
     grid = ui.aggrid({
         "columnDefs": for_grid(columns),
         "rowData": rows,
@@ -844,7 +857,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # Which grid a cell belongs to, for a column drawn by name. The focus follow keeps
         # its state here too, since the grid hands the same object to every callback.
         "context": {"scope": scope, "identifier": marked[0],
-                    "landing": _LANDING.get(ui.context.client, {}).pop(scope, None)},
+                    "landing": _LANDING.get(ui.context.client, {}).pop(scope, None),
+                    "fit": fit},
         "defaultColDef": DEFAULT_COL_DEF,
         "rowSelection": dict(ROW_SELECTION),
         # The ":" prefix marks this as JavaScript. Without it AG Grid calls a string and
@@ -879,6 +893,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         ":onFirstDataRendered":
             "params => window.__hubFollowFocus && "
             "window.__hubFollowFocus(params.api, params.context)",
+        **({":onGridSizeChanged": _FIT, ":onDisplayedColumnsChanged": _FIT,
+            ":onColumnResized": _FIT} if fit else {}),
         # AG Grid's own words - the filter menu on every column, "No Rows To Show", the
         # column menu. Empty in English, where its built-ins are already right.
         **({"localeText": grid_locale} if (grid_locale := i18n.under("grid")) else {}),
@@ -952,6 +968,23 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         api.setFocusedCell(node.rowIndex, c.identifier);
       }
       window.__hubMarkFocus();
+    };
+    window.__hubFit = (api, c) => {
+      const fit = c && c.fit;
+      const col = fit && api.getColumn(fit.col);
+      if (!col) return;
+      const now = col.getActualWidth(), most = col.getColDef().width;
+      fit.own = now === most || now === fit.at;
+      if (!fit.own || !col.isVisible() || col.getPinned() === 'right') return;
+      const body = document.querySelector(
+        `.ag-root-wrapper[grid-id="${api.getGridId()}"] .ag-body-viewport`);
+      if (!body || !body.clientWidth) return;
+      const shown = api.getAllDisplayedColumns(), at = shown.indexOf(col);
+      const taken = shown.reduce((sum, one, i) => sum +
+        (i < at || one.getPinned() === 'right' ? one.getActualWidth() : 0), 0);
+      const handle = 8;
+      fit.at = Math.max(fit.least, Math.min(most, body.clientWidth - taken - handle));
+      if (fit.at !== now) api.setColumnWidths([{key: col, newWidth: fit.at}]);
     };
     """)
     if grid.options["context"]["landing"]:
@@ -1154,6 +1187,12 @@ def _widths(state: list[dict[str, Any]] | None) -> dict[str, float]:
             and not str(entry["colId"]).startswith(_GENERATED)}
 
 
+def _fitted(context: Any) -> set[str]:
+    """The column whose width `window.__hubFit` still owns, which no one chose."""
+    fit = (context or {}).get("fit") or {}
+    return {fit["col"]} if fit.get("own") else set()
+
+
 def _restore(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]],
              view_of: Callable[[], str] | None) -> None:
     # gridReady rather than a timer: a timer outlives the grid when the view changes,
@@ -1178,8 +1217,11 @@ def _save_on_change(grid: ui.aggrid, scope: str,
             now = _widths(state)
             resized = {col_id for col_id, width in now.items()
                        if kept.seen and kept.seen.get(col_id) != width}
-            if change == "widths" and done.get("colId") in now:
-                resized.add(done["colId"])
+            named = done.get("colId") if change == "widths" else None
+            if resized - {named}:
+                resized -= _fitted(await grid.run_grid_method("getGridOption", "context"))
+            if named in now:
+                resized.add(named)
             kept.widths.update({col_id: now[col_id] for col_id in resized})
             kept.seen = now
             if change == "order":

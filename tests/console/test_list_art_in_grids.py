@@ -230,6 +230,18 @@ class ArtBesideTheName(_Drawn):
         self.assertEqual({view: on[view] - off[view] for view in GRIDS},
                          dict.fromkeys(GRIDS, ROOM_PX))
 
+    def test_each_grid_gives_that_room_back_where_it_has_none_down_to_the_name_alone(
+            self) -> None:
+        on = {view: self._drawn(view).options["context"].get("fit") for view in GRIDS}
+        self._list_art("none")
+        drawn = {view: self._drawn(view) for view in GRIDS}
+
+        self.assertEqual(on, {view: {"col": self._name_column(table)["field"],
+                                     "least": self._name_column(table)["width"]}
+                              for view, table in drawn.items()})
+        self.assertEqual({view: table.options["context"].get("fit")
+                          for view, table in drawn.items()}, dict.fromkeys(GRIDS))
+
     def test_a_width_somebody_set_stays_theirs(self) -> None:
         columns = self._drawn("games").options["columnDefs"]
 

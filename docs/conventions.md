@@ -1085,7 +1085,10 @@ element.
   80 x 40 frame ahead of the name holds the chosen kind as the frontend shows it, or a
   collection's own picture, on a ground that is dark in every palette, or the row's own
   glyph where there is none. Rows are 56px while it shows, so a one-line list grows from
-  42 (`grid.with_art`). `console/list_art.py` draws the frame, and
+  42, and the name column is declared 92px wider (`grid.with_art`). Where the grid is too
+  narrow for that, the name gives the room back until its edge and resize handle show,
+  never below its width without art; a width somebody dragged stays theirs, and a fitted
+  one is never saved. `console/list_art.py` draws the frame, and
   `tests/invariants/test_list_art_is_drawn_once.py` fails on one drawn anywhere else. It
   is not a control: no tooltip, no zoom, `alt=""`.
 - **Art in a list is still.** An animated file shows its first frame at list size.

@@ -35,18 +35,22 @@ class _Answer:
 
 class _Grid:
     """Records what is sent to it, and answers `getColumnState` with `state`, which
-    starts as the declared widths with the selection column first."""
+    starts as the declared widths with the selection column first, and the `context`
+    option with `context`."""
 
     def __init__(self) -> None:
         self.sent: list[tuple] = []
         self.handlers: dict[str, Any] = {}
+        self.context: dict[str, Any] = {}
         self.state = [{"colId": SELECTION, "width": 50, "pinned": "left"}] + [
             {"colId": definition["field"], "width": definition["width"],
              "pinned": definition.get("pinned")} for definition in COLUMNS]
 
     def run_grid_method(self, name: str, *args: Any) -> _Answer:
         self.sent.append((name, *args))
-        return _Answer([dict(entry) for entry in self.state] if name == "getColumnState"
+        if name == "getColumnState":
+            return _Answer([dict(entry) for entry in self.state])
+        return _Answer(self.context if (name, *args) == ("getGridOption", "context")
                        else None)
 
     def on(self, event: str, handler: Any, **_: Any) -> None:
@@ -54,6 +58,17 @@ class _Grid:
 
     def width(self, col_id: str, width: int) -> None:
         next(entry for entry in self.state if entry["colId"] == col_id)["width"] = width
+
+    def fit(self, col_id: str, width: int) -> None:
+        """What the browser does when it fits a column to the grid, with no one asking."""
+        self.width(col_id, width)
+        self.context["fit"] = {"col": col_id, "at": width, "own": True}
+
+    def drag(self, col_id: str, width: int) -> None:
+        """A person's drag, which the browser's fit then leaves to them."""
+        self.width(col_id, width)
+        if self.context.get("fit", {}).get("col") == col_id:
+            self.context["fit"]["own"] = False
 
     async def fire(self, event: str, **args: Any) -> None:
         await self.handlers[event](SimpleNamespace(args=args))
@@ -185,6 +200,32 @@ class SaveTests(unittest.IsolatedAsyncioTestCase):
         await grid.pin(self.table, "year", "left")
 
         self.assertEqual([{"pins": {"year": "left"}}], self.written)
+
+    async def test_a_width_the_grid_fitted_is_not_saved_with_another_column_s(self) -> None:
+        await self._drawn()
+        self.table.fit("name", 180)
+        self.table.drag("rating", 150)
+
+        await self.table.fire("columnResized", colId="rating")
+
+        self.assertEqual([{"widths": {"rating": 150}}], self.written)
+
+    async def test_a_width_the_grid_fitted_is_not_saved_with_a_pin(self) -> None:
+        await self._drawn()
+        self.table.fit("name", 180)
+
+        await grid.pin(self.table, "year", "left")
+
+        self.assertEqual([{"pins": {"year": "left"}}], self.written)
+
+    async def test_a_fitted_column_a_person_then_drags_is_theirs(self) -> None:
+        await self._drawn()
+        self.table.fit("name", 180)
+        self.table.drag("name", 170)
+
+        await self.table.fire("columnResized")
+
+        self.assertEqual([{"widths": {"name": 170}}], self.written)
 
     async def test_an_unchanged_layout_is_not_written_again(self) -> None:
         self.read = {"widths": {"name": 200}}
