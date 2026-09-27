@@ -22,7 +22,13 @@ from common.deprecations import announce
 from common.extensions import services as ext_services
 from common.failures import why
 from common.games import game_identity
-from common.games.collection_store import BUILTIN_ALL, normalize_direction, public_name
+from common.games.collection_store import (
+    BUILTIN_ALL,
+    DEFAULT_DIRECTION,
+    DEFAULT_ORDER_BY,
+    normalize_direction,
+    public_name,
+)
 from common.games.game_metadata import game_rating, normalize_meta, set_game_rating
 from common.games.game_repository import all_games
 from common.host import frontend_state, launch, launch_state
@@ -483,10 +489,10 @@ class API:
         game_type: str = "All",
         manufacturer: str = "All",
         year: str = "All",
-        order_by: str = "title",
+        order_by: str = DEFAULT_ORDER_BY,
         rating: str = "All",
         rating_or_higher: object = False,
-        direction: str = "desc",
+        direction: str = DEFAULT_DIRECTION,
     ) -> dict[str, Any]:
         """Save current filter settings as a named collection."""
         try:

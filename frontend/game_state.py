@@ -321,7 +321,7 @@ def save_current_filter_collection(api: API, name: str, letter: str, theme: str,
                                    game_type: str, manufacturer: str, year: str,
                                    order_by: str, rating: str,
                                    rating_or_higher: object,
-                                   direction: str = "desc") -> dict[str, Any]:
+                                   direction: str = DEFAULT_DIRECTION) -> dict[str, Any]:
     api.library.save_filter(
         name, {"letter": letter, "theme": theme, "game_type": game_type,
                "manufacturer": manufacturer, "year": year, "rating": rating,

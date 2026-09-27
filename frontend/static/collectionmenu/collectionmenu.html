@@ -82,8 +82,13 @@
       margin-top: clamp(4px, 0.8em, 14px);
     }
 
-    li.menu-item.action-separator {
+    li.menu-item.action-separator,
+    li.menu-item.action-separator[hidden] + li.menu-item {
       margin-top: clamp(4px, 0.8em, 14px);
+    }
+
+    li.menu-item[hidden] {
+      display: none;
     }
 
     .dropdown-label {
@@ -190,9 +195,9 @@
       </li>
       <li class="menu-item" id="orderby-item">
         <span class="dropdown-label" data-i18n="frontend.collectionmenu.order">Order By:</span>
-        <span class="dropdown-value" id="orderby-value" data-i18n="frontend.collectionmenu.descending">Descending</span>
+        <span class="dropdown-value" id="orderby-value" data-i18n="frontend.collectionmenu.ascending">Ascending</span>
       </li>
-      <li class="menu-item action-separator" id="save-filter-item" data-i18n="frontend.collectionmenu.save_as_collection">Save as Collection...</li>
+      <li class="menu-item action-separator" id="save-filter-item" data-i18n="frontend.collectionmenu.save_as_collection" hidden>Save as Collection...</li>
       <li class="menu-item" id="close-item" data-i18n="word.close">Close</li>
     </ul>
 
@@ -234,6 +239,7 @@ function t(key, english, params) {
     // Two ordered lists with a cursor, one nested in the other, so both are core's list
     // rather than two more copies of `(i +- 1 + n) % n`.
     let rows = null;
+    let menuItems = [];
     let dropdown = null;
     let dropdownOpen = false;
     let currentDropdownType = null;
@@ -283,7 +289,7 @@ function t(key, english, params) {
     const sortLabel = (token) => word(SORT_LABELS[token] || token);
     // Tokens with labels, for the same reason the sorts above are: the value stored and
     // the value shown were the same string, so the display spelling was the vocabulary.
-    let orderOptions = ['desc', 'asc'];
+    let orderOptions = ['asc', 'desc'];
     const DIRECTION_LABELS = { asc: 'Ascending', desc: 'Descending' };
     // Which dropdowns show something other than their stored value. The popup renders
     // the raw option, so without this the sort list reads `play_time_seconds`.
@@ -319,7 +325,7 @@ function t(key, english, params) {
         rating: String(filterState.rating || 'All'),
         ratingmode: filterState.rating_or_higher ? 'Or Higher' : 'Exact',
         sortby: filterState.sort || sortOptions[sortByIndex] || 'title',
-        orderby: filterState.order || orderOptions[orderByIndex] || 'desc',
+        orderby: filterState.order || orderOptions[orderByIndex],
       };
     }
 
@@ -368,8 +374,8 @@ function t(key, english, params) {
       if (currentCollection && currentCollection !== 'None') {
         setFilterDisplayOverrides({
           ...currentFilters,
-          sort: currentSort || 'title',
-          order: currentOrder || 'desc',
+          sort: currentSort || sortOptions[0],
+          order: currentOrder || orderOptions[0],
         });
       }
 
@@ -494,7 +500,16 @@ function t(key, english, params) {
       showCount(window.parent.vpin.tableData ? window.parent.vpin.tableData.length : 0);
     }
 
+    function somethingChosen() {
+      return [letterIndex, themeIndex, typeIndex, manufacturerIndex, yearIndex,
+              ratingIndex, sortByIndex, orderByIndex].some((index) => index > 0);
+    }
+
     function updateMenu() {
+      const current = rows.current;
+      document.getElementById('save-filter-item').hidden = !somethingChosen();
+      rows.items = menuItems.filter((item) => !item.hidden);
+      rows.moveTo(Math.max(0, rows.items.indexOf(current)));
       rows.items.forEach((item, i) => {
         item.classList.toggle('selected', i === rows.cursor);
       });
@@ -696,8 +711,8 @@ function t(key, english, params) {
               }
               setFilterDisplayOverrides({
                 ...filterState,
-                sort: sortState || 'title',
-                order: orderState || 'desc',
+                sort: sortState || sortOptions[0],
+                order: orderState || orderOptions[0],
               });
               window.parent.vpin.sendMessageToAllWindowsIncSelf({
                 type: "TableDataChange",
@@ -848,24 +863,6 @@ function t(key, english, params) {
         return;
       }
 
-      // Check if any filters or sort are set (not all defaults)
-      const hasActiveFilters =
-        (letters[letterIndex] !== "All") ||
-        (themes[themeIndex] !== "All") ||
-        (types[typeIndex] !== "All") ||
-        (manufacturers[manufacturerIndex] !== "All") ||
-        (ratings[ratingIndex] !== "All") ||
-        (years[yearIndex] !== "All") ||
-        (sortOptions[sortByIndex] !== "title") ||
-        (orderOptions[orderByIndex] !== "desc");
-
-      if (!hasActiveFilters) {
-        message.textContent = t('frontend.collectionmenu.no_filters_sort_order',
-          'No filters or sort order active. Set at least one before saving.');
-        message.style.color = '#f88';
-        return;
-      }
-
       const selectedFilters = getSelectedFilterValues();
 
       // Save the filter
@@ -901,8 +898,8 @@ function t(key, english, params) {
 
     window.onload = async () => {
       await init();
-      rows = window.parent.vpin.createList(
-        Array.from(document.querySelectorAll('.menu-item')));
+      menuItems = Array.from(document.querySelectorAll('.menu-item'));
+      rows = window.parent.vpin.createList(menuItems.slice());
       updateMenu();
 
       // Set up save filter dialog buttons

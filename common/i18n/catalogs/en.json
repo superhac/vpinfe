@@ -2529,7 +2529,6 @@
   "frontend.collectionmenu.letter": "letter",
   "frontend.collectionmenu.manufacturer": "Manufacturer:",
   "frontend.collectionmenu.name_collection": "Name the collection",
-  "frontend.collectionmenu.no_filters_sort_order": "No filters or sort order active. Set at least one before saving.",
   "frontend.collectionmenu.order": "Order By:",
   "frontend.collectionmenu.pages": "Pages by {kind}",
   "frontend.collectionmenu.pages_time": "Pages {size} at a time",
