@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from starlette.testclient import TestClient
@@ -31,8 +32,7 @@ class _Tree(TempTree):
         (self.root / "notes.vpx").write_bytes(b"vpx")
 
         # Outside the library entirely, standing in for anything else on the disk.
-        self.outside = Path(self.root).parent / "outside"
-        self.outside.mkdir(exist_ok=True)
+        self.outside = Path(self.enterContext(TemporaryDirectory()))
         (self.outside / "secret.png").write_bytes(b"\x89PNGsecret")
 
         game = fake_game(self.folder, FOLDER, meta=INFO)
@@ -164,8 +164,7 @@ class RootTests(TempTree):
         self.assertEqual([item["source"] for item in found], ["library"])
 
     def test_a_configured_folder_is_added_to_it(self) -> None:
-        extra = Path(self.root).parent / "downloads"
-        extra.mkdir(exist_ok=True)
+        extra = Path(self.enterContext(TemporaryDirectory()))
         found = self._roots(str(self.root), (str(extra),))
 
         self.assertEqual([item["source"] for item in found], ["library", "configured"])

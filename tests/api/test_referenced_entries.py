@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from starlette.testclient import TestClient
@@ -53,8 +54,7 @@ class _Referenced(TempTree):
 
         # Outside the game folder and outside every configured location, so the stored
         # form is absolute unless a test says otherwise.
-        self.away = self.root.parent / "share" / "afm.vpx"
-        self.away.parent.mkdir(parents=True, exist_ok=True)
+        self.away = Path(self.enterContext(TemporaryDirectory())) / "afm.vpx"
         self.away.write_bytes(b"vpx")
 
         self.client = TestClient(httpapi.create_api_app(),
@@ -96,7 +96,7 @@ class AddingTests(_Referenced):
         self.assertEqual(self._add("../share/afm.vpx").status_code, 400)
 
     def test_a_file_nothing_plays_is_refused(self) -> None:
-        other = self.root.parent / "share" / "notes.txt"
+        other = self.away.parent / "notes.txt"
         other.write_text("hello")
 
         self.assertEqual(self._add(other).status_code, 400)
