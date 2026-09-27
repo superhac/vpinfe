@@ -48,8 +48,8 @@ _UNSUPPORTED = sys.platform.startswith("win")
 @unittest.skipIf(_UNSUPPORTED, "the render smoke test is scoped to Linux and macOS")
 @unittest.skipIf(chromium_path() is None, "no Chromium on this machine")
 class RenderSmokeTests(TempTree):
-    """Each test boots its own instance: they assert on different windows and a
-    shared one would let the first test's state decide the second's result."""
+    BOOTS_PER_TEST = ("They assert on different windows, and a shared instance would let "
+                      "the first test's state decide the second's result.")
 
     def setUp(self) -> None:
         super().setUp()

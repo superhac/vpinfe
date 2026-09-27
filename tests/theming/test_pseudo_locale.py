@@ -147,6 +147,8 @@ async def _changed(browser: BrowserSession, expression: str, before: str) -> str
 class PseudoLocaleTests(unittest.TestCase):
     """Slow: boots a real instance and a real browser. Worth it - see the docstring."""
 
+    BOOTS_PER_TEST = "Its only test, so booting per test is booting once."
+
     def test_every_section_says_nothing_in_english(self) -> None:
         """Not just the landing view. `?view=` is the address of each section, and a
         page nobody opens is a page nobody checked - the rail was found on the one view
@@ -237,6 +239,10 @@ class FrontendPseudoLocaleTests(unittest.TestCase):
     value, the paging line. None of that is a literal in a display position, so this is
     the only thing that sees it.
     """
+
+    BOOTS_PER_TEST = ("The menus draw the collection, filters and sort the frontend "
+                      "holds, so each test opens them on an instance no other test has "
+                      "driven.")
 
     READ = ("(() => { const f = document.getElementById('%s');"
             " return f && f.contentDocument ? f.contentDocument.body.innerText : ''; })()")

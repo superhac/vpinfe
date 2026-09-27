@@ -107,6 +107,10 @@ class SeparationTests(TempTree):
     diagnosis would start from.
     """
 
+    BOOTS_PER_TEST = ("Each test builds its own hub and devices - collections written to "
+                      "the hub or to a device's own file, a second device, a hub that "
+                      "stops - and a shared hub would carry one test's collections into "
+                      "the next.")
     READY_TIMEOUT = 90.0
 
     def setUp(self) -> None:

@@ -65,6 +65,10 @@ WIDE ={"width": 1920, "height": 1080, "deviceScaleFactor": 1, "mobile": False}
 class IdentifierInkTests(unittest.TestCase):
     """Slow: boots a real instance and a real browser."""
 
+    BOOTS_PER_TEST = ("Each test unpins the column, and the unpin is saved with the "
+                      "grid's layout: a second test on the same instance finds nothing "
+                      "pinned.")
+
     def _look(self, instance) -> tuple[dict, dict]:
         """What the grid shows with the identifier column pinned, and once its header
         menu has unpinned it."""

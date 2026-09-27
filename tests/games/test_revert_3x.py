@@ -452,6 +452,9 @@ class LiveRefusalTests(unittest.TestCase):
     the instance moves or its discovery document changes.
     """
 
+    BOOTS_PER_TEST = ("It checks the port is free once its instance has stopped, so the "
+                      "test owns the instance from start to stop.")
+
     def test_a_real_instance_is_seen_on_its_hub_port(self):
         from tempfile import TemporaryDirectory
 
