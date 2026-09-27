@@ -454,7 +454,7 @@ def metadata_line(library: Library, state: dict[str, Any]) -> None:
 
     def fill() -> None:
         body = held.get("body")
-        if body is None:
+        if body is None or body.is_deleted:
             return
         body.clear()
         with body:
@@ -470,7 +470,7 @@ def metadata_line(library: Library, state: dict[str, Any]) -> None:
 
     def show() -> None:
         box = held.get("box")
-        if box is None:
+        if box is None or box.is_deleted:
             # In `outer` rather than beside the button, so a redraw of the line leaves
             # the dialog open.
             with outer, frame.opened(t("console.sections.library_metadata"),

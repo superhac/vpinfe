@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from typing import Any
 
 from nicegui import ui
+from nicegui.events import ValueChangeEventArguments
 
 from common.i18n import t
 from console import verbs
@@ -16,17 +17,39 @@ def opened(title: str, *, wide: bool = False, full: bool = False,
     """Draw the dialog's contents inside; the caller awaits the dialog it yields.
 
     A title of "" draws none, for a dialog whose title changes as it goes.
+
+    It is deleted once hidden, so it opens once; a `hide` listener goes on before that.
     """
     props = " ".join(p for p in ("persistent" if persistent else "",
                                  "maximized" if full else "") if p)
-    with ui.dialog().props(props) as dialog, \
-            ui.card().classes(" ".join(("console-dialog",
-                                        "console-dialog--wide" if wide else "",
-                                        "console-dialog--full" if full else "",
-                                        classes)).strip()):
+    with ui.element() as origin:
+        origin.visible = False
+        dialog = ui.dialog().props(props)
+    _gone_once_hidden(dialog, origin)
+    with dialog, ui.card().classes(" ".join(("console-dialog",
+                                             "console-dialog--wide" if wide else "",
+                                             "console-dialog--full" if full else "",
+                                             classes)).strip()):
         if title:
             ui.label(title).classes("console-dialog-title")
         yield dialog
+
+
+def _gone_once_hidden(dialog: ui.dialog, origin: ui.element) -> None:
+    def gone() -> None:
+        if dialog.value:
+            return
+        dialog.delete()
+        if not origin.is_deleted:
+            origin.delete()
+
+    def opening(event: ValueChangeEventArguments) -> None:
+        if event.value and not listening:
+            listening.append(True)
+            dialog.on("hide", gone)
+
+    listening: list[bool] = []
+    dialog.on_value_change(opening)
 
 
 def footer() -> ui.row:

@@ -20,6 +20,7 @@ from common.games.info_maintenance import upgrade_library
 from common.i18n import t
 from console import games, sections
 from console.data import Library
+from tests.support.clicks import said
 from tests.support.library import game_info, write_game
 from tests.support.skips import needs_posix_permissions
 
@@ -169,6 +170,22 @@ class TheLineAboveTheGrid(unittest.TestCase):
         self.assertEqual(t("error.games.info_wrong_at_line", line=1), opened.get(BROKEN),
                          list(opened))
 
+    def test_show_opens_it_again_once_the_last_one_has_gone(self) -> None:
+        self._plant_broken()
+        seen: list[Any] = []
+
+        async def twice(holder: ui.element) -> None:
+            first = self._show(holder)
+            first.close()
+            said(first, "hide")
+            again = self._show(holder)
+            seen.extend([first.is_deleted, BROKEN in [one.text for one in again.descendants()
+                                                      if isinstance(one, ui.label)]])
+
+        self._drawn(twice)
+
+        self.assertEqual([True, True], seen)
+
     def test_an_upgrade_that_leaves_nothing_takes_the_line_away(self) -> None:
         write_game(self.root, OLDER, info=LEGACY)
         api = Mock()
@@ -192,6 +209,35 @@ class TheLineAboveTheGrid(unittest.TestCase):
             self._drawn(upgrade)
 
         self.assertEqual([[t("console.sections.older_format", count=1)], []], seen)
+
+    def test_an_upgrade_that_ends_once_the_dialog_has_gone_draws_nothing_into_it(self) -> None:
+        write_game(self.root, OLDER, info=LEGACY)
+        api = Mock()
+        api.upgrade_info.return_value = {"id": "u-1"}
+        orphans: list[ui.element] = []
+
+        async def ended(_client: Any, _job_id: str) -> dict[str, Any]:
+            return {"state": "done", "result": upgrade_library(self.root)}
+
+        async def upgrade(holder: ui.element) -> None:
+            box = self._show(holder)
+            _press(box, t("word.upgrade"))
+            box.close()
+            said(box, "hide")
+            before = set(holder.client.elements)
+            for _ in range(50):
+                await asyncio.sleep(0)
+            orphans.extend(one for key, one in holder.client.elements.items()
+                           if key not in before and one.parent_slot is not None
+                           and one.parent_slot.parent.is_deleted)
+
+        with mock.patch("console.confirm.ask", mock.AsyncMock(return_value=True)), \
+                mock.patch("console.api.ApiClient", return_value=api), \
+                mock.patch("nicegui.run.io_bound", new=_now), \
+                mock.patch.object(sections, "_ended", ended):
+            self._drawn(upgrade)
+
+        self.assertEqual([], orphans)
 
     @needs_posix_permissions
     def test_a_game_whose_folder_could_not_be_written_is_said_above_the_grid(self) -> None:
