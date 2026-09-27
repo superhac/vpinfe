@@ -20,6 +20,8 @@ import unittest
 import urllib.error
 import urllib.request
 from collections.abc import Callable
+from contextlib import suppress
+from dataclasses import dataclass
 from pathlib import Path
 
 import requests
@@ -39,6 +41,18 @@ PNG = bytes.fromhex(
 # The titles the device's wheel holds, in order.
 SHOWN = ("(async () => JSON.parse(await vpin.call('get_tables'))"
          ".entries.map(entry => entry.game.name))")
+THREE_SHOWN = f"(async () => (await {SHOWN}()).length === 3)()"
+
+_A_PUSH_LANDS_S = 0.5
+_LIMIT_S = 30.0
+_STARTED = "Press Ctrl+C to stop"
+
+
+@dataclass(frozen=True)
+class Until:
+    """A step that waits up to `_LIMIT_S` for `expression` to hold in the page, and
+    lets the steps after it report what it found if it never does."""
+    expression: str
 
 # Same scope as the render smoke test, and for the same reason recorded there.
 _UNSUPPORTED = sys.platform.startswith("win")
@@ -58,6 +72,16 @@ def _fetch(url: str):
 
 def _patch(url: str, body: dict) -> None:
     requests.patch(url, json=body, timeout=30).raise_for_status()
+
+
+def _started(instance: LiveInstance) -> None:
+    """Until the instance logs that its startup is done."""
+    deadline = time.monotonic() + _LIMIT_S
+    while _STARTED not in instance.output(tail=None):
+        if time.monotonic() > deadline:
+            raise AssertionError(f"the instance never logged {_STARTED!r}:\n"
+                                 + instance.output())
+        time.sleep(0.05)
 
 
 def _post(url: str) -> tuple[int, str]:
@@ -241,9 +265,8 @@ class SeparationTests(TempTree):
                     self.device_root,
                     extra_settings={("network", "library_url"): library_api}) as reader:
                 reader.wait_for_api()
-                # Long enough that a push at startup would have landed: the thread that
-                # used to make it ran before the API was serving.
-                time.sleep(2.0)
+                _started(reader)
+                time.sleep(_A_PUSH_LANDS_S)
                 after = _fetch(f"{library_api}/api/v1/devices")
 
         self.assertEqual([d["device_id"] for d in after["devices"]],
@@ -327,18 +350,12 @@ class SeparationTests(TempTree):
                     _patch(f"{device_api}/api/v1/collections/Hub%20Picks",
                            {"description": "Only here"})
 
-                (_, picked, _, refreshed), failures = self._evaluate(device, (
+                (_, picked, _, _, refreshed), failures = self._evaluate(device, (
                     "vpin.call('set_tables_by_collection', 'Hub Picks')",
                     f"{SHOWN}()",
                     hub_adds_one_then_device_refreshes,
-                    f"""(async () => {{
-                          for (let tries = 0; tries < 100; tries++) {{
-                            const names = await {SHOWN}();
-                            if (names.length === 3) return names;
-                            await new Promise(done => setTimeout(done, 100));
-                          }}
-                          return {SHOWN}();
-                        }})()"""))
+                    Until(THREE_SHOWN),
+                    f"{SHOWN}()"))
 
         self.assertEqual(picked, ["Twilight Zone", "Attack from Mars"])
         self.assertEqual(refreshed, ["Twilight Zone", "Attack from Mars", "Medieval Madness"])
@@ -402,19 +419,13 @@ class SeparationTests(TempTree):
                                     timeout=30).raise_for_status()
                     device.post("/api/v1/collections", {"name": "Only Here", "games": []})
 
-                (_, picked, _, after), failures = self._evaluate(device, (
+                (_, picked, _, _, after), failures = self._evaluate(device, (
                     "vpin.call('set_tables_by_collection', 'Hub Picks')",
                     f"{SHOWN}()",
                     hub_deletes_it_then_device_refreshes,
-                    f"""(async () => {{
-                          for (let tries = 0; tries < 100; tries++) {{
-                            const names = await {SHOWN}();
-                            if (names.length === 3) break;
-                            await new Promise(done => setTimeout(done, 100));
-                          }}
-                          return [await vpin.call('get_current_collection'),
-                                  await {SHOWN}()];
-                        }})()"""))
+                    Until(THREE_SHOWN),
+                    f"""(async () => [await vpin.call('get_current_collection'),
+                                      await {SHOWN}()])()"""))
 
         self.assertEqual(picked, ["Twilight Zone"])
         self.assertEqual(after, ["None", list(TITLES)])
@@ -473,9 +484,20 @@ class SeparationTests(TempTree):
         self.assertEqual(refused,
                          (409, f"The library at {library_api} could not be reached"))
 
-    def _evaluate(self, device: LiveInstance, steps: tuple[str | Callable[[], object], ...]):
+    def _evaluate(self, device: LiveInstance,
+                  steps: tuple[str | Until | Callable[[], object], ...]):
         """Open the device's playfield window and take each step, in order, once the
-        theme is ready: a string is evaluated in the page, anything else is called here."""
+        theme is ready: a string is evaluated in the page, an `Until` waited on there,
+        and anything else is called here."""
+        async def take(browser: BrowserSession, step):
+            if isinstance(step, str):
+                return await browser.evaluate(step)
+            if isinstance(step, Until):
+                with suppress(TimeoutError):
+                    return await browser.wait_for(step.expression, timeout=_LIMIT_S)
+                return None
+            return await asyncio.to_thread(step)
+
         async def run():
             async with BrowserSession(chromium_path()) as browser:
                 await browser.navigate(device.theme_url("playfield"))
@@ -484,8 +506,7 @@ class SeparationTests(TempTree):
                                            timeout=self.READY_TIMEOUT)
                 except TimeoutError as exc:
                     raise AssertionError(self._diagnose(exc, browser, device)) from exc
-                results = [await browser.evaluate(step) if isinstance(step, str)
-                           else await asyncio.to_thread(step) for step in steps]
+                results = [await take(browser, step) for step in steps]
                 return results, list(browser.failed_requests)
 
         return asyncio.run(run())
