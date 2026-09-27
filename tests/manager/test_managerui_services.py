@@ -10,7 +10,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from common.games.archive_service import resolve_game_dir
 from common.games.game_index_service import (
     add_collection_membership,
     find_by_path,
@@ -28,7 +27,6 @@ from common.games.media_service import (
     update_cache_entry,
 )
 from common.online import theme_service
-from common.service_errors import RefusedError
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui.filters import ALL_VALUE, apply_game_filters, build_game_filter_options
 from managerui.pages.collections import paging_labels
@@ -144,22 +142,6 @@ class ManagerUiServiceTests(unittest.TestCase):
 
             self.assertEqual((game_dir / "Example.directb2s").read_bytes(), b"new b2s")
             self.assertEqual(result["filename"], "Example.directb2s")
-
-    def test_resolve_game_dir_rejects_path_traversal(self):
-        with self.subTest("valid table"):
-            from pathlib import Path
-            from tempfile import TemporaryDirectory
-
-            with TemporaryDirectory() as temp_dir:
-                games_root = Path(temp_dir) / "games"
-                good_game = games_root / "Good Table"
-                good_game.mkdir(parents=True)
-
-                self.assertEqual(resolve_game_dir("Good Table", str(games_root)),
-                                 good_game.resolve())
-
-                with self.assertRaises(RefusedError):
-                    resolve_game_dir("../outside", str(games_root))
 
     def test_mobile_game_rows_format_display_names(self):
         rows = build_mobile_game_rows([

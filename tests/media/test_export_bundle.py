@@ -10,11 +10,15 @@ from __future__ import annotations
 import json
 import unittest
 import zipfile
+from configparser import ConfigParser
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
-from common.games.archive_service import cleanup_archive, create_vpxz_archive
+from common.games.archive_service import archive_for, cleanup_archive, create_vpxz_archive
 from common.games.export_bundle import bundle_paths, is_readme, prune_info
+from common.service_errors import NotFoundError
+from tests.support.library import fake_game
 
 FOLDER = "Cactus Canyon (Bally 1998)"
 CHOSEN = "Cactus Canyon (Bally 1998) - VPW 1.2.vpx"
@@ -172,8 +176,7 @@ class FullExportScopeTests(unittest.TestCase):
 class ArchiveTests(unittest.TestCase):
     def test_the_vpxz_holds_the_bundle_and_a_true_manifest(self) -> None:
         with TemporaryDirectory() as tmp:
-            _library(tmp)
-            archive = create_vpxz_archive(FOLDER, tmp)
+            archive = create_vpxz_archive(_library(tmp))
             self.addCleanup(cleanup_archive, archive)
             with zipfile.ZipFile(archive.path) as z:
                 names = set(z.namelist())
@@ -187,14 +190,51 @@ class ArchiveTests(unittest.TestCase):
 
     def test_everything_mode_archives_the_folder(self) -> None:
         with TemporaryDirectory() as tmp:
-            _library(tmp)
-            archive = create_vpxz_archive(FOLDER, tmp, everything=True)
+            archive = create_vpxz_archive(_library(tmp), everything=True)
             self.addCleanup(cleanup_archive, archive)
             with zipfile.ZipFile(archive.path) as z:
                 names = set(z.namelist())
 
         self.assertIn(f"{FOLDER}/{OTHER}", names)
         self.assertIn(f"{FOLDER}/medias/wheel.png", names)
+
+
+def _game_under(root: Path, game_id: str, table: bytes):
+    folder = root / FOLDER
+    folder.mkdir(parents=True)
+    (folder / CHOSEN).write_bytes(table)
+    meta = {"vpinfe": {"game_id": game_id}}
+    (folder / f"{FOLDER}.info").write_text(json.dumps(meta), encoding="utf-8")
+    return fake_game(folder, FOLDER, meta=meta)
+
+
+class ArchiveByIdTests(unittest.TestCase):
+    def _archive(self, games, legacy_root: Path, game_id: str):
+        legacy = ConfigParser()
+        legacy["general"] = {"game_root_dir": str(legacy_root)}
+        with patch("common.games.game_repository.all_games", return_value=games), \
+                patch("common.paths.get_ini_config", return_value=legacy):
+            return archive_for(game_id)
+
+    def test_a_game_in_the_second_location_ships_its_own_table(self) -> None:
+        with TemporaryDirectory() as tmp:
+            first, second = Path(tmp) / "first", Path(tmp) / "second"
+            games = [_game_under(first, "gid0000001", b"first table"),
+                     _game_under(second, "gid0000002", b"second table")]
+            archive = self._archive(games, first, "gid0000002")
+            self.addCleanup(cleanup_archive, archive)
+            with zipfile.ZipFile(archive.path) as z:
+                shipped = z.read(f"{FOLDER}/{CHOSEN}")
+
+        self.assertEqual(shipped, b"second table")
+
+    def test_a_folder_that_is_not_there_is_refused_not_shipped_empty(self) -> None:
+        with TemporaryDirectory() as tmp:
+            gone = fake_game(Path(tmp) / "second" / FOLDER, FOLDER,
+                             meta={"vpinfe": {"game_id": "gid0000002"}})
+
+            with self.assertRaises(NotFoundError):
+                self._archive([gone], Path(tmp) / "first", "gid0000002")
 
 
 if __name__ == "__main__":

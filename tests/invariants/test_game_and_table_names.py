@@ -81,13 +81,14 @@ class TheFolderIsAGame(unittest.TestCase):
     def test_the_services_taking_a_folder_take_a_game_dir(self) -> None:
         for func in (game_service.replace_table, game_service.extract_vbs,
                      game_service.update_info_section, game_repository.refresh_game,
-                     media_service.source_media_path, game_index_service.find_by_path):
+                     media_service.source_media_path, game_index_service.find_by_path,
+                     archive_service.create_vpxz_archive):
             with self.subTest(func=func.__name__):
                 self.assertIn("game_dir", _parameters(func))
 
     def test_the_services_taking_the_folders_name_say_name(self) -> None:
         for func in (media_service.thumb_file_path, media_service.media_url_from_path,
-                     media_service.ensure_thumb, archive_service.resolve_game_dir):
+                     media_service.ensure_thumb):
             with self.subTest(func=func.__name__):
                 self.assertIn("game_dir_name", _parameters(func))
 

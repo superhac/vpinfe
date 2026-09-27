@@ -12,7 +12,6 @@ from pathlib import Path
 from common import service_errors
 from common.games.export_bundle import bundle_paths, prune_info
 from common.i18n import t
-from common.paths import get_games_path
 
 
 @dataclass(frozen=True)
@@ -22,24 +21,7 @@ class VpxzArchive:
     filename: str
 
 
-def resolve_game_dir(game_dir_name: str, games_path: str | None = None) -> Path:
-    """Resolve a game directory name under the configured game root."""
-    root = Path(games_path or get_games_path()).expanduser().resolve()
-    game_dir = (root / game_dir_name).resolve()
-
-    try:
-        game_dir.relative_to(root)
-    except ValueError as exc:
-        raise service_errors.RefusedError(t("error.games.invalid_game_path")) from exc
-
-    if not game_dir.is_dir():
-        raise service_errors.NotFoundError(t("error.games.game_not_found"))
-
-    return game_dir
-
-
-def create_vpxz_archive(game_dir_name: str, games_path: str | None = None, *,
-                        everything: bool = False,
+def create_vpxz_archive(game_dir: Path, *, everything: bool = False,
                         table: str | None = None) -> VpxzArchive:
     """Create a temporary .vpxz archive for a game.
 
@@ -47,9 +29,12 @@ def create_vpxz_archive(game_dir_name: str, games_path: str | None = None, *,
     folder. `everything=True` archives the whole directory. Either way the
     layout is folder-wrapped, which is what the mobile importers expect, and
     the shipped .info describes only what the archive actually holds.
+
+    Raises NotFoundError for a folder that is not there.
     """
-    root = Path(games_path or get_games_path()).expanduser().resolve()
-    game_dir = resolve_game_dir(game_dir_name, str(root))
+    # A path with no name wraps nothing: `Path("")` is the working directory.
+    if not game_dir.name or not game_dir.is_dir():
+        raise service_errors.NotFoundError(t("error.games.game_not_found"))
 
     tmp_dir = tempfile.mkdtemp()
     vpxz_path = os.path.join(tmp_dir, f"{game_dir.name}.vpxz")
@@ -81,5 +66,5 @@ def archive_for(game_id: str, *, everything: bool = False,
     from common.games import game_lens
 
     game = game_lens.game_or_refuse(game_id)
-    return create_vpxz_archive(game.game_dir_name,
+    return create_vpxz_archive(Path(str(game.full_path_game or "")),
                                everything=everything, table=table or None)
