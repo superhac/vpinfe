@@ -480,7 +480,20 @@ describe("what a keypress means depends on the mode", () => {
     await press("m");
     await press("b");
 
-    assert.deepEqual(seen, ["back"], "only back is intercepted while typing");
+    assert.deepEqual(seen, ["back"], "the menu must not open over a dialog's field");
+  });
+
+  test("a select that is not typed into the field finishes the dialog", async () => {
+    const { vpin, press } = navigating();
+    vpin.pushInputMode("text");
+    const seen = [];
+    vpin.contract = 2;
+    vpin.inputHandlers.push((a) => seen.push(a));
+
+    await press("ArrowRight");
+    await press("Enter");
+
+    assert.deepEqual(seen, ["select"]);
   });
 
   test("the base mode cannot be popped away", () => {

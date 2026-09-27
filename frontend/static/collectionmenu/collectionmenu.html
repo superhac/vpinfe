@@ -408,6 +408,11 @@ function t(key, english, params) {
     }
 
     function handleInput(input) {
+      if (releaseInputMode) {
+        if (input === "select") saveCurrentFilter();
+        else if (input === "back") closeSaveFilterDialog();
+        return;
+      }
       if (dropdownOpen) {
         switch (input) {
           case "page_previous":
@@ -471,10 +476,7 @@ function t(key, english, params) {
         case "back":
         case "menu":
         case "collection_menu":
-          // While the dialog is up, back dismisses it - that is the one action the
-          // text mode lets through, and this is what it should reach.
-          if (releaseInputMode) closeSaveFilterDialog();
-          else window.parent.vpin.toggleOverlay("collectionMenu");
+          window.parent.vpin.toggleOverlay("collectionMenu");
           break;
       }
       updateMenu();

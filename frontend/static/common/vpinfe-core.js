@@ -2378,7 +2378,7 @@ class VPinFECore {
   //
   //   navigation  the default; actions reach the theme or the top overlay
   //   modal       a dialog owns them; select activates, back dismisses
-  //   text        keystrokes belong to the focused field; only back is intercepted
+  //   text        keystrokes belong to the focused field; back and select still act
   pushInputMode(mode) {
     if (!["navigation", "modal", "text"].includes(mode)) return null;
     this._inputModes.push(mode);
@@ -2663,9 +2663,9 @@ class VPinFECore {
   #dispatchAction(action) {
     if (!this.isController() && action !== "select") return this.#triggerInputAction(action);
 
-    // A field owns its keystrokes; only back is intercepted, so a dialog can still be
-    // dismissed from a cabinet button while typing into it.
-    if (this.inputMode === "text" && action !== "back") return;
+    // A field owns its keystrokes; back and select still reach the dialog, so a cabinet
+    // button can dismiss it or finish it while the field has focus.
+    if (this.inputMode === "text" && action !== "back" && action !== "select") return;
     // A confirm owns every action while it is up. Answering it is the only thing the
     // buttons can do, so an unmapped press cannot dismiss it and cannot act behind it.
     if (this.#pendingConfirm) {
