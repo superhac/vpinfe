@@ -20,6 +20,9 @@ import os
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
+
+from platformdirs import user_cache_dir
 
 # Every test runs against an empty config directory rather than the developer's own.
 # common/paths.py resolves CONFIG_DIR at import time, so this has to happen before
@@ -38,6 +41,15 @@ if CALLER_CONFIG_DIR is None:
     _TEST_CONFIG_DIR = tempfile.mkdtemp(prefix="vpinfe-tests-")
     os.environ["VPINFE_CONFIG_DIR"] = _TEST_CONFIG_DIR
     atexit.register(shutil.rmtree, _TEST_CONFIG_DIR, ignore_errors=True)
+
+    _test_tmp_parent = Path(user_cache_dir("vpinfe")) / "tests-tmp"
+    _test_tmp_parent.mkdir(parents=True, exist_ok=True)
+    _TEST_TMP_DIR = tempfile.mkdtemp(prefix="vpinfe-tmp0", dir=str(_test_tmp_parent))
+    os.environ["TMPDIR"] = _TEST_TMP_DIR
+    os.environ["TEMP"] = _TEST_TMP_DIR
+    os.environ["TMP"] = _TEST_TMP_DIR
+    tempfile.tempdir = _TEST_TMP_DIR
+    atexit.register(shutil.rmtree, _TEST_TMP_DIR, ignore_errors=True)
 
 # Nor against any host outside this machine: http_client refuses them as an offline
 # machine would. A test of the transport stubs it; one that needs the real network is

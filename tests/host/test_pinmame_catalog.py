@@ -196,7 +196,9 @@ class RealLibraryTests(unittest.TestCase):
 
 
 class WorkerVpmHomeTests(unittest.TestCase):
-    """No shipped library needed: `ctypes.CDLL` is mocked, so this runs everywhere."""
+    """No shipped library needed: the whole of `ctypes` is faked, so this runs
+    everywhere - and never builds a real callback trampoline against `PinmameConfig`,
+    which native code out of Python's sight is free to hold onto past this test."""
 
     def test_a_raised_lookup_still_removes_its_vpm_home(self) -> None:
         made: list[str] = []
@@ -209,7 +211,8 @@ class WorkerVpmHomeTests(unittest.TestCase):
 
         fake_lib = mock.Mock()
         fake_lib.PinmameGetGame.side_effect = RuntimeError("worker crashed")
-        with mock.patch.object(pinmame_worker.ctypes, "CDLL", return_value=fake_lib), \
+        with mock.patch.object(pinmame_worker, "ctypes", mock.MagicMock()), \
+                mock.patch.object(pinmame_worker.ctypes, "CDLL", return_value=fake_lib), \
                 mock.patch.object(pinmame_worker.tempfile, "mkdtemp",
                                   side_effect=spying_mkdtemp), \
                 self.assertRaises(RuntimeError):

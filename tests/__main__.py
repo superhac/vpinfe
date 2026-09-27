@@ -311,11 +311,29 @@ def _stop(proc: subprocess.Popen) -> None:
             continue
 
 
+def _leaked(path: Path) -> list[str]:
+    try:
+        return sorted(os.listdir(path))
+    except OSError:
+        return []
+
+
+def _entries(count: int) -> str:
+    return f"{count} entr{'y' if count == 1 else 'ies'}"
+
+
 def _clean(root: Path, shards: list[Shard]) -> None:
     """Everything the run made, except the output of a shard that did not pass."""
     for shard in shards:
         number = shard.number
         shutil.rmtree(root / f"config{number}", ignore_errors=True)
+        left = _leaked(root / f"tmp{number}")
+        if left:
+            note = f"left {_entries(len(left))} in its temp root: " + ", ".join(left[:5])
+            if len(left) > 5:
+                note += ", ..."
+            shard.stopped = f"{shard.stopped} {note}".strip() if shard.stopped else note
+            _say(f"Process {shard.number + 1} of {len(shards)} {note}")
         shutil.rmtree(root / f"tmp{number}", ignore_errors=True)
         for made in (f"shard{number}.json", f"shard{number}.jsonl"):
             (root / made).unlink(missing_ok=True)

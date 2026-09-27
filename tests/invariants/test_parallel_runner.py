@@ -223,5 +223,45 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(1, code)
 
 
+class LeakGateTests(unittest.TestCase):
+    def _root(self, tmp: str, *, number: int = 0) -> Path:
+        root = Path(tmp)
+        (root / f"config{number}").mkdir()
+        (root / f"tmp{number}").mkdir()
+        return root
+
+    def test_a_leftover_entry_fails_the_shard_and_names_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._root(tmp)
+            (root / "tmp0" / "leaked.txt").write_text("x")
+            shard = runner.Shard(0)
+
+            runner._clean(root, [shard])
+
+            self.assertFalse((root / "tmp0").exists())
+        self.assertIn("leaked.txt", shard.stopped)
+
+    def test_an_empty_temp_root_leaves_the_shard_passing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._root(tmp)
+            shard = runner.Shard(0)
+
+            runner._clean(root, [shard])
+
+        self.assertEqual("", shard.stopped)
+
+    def test_a_leak_does_not_override_why_the_shard_already_stopped(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._root(tmp)
+            (root / "tmp0" / "leaked.txt").write_text("x")
+            shard = runner.Shard(0)
+            shard.stopped = "Process 1 of 1 exited with code 1 after its last module."
+
+            runner._clean(root, [shard])
+
+        self.assertIn("exited with code 1", shard.stopped)
+        self.assertIn("leaked.txt", shard.stopped)
+
+
 if __name__ == "__main__":
     unittest.main()
