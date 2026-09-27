@@ -135,7 +135,7 @@ class DefaultTableTests(unittest.TestCase):
 
 class StampAddedTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.folder = tempfile.mkdtemp()
+        self.folder = self.enterContext(tempfile.TemporaryDirectory())
         with open(os.path.join(self.folder, "Table.vpx"), "wb") as handle:
             handle.write(b"vpx")
 
