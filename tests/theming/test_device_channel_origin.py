@@ -9,12 +9,12 @@ real handshake rather than only against the predicate.
 
 from __future__ import annotations
 
-import asyncio
 import unittest
 
 import websockets
 
 from frontend.device_channel import DeviceChannel
+from tests.support.channel_answer import registered, serving
 
 
 class OriginPredicateTests(unittest.TestCase):
@@ -56,19 +56,16 @@ class OriginHandshakeTests(unittest.IsolatedAsyncioTestCase):
         self.channel.register_api("bg", object())
         self.channel.start()
         self.addCleanup(self.channel.stop)
-        await asyncio.sleep(0.5)
+        await serving(self.channel)
 
     async def _connect(self, origin):
-        """Open a connection and wait long enough to see whether it is closed on us.
+        """Open a connection and say whether the channel holds it as the window.
 
-        An accepted channel simply goes quiet - the server says nothing until asked - so
-        silence is the pass and a close frame is the refusal.
+        Raises `ConnectionClosed` when the channel refuses it instead.
         """
         extra = {"additional_headers": {"Origin": origin}} if origin else {}
         url = f"ws://127.0.0.1:{self.channel.port}/?window=bg"
-        async with websockets.connect(url, **extra) as socket:
-            with self.assertRaises(TimeoutError):
-                await asyncio.wait_for(socket.recv(), timeout=0.3)
+        async with await registered(self.channel, "bg", url, **extra):
             # While it is still open: registration is undone on disconnect.
             return self.channel.is_window_connected("bg")
 

@@ -14,13 +14,11 @@ is known up front and neither needed a new mechanism to fix.
 
 from __future__ import annotations
 
-import asyncio
 import unittest
-
-import websockets
 
 from frontend.device_channel import DeviceChannel
 from tests.support.browser_session import free_port
+from tests.support.channel_answer import refused, registered, released, serving
 
 LOCAL = {"Origin": "http://127.0.0.1:8000"}
 
@@ -31,23 +29,20 @@ class WindowIdentityTests(unittest.IsolatedAsyncioTestCase):
         self.channel.register_api("playfield", object())
         self.channel.start()
         self.addCleanup(self.channel.stop)
-        await asyncio.sleep(0.5)
+        await serving(self.channel)
 
     def _url(self, window: str) -> str:
         return f"ws://127.0.0.1:{self.channel.port}/?window={window}"
 
     async def _open(self, window: str):
         """Connect and hold it. Returns the socket, or raises ConnectionClosed."""
-        socket = await websockets.connect(self._url(window), additional_headers=LOCAL)
-        with self.assertRaises(TimeoutError):
-            await asyncio.wait_for(socket.recv(), timeout=0.3)
-        return socket
+        return await registered(self.channel, window, self._url(window),
+                                additional_headers=LOCAL)
 
     async def _refusal(self, window: str) -> str:
-        with self.assertRaises(websockets.exceptions.ConnectionClosed) as caught:
-            await self._open(window)
-        self.assertEqual(caught.exception.rcvd.code, 1008)
-        return caught.exception.rcvd.reason
+        closed = await refused(self._url(window), additional_headers=LOCAL)
+        self.assertEqual(closed.rcvd.code, 1008)
+        return closed.rcvd.reason
 
     async def test_a_window_this_process_opened_connects(self) -> None:
         socket = await self._open("playfield")
@@ -81,8 +76,7 @@ class WindowIdentityTests(unittest.IsolatedAsyncioTestCase):
         """Refusing a duplicate must not refuse a reconnect: a window whose socket died
         is deregistered on the way out, so its name is free again."""
         first = await self._open("playfield")
-        await first.close()
-        await asyncio.sleep(0.4)
+        await released(self.channel, "playfield", first.close)
 
         second = await self._open("playfield")
         self.addAsyncCleanup(second.close)
