@@ -20,6 +20,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from tests.support.browser_session import BrowserSession, chromium_path
+from tests.support.console_walk import ConsoleWalk, clicked
 from tests.support.library import write_game
 from tests.support.live_instance import LiveInstance
 
@@ -40,8 +41,6 @@ GAME = "Attack from Mars"
 DOTTED = re.compile(r"\b[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+\b", re.IGNORECASE)
 KEYS = {key.lower(): key for key in CATALOG}
 FIRST_ROW = ".ag-row .ag-cell"
-# Each page in Settings' own rail. `view=settings` alone is its first page.
-SETTINGS_PAGE = ".console-section-rail .console-section-hit"
 ICONS = ".q-icon, .material-icons { visibility: hidden !important; }"
 
 
@@ -86,25 +85,22 @@ def _machine_words(*paths: Path) -> set[str]:
     return {w.lower() for s in sources for w in re.findall(r"[A-Za-z]{4,}", s)}
 
 
-_OPEN_PICKER = """(() => {
-  const b = [...document.querySelectorAll('.q-btn')].filter(x => x.offsetParent)
-      .find(x => (x.innerText || '').includes('more_vert'));
-  if (!b) return 'no picker here';
-  b.click();
-  return 'opened';
-})()"""
+_PICKER = ("[...document.querySelectorAll('.q-btn')].filter(x => x.offsetParent)"
+           ".find(x => (x.innerText || '').includes('more_vert'))")
+_MENU_OPEN = "document.querySelector('.q-menu') !== null"
 
 _PICKER_TEXT = _without_icons(
     "[...document.querySelectorAll('.q-menu, .q-item, .console-group, .console-menu-item')]"
     ".filter(x => x.offsetParent).map(x => x.innerText || '').join('\\n')")
 
 
-async def _picker_text(browser) -> str:
+async def _picker_text(walk: ConsoleWalk) -> str:
     """What the column picker says, or "" on a page that has no picker."""
-    if await browser.evaluate(_OPEN_PICKER) != "opened":
+    if not await walk.browser.evaluate(f"!!{_PICKER}"):
         return ""
-    await asyncio.sleep(1.5)
-    return await browser.evaluate(_PICKER_TEXT) or ""
+    await walk.act(clicked(walk.browser, f"(b => b && (b.click(), true))({_PICKER})"),
+                   until=_MENU_OPEN)
+    return await walk.browser.evaluate(_PICKER_TEXT) or ""
 
 
 class PseudoLocaleTests(unittest.TestCase):
@@ -166,28 +162,17 @@ class PseudoLocaleTests(unittest.TestCase):
 
         async def look(instance) -> None:
             async with BrowserSession(chromium_path()) as browser:
+                walk = ConsoleWalk(browser, instance)
                 for view in addresses:
-                    await browser.navigate(
-                        instance.console_url(f"/console?{view}"))
-                    await browser.wait_for(
-                        "document.querySelectorAll('.q-page, .nicegui-content').length > 0",
-                        timeout=90.0)
-                    await asyncio.sleep(3)
-                    read(view, await browser.evaluate(PAGE_WORDS) + await _picker_text(browser))
-                await browser.navigate(instance.console_url("/console?view=settings"))
-                rail = f"document.querySelectorAll({json.dumps(SETTINGS_PAGE)}).length"
-                await browser.wait_for(f"{rail} > 0", timeout=90.0)
-                for nth in range(await browser.evaluate(rail)):
-                    await browser.click(SETTINGS_PAGE, nth=nth)
-                    await asyncio.sleep(1.5)
+                    await walk.visit(f"/console?{view}")
+                    read(view, await browser.evaluate(PAGE_WORDS) + await _picker_text(walk))
+                await walk.visit("/console?view=settings")
+                async for _page in walk.sections():
                     where = await browser.evaluate("location.search")
                     settings_pages.append(where)
                     read(where, await browser.evaluate(PAGE_WORDS))
-                await browser.navigate(instance.console_url("/console?view=locations"))
-                await browser.wait_for(
-                    f"document.querySelector({json.dumps(FIRST_ROW)}) !== null", timeout=90.0)
-                await browser.click(FIRST_ROW)
-                await asyncio.sleep(3)
+                await walk.visit("/console?view=locations")
+                await walk.open_pane(lambda: browser.click(FIRST_ROW))
                 read("a location's panel", await browser.evaluate(PAGE_WORDS))
 
         with TemporaryDirectory() as tmp:
