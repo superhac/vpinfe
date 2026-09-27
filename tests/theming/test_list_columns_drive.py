@@ -13,6 +13,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from tests.support.browser_session import BrowserSession, chromium_path
+from tests.support.console_walk import ConsoleWalk
 from tests.support.library import game_info, write_game
 from tests.support.live_instance import LiveInstance
 
@@ -26,16 +27,26 @@ SHOWN = ("(() => { const out = []; " + API + ".forEachNodeAfterFilterAndSort("
          "n => out.push(n.data.name)); return out; })()")
 
 
+UPDATED = ("(async () => { const api = " + API + ";"
+           " await new Promise(done => { const heard = () => {"
+           " api.removeEventListener('modelUpdated', heard); done(); };"
+           " api.addEventListener('modelUpdated', heard); %s; }); })()")
+UPDATE_FLAG = ("(() => { window.__updated = false;"
+               " " + API + ".addEventListener('modelUpdated', () => { window.__updated = true; });"
+               " })()")
+
+
 def _filtered(model: dict | None) -> str:
-    return ("(async () => { " + API + ".setFilterModel(" + json.dumps(model) + ");"
-            " await new Promise(r => setTimeout(r, 300)); const shown = " + SHOWN + ";"
-            " " + API + ".setFilterModel(null); return shown; })()")
+    return ("(async () => { await "
+            + UPDATED % (API + ".setFilterModel(" + json.dumps(model) + ")")
+            + "; const shown = " + SHOWN + "; await "
+            + UPDATED % (API + ".setFilterModel(null)") + "; return shown; })()")
 
 
 def _sorted(direction: str) -> str:
-    return ("(async () => { " + API + ".applyColumnState({state: [{colId: 'tags', sort: "
-            + json.dumps(direction) + "}], defaultState: {sort: null}});"
-            " await new Promise(r => setTimeout(r, 300)); return " + SHOWN + "; })()")
+    return ("(async () => { await " + UPDATED % (
+        API + ".applyColumnState({state: [{colId: 'tags', sort: " + json.dumps(direction)
+        + "}], defaultState: {sort: null}})") + "; return " + SHOWN + "; })()")
 
 
 CHIPS_OF_ALPHA = ("(() => { let id = ''; " + API + ".forEachNode(n => { if (n.data.name"
@@ -82,9 +93,9 @@ class ListColumnDrive(unittest.TestCase):
         instance.post("/api/v1/collections",
                       {"name": "Friday Night", "games": [ids["Alpha"], ids["Delta"]]})
         async with BrowserSession(chromium_path()) as browser:
-            await browser.navigate(instance.console_url("/console?view=games"))
+            walk = ConsoleWalk(browser, instance)
+            await walk.visit("/console?view=games")
             await browser.wait_for(API + ".getDisplayedRowCount() === 4", timeout=90.0)
-            await asyncio.sleep(1.5)
             for label, model in (
                     ("any", {"tags": {"values": ["Night Owl", "Shortlist"]}}),
                     ("all", {"tags": {"values": ["Night Owl", "Shortlist"], "all": True}}),
@@ -95,24 +106,20 @@ class ListColumnDrive(unittest.TestCase):
             seen["asc"] = await browser.evaluate(_sorted("asc"))
             seen["desc"] = await browser.evaluate(_sorted("desc"))
             await browser.evaluate(API + ".ensureColumnVisible('tags')")
-            await asyncio.sleep(0.5)
-            seen["chips"] = await browser.evaluate(CHIPS_OF_ALPHA)
+            seen["chips"] = await browser.wait_for(CHIPS_OF_ALPHA)
             await browser.click('.ag-header-cell[col-id="tags"] .ag-header-cell-filter-button')
             await browser.wait_for(FILTER_TEXT)
             seen["offered"] = await browser.evaluate(FILTER_TEXT)
             shortlist = await browser.evaluate(ROW_INDEX % json.dumps("Shortlist"))
-            await browser.click(".console-filter-row input", nth=int(shortlist))
-            await asyncio.sleep(0.5)
+            await walk.act(lambda: browser.click(".console-filter-row input", nth=int(shortlist)),
+                           mark=UPDATE_FLAG, until="window.__updated")
             seen["ticked"] = await browser.evaluate(SHOWN)
             seen["model"] = await browser.evaluate(API + ".getFilterModel()")
             seen["held"] = await browser.evaluate(HELD)
 
-            await browser.navigate(
-                instance.console_url("/console?view=collections&collection=Friday%20Night"))
-            await browser.wait_for(f"!!document.querySelector({json.dumps(SHOW_IN_GAMES)})",
-                                   timeout=60.0)
-            await browser.click(SHOW_IN_GAMES)
-            await browser.wait_for("location.search.includes('view=games')")
+            await walk.visit("/console?view=collections&collection=Friday%20Night")
+            await walk.act(lambda: browser.click(SHOW_IN_GAMES),
+                           until="location.search.includes('view=games')")
             await browser.wait_for(API + ".getDisplayedRowCount() === 2", timeout=60.0)
             seen["address"] = await browser.evaluate("location.search")
             seen["narrowed"] = await browser.evaluate(SHOWN)

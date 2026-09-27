@@ -14,6 +14,7 @@ from tempfile import TemporaryDirectory
 from urllib.parse import quote
 
 from tests.support.browser_session import BrowserSession, chromium_path
+from tests.support.console_walk import ConsoleWalk
 from tests.support.library import game_info, write_game
 from tests.support.live_instance import LiveInstance
 
@@ -103,6 +104,8 @@ class RecordLinesDrive(unittest.TestCase):
                       {"name": HELD, "games": ["delta"]})
 
         async with BrowserSession(chromium_path()) as browser:
+            walk = ConsoleWalk(browser, instance)
+
             async def parts(name: str, root: str, key: str) -> None:
                 seen[key] = await browser.wait_for(SAID % (PARTS % (json.dumps(name), root)),
                                                    timeout=60.0)
@@ -111,40 +114,38 @@ class RecordLinesDrive(unittest.TestCase):
                 row = f".ag-row[row-id={json.dumps(tag)}] .ag-cell"
                 await browser.wait_for(f"!!document.querySelector({json.dumps(row)})",
                                        timeout=60.0)
-                await browser.click(row)
+                await walk.open_pane(lambda: browser.click(row))
                 at = await browser.wait_for(GAMES_ROW, timeout=30.0)
                 if at > 0:
-                    await browser.click(".console-section-row", nth=int(at) - 1)
+                    await walk.act(
+                        lambda: browser.click(".console-section-row", nth=int(at) - 1),
+                        mark="window.__games = document.querySelectorAll("
+                             f"'.console-section-row')[{int(at) - 1}]",
+                        until="!window.__games.isConnected")
                 await browser.wait_for(f"!!({MEMBER})", timeout=30.0)
-                await asyncio.sleep(0.5)
 
-            await browser.navigate(instance.console_url("/console?view=games"))
+            await walk.visit("/console?view=games")
             await parts(".console-cell-named", _cell(GAME_CELL), "grid_game")
-            await browser.navigate(instance.console_url("/console?view=tables"))
+            await walk.visit("/console?view=tables")
             await parts(".console-cell-named", _cell(TABLE_CELL), "grid_table")
             seen["cut_grid"] = await browser.wait_for(
                 CUT % _cell(".ag-row[row-id=\"t-dlw\"] .console-cell-identifier"))
 
-            await browser.navigate(instance.console_url("/console?view=tags"))
+            await walk.visit("/console?view=tags")
             await open_tag("Night")
             await parts(".console-link", MEMBER, "tag_game")
             await open_tag("VR")
             await parts(".console-link", MEMBER, "tag_table")
             seen["cut_tag"] = await browser.wait_for(CUT % DELTA_ROW, timeout=30.0)
 
-            await browser.navigate(instance.console_url("/console?view=games&game=charlie"))
+            await walk.visit("/console?view=games&game=charlie")
             seen["header"] = await browser.wait_for(HEADER, timeout=60.0)
-            await browser.navigate(instance.console_url("/console?view=games&game=delta"))
+            await walk.visit("/console?view=games&game=delta")
             seen["cut_game"] = await browser.wait_for(CUT % DELTA_TABLE, timeout=60.0)
-            await browser.navigate(instance.console_url(
-                f"/console?view=collections&collection={quote(HELD)}"))
+            await walk.visit(f"/console?view=collections&collection={quote(HELD)}")
             seen["cut_collection"] = await browser.wait_for(CUT % DELTA_ROW, timeout=60.0)
 
-            await browser.navigate(instance.console_url(
-                f"/console?view=collections&collection={quote(EMPTY)}"))
-            await browser.wait_for("document.body.innerText.includes('Add Games')",
-                                   timeout=60.0)
-            await asyncio.sleep(2.0)
+            await walk.visit(f"/console?view=collections&collection={quote(EMPTY)}")
             await browser.click(".console-section-work .q-select input",
                                 nth=await browser.evaluate(ADD_BOX))
             seen["option"] = await browser.wait_for(OPTION, timeout=30.0)

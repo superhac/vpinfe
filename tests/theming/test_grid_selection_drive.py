@@ -154,7 +154,8 @@ class SelectionDrive(unittest.TestCase):
                 if heard["calls"] >= calls:
                     return heard
                 await asyncio.sleep(0.1)
-            return heard
+            raise AssertionError(f"the handler was called {heard['calls']} times, "
+                                 f"never {calls}")
 
         async with BrowserSession(binary) as browser:
             await browser.navigate(f"http://127.0.0.1:{port}/")
