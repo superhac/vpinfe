@@ -386,8 +386,8 @@ class PlayersDrive(unittest.TestCase):
     def test_state_three_is_claimed_with_a_page_and_a_card_section(self) -> None:
         said = self.seen["state3"]
         self.assertIn("Your Page", said)
-        self.assertIn("Played games, ratings, high scores and play times are public "
-                      "on VPinPlay", said)
+        self.assertIn("Played games, ratings, scores and play times go public on VPinPlay",
+                      said)
         self.assertIn("Anyone holding this card can play as you on VPinPlay", said)
         self.assertEqual(self.seen["state3_acts"], ["Disconnect", "Save Card", "Use a Card"])
 
