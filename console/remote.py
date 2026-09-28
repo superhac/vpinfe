@@ -941,9 +941,7 @@ def _up_section(state: dict[str, Any], client_for_target: Callable[[], Any],
         if identity.get("guest"):
             with ui.row().classes("w-full items-center justify-between console-card"):
                 ui.label(shown_name(mine)).classes("remote-headline")
-                ui.switch(value=True,
-                         on_change=lambda e: toggle(str(mine["id"]), bool(e.value))) \
-                    .props("dense")
+                panel.switch(True, lambda e: toggle(str(mine["id"]), bool(e.value)))()
             return
 
     with ui.column().classes("w-full gap-0 console-card"):
@@ -951,9 +949,8 @@ def _up_section(state: dict[str, Any], client_for_target: Callable[[], Any],
         for player in players:
             with ui.row().classes("w-full items-center justify-between remote-up-row"):
                 ui.label(shown_name(player)).classes("remote-row-name")
-                ui.switch(value=bool(player.get("up")),
-                         on_change=lambda e, pid=player["id"]: toggle(str(pid), bool(e.value))) \
-                    .props("dense")
+                panel.switch(bool(player.get("up")),
+                             lambda e, pid=player["id"]: toggle(str(pid), bool(e.value)))()
 
 
 def _idle(state: dict[str, Any], client_for_target: Callable[[], Any],
