@@ -292,11 +292,11 @@
           "type": "SS",
           "user": {
             "favorite": false,
+            "high_scores": null,
             "last_played": null,
             "play_count": 0,
             "play_time_seconds": 0,
             "rating": 4,
-            "score": null,
             "tags": []
           },
           "vps_id": "vps-afm",
@@ -380,11 +380,11 @@
           "type": "EM",
           "user": {
             "favorite": false,
+            "high_scores": null,
             "last_played": null,
             "play_count": 0,
             "play_time_seconds": 0,
             "rating": 0,
-            "score": null,
             "tags": []
           },
           "vps_id": "",
@@ -459,11 +459,11 @@
           "type": "SS",
           "user": {
             "favorite": false,
+            "high_scores": null,
             "last_played": null,
             "play_count": 0,
             "play_time_seconds": 0,
             "rating": 0,
-            "score": null,
             "tags": []
           },
           "vps_id": "vps-congo",
@@ -540,11 +540,11 @@
           "type": "SS",
           "user": {
             "favorite": false,
+            "high_scores": null,
             "last_played": null,
             "play_count": 0,
             "play_time_seconds": 0,
             "rating": 5,
-            "score": null,
             "tags": []
           },
           "vps_id": "vps-mm",

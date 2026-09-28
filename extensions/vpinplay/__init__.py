@@ -179,7 +179,7 @@ def register(ctx: Any) -> None:
             tables = ctx.games.game_tables(game["id"])["tables"]
             default = next((one for one in tables if one.get("default")),
                            tables[0] if tables else None)
-            built = sync.payload_for(game, default)
+            built = sync.payload_for(sync.from_library(game), default)
             if built is None:
                 skipped += 1
                 continue

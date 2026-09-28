@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from common.atomic_write import naming_folder, staged_for, write_atomic
+from common.games import high_scores
 from common.games.tables import TABLES_KEY, parse_authors
 from common.timestamps import iso_from_asctime, iso_from_authored_date
 
@@ -169,6 +170,8 @@ def migrate(data: dict) -> dict:
     dof_event = user.pop("FrontendDOFEvent", None)
     if dof_event is not None:
         vpinfe["frontend_dof_event"] = dof_event
+
+    high_scores.from_2x(user)
 
     # 2.x kept one tutorial link in Info. It becomes a guide, and a file already holding
     # guides keeps them - running this over its own output has to be a no-op.

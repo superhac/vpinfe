@@ -122,6 +122,24 @@ class ContractTwoTests(unittest.TestCase):
                          "the table keeps its own count, not a share of the game's")
         self.assertEqual(entry["table"]["user"]["play_time_seconds"], 3600)
 
+    def test_the_entry_carries_the_default_tables_high_scores(self) -> None:
+        game = _game(tables=TWO_TABLES)
+        game.meta_config["User"]["HighScores"] = {"mm_109c": {
+            "read_at": "2026-09-27T12:00:00Z", "score_kind": "Leaderboard", "new": [0],
+            "entries": [{"section": "GRAND CHAMPION", "rank": None, "initials": "ABC",
+                         "score": 52_000_000}]}}
+
+        user = self._payload([game])["entries"][0]["game"]["user"]
+
+        self.assertNotIn("score", user)
+        shown = user["high_scores"]
+        self.assertEqual((shown["rom"], shown["table_id"], shown["state"]),
+                         ("mm_109c", "t1", "read"))
+        (section,) = shown["sections"]
+        self.assertEqual(section["name"], "GRAND CHAMPION")
+        self.assertEqual([(one["initials"], one["text"], one["new"])
+                          for one in section["entries"]], [("ABC", "52,000,000", True)])
+
     def test_rating_lives_with_the_other_user_values(self) -> None:
         entry = self._payload([_game(tables=TWO_TABLES)])["entries"][0]
 

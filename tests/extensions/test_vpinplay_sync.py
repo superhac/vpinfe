@@ -109,6 +109,42 @@ class PayloadTests(unittest.TestCase):
                          {"player1": 1234, "grandChampion": 9999})
 
 
+class LibraryScoreTests(unittest.TestCase):
+    """Core publishes a machine's high score table as `high_scores`; the service files
+    the reading shape the score parser gives."""
+
+    HIGH_SCORES = {"rom": "afm_113b", "table_id": "t1", "read_at": "2026-09-27T12:00:00Z",
+                   "state": "read", "reason": "", "sections": [
+                       {"name": "GRAND CHAMPION", "entries": [
+                           {"rank": None, "initials": "ABC", "score": 9999, "prefix": "",
+                            "suffix": "", "text": "9,999", "new": False}]},
+                       {"name": "MARTIAN CHAMPION", "entries": [
+                           {"rank": None, "initials": "", "score": 20, "prefix": "",
+                            "suffix": " MARTIANS", "text": "20 MARTIANS", "new": True}]},
+                       {"name": "RULER", "entries": [
+                           {"rank": 1, "initials": "OWN", "score": None, "prefix": "",
+                            "suffix": "", "text": "INAUGURATED\n5 JAN, 2024", "new": False}]}]}
+
+    def test_the_table_is_sent_as_a_reading_blanks_blank(self) -> None:
+        game = {**GAME, "user": {**GAME["user"], "high_scores": self.HIGH_SCORES}}
+        del game["user"]["score"]
+
+        sent = sync.payload_for(sync.from_library(game), TABLE)["user"]["score"]
+
+        self.assertEqual(sent["rom"], "afm_113b")
+        self.assertEqual([(one["section"], one["initials"], one["score"])
+                          for one in sent["entries"]],
+                         [("GRAND CHAMPION", "ABC", 9999), ("MARTIAN CHAMPION", "", 20),
+                          ("RULER", "OWN", None)])
+        self.assertEqual(sent["entries"][1]["value_suffix"], "MARTIANS")
+        self.assertEqual(sent["entries"][2]["extra_lines"], ["INAUGURATED", "5 JAN, 2024"])
+
+    def test_nothing_read_is_no_score(self) -> None:
+        game = {**GAME, "user": {**GAME["user"], "high_scores": None}}
+
+        self.assertIsNone(sync.payload_for(sync.from_library(game), TABLE)["user"]["score"])
+
+
 class EnvelopeTests(unittest.TestCase):
     def test_it_says_which_program_is_speaking(self) -> None:
         found = sync.envelope("u", "JD", "m1", [], "3.0.0", "2026-09-11T00:00:00Z")

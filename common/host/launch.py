@@ -31,6 +31,7 @@ from common.failures import why
 from common.games import (
     game_play_service,
     game_repository,
+    high_scores,
     info_file,
     launchers,
     locations,
@@ -239,7 +240,7 @@ def _counts_in_the_library(up: list[players.Player]) -> bool:
     return not up or any(player.owner for player in up)
 
 
-def _record_play(game: Game, elapsed_seconds: float, table: str,
+def _record_play(game: Game, elapsed_seconds: float, table: str, rom: str,
                  up: list[players.Player], before: dict | None) -> dict[str, Any]:
     """Play data for a finished session, and what `table.play_recorded` says about it.
     Runs on every path.
@@ -248,7 +249,9 @@ def _record_play(game: Game, elapsed_seconds: float, table: str,
     nobody is, which is also what an install without that extension looks like. The
     hardware is read once on every path.
     """
-    after, score_path = game_play_service.parse_score_from_nvram(game, initials="")
+    after, score_path = game_play_service.parse_score_from_nvram(game, rom, initials="")
+    if after:
+        game_play_service.keep_high_scores(game, rom, after, before, score_path)
     one = up[0] if len(up) == 1 else None
     reading = _with_initials(after, one.initials if one else "")
 
@@ -263,8 +266,6 @@ def _record_play(game: Game, elapsed_seconds: float, table: str,
                             game.game_dir_name, score_path)
     elif _counts_in_the_library(up):
         game_play_service.add_play_time(game, elapsed_seconds, table)
-        if reading:
-            game_play_service.update_score(game, reading, score_path)
 
     return {"up": [player.as_payload() for player in up],
             "seconds": int(round(elapsed_seconds)),
@@ -367,6 +368,7 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
     table_id, entry = _resolve_entry(game, table)
     _location_is_reachable(game)
     vpx_path = _path_of(game, entry)
+    rom = high_scores.rom_of(entry)
     launcher, asked_for = _launcher_for(table_id, entry)
     binary = _binary_of(launcher)
     # _binary_of refuses a launcher that is missing or cannot run, so there is one here.
@@ -416,7 +418,7 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
                                 record_sound=record_sound)
             if not capturing:
                 up = players.get_roster().up()
-                before, _ = game_play_service.parse_score_from_nvram(game, initials="")
+                before, _ = game_play_service.parse_score_from_nvram(game, rom, initials="")
             launched = {"game": game, "ini_config": ini_config, "table_id": table_id,
                         "source": source, "up": [player.as_payload() for player in up]}
             logger.info("Launching: %s", cmd)
@@ -470,10 +472,10 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
 
     if started_at is not None and not capturing:
         recorded = _record_play(game, max(0.0, time.time() - started_at),
-                                tables.entry_native_key(entry), up, before)
+                                tables.entry_native_key(entry), rom, up, before)
         events.emit(events.TABLE_PLAY_RECORDED, game=game, ini_config=ini_config,
                     table_id=table_id, source=source, **recorded)
-    game_play_service.delete_nvram_if_configured(game)
+    game_play_service.delete_nvram_if_configured(game, rom)
 
 
 # ---------------------------------------------------------------------------

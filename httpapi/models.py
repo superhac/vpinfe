@@ -755,6 +755,46 @@ class PlayRecordUpdate(ApiModel):
     last_played: int | None = None
 
 
+class HighScoreEntry(ApiModel):
+    """One entry on a high score table, as the ROM wrote it."""
+
+    # None for an entry the machine does not rank, a Grand Champion.
+    rank: int | None = None
+    # Blank where the machine recorded none.
+    initials: str = ""
+    # None where the entry is not a number - a lap time, a date, a line of words.
+    score: int | None = None
+    # The machine's words either side of `score`, spacing included: `$ `, ` LOOPS`.
+    prefix: str = ""
+    suffix: str = ""
+    # The value as the machine shows it: prefix, score and suffix, or its lines joined
+    # with a newline where it holds no number.
+    text: str = ""
+    # Not on the table before the last game.
+    new: bool = False
+
+
+class HighScoreSection(ApiModel):
+    # The machine's own words, `GRAND CHAMPION`, `HIGH SCORES` - data, not a label.
+    name: str = ""
+    entries: list[HighScoreEntry] = Field(default_factory=list)
+
+
+class HighScores(ApiModel):
+    """A ROM's high score table, as VPinFE last read it."""
+
+    rom: str
+    # The table whose ROM this is.
+    table_id: str = ""
+    # When it was read. Null for one read before VPinFE recorded that.
+    read_at: str | None = None
+    # `read`, or where nothing is shown: `none` (nothing saved yet), `unsupported` (a
+    # machine the score map cannot read), `unreadable` (the read failed, `reason` says why).
+    state: str = "read"
+    reason: str = ""
+    sections: list[HighScoreSection] = Field(default_factory=list)
+
+
 class PlayRecord(ApiModel):
     """What a person did with this, in a consumer's units rather than the file's - the
     `.info` keeps LastRun as an epoch integer and RunTime in minutes."""
@@ -763,9 +803,8 @@ class PlayRecord(ApiModel):
     favorite: bool = False
     tags: list[str] = Field(default_factory=list)
     last_played: str | None = None
-    # What the machine was last seen scoring, as the score parser read it off the
-    # hardware. Null where nothing has been read, which is not a score of zero.
-    score: Any | None = None
+    # The default table's machine. Null where nothing has been read.
+    high_scores: HighScores | None = None
     play_count: int = 0
     play_time_seconds: int = 0
 

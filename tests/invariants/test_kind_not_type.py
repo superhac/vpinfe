@@ -55,6 +55,9 @@ BORROWED = {
     "msg_type",
     # An extension's own declared settings field, which is persisted under this key.
     "source_type",
+    # The key 2.x wrote a reading's kind under in `User.Score`: read by the migration and
+    # written again for a contract 1 theme.
+    "score_type",
 }
 
 

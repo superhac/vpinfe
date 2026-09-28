@@ -1295,6 +1295,34 @@ A release is a mod where VPS links it to the release it is based on (`parentId`)
 - `available` is whether that file is on disk. The patch fits those bytes only, so without
   them the next version of the patch has nothing to apply to.
 
+## High scores
+
+A game's `user.high_scores` is its machine's high score table as VPinFE last read it off
+the machine, for the ROM of the table the game launches by default. It is read before and
+after every game, whoever was playing, and `null` until anything has been read. It is the
+machine's table, not the score of the last game: that game is on it only if it got there.
+
+| Field | What it holds |
+|---|---|
+| `rom` | The machine the table belongs to. Two tables on one ROM share it |
+| `table_id` | The table whose ROM it is |
+| `read_at` | When it was read, or `null` for one kept from VPinFE 2, which did not record that |
+| `state` | `read` where there are rows. See below for the others |
+| `reason` | Why a read failed, where `state` is `unreadable`; empty otherwise |
+| `sections` | The machine's own groups, in its order, each a `name` and its `entries` |
+
+`name` is the machine's words - `GRAND CHAMPION`, `HIGH SCORES` - as data, not a label. A
+machine that keeps one number is one section named by the score map, `HIGHEST SCORE`.
+
+| Entry field | What it holds |
+|---|---|
+| `rank` | The place in its section, or `null` where the machine does not rank it |
+| `initials` | As the machine wrote them, blank and spaces included. Nothing is filled in |
+| `score` | The number, or `null` for an entry that is not one - a lap time, a date |
+| `prefix`, `suffix` | The machine's words either side of `score`, spacing included: `$ `, ` LOOPS` |
+| `text` | The value as the machine shows it: `prefix`, `score` and `suffix`, or the entry's lines joined with a newline where it holds no number |
+| `new` | Not on the table before the last game |
+
 ## Adding routes
 
 A route is an adapter: a path, a scope, one call into a service, and a model. The service

@@ -110,6 +110,20 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual(meta["VPinFE"]["alttitle"], "Alt")
         self.assertNotIn("alt_title", meta["VPinFE"])
 
+    def test_contract_1_reads_the_score_2x_kept(self):
+        """2.x kept one reading as `User.Score`; the .info keeps one per ROM now."""
+        entries = [{"section": "HIGH SCORES", "rank": 1, "initials": "ABC", "score": 10}]
+        row = {**ROW, "meta": {**ROW["meta"], "User": {"Rating": 4, "HighScores": {
+            "afm_113b": {"read_at": None, "score_kind": "Leaderboard", "entries": entries,
+                         "new": []}}}}}
+
+        user = project(row, 1)["meta"]["User"]
+
+        self.assertEqual(user["Score"], {"rom": "afm_113b", "score_type": "Leaderboard",
+                                         "entries": entries})
+        self.assertNotIn("HighScores", user)
+        self.assertEqual(user["Rating"], 4)
+
     def test_contract_1_keeps_the_old_spelling_of_the_detect_flags(self):
         row = {**ROW, "meta": {**ROW["meta"],
                                "tables": {"E.vpx": {"detect_ssf": True,

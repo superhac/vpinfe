@@ -383,6 +383,12 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
     VPX spec cannot hold the seconds, and adding whole minutes per session charged a
     few seconds at a table the same as a few minutes.
   - Tags: Array of custom tags
+  - HighScores: the machine's high score table as last read, one record per ROM, since a
+    ROM is the machine and two tables on it share one table. Each is `read_at`,
+    `score_kind`, the reading's `entries` (or `value`, for a machine that keeps one number)
+    with initials as the machine wrote them, and `new`, the positions of the entries the
+    last game put there. 2.x kept one reading as `Score`; the migration moves it under the
+    ROM it names.
 
 - tables
 

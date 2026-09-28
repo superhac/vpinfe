@@ -26,7 +26,10 @@ LEGACY = {
              "Authors": ["someone", "someone else"]},
     "User": {"Rating": 7, "Favorite": 1, "LastRun": 1671033801, "StartCount": 12,
              "RunTime": 340, "Tags": ["fast"], "FrontendDOFEvent": "E901",
-             "Score": {"rom": "dd_l2"}},
+             "Score": {"rom": "dd_l2", "resolved_rom": "dd_l2", "score_type": "Leaderboard",
+                       "entries": [{"section": "HIGH SCORES", "rank": 1, "initials": "ABC",
+                                    "score": 1000000}]},
+             "Seen": {"by": "another tool"}},
     "VPXFile": {"filename": "Dr. Dude.vpx", "filehash": "abc123", "version": "1.2",
                 "releaseDate": "22.06.2019", "saveDate": "Tue Dec 13 16:03:21 2022",
                 "saveRev": "4", "vbsHash": "def456", "rom": "dd_l2",
@@ -99,8 +102,29 @@ class WhatSurvivesTests(unittest.TestCase):
             self.assertEqual(user[key], LEGACY["User"][key], key)
 
     def test_a_key_outside_the_spec_survives(self):
-        """Score is written by the NVRAM reader and is not one of the specced six."""
-        self.assertEqual(self.after["User"]["Score"], {"rom": "dd_l2"})
+        self.assertEqual(self.after["User"]["Seen"], {"by": "another tool"})
+
+    def test_the_last_reading_moves_under_the_rom_it_names(self):
+        """A game held one reading; a ROM is what has a high score table. When 2.x read
+        it was never recorded, so the next read has nothing to count new against."""
+        held = self.after["User"]["HighScores"]["dd_l2"]
+
+        self.assertNotIn("Score", self.after["User"])
+        self.assertEqual(held["entries"], LEGACY["User"]["Score"]["entries"])
+        self.assertEqual((held["read_at"], held["score_kind"], held["new"]),
+                         (None, "Leaderboard", []))
+
+    def test_a_reading_2x_took_again_replaces_the_one_kept_for_its_rom(self):
+        rolled_back = {**migrate(LEGACY), "VPXFile": LEGACY["VPXFile"]}
+        rolled_back["User"] = {**rolled_back["User"],
+                               "Score": {"rom": "dd_l2", "score_type": "Leaderboard",
+                                         "entries": [{"section": "HIGH SCORES", "rank": 1,
+                                                      "initials": "OWN", "score": 5}]}}
+
+        again = migrate(rolled_back)["User"]
+
+        self.assertEqual(again["HighScores"]["dd_l2"]["entries"][0]["initials"], "OWN")
+        self.assertNotIn("Score", again)
 
     def test_the_dof_override_moves_and_leaves_nothing_behind(self):
         self.assertEqual(self.after["vpinfe"]["frontend_dof_event"], "E901")

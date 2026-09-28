@@ -11,9 +11,9 @@ import time
 from copy import deepcopy
 from pathlib import Path
 
+from common.games import high_scores
 from common.games.game import Game
 from common.games.game_metadata import (
-    default_table_entry,
     get_or_create_table_user,
     get_or_create_user_meta,
     get_or_create_vpinfe_meta,
@@ -23,7 +23,7 @@ from common.games.game_metadata import (
     run_time_seconds,
     vpinfe_section,
 )
-from common.timestamps import epoch_to_iso
+from common.timestamps import epoch_to_iso, utc_now_iso
 
 logger = logging.getLogger("vpinfe.common.games.game_play_service")
 
@@ -108,26 +108,10 @@ def apply_runtime_update(config: dict, elapsed_seconds: float, table: str = "") 
     return user
 
 
-def score_rom_from_meta(config: dict) -> str:
-    """The ROM of the table we would launch, or "".
-
-    No fall back to a game-level Info.Rom: the migration drops that key, and a value
-    it kept could disagree with the file it claims to describe. A game that has not
-    been through a metadata build since has no ROM recorded, which is the truth.
-    """
-    return str(default_table_entry(config).get("rom", "") or "").strip()
-
-
-def parse_score_from_nvram(game: Game,
+def parse_score_from_nvram(game: Game, rom: str,
                            initials: str | None = None) -> tuple[dict | None, str | None]:
-    """The table's high score table and where it was read from. `initials` goes on a
-    blank score, the one player up's when it is None; "" leaves them blank."""
-    config = clone_game_meta(game)
-    if not config:
-        logger.warning("Could not parse Score: invalid game metadata for %s", game.game_dir_name)
-        return None, None
-
-    rom = score_rom_from_meta(config)
+    """`rom`'s high score table and where it was read from. `initials` goes on a blank
+    score, the one player up's when it is None; "" leaves them blank."""
     if not rom:
         logger.debug("No ROM name found for %s, skipping score update", game.game_dir_name)
         return None, None
@@ -155,10 +139,20 @@ def parse_score_from_nvram(game: Game,
     return score_data, score_path
 
 
-def apply_score_update(config: dict, score_data: dict) -> dict:
-    user = get_or_create_user_meta(config)
-    user["Score"] = score_data
-    return user
+def keep_high_scores(game: Game, rom: str, reading: dict, before: dict | None,
+                     score_path: str | None) -> None:
+    """Keep `reading`, read with blanks left blank, as `rom`'s high scores. `before` is
+    the table as it stood before the game."""
+    config = clone_game_meta(game)
+    if not config:
+        logger.warning("Could not keep high scores: invalid game metadata for %s",
+                       game.game_dir_name)
+        return
+
+    high_scores.keep(config, rom, high_scores.record(reading, before, utc_now_iso()))
+    persist_game_meta(game, config)
+    logger.info("Kept the high scores of %s for %s from %s", rom, game.game_dir_name,
+                score_path)
 
 
 def build_runtime_submission_meta(game: Game, user_state: dict) -> dict:
@@ -184,25 +178,13 @@ def build_runtime_submission_meta(game: Game, user_state: dict) -> dict:
     return config
 
 
-def update_score(game: Game, score_data: dict, score_path: str | None) -> None:
-    """Keep a reading from `parse_score_from_nvram` as the game's score."""
-    config = clone_game_meta(game)
-    if not config:
-        logger.warning("Could not update Score: invalid game metadata for %s", game.game_dir_name)
-        return
-
-    apply_score_update(config, score_data)
-    persist_game_meta(game, config)
-    logger.info("Updated User.Score for %s from %s", game.game_dir_name, score_path)
-
-
-def delete_nvram_if_configured(game: Game) -> None:
+def delete_nvram_if_configured(game: Game, rom: str) -> None:
+    """Delete `rom`'s NVRAM where the game asks for it on close."""
     config = normalize_meta(getattr(game, "meta_config", {}))
     vpinfe = vpinfe_section(config)
     if not vpinfe.get("delete_nvram_on_close", False):
         return
 
-    rom = score_rom_from_meta(config)
     if not rom:
         logger.warning("No ROM name found for table, skipping NVRAM deletion")
         return

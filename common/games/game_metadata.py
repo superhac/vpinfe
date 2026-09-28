@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from common.games import unwritten
+from common.games import high_scores, unwritten
 from common.games.game import Game, GameRecord
 from common.games.ids import new_id
 from common.games.info_file import VPINFE_SECTION, MetaConfig
@@ -402,15 +402,20 @@ def play_record(meta: Any) -> dict[str, Any]:
         "favorite": bool(user.get("Favorite", 0)),
         "tags": user.get("Tags") or [],
         "last_played": epoch_to_iso(user.get("LastRun")) or None,
-        # What the machine was last seen scoring, as the score parser read it off the
-        # hardware. Stored since schema 2 and published nowhere until now, so nothing
-        # but the file could see it.
-        "score": user.get("Score") if user.get("Score") not in ("", None) else None,
+        "high_scores": _default_high_scores(meta),
         "play_count": int(user.get("StartCount", 0) or 0),
         # The seconds we keep, not the minutes multiplied back up - that only ever
         # returned whole minutes, and inflated ones at that.
         "play_time_seconds": run_time_seconds(meta),
     }
+
+
+def _default_high_scores(meta: Any) -> dict[str, Any] | None:
+    """The machine's high score table for the table that plays when the game is
+    launched - its default, whose ROM a game launch reads."""
+    _name, entry = default_table(meta)
+    return high_scores.view(normalize_meta(meta), entry,
+                            table_id=str(entry.get(TABLE_ID_KEY, "") or ""))
 
 
 def table_rating(table: dict) -> int:

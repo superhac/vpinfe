@@ -12,12 +12,12 @@ import json
 import logging
 import re
 import sys
-from collections import Counter
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO
 
+from common.games import high_scores
 from common.paths import USER_ROMS_PATH
 from common.players import get_roster
 
@@ -306,26 +306,13 @@ def entries_with_initials(entries: list[dict], initials: str) -> list[dict]:
 
 def new_entries(before: dict | None, after: dict | None) -> list[dict]:
     """The entries on `after` that were not on `before`, both from `result_to_jsonable`."""
-    if not before or not after or ("value" in before) != ("value" in after):
+    found = high_scores.new_positions(before, after)
+    if not found or after is None:
         return []
     if "value" in after:
-        if after["value"] == before["value"]:
-            return []
         return [asdict(ParsedEntry(section="", rank=None, initials="", score=after["value"]))]
-    held = Counter(_entry_key(entry) for entry in before.get("entries") or [])
-    found = []
-    for entry in after.get("entries") or []:
-        key = _entry_key(entry)
-        if held[key]:
-            held[key] -= 1
-        else:
-            found.append(entry)
-    return found
-
-
-def _entry_key(entry: dict) -> str:
-    return json.dumps({key: value for key, value in entry.items()
-                       if key not in ("rank", "section")}, sort_keys=True)
+    entries = after.get("entries") or []
+    return [entries[position] for position in found]
 
 
 def resolve_special_text_score_file(rom_name: str, filename: str) -> tuple[dict, Path] | None:

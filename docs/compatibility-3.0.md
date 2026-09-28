@@ -1435,6 +1435,17 @@ decode of two small clips in `frontend/static/probe/`. Refused to themes, like
 most shared videos are H.264. Covered by `tests/host/test_frontend_browser.py`,
 `tests/js/internal-methods.test.js` and `tests/invariants/test_theme_api_surface.py`.
 
+**PAR-98 - High scores are kept per ROM, and read off the table that was played.**
+2.x kept the last reading of a game's NVRAM as `User.Score`, with VPinPlay's initials
+written over any blank. 3.0 keeps one record per ROM as `User.HighScores`, initials as the
+machine wrote them, and reads - and on *Clear NVRAM on Exit* deletes - the NVRAM of the ROM
+of the table that was played. The migration moves `User.Score` under the ROM it names, and
+contract 1 still reads `meta.User.Score`, rebuilt from the default table's record.
+*Why:* a folder holds several tables now, and a mod can run on a ROM of its own; and a filled
+blank could not be told from the machine's own initials. Covered by `tests/games/test_high_scores.py`,
+`tests/games/test_info_migration.py`, `tests/host/test_launch.py` and
+`tests/theming/test_theme_contract.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

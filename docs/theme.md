@@ -180,7 +180,8 @@ the game it belongs to attached.
 | `expanded` | `false` means one entry per game — its default table. `true` means one entry per table, so a game with three tables contributes three. The user sets this; your theme does not have to do anything differently either way. |
 | `count` | How many entries. The same as `entries.length`. |
 | `entries[].game` | Identity and metadata for the machine. The same names `/api/v1/games` uses. |
-| `entries[].game.user` | What this user did with the game: `rating`, `favorite`, `tags`, `last_played`, `play_count`, `play_time_seconds`. Timestamps are ISO 8601 UTC and durations name their unit, whatever the `.info` stores. |
+| `entries[].game.user` | What this user did with the game: `rating`, `favorite`, `tags`, `last_played`, `play_count`, `play_time_seconds`, `high_scores`. Timestamps are ISO 8601 UTC and durations name their unit, whatever the `.info` stores. |
+| `entries[].game.user.high_scores` | The machine's high score table as last read, for the default table's ROM, or `null` until one has been read. `sections` hold the machine's own groups (`name`, `entries`); each entry has `rank`, `initials` as the machine wrote them, `score`, `text` (the value as the machine shows it, ready to draw) and `new` (not on the table before the last game). The whole shape is in `docs/http_api.md`, "High scores". A theme may show it; nothing requires it. |
 | `entries[].game.derived_tags` | Tags an extension's Community list puts on the game, kept apart from the user's own in `user.tags`. Read-only. |
 | `entries[].table` | The `.vpx` this entry is. `id` is stable across renames; `filename` is not. |
 | `entries[].table.file_hash` | The sha256 of the `.vpx`. Two installs sharing a filesystem can agree they hold the same file without comparing paths, which differ by mount point. |

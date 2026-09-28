@@ -304,18 +304,9 @@ class FrontendServiceTests(unittest.TestCase):
             self.assertEqual(saved["User"]["Rating"], 4)
             self.assertEqual(saved["User"]["StartCount"], 1)
 
-    def test_parse_score_from_nvram_reads_the_tables_rom(self) -> None:
+    def test_parse_score_from_nvram_reads_the_rom_it_is_given(self) -> None:
         with TemporaryDirectory() as tmp:
             game_dir = write_game(tmp, "Example", vpx=False)
-            info_path = game_dir / "Example.info"
-            info_path.write_text(
-                json.dumps(
-                    {
-                        "tables": {"Example.vpx": {"rom": "vpx_rom"}},
-                    }
-                ),
-                encoding="utf-8",
-            )
             game = types.SimpleNamespace(
                 full_path_game=str(game_dir),
                 game_dir_name="Example",
@@ -328,45 +319,33 @@ class FrontendServiceTests(unittest.TestCase):
                 mock.patch("common.games.score_parser.result_to_jsonable",
                            return_value={"rom": "vpx_rom"}) as to_json,
             ):
-                score_data, score_path = game_play_service.parse_score_from_nvram(game)
+                score_data, score_path = game_play_service.parse_score_from_nvram(
+                    game, "vpx_rom")
 
             read_rom.assert_called_once_with("vpx_rom", str(game_dir))
             to_json.assert_called_once_with("vpx_rom", 123, "/scores/vpx_rom.nv", None)
             self.assertEqual(score_data, {"rom": "vpx_rom"})
             self.assertEqual(score_path, "/scores/vpx_rom.nv")
 
-    def test_a_migrated_game_reads_its_rom_from_the_table(self) -> None:
-        """2.x kept a game-level Info.Rom and the migration drops it. A value carried
-        from there could disagree with the file it claims to describe."""
+    def test_high_scores_are_kept_under_their_rom_beside_the_play_record(self) -> None:
         with TemporaryDirectory() as tmp:
             game_dir = write_game(tmp, "Example", vpx=False)
             info_path = game_dir / "Example.info"
-            info_path.write_text(
-                json.dumps(
-                    {
-                        "Info": {"Rom": "info_rom"},
-                        "VPXFile": {"filename": "Example.vpx", "rom": "vpx_rom"},
-                    }
-                ),
-                encoding="utf-8",
-            )
-            game = types.SimpleNamespace(
-                full_path_game=str(game_dir),
-                game_dir_name="Example",
-                meta_config={},
-            )
+            info_path.write_text(json.dumps({"User": {"Rating": 4, "StartCount": 2},
+                                             "vpinfe": {"schema": 2}}), encoding="utf-8")
+            game = types.SimpleNamespace(full_path_game=str(game_dir),
+                                         game_dir_name="Example", meta_config={})
+            reading = {"rom": "vpx_rom", "score_kind": "Leaderboard", "entries": [
+                {"section": "HIGH SCORES", "rank": 1, "initials": "", "score": 10}]}
 
-            with (
-                mock.patch("common.games.score_parser.read_rom_with_source",
-                           return_value=(123, "/scores/vpx_rom.nv")) as read_rom,
-                mock.patch("common.games.score_parser.result_to_jsonable",
-                           return_value={"rom": "vpx_rom"}),
-            ):
-                game_play_service.parse_score_from_nvram(game)
+            game_play_service.keep_high_scores(game, "vpx_rom", reading, None, "/nv")
 
-            read_rom.assert_called_once_with("vpx_rom", str(game_dir))
+            saved = json.loads(info_path.read_text(encoding="utf-8"))["User"]
+            self.assertEqual((saved["Rating"], saved["StartCount"]), (4, 2))
+            self.assertEqual(saved["HighScores"]["vpx_rom"]["entries"], reading["entries"])
+            self.assertNotIn("Score", saved)
 
-    def test_delete_nvram_if_configured_reads_the_tables_rom(self) -> None:
+    def test_delete_nvram_if_configured_deletes_the_rom_it_is_given(self) -> None:
         with TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Example"
             nvram_dir = game_dir / "pinmame" / "nvram"
@@ -379,12 +358,12 @@ class FrontendServiceTests(unittest.TestCase):
                 full_path_game=str(game_dir),
                 game_dir_name="Example",
                 meta_config={
-                    "tables": {"Example.vpx": {"rom": "vpx_rom"}},
+                    "tables": {"Example.vpx": {"rom": "info_rom"}},
                     "vpinfe": {"delete_nvram_on_close": True},
                 },
             )
 
-            game_play_service.delete_nvram_if_configured(game)
+            game_play_service.delete_nvram_if_configured(game, "vpx_rom")
 
             self.assertFalse(vpx_nvram.exists())
             self.assertTrue(info_nvram.exists())

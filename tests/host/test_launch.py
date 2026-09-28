@@ -78,7 +78,7 @@ class LaunchTests(unittest.TestCase):
         self.owner = self.roster.update_player(made.player_id, initials="OWN")
 
     def _run(self, popen=None, game=None, readings=None,
-             source=launch_state.SOURCE_API, **overrides):
+             source=launch_state.SOURCE_API, table=None, **overrides):
         """Launch with every collaborator stubbed, so only the orchestration runs.
 
         Nobody is signed in as a guest, and that needs no stub: with no extension
@@ -102,7 +102,7 @@ class LaunchTests(unittest.TestCase):
             play.parse_score_from_nvram.side_effect = list(
                 readings or [(None, None), (None, None)])
             launch.launch_game(game or _game(), types.SimpleNamespace(config={}),
-                                source=source, popen=popen)
+                                source=source, table=table, popen=popen)
         return play
 
 
@@ -204,14 +204,39 @@ class PlayDataTests(LaunchTests):
         play.increment_start_count.assert_called_once()
 
     def test_runtime_and_score_are_recorded_when_the_game_exits(self) -> None:
-        after = _reading(("OWN", 400))
+        before, after = _reading(("OWN", 300)), _reading(("OWN", 400))
         game = _game()
 
-        play = self._run(game=game, readings=[(None, None), (after, "/nv/example.nv")])
+        play = self._run(game=game, readings=[(before, "/nv/example.nv"),
+                                              (after, "/nv/example.nv")])
 
         play.add_play_time.assert_called_once()
-        play.update_score.assert_called_once_with(game, after, "/nv/example.nv")
-        play.delete_nvram_if_configured.assert_called_once()
+        play.keep_high_scores.assert_called_once_with(game, "", after, before,
+                                                      "/nv/example.nv")
+        play.delete_nvram_if_configured.assert_called_once_with(game, "")
+
+    def test_the_played_tables_rom_is_read_and_cleared(self) -> None:
+        """A game whose tables declare different ROMs: the default's is not the one a
+        mod on its own ROM plays."""
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        for name in ("Example.vpx", "Example (Mod).vpx"):
+            pathlib.Path(folder.name, name).write_bytes(b"")
+        game = _game()
+        game.full_path_game = folder.name
+        game.meta_config = {"tables": {
+            "t1": {"id": "t1", "filename": "Example.vpx", "rom": "abc_l1"},
+            "t2": {"id": "t2", "filename": "Example (Mod).vpx", "rom": "abc_mod"}},
+            "vpinfe": {"default_table": "t1"}}
+        after = _reading(("OWN", 400))
+
+        play = self._run(game=game, readings=[(None, None), (after, "/nv")],
+                         table="Example (Mod).vpx")
+
+        self.assertEqual([call.args[1] for call in play.parse_score_from_nvram.call_args_list],
+                         ["abc_mod", "abc_mod"])
+        self.assertEqual(play.keep_high_scores.call_args.args[1], "abc_mod")
+        play.delete_nvram_if_configured.assert_called_once_with(game, "abc_mod")
 
     def test_the_table_that_was_launched_is_the_one_credited(self) -> None:
         """A folder can hold several tables, and the API can launch any of them."""
@@ -265,7 +290,7 @@ class RecordingTests(LaunchTests):
                          readings=[(_reading(("OWN", 300)), "/nv"),
                                    (_reading(("OWN", 400)), "/nv")])
 
-        for name in ("increment_start_count", "add_play_time", "update_score",
+        for name in ("increment_start_count", "add_play_time", "keep_high_scores",
                      "parse_score_from_nvram"):
             self.assertFalse(getattr(play, name).called, name)
 
@@ -422,7 +447,7 @@ class SessionTests(LaunchTests):
         return self.roster.add_player("Alex", "ABC")
 
     def _library_writes(self, play) -> list[str]:
-        return [name for name in ("increment_start_count", "add_play_time", "update_score")
+        return [name for name in ("increment_start_count", "add_play_time")
                 if getattr(play, name).called]
 
     def test_the_owner_s_session_goes_in_the_library(self) -> None:
@@ -430,7 +455,7 @@ class SessionTests(LaunchTests):
                                    (_reading(("OWN", 400), ("AAA", 300)), "/nv")])
 
         self.assertEqual(self._library_writes(play),
-                         ["increment_start_count", "add_play_time", "update_score"])
+                         ["increment_start_count", "add_play_time"])
 
     def test_the_owner_up_beside_another_player_still_goes_in_the_library(self) -> None:
         self.roster.set_who_is_up([self.owner.player_id, self._alex().player_id])
@@ -438,7 +463,7 @@ class SessionTests(LaunchTests):
         play = self._run(readings=[(None, None), (_reading(("OWN", 400)), "/nv")])
 
         self.assertEqual(self._library_writes(play),
-                         ["increment_start_count", "add_play_time", "update_score"])
+                         ["increment_start_count", "add_play_time"])
 
     def test_a_session_the_owner_was_not_up_for_stays_out_of_the_library(self) -> None:
         self.roster.set_who_is_up([self._alex().player_id])
@@ -447,6 +472,7 @@ class SessionTests(LaunchTests):
                                    (_reading(("ABC", 400), ("AAA", 300)), "/nv")])
 
         self.assertEqual(self._library_writes(play), [])
+        play.keep_high_scores.assert_called_once()
 
     def test_a_guest_signed_in_through_an_extension_still_takes_the_session(self) -> None:
         answers = {"guest.record_start": True, "guest.active": object()}
@@ -463,6 +489,8 @@ class SessionTests(LaunchTests):
         (played,) = [args for name, args in asked if name == "guest.record_play"]
         self.assertEqual(played[2]["entries"][0]["initials"], "OWN",
                          "the reading kept, with a blank score given the one player up")
+        self.assertEqual(play.keep_high_scores.call_args.args[2]["entries"][0]["initials"],
+                         "", "the machine's table is kept as it wrote it")
 
     def test_a_new_score_goes_to_whose_initials_it_carries_up_or_not(self) -> None:
         alex = self._alex()

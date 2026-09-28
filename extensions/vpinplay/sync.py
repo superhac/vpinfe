@@ -114,6 +114,35 @@ def payload_for_guest(game: dict, table: dict | None, played: dict, held: dict,
     }, table)
 
 
+def from_library(game: dict) -> dict:
+    """A game as core's library lens publishes it, its high score table in the shape a
+    reading off the hardware has - which is the shape the service files."""
+    user = dict(game.get("user") or {})
+    user["score"] = reading_of(user.pop("high_scores", None))
+    return {**game, "user": user}
+
+
+def reading_of(high_scores: Any) -> dict | None:
+    """The machine's table in the shape the score parser gives a reading."""
+    if not isinstance(high_scores, dict) or not high_scores.get("sections"):
+        return None
+    entries = []
+    for section in high_scores["sections"]:
+        for entry in section.get("entries") or []:
+            score = entry.get("score")
+            text = str(entry.get("text") or "")
+            entries.append({
+                "section": str(section.get("name") or ""),
+                "rank": entry.get("rank"),
+                "initials": str(entry.get("initials") or ""),
+                "score": score,
+                "value_prefix": str(entry.get("prefix") or "") or None,
+                "value_suffix": str(entry.get("suffix") or "").lstrip() or None,
+                "extra_lines": text.split("\n") if score is None and text else [],
+            })
+    return {"rom": str(high_scores.get("rom") or ""), "entries": entries}
+
+
 def _holds_entry_for(score: Any, initials: str) -> bool:
     """Whether a reading off the machine has an entry with these initials. A reading
     that is one number carries nobody's initials, so it is whoever was playing."""

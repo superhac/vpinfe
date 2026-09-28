@@ -17,6 +17,7 @@ import logging
 from pathlib import Path
 
 from common.deprecations import announce
+from common.games import high_scores
 from common.games.game_metadata import DETECTION_KEYS, default_table
 from common.values import newer_version, parse_version
 
@@ -162,6 +163,9 @@ def _to_contract_1(row: dict) -> dict:
     info.setdefault("Rom", vpx.get("rom", ""))
     info.setdefault("Authors", vpx.get("authors", []))
     meta["Info"] = info
+
+    if isinstance(meta.get("User"), dict):
+        meta["User"] = high_scores.to_2x(meta["User"], high_scores.rom_of(vpx))
 
     meta["VPinFE"] = {_LEGACY_VPINFE_KEYS.get(key, key): value
                       for key, value in dict(meta.get("vpinfe") or {}).items()}
