@@ -1320,7 +1320,10 @@
   "console.page.assets": "Àššèţš",
   "console.page.collection": "Çöŀŀèçţîöñ",
   "console.page.could_not_ask_devices": "Çöûŀđ ñöţ àšķ ţĥè đèṽîçèš",
+  "console.page.could_not_discard": "Çöûŀđñ'ţ đîšçàřđ ţĥè řèçöřđîñĝ",
+  "console.page.could_not_resume": "Çöûŀđñ'ţ řèšûɱè řèçöřđîñĝ",
   "console.page.could_not_start": "Çöûŀđ ñöţ šţàřţ",
+  "console.page.could_not_stop": "Çöûŀđñ'ţ šţöþ îţ",
   "console.page.could_not_work_game": "Çöûŀđ ñöţ ŵöřķ öûţ ŵĥîçĥ ĝàɱè ţĥàţ řöŵ îš",
   "console.page.device": "Đèṽîçè",
   "console.page.devices_update_waiting": "{count} đèṽîçèš ĥàṽè àñ ûþđàţè ŵàîţîñĝ",
@@ -1354,6 +1357,7 @@
   "console.page.not_library": "Ñöţ îñ ţĥîš ŀîƀřàřý",
   "console.page.previous_game": "Þřèṽîöûš ĝàɱè",
   "console.page.reading_library_disk": "Řèàđîñĝ ţĥè ŀîƀřàřý ƒřöɱ đîšķ",
+  "console.page.resume": "Řèšûɱè",
   "console.page.scan_failed": "Ţĥè šçàñ ƒàîŀèđ",
   "console.page.select_collection": "Šèŀèçţ à çöŀŀèçţîöñ",
   "console.page.select_device": "Šèŀèçţ à đèṽîçè",
@@ -1369,6 +1373,9 @@
   "console.page.show_hide_navigation": "Šĥöŵ öř ĥîđè ţĥè ñàṽîĝàţîöñ",
   "console.page.show_hide_workbench": "Šĥöŵ öř ĥîđè ţĥè ŵöřķƀèñçĥ",
   "console.page.show_unmatched": "Šĥöŵ Ûñɱàţçĥèđ",
+  "console.page.stop": "Šţöþ",
+  "console.page.stop_recording": "Šţöþ řèçöřđîñĝ?",
+  "console.page.stop_recording_detail": "Ţĥè ĝàɱè ƀèîñĝ řèçöřđèđ îš ţĥřöŵñ àŵàý. Ŵĥàţ ţĥè řûñ řèçöřđèđ ƀèƒöřè îţ šţàýš.",
   "console.page.table_details": "Ţàƀŀè",
   "console.page.tag": "Ţàĝ",
   "console.page.theme": "Ţĥèɱè",
@@ -1468,6 +1475,7 @@
     "one": "Řèçöřđèđ 1 ĝàɱè",
     "other": "Řèçöřđèđ {count} ĝàɱèš"
   },
+  "console.record.run_stopped": "Řèçöřđîñĝ šţöþþèđ àţ {at} öƒ {of}",
   "console.record.run_waiting": {
     "one": "{said}, 1 ŵàîţš ƒöř à đèçîšîöñ",
     "other": "{said}, {count} ŵàîţ ƒöř à đèçîšîöñ"

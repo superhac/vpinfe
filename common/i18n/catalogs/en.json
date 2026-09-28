@@ -1320,7 +1320,10 @@
   "console.page.assets": "Assets",
   "console.page.collection": "Collection",
   "console.page.could_not_ask_devices": "Could not ask the devices",
+  "console.page.could_not_discard": "Couldn't discard the recording",
+  "console.page.could_not_resume": "Couldn't resume recording",
   "console.page.could_not_start": "Could not start",
+  "console.page.could_not_stop": "Couldn't stop it",
   "console.page.could_not_work_game": "Could not work out which game that row is",
   "console.page.device": "Device",
   "console.page.devices_update_waiting": "{count} devices have an update waiting",
@@ -1354,6 +1357,7 @@
   "console.page.not_library": "Not in this library",
   "console.page.previous_game": "Previous game",
   "console.page.reading_library_disk": "Reading the library from disk",
+  "console.page.resume": "Resume",
   "console.page.scan_failed": "The scan failed",
   "console.page.select_collection": "Select a collection",
   "console.page.select_device": "Select a device",
@@ -1369,6 +1373,9 @@
   "console.page.show_hide_navigation": "Show or hide the navigation",
   "console.page.show_hide_workbench": "Show or hide the workbench",
   "console.page.show_unmatched": "Show Unmatched",
+  "console.page.stop": "Stop",
+  "console.page.stop_recording": "Stop recording?",
+  "console.page.stop_recording_detail": "The game being recorded is thrown away. What the run recorded before it stays.",
   "console.page.table_details": "Table",
   "console.page.tag": "Tag",
   "console.page.theme": "Theme",
@@ -1468,6 +1475,7 @@
     "one": "Recorded 1 game",
     "other": "Recorded {count} games"
   },
+  "console.record.run_stopped": "Recording stopped at {at} of {of}",
   "console.record.run_waiting": {
     "one": "{said}, 1 waits for a decision",
     "other": "{said}, {count} wait for a decision"

@@ -1215,12 +1215,38 @@ class ApiClient:
         return response.json()
 
     def plan_capture(self, body: dict) -> dict:
-        """What a recording of one game or table would fill and replace, doing nothing."""
+        """What recording games or tables would fill and replace, doing nothing."""
         return self._post("/capture/plan", body)
 
     def start_capture(self, body: dict) -> dict:
-        """Record one game or table. Returns the job to watch."""
+        """Record games or tables, one after another. Returns the job to watch."""
         return self._post("/capture/runs", body)
+
+    def capture_run(self) -> dict:
+        """The recording run in hand, running or paused; empty where there is none, or
+        from an install too old to say."""
+        _refuse_the_event_loop("/capture/runs/current")
+        response = self._session.get(f"{self._base}/capture/runs/current", timeout=_TIMEOUT)
+        if response.status_code == 404:
+            return {}
+        self._answered(response)
+        return dict((response.json() or {}).get("run") or {})
+
+    def resume_capture(self) -> dict:
+        """Carry on with the paused run. Returns the job to watch."""
+        return self._post("/capture/runs/current/resume", {})
+
+    def discard_capture(self) -> dict:
+        """Forget the run in hand."""
+        return self._post("/capture/runs/current/discard", {})
+
+    def stop_job(self, link: str) -> dict:
+        """Stop a job at the `links.stop` its resource names."""
+        _refuse_the_event_loop(link)
+        response = self._session.post(f"{self._base.removesuffix('/api/v1')}{link}",
+                                      timeout=_TIMEOUT)
+        self._answered(response)
+        return dict(response.json() or {})
 
     def capture_proposals(self) -> dict:
         """The recordings waiting for a decision."""

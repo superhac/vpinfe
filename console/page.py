@@ -14,6 +14,7 @@ from nicegui import background_tasks, run, ui
 from common import device_client, feature_checks, icons, install_identity
 from common.failures import why
 from common.i18n import t
+from common.jobs import KIND_MEDIA_CAPTURE
 from console import about as about_page
 from console import assets as assets_page
 from console import (
@@ -45,6 +46,7 @@ from console import logs as logs_page
 from console import media as media_page
 from console import metrics as metrics_page
 from console import panel as panel_parts
+from console import record as recorder
 from console import settings as settings_page
 from console import themes as themes_page
 from console.api import ApiClient
@@ -628,13 +630,24 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             # What the install is doing, when it is doing anything. Silent otherwise:
             # a line that reads "No active jobs" spends a permanent slot to report
             # nothing, and the one it replaced said that even while a scan ran.
-            job_line = ui.row().classes("items-center justify-center gap-2 w-full "
-                                        "no-wrap console-job")
+            job_line = ui.column().classes("items-center gap-1 w-full console-job")
             with job_line:
-                ui.spinner(size="16px").classes("shrink-0")
-                job_text = ui.label("").classes("text-xs min-w-0 truncate")
+                with ui.row().classes("items-center justify-center gap-2 w-full no-wrap"):
+                    ui.spinner(size="16px").classes("shrink-0")
+                    job_text = ui.label("").classes("text-xs min-w-0 truncate")
+                job_stop = ui.row().classes("items-center justify-center no-wrap")
             job_line.set_visibility(False)
             labels.append(job_text)
+            labels.append(job_stop)
+            run_line = ui.column().classes("items-center gap-1 w-full console-job")
+            with run_line:
+                with ui.row().classes("items-center justify-center gap-2 w-full no-wrap"):
+                    ui.icon("pause_circle", size="16px").classes("shrink-0")
+                    run_text = ui.element("div").classes("flex min-w-0")
+                run_acts = ui.row().classes("items-center justify-center gap-1 no-wrap")
+            run_line.set_visibility(False)
+            labels.append(run_text)
+            labels.append(run_acts)
             failed_line = ui.row().classes("items-center justify-center gap-2 w-full "
                                            "no-wrap console-job cursor-pointer")
             with failed_line:
@@ -658,6 +671,83 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     def _dismiss_failed() -> None:
         dismissed.add(shown_failed["id"])
         failed_line.set_visibility(False)
+
+    offered: dict[str, Any] = {"stop": "", "run": None}
+    records = any(one.get("name") == "capture"
+                  for one in discovery.get("capabilities") or [])
+
+    def _offer_stop(job: dict[str, Any]) -> None:
+        """Stop beside the job that is running, where it says it can be stopped."""
+        link = str((job.get("links") or {}).get("stop") or "") if job.get("stoppable") \
+            else ""
+        if link == offered["stop"]:
+            return
+        offered["stop"] = link
+        job_stop.clear()
+        if link:
+            with job_stop:
+                panel_parts.action(t("console.page.stop"),
+                                   partial(_stop, link, str(job.get("kind") or "")),
+                                   icon=verbs.STOP, inline=True)()
+
+    @on_page
+    async def _stop(link: str, kind: str) -> None:
+        if kind == KIND_MEDIA_CAPTURE and not await confirm.ask(
+                t("console.page.stop_recording"),
+                detail=t("console.page.stop_recording_detail"),
+                confirm=t("console.page.stop"), icon=verbs.STOP):
+            return
+        try:
+            await offload.io(ApiClient().stop_job, link)
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
+            ui.notify(t("console.page.could_not_stop"), caption=why(exc), type="negative")
+            return
+        watch_jobs()
+
+    async def _watch_run() -> None:
+        """A recording run left waiting, with Resume and Discard."""
+        found: dict[str, Any] = {}
+        if records:
+            try:
+                found = await offload.io(ApiClient().capture_run)
+            except Exception:  # noqa: BLE001 - the line says nothing it cannot read
+                found = {}
+        said = recorder.waiting(found)
+        run_line.set_visibility(bool(said[0]))
+        if said == offered["run"]:
+            return
+        offered["run"] = said
+        run_text.clear()
+        run_acts.clear()
+        if not said[0]:
+            return
+        with run_text:
+            panel_parts.line(said[0], hint=said[1], classes="text-xs min-w-0 truncate")
+        with run_acts:
+            panel_parts.action(t("console.page.resume"), _resume, icon=verbs.RUN,
+                               inline=True)()
+            panel_parts.action(t("console.record.discard"), _discard, icon=verbs.DISCARD,
+                               inline=True)()
+
+    @on_page
+    async def _resume() -> None:
+        try:
+            job = await offload.io(ApiClient().resume_capture)
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
+            ui.notify(t("console.page.could_not_resume"), caption=why(exc), type="warning")
+            return
+        watch_jobs()
+        await recorder.follow_run(library, str(job.get("id") or ""), state, lambda: None)
+
+    @on_page
+    async def _discard() -> None:
+        try:
+            await offload.io(ApiClient().discard_capture)
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
+            ui.notify(t("console.page.could_not_discard"), caption=why(exc),
+                      type="negative")
+            return
+        watch_jobs()
 
     async def _watch_jobs() -> None:
         """Say what is running, or what failed since the page opened, wherever it was
@@ -683,8 +773,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                                      classes="text-xs min-w-0 truncate")
             shown_failed["id"] = str(failed.get("id") or "")
         if not running:
+            _offer_stop({})
+            await _watch_run()
             return
+        run_line.set_visibility(False)
         job = running[0]
+        _offer_stop(job)
         said = str(job.get("message") or "").strip() or t("console.page.working")
         pct = int(job.get("pct") or 0)
         job_text.text = t("console.page.job_progress", message=said, percent=pct) \

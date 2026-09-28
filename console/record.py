@@ -16,7 +16,7 @@ from typing import Any, Literal
 from nicegui import ui
 
 from common.capture import preflight
-from common.capture.run import EXISTING, FILL, REPLACED
+from common.capture.run import EXISTING, FILL, INTERRUPTED, REPLACED
 from common.capture.session import AUDIO, KINDS
 from common.failures import why
 from common.games import asset_origin
@@ -547,9 +547,28 @@ async def _start_run(library: Any, body: dict[str, Any], state: dict[str, Any],
     watch = state.get("watch_jobs")
     if callable(watch):
         watch()
-    result = await ended_job(library, str(job.get("id") or ""), every=_RUN_POLL_S,
-                             polls=_RUN_POLLS)
-    await say_run(result, state, then)
+    await follow_run(library, str(job.get("id") or ""), state, then)
+
+
+@on_page
+async def follow_run(library: Any, job_id: str, state: dict[str, Any],
+                     then: Callable[[], Any]) -> None:
+    """Wait for a run's job, however long, and say how it ended."""
+    await say_run(await ended_job(library, job_id, every=_RUN_POLL_S, polls=_RUN_POLLS),
+                  state, then)
+
+
+def waiting(run: dict[str, Any]) -> tuple[str, str]:
+    """What the job line says of a run left waiting, and why on hover; ("", "") for one
+    that is going, or none."""
+    if run.get("state") != "paused":
+        return "", ""
+    reason = dict(run.get("reason") or {})
+    at, of = int(run.get("done") or 0) + 1, int(run.get("of") or 0)
+    if reason.get("key") == INTERRUPTED:
+        return t("console.record.run_stopped", at=at, of=of), preflight.words(reason)
+    return (t("console.record.run_paused", at=at, of=of),
+            preflight.words(reason) if reason else "")
 
 
 def run_failures(tables: Sequence[dict[str, Any]]) -> str:
