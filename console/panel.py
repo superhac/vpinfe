@@ -920,10 +920,13 @@ def icon_action(label: str, on_click: Callable[[], Any], *, icon: str, hint: str
 def menu_entry(label: str, on_click: Callable[..., Any] | None = None, *,
                mark: Callable[[], Any] | None = None,
                trail: Callable[[], Any] | None = None,
-               classes: str = "", auto_close: bool = True) -> Any:
+               classes: str = "", auto_close: bool = True, refused: str = "") -> Any:
     """An entry in a menu whose items share the leading slot: `mark` draws into it, and an
     entry without one indents to it so the labels line up. `trail` draws the state at the
-    end."""
+    end. `refused` dims it, with those words under it, and it does nothing."""
+    if refused:
+        on_click, auto_close = None, False
+        classes = f"console-menu-blocked {classes}"
     item = ui.menu_item(on_click=on_click, auto_close=auto_close) \
         .classes(f"console-menu-item {classes}".strip())
     with item, ui.row().classes("items-center gap-2 no-wrap w-full"):
@@ -931,7 +934,10 @@ def menu_entry(label: str, on_click: Callable[..., Any] | None = None, *,
             ui.element("span").classes("console-menu-mark")
         else:
             mark()
-        ui.label(label).classes("grow min-w-0")
+        with ui.column().classes("gap-0 grow min-w-0"):
+            ui.label(label)
+            if refused:
+                ui.label(refused).classes("console-menu-sub")
         if trail is not None:
             trail()
     return item

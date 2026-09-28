@@ -19,16 +19,18 @@ STANDS_S = 8.0
 
 
 def act(said: str, label: str, run: Callable[[], Awaitable[Any]], *, warn: bool = False,
-        icon: str | None = None) -> ui.notification:
-    """Say `said`, green or amber where `warn`, with `label` on it running `run` the first
-    time it is pressed."""
+        icon: str | None = None, caption: str = "") -> ui.notification:
+    """Say `said`, green or amber where `warn`, with `caption` under it, and `label` on it
+    running `run` the first time it is pressed."""
     client = ui.context.client
     spent = {"pressed": False}
     # Under the page: in the caller's slot, a dialog closing or a panel redrawing deletes
     # the element its button calls.
     with client:
         note = ui.notification(said, type="warning" if warn else "positive",
-                               icon=icon, timeout=STANDS_S)
+                               icon=icon, timeout=STANDS_S, multi_line=bool(caption))
+    if caption:
+        note._props["options"]["caption"] = caption
 
     async def pressed() -> None:
         if spent["pressed"]:

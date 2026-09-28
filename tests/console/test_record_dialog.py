@@ -213,7 +213,7 @@ class Library:
     def __init__(self, jobs: list[dict[str, Any]] | None = None) -> None:
         self.jobs = list(jobs or [])
         self.used: list[tuple[str, bool]] = []
-        self.waiting = {"count": 1, "bytes": 10, "proposals": [
+        self.waiting: dict[str, Any] = {"count": 1, "bytes": 10, "proposals": [
             {"id": "a1", "game_id": "g1", "table_id": "", "kind": "playfield_video",
              "file": "playfield_video.mp4", "size": 4_700_000,
              "url": "/api/v1/capture/proposals/a1/file",
@@ -351,6 +351,85 @@ class EntryTests(unittest.TestCase):
 
         self.assertIsNone(drawn)
         action.assert_not_called()
+
+    def test_a_selection_menus_entry_is_refused_with_the_devices_reason(self) -> None:
+        for capabilities, drawn in (
+                ([{"name": "capture", "available": True}], ""),
+                ([{"name": "capture", "available": False, "reason": "Needs FFmpeg"}],
+                 "Needs FFmpeg")):
+            library = SimpleNamespace(discovery=lambda capabilities=capabilities:
+                                      {"capabilities": capabilities})
+            with self.subTest(drawn), \
+                    mock.patch.object(record.panel, "menu_entry") as entry:
+                record.menu_entry(library, "Record Media...", lambda: None)
+            self.assertEqual(entry.call_args.kwargs["refused"], drawn)
+
+        library = SimpleNamespace(discovery=lambda: {"capabilities": []})
+        with mock.patch.object(record.panel, "menu_entry") as entry:
+            record.menu_entry(library, "Record Media...", lambda: None)
+        entry.assert_not_called()
+
+
+# The reference cab: no screen shows the DMD, so every game fails its DMD video.
+def _game(state: str = "recorded", **extra: Any) -> dict[str, Any]:
+    return {"state": state, "placed": [{"kind": "playfield_video"}],
+            "failed": [{"kind": "scoreview_video", "reason": NOT_SHOWN}],
+            "proposed": [], "reason": None, **extra}
+
+
+class ManyTests(unittest.TestCase):
+    def test_the_body_names_games_and_tables_each_in_its_list(self) -> None:
+        self.assertEqual(record.targets([("g1", ""), ("g2", "t2"), ("g3", "")]),
+                         {"games": ["g1", "g3"], "tables": [{"game": "g2", "table": "t2"}]})
+
+    def test_each_kind_says_how_many_have_no_file_and_how_many_have_one(self) -> None:
+        self.assertEqual([record.counted({"missing": missing, "have": have})
+                          for missing, have in ((18, 6), (24, 0), (0, 1))],
+                         ["18 missing, 6 have one", "24 missing", "1 has one"])
+
+    def test_the_confirm_counts_what_goes_by_whose_it_is(self) -> None:
+        plan = {"replacing_by_source": {"vpinmediadb": 14, "user": 3, "unknown": 1}}
+
+        self.assertEqual(record.by_source(plan), ["14 from VPinMediaDB", "4 of yours"])
+
+    def test_a_run_on_the_reference_cab_reads_well_with_a_failure_on_every_game(
+            self) -> None:
+        said = record.run_outcome({"tables": [_game() for _ in range(24)],
+                                   "run": {"state": "done", "done": 24, "of": 24}})
+
+        self.assertEqual(said, (
+            "Recorded 24 games", "warning",
+            "DMD Video: Visual Pinball X doesn't show the DMD on a screen of its own"))
+
+    def test_games_that_failed_whole_are_counted_by_reason(self) -> None:
+        wont = {"key": "capture.outcome.would_not_start", "params": {}, "detail": ""}
+        tables = [_game(), _game(), _game("failed", placed=[], failed=[], reason=wont),
+                  _game(proposed=[{"kind": "backglass_video", "id": "a1"}])]
+
+        said, level, caption = record.run_outcome({"tables": tables,
+                                                   "run": {"state": "done"}})
+
+        self.assertEqual(said, "Recorded 3 games, 1 failed, 1 waits for a decision")
+        self.assertEqual(caption, "DMD Video: Visual Pinball X doesn't show the DMD on a "
+                                  "screen of its own; Would not start: 1 game")
+
+    def test_a_paused_run_says_where_and_why(self) -> None:
+        said = record.run_outcome({"tables": [_game()], "run": {
+            "state": "paused", "done": 6, "of": 24,
+            "reason": {"key": "capture.run.space", "params": {"device": "Cab 1"}}}})
+
+        self.assertEqual(said, ("Recording paused at 7 of 24", "warning",
+                                "Cab 1 is nearly out of space"))
+
+    def test_a_plan_of_many_holds_each_kinds_counts_and_of_one_its_own_row(self) -> None:
+        total = {"kind": "playfield", "reason": None, "missing": 1, "have": 0}
+        own = _row("playfield", "fill")
+
+        many = record.slots_of({"kinds": [total], "targets": [{"kinds": [own]}] * 2})
+        one = record.slots_of({"kinds": [total], "targets": [{"kinds": [own]}]})
+
+        self.assertNotIn("does", many["playfield"])
+        self.assertEqual((one["playfield"]["does"], one["playfield"]["missing"]), ("fill", 1))
 
 
 if __name__ == "__main__":

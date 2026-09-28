@@ -1729,8 +1729,7 @@ def _record_media(context: dict[str, Any],
                   placed: Callable[[], Any]) -> Callable[[], None] | None:
     """Record Media for the game or the table in view, dimmed with why where this install
     records nothing; None where recording is not something it does."""
-    able = next((one for one in context["library"].discovery().get("capabilities") or []
-                 if one.get("name") == "capture"), None)
+    able = recorder.capability(context["library"])
     if able is None:
         return None
     table = next((one for one in context["tables"] if one.get("id") == context["lens"]),
@@ -1740,9 +1739,9 @@ def _record_media(context: dict[str, Any],
               table=_table_line(table, context["tables"])) if table is not None \
         else t("console.record.title", name=name)
     return panel.action(t("console.record.record_media"),
-                        lambda: recorder.ask(context["library"], context["game_id"],
-                                             context["lens"] or "", name, title,
-                                             context["state"], placed),
+                        lambda: recorder.ask(context["library"],
+                                             [(context["game_id"], context["lens"] or "")],
+                                             name, title, context["state"], placed),
                         icon=verbs.RECORD, enabled=bool(able.get("available")),
                         hint=str(able.get("reason") or ""))
 

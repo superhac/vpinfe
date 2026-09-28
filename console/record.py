@@ -32,6 +32,7 @@ from console import (
     recording,
     remembered,
     settings,
+    undo,
     verbs,
 )
 from console import dialog as frame
@@ -46,6 +47,9 @@ YOURS = frozenset({"user", asset_origin.UNKNOWN, asset_origin.RECORDED})
 MADE_AS = {"video": ".mp4", "image": ".png", "audio": ".mp3"}
 _POLL_S = 1.0
 _POLLS = 3600
+# A run of a library can take a night.
+_RUN_POLL_S = 2.0
+_RUN_POLLS = 43200
 
 
 def order(kept: set[str] | None = None) -> list[str]:
@@ -55,17 +59,31 @@ def order(kept: set[str] | None = None) -> list[str]:
     return [kind for kind in kinds if not kept or kind in kept]
 
 
+Target = tuple[str, str]
+
+
+def targets(named: Sequence[Target]) -> dict[str, Any]:
+    """The games and the tables of a plan's or a run's body, each `(game, table)` with
+    "" for a game's own."""
+    games = [game_id for game_id, table_id in named if not table_id]
+    tables = [{"game": game_id, "table": table_id} for game_id, table_id in named if table_id]
+    return {**({"games": games} if games else {}), **({"tables": tables} if tables else {})}
+
+
 def target(game_id: str, table_id: str) -> dict[str, Any]:
-    if table_id:
-        return {"tables": [{"game": game_id, "table": table_id}]}
-    return {"games": [game_id]}
+    return targets([(game_id, table_id)])
+
+
+def asked(named: Sequence[Target], existing: str, kinds: Sequence[str],
+          chosen: dict[str, bool], changed: dict[str, Any]) -> dict[str, Any]:
+    """The plan's and the run's body: the kinds ticked, and the settings changed here."""
+    return {**targets(named), "existing": existing,
+            "kinds": [kind for kind in kinds if chosen.get(kind)], "settings": dict(changed)}
 
 
 def wanted(game_id: str, table_id: str, existing: str, kinds: Sequence[str],
            chosen: dict[str, bool], changed: dict[str, Any]) -> dict[str, Any]:
-    """The plan's and the run's body: the kinds ticked, and the settings changed here."""
-    return {**target(game_id, table_id), "existing": existing,
-            "kinds": [kind for kind in kinds if chosen.get(kind)], "settings": dict(changed)}
+    return asked([(game_id, table_id)], existing, kinds, chosen, changed)
 
 
 def confirmed(body: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
@@ -102,6 +120,16 @@ def holds(row: dict[str, Any] | None) -> str:
     if source in YOURS - {asset_origin.RECORDED}:
         return t("console.record.yours")
     return media_ownership.source_name(str(source))
+
+
+def counted(row: dict[str, Any] | None) -> str:
+    """How many of a kind's slots have no file and how many have one, over many."""
+    missing, have = int((row or {}).get("missing") or 0), int((row or {}).get("have") or 0)
+    parts = ([t("console.record.missing", count=missing)] if missing else []) \
+        + ([t("console.record.have_one", count=have)] if have else [])
+    if len(parts) == 2:
+        return t("console.record.missing_have", missing=parts[0], have=parts[1])
+    return parts[0] if parts else ""
 
 
 def ticked(kinds: Sequence[str], slots: dict[str, dict[str, Any]],
@@ -156,9 +184,27 @@ def recording_for(seconds: int) -> str:
 
 
 def slots_of(plan: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Each kind's row for the one game or table a plan is for."""
-    return {str(row["kind"]): row
-            for row in ((plan.get("targets") or [{}])[0].get("kinds") or [])}
+    """Each kind's row: over every target, and for a plan of one, that target's own."""
+    found = {str(row["kind"]): dict(row) for row in plan.get("kinds") or []}
+    if len(plan.get("targets") or []) == 1:
+        for row in plan["targets"][0].get("kinds") or []:
+            found[str(row["kind"])] = {**found.get(str(row["kind"]), {}), **row}
+    return found
+
+
+def by_source(plan: dict[str, Any]) -> list[str]:
+    """How many files a run would delete, counted by whose they are."""
+    theirs: dict[str, int] = {}
+    yours = 0
+    for source, count in (plan.get("replacing_by_source") or {}).items():
+        if source in YOURS:
+            yours += int(count)
+        else:
+            name = media_ownership.source_name(str(source))
+            theirs[name] = theirs.get(name, 0) + int(count)
+    return [t("console.record.count_from", count=count, source=name)
+            for name, count in theirs.items()] \
+        + ([t("console.record.count_yours", count=yours)] if yours else [])
 
 
 def going(plan: dict[str, Any]) -> list[str]:
@@ -267,17 +313,18 @@ def setting_rows(held: Settings, report: dict[str, Any], changed: Callable[[], A
 
 
 @on_page
-async def ask(library: Any, game_id: str, table_id: str, name: str, title: str,
-              state: dict[str, Any], then: Callable[[], Any]) -> None:
-    """The Record dialog for one game or table, then the recording. `name` is the game's,
-    for what is said when it ends."""
+async def ask(library: Any, named: Sequence[Target], name: str, title: str,
+              state: dict[str, Any], then: Callable[[], Any], *,
+              only: Sequence[str] | None = None) -> None:
+    """The Record dialog for these games or tables, then the recording. `name` is the
+    game's where there is one, for what is said when it ends. `only` ticks those kinds
+    and no others, leaving what this browser keeps for the rest alone."""
     kinds = order(set(library.kept_kinds().get("media") or ()) or None)
     try:
         report, schema, values, playing = await asyncio.gather(
             offload.io(library.capture_report), offload.io(library.config_schema),
             offload.io(library.config_values), offload.io(library.play_state))
-        whole = await offload.io(library.plan_capture,
-                                 {**target(game_id, table_id), "kinds": kinds})
+        whole = await offload.io(library.plan_capture, {**targets(named), "kinds": kinds})
     except Exception as exc:  # noqa: BLE001 - said, and nothing was recorded
         ui.notify(t("console.record.could_not_read"), caption=why(exc), type="warning")
         return
@@ -288,27 +335,33 @@ async def ask(library: Any, game_id: str, table_id: str, name: str, title: str,
     device = dict((values or {}).get(recording.SECTION) or {})
     held = Settings(options_of(schema), device)
     remembered_ticks = dict(remembered.get(TICKS) or {})
-    chosen = ticked(kinds, slots, remembered_ticks,
-                    bool(settings.value_for({"type": "bool"}, device.get("sound", False))))
+    sound = bool(settings.value_for({"type": "bool"}, device.get("sound", False)))
+    chosen = ticked(kinds, slots, {kind: kind in only for kind in kinds}
+                    if only is not None else remembered_ticks, sound)
     running = bool((playing or {}).get("launching"))
-    answer = await _dialog(library, game_id, table_id, title, kinds, slots, chosen, held,
+    answer = await _dialog(library, list(named), title, kinds, slots, chosen, held,
                            report, running)
     if answer is None:
         return
-    remembered.put(TICKS, remember(remembered_ticks, chosen, slots))
-    await _start(library, answer, name, state, then)
+    if only is None:
+        remembered.put(TICKS, remember(remembered_ticks, chosen, slots))
+    if len(named) == 1:
+        await _start(library, answer, name, state, then)
+    else:
+        await _start_run(library, answer, state, then)
 
 
-async def _dialog(library: Any, game_id: str, table_id: str, title: str,
+async def _dialog(library: Any, named: list[Target], title: str,
                   kinds: list[str], slots: dict[str, dict[str, Any]],
                   chosen: dict[str, bool], held: Settings, report: dict[str, Any],
                   running: bool) -> dict[str, Any] | None:
     labels = media_label_map()
     now: dict[str, Any] = {"existing": FILL, "plan": {}, "said": "", "asked": 0}
     shown: dict[str, Any] = {}
+    many = len(named) > 1
 
     def request() -> dict[str, Any]:
-        return wanted(game_id, table_id, now["existing"], kinds, chosen, held.changed)
+        return asked(named, now["existing"], kinds, chosen, held.changed)
 
     def show() -> None:
         plan = now["plan"]
@@ -347,7 +400,7 @@ async def _dialog(library: Any, game_id: str, table_id: str, title: str,
         existing = {choice: t(f"console.record.existing.{choice}") for choice in EXISTING}
         entries: list[tuple[Any, Any]] = [
             (panel.HEADING, t("console.record.media")),
-            (panel.FULL, lambda: _what(kinds, slots, chosen, labels, tick)),
+            (panel.FULL, lambda: _what(kinds, slots, chosen, labels, tick, many)),
             (t("console.record.existing"),
              panel.select(existing, now["existing"], pick,
                           describes={existing[choice]:
@@ -380,7 +433,8 @@ async def _dialog(library: Any, game_id: str, table_id: str, title: str,
         replacing = int(plan.get("replacing") or 0)
         if replacing and not await confirm.ask(
                 t("console.record.replace_ask", count=replacing),
-                detail=t("console.record.replace_detail"), lines=going(plan),
+                detail=t("console.record.replace_detail"),
+                lines=by_source(plan) if many else going(plan),
                 confirm=t("console.record.record_and_replace"), icon=verbs.RECORD):
             return
         box.submit(confirmed(request(), plan))
@@ -406,9 +460,9 @@ async def _dialog(library: Any, game_id: str, table_id: str, title: str,
 
 
 def _what(kinds: list[str], slots: dict[str, dict[str, Any]], chosen: dict[str, bool],
-          labels: dict[str, str], tick: Callable[[str, bool], Any]) -> None:
-    """A tick per kind with what its slot holds now; a row the device cannot record,
-    dimmed with why."""
+          labels: dict[str, str], tick: Callable[[str, bool], Any], many: bool) -> None:
+    """A tick per kind with what its slot holds now, or over many how many have none; a
+    row the device cannot record, dimmed with why."""
     with ui.grid(columns="max-content minmax(0, 1fr)") \
             .classes("w-full items-center gap-x-4 gap-y-1"):
         for row_kinds, why_not in rows_of(kinds, slots):
@@ -420,7 +474,25 @@ def _what(kinds: list[str], slots: dict[str, dict[str, Any]], chosen: dict[str, 
                 ui.label(why_not).classes("console-help")
                 continue
             box.on_value_change(lambda event, kind=kind: tick(kind, bool(event.value)))
-            ui.label(holds(slots.get(kind))).classes("console-member-qualifier")
+            ui.label(counted(slots.get(kind)) if many else holds(slots.get(kind))) \
+                .classes("console-member-qualifier")
+
+
+def capability(library: Any) -> dict[str, Any] | None:
+    """Discovery's `capture`: whether this install records, and why not; None where it
+    does not record at all."""
+    return next((one for one in library.discovery().get("capabilities") or []
+                 if one.get("name") == "capture"), None)
+
+
+def menu_entry(library: Any, label: str, run: Callable[[], Any]) -> None:
+    """Into the menu being built: `label`, refused with the device's reason where it
+    records nothing, and left out where the install does not record."""
+    able = capability(library)
+    if able is None:
+        return
+    panel.menu_entry(label, run, refused="" if able.get("available")
+                     else str(able.get("reason") or ""))
 
 
 @on_page
@@ -437,11 +509,12 @@ async def _start(library: Any, body: dict[str, Any], name: str, state: dict[str,
     await finished(library, str(job.get("id") or ""), name, then)
 
 
-async def ended(library: Any, job_id: str) -> dict[str, Any]:
-    """A recording's job once it ends: its table's outcome, with `error` where the job
-    itself failed; {} where the job could not be read."""
-    for _ in range(_POLLS):
-        await asyncio.sleep(_POLL_S)
+async def ended_job(library: Any, job_id: str, *, every: float = _POLL_S,
+                    polls: int = _POLLS) -> dict[str, Any]:
+    """A recording's job once it ends: what it answered, or `error` where the job itself
+    failed; {} where the job could not be read."""
+    for _ in range(polls):
+        await asyncio.sleep(every)
         try:
             found = await offload.io(library.capture_job, job_id)
         except Exception:  # noqa: BLE001 - the job line still reports it
@@ -450,8 +523,103 @@ async def ended(library: Any, job_id: str) -> dict[str, Any]:
             continue
         if found.get("state") == "failed":
             return {"error": str(found.get("error") or "")}
-        return dict(((found.get("result") or {}).get("tables") or [{}])[0])
+        return dict(found.get("result") or {})
     return {}
+
+
+async def ended(library: Any, job_id: str) -> dict[str, Any]:
+    """A recording's job once it ends: its table's outcome, with `error` where the job
+    itself failed; {} where the job could not be read."""
+    result = await ended_job(library, job_id)
+    if not result or "error" in result:
+        return result
+    return dict((result.get("tables") or [{}])[0])
+
+
+@on_page
+async def _start_run(library: Any, body: dict[str, Any], state: dict[str, Any],
+                     then: Callable[[], Any]) -> None:
+    try:
+        job = await offload.io(library.start_capture, body)
+    except Exception as exc:  # noqa: BLE001 - said, and nothing was recorded
+        ui.notify(t("console.record.could_not_start"), caption=why(exc), type="warning")
+        return
+    watch = state.get("watch_jobs")
+    if callable(watch):
+        watch()
+    result = await ended_job(library, str(job.get("id") or ""), every=_RUN_POLL_S,
+                             polls=_RUN_POLLS)
+    await say_run(result, state, then)
+
+
+def run_failures(tables: Sequence[dict[str, Any]]) -> str:
+    """Why a run's games or kinds failed, each reason once: with the kinds it stopped, or
+    how many games it stopped where they failed whole."""
+    labels = media_label_map()
+    kinds: dict[str, list[str]] = {}
+    games: dict[str, int] = {}
+    for one in tables:
+        if one.get("state") == "failed" and one.get("reason"):
+            said = failed_because(one)
+            games[said] = games.get(said, 0) + 1
+        for kind in one.get("failed") or []:
+            label = labels.get(str(kind.get("kind") or ""), str(kind.get("kind") or ""))
+            stopped = kinds.setdefault(failed_because(kind), [])
+            if label not in stopped:
+                stopped.append(label)
+    return "; ".join(
+        [t("console.record.failed_kinds", kinds=", ".join(names), reason=said)
+         for said, names in kinds.items()]
+        + [t("console.record.failed_games", reason=said, count=count)
+           for said, count in games.items()])
+
+
+def run_outcome(result: dict[str, Any]) -> tuple[str, Level, str]:
+    """What a run of many says when its job ends: the words, the notice type, and a
+    caption with why anything failed, or why it paused."""
+    tables = list(result.get("tables") or [])
+    ending = dict(result.get("run") or {})
+    if ending.get("state") == "paused":
+        reason = ending.get("reason")
+        return (t("console.record.run_paused", at=int(ending.get("done") or 0) + 1,
+                  of=int(ending.get("of") or 0)), "warning",
+                preflight.words(reason) if reason else "")
+    recorded = sum(1 for one in tables if one.get("state") == "recorded")
+    failed = sum(1 for one in tables if one.get("state") == "failed")
+    waiting = sum(len(one.get("proposed") or []) for one in tables)
+    caption = run_failures(tables)
+    if not recorded:
+        if failed:
+            return t("console.record.could_not_record"), "negative", caption
+        return t("console.record.nothing_to_record"), "info", ""
+    said = t("console.record.run_recorded", count=recorded)
+    if failed:
+        said = t("console.record.recorded_failed", recorded=said, failed=failed)
+    if waiting:
+        said = t("console.record.run_waiting", said=said, count=waiting)
+    return said, "warning" if caption else "positive", caption
+
+
+@on_page
+async def say_run(result: dict[str, Any], state: dict[str, Any],
+                  then: Callable[[], Any]) -> None:
+    """The end of a run of many: one notice, with Show where anything was placed."""
+    if not result:
+        return
+    if "error" in result:
+        ui.notify(t("console.record.could_not_record"), caption=str(result["error"]),
+                  type="negative")
+        return
+    said, level, caption = run_outcome(result)
+    placed = any(one.get("placed") for one in result.get("tables") or [])
+    show = state.get("show_recorded")
+    if placed and callable(show):
+        undo.act(said, t("console.page.show"), show, warn=level != "positive",
+                 caption=caption)
+    else:
+        ui.notify(said, type=level, caption=caption, multi_line=bool(caption))
+    if placed:
+        await _call(then)
 
 
 @on_page

@@ -48,6 +48,7 @@ from console import (
     workbench,
 )
 from console import dialog as frame
+from console import record as recorder
 from console import settings as settings_page
 from console.api import ApiClient
 from console.on_page import on_page
@@ -618,6 +619,20 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         await art_fill.ask(ids, state, placed,
                            name=str(games[0].get("name") or "") if len(games) == 1 else "")
 
+    async def record_media(games: list[dict[str, Any]]) -> None:
+        ids = [str(one["id"]) for one in games]
+
+        @on_page
+        async def placed() -> None:
+            await run.io_bound(library.reread_media, ids)
+            await refresh_games(ids)
+
+        name = str(games[0].get("name") or "") if len(games) == 1 else ""
+        title = t("console.record.title", name=name) if name \
+            else t("console.record.title_games", count=len(games))
+        await recorder.ask(library, [(game_id, "") for game_id in ids], name, title, state,
+                           placed)
+
     async def fill_bulk() -> None:
         chosen = grid.selection(table)
         known = await collection_adds.read(library, narrowed_to())
@@ -633,6 +648,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                 .tooltip(t("console.games.auto_match.help"))
             panel.menu_entry(t("console.art_fill.get_missing"),
                              lambda: get_missing_art(chosen))
+            recorder.menu_entry(library, t("console.record.record_media"),
+                                lambda: record_media(chosen))
             # Where the games you have already picked go. From here rather than only
             # from the device, because starting with the tables and choosing where they
             # land is a different job from managing what a phone holds.
@@ -1313,11 +1330,29 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
             if inspect.isawaitable(answer):
                 await answer
 
+    async def record_media(tables: list[dict[str, Any]]) -> None:
+        games = list(dict.fromkeys(str(one["game_id"]) for one in tables))
+
+        async def placed() -> None:
+            for game_id in games:
+                await refresh_game(game_id)
+
+        one = tables[0] if len(tables) == 1 else None
+        name = str(one.get("game") or "") if one else ""
+        title = t("console.record.title_table", name=name,
+                  table=game_tables.table_name(one)) if one \
+            else t("console.record.title_tables", count=len(tables))
+        await recorder.ask(library, [(str(row["game_id"]), str(row["id"])) for row in tables],
+                           name, title, state, placed)
+
     async def fill_bulk() -> None:
         chosen = grid.selection(table)
         known = await collection_adds.read(library)
         bulk_menu.clear()
         with bulk_menu:
+            recorder.menu_entry(library, t("console.record.record_media"),
+                                lambda: record_media(chosen))
+            ui.separator()
             collection_adds.draw(offer(chosen, ""), known, bulk_menu.close)
             ui.separator()
             panel.menu_entry(t("word.clear_selection"),

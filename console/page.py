@@ -822,6 +822,16 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         state["arriving"] = games.UNMATCHED
         go("games")
 
+    async def _show_recorded() -> None:
+        """Media on where each file came from, filtered to the recorded ones."""
+        if not await may_leave(state, "media"):
+            return
+        await offload.io(media_page.arrive_on_sources, library)
+        state["arriving"] = media_page.recorded()
+        go("media")
+
+    state["show_recorded"] = _show_recorded
+
 
     splitter = ui.splitter(reverse=True, limits=(WORKBENCH_MIN_PX, WORKBENCH_MAX_PX),
                            value=WORKBENCH_WIDE_PX) \

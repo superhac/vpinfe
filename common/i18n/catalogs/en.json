@@ -1404,6 +1404,8 @@
   "console.record.could_not_record": "Couldn't record",
   "console.record.could_not_start": "Couldn't start recording",
   "console.record.could_not_use": "Couldn't place the recording",
+  "console.record.count_from": "{count} from {source}",
+  "console.record.count_yours": "{count} of yours",
   "console.record.device_default": "Device default: {value}",
   "console.record.discard": "Discard",
   "console.record.discarded": "Discarded",
@@ -1417,6 +1419,10 @@
   "console.record.existing.replace_all.description": "Records everything ticked, and deletes what it replaces",
   "console.record.existing.replace_downloaded": "Replace Downloaded Media",
   "console.record.existing.replace_downloaded.description": "Also replaces what VPinFE downloaded, and leaves your own files",
+  "console.record.failed_games": {
+    "one": "{reason}: 1 game",
+    "other": "{reason}: {count} games"
+  },
   "console.record.failed_kinds": "{kinds}: {reason}",
   "console.record.file_from": "{file} - {source}",
   "console.record.fills": {
@@ -1424,13 +1430,20 @@
     "other": "Fills {count}"
   },
   "console.record.fills_none": "Fills none",
+  "console.record.have_one": {
+    "one": "1 has one",
+    "other": "{count} have one"
+  },
   "console.record.just_recorded": "Just recorded - {size}",
   "console.record.media": "Media",
+  "console.record.missing": "{count} missing",
+  "console.record.missing_have": "{missing}, {have}",
   "console.record.nothing_to_record": "Nothing to record",
   "console.record.now": "Now - {source}",
   "console.record.record": "Record",
   "console.record.record_and_replace": "Record and Replace",
   "console.record.record_media": "Record Media...",
+  "console.record.record_missing": "Record Missing Media...",
   "console.record.recorded": {
     "one": "Recorded 1 file",
     "other": "Recorded {count} files"
@@ -1450,12 +1463,34 @@
   "console.record.replaces_some_yours": "replaces {count}, {yours} of them yours",
   "console.record.replaces_yours": "replaces {count} of yours",
   "console.record.review_title": "Recorded for “{name}”",
+  "console.record.run_paused": "Recording paused at {at} of {of}",
+  "console.record.run_recorded": {
+    "one": "Recorded 1 game",
+    "other": "Recorded {count} games"
+  },
+  "console.record.run_waiting": {
+    "one": "{said}, 1 waits for a decision",
+    "other": "{said}, {count} wait for a decision"
+  },
   "console.record.said_detail": "{said} ({detail})",
   "console.record.save_defaults": "Save as Device Defaults",
   "console.record.saved_defaults": "Saved as this device's defaults",
   "console.record.table_running": "A table is running on this device",
   "console.record.title": "Record Media for “{name}”",
+  "console.record.title_games": {
+    "one": "Record Media for 1 Game",
+    "other": "Record Media for {count} Games"
+  },
+  "console.record.title_missing": {
+    "one": "Record Missing Media for 1 Game",
+    "other": "Record Missing Media for {count} Games"
+  },
+  "console.record.title_missing_one": "Record Missing Media for “{name}”",
   "console.record.title_table": "Record Media for “{name}” - {table}",
+  "console.record.title_tables": {
+    "one": "Record Media for 1 Table",
+    "other": "Record Media for {count} Tables"
+  },
   "console.record.touches": "{fills} - {then}",
   "console.record.use_this": "Use This",
   "console.record.used": "Used",

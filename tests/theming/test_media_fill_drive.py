@@ -62,6 +62,9 @@ class _Library:
     def put_preferences(self, _key: str, _value: dict) -> None:
         pass
 
+    def discovery(self) -> dict:
+        return {"capabilities": []}
+
     def forget_media(self, _game_id: str) -> None:
         pass
 
