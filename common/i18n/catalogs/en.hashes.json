@@ -2337,6 +2337,8 @@
   "error.filesystem.path_cannot_read": "f7d0e208ecb9",
   "error.folders.cannot_read": "b107b79d6d82",
   "error.folders.no_folder": "e65f64c9623c",
+  "error.folders.private": "bf921c7c7cb8",
+  "error.folders.this_device_only": "dbe7f1a231f5",
   "error.frontend.call_failed": "6b9f547ddd91",
   "error.frontend.library_unreachable": "ea51b2fd56a5",
   "error.frontend.not_on_screen": "2bf11d427175",

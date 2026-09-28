@@ -2724,6 +2724,8 @@
   "error.filesystem.path_cannot_read": "Ţĥàţ þàţĥ çàññöţ ƀè řèàđ",
   "error.folders.cannot_read": "Ţĥîš ƒöŀđèř çàññöţ ƀè řèàđ",
   "error.folders.no_folder": "Ñö ƒöŀđèř àţ ţĥàţ þàţĥ",
+  "error.folders.private": "Ţĥàţ ƒöŀđèř îš þřîṽàţè",
+  "error.folders.this_device_only": "Ƒöŀđèřš çàñ öñŀý ƀè ƀřöŵšèđ ƒřöɱ ţĥîš đèṽîçè'š öŵñ Çöñšöŀè",
   "error.frontend.call_failed": "{method} ƒàîŀèđ - ţĥè ŀöĝ šàýš ŵĥý",
   "error.frontend.library_unreachable": "Ţĥè ŀîƀřàřý àţ {url} çöûŀđ ñöţ ƀè řèàçĥèđ",
   "error.frontend.not_on_screen": "Ţĥè çöŀŀèçţîöñ öñ šçřèèñ đöèš ñöţ ĥöŀđ {game}",
