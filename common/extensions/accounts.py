@@ -142,6 +142,15 @@ def claiming(card: dict[str, Any]) -> dict[str, Any]:
     return found
 
 
+def reading(extension: str, card: dict[str, Any]) -> dict[str, Any]:
+    """`extension`'s account, where it reads this kind of card. Refuses one it does not."""
+    found = declared_by(extension)
+    if str(card.get("type") or "").strip() not in found["cards"]:
+        raise service_errors.RefusedError(
+            t("error.players.card_not_for", extension=found["label"]))
+    return found
+
+
 # -- what never leaves --------------------------------------------------------
 
 def scrubbed(answer: Any) -> Any:

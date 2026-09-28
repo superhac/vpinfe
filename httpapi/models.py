@@ -522,15 +522,19 @@ class PlayerAccount(ApiModel):
     """One account a player can hold, with the extension that holds it. `fields` are as
     an extension's settings are, a secret one carrying `set` and never its value. `card`
     says whether a card can be made for this player now. `error` is why the extension
-    could not answer, and the rest is then empty."""
+    could not answer, and the rest is then empty. `share_help` is what the extension says
+    Share does with this account, empty where it says nothing. `reads_cards` says whether
+    a card can be used for it."""
 
     extension: str
     label: str = ""
     share: bool = False
+    share_help: str = ""
     fields: list[dict[str, Any]] = Field(default_factory=list)
     status: str = ""
     acts: list[AccountAct] = Field(default_factory=list)
     card: bool = False
+    reads_cards: bool = False
     error: str = ""
 
 

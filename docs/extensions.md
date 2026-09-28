@@ -146,6 +146,7 @@ what it declared:
 | `action.<key>.result.<field>` | A count its run reports, beside the number |
 | `settings.label`, `state.label` | Its settings and what it is holding. Left out, the Console uses its own |
 | `account.label` | The heading over a player's account with it. Left out, its name |
+| `account.share.help` | What its account's Share switch makes of what is played, under the switch. Left out, the Console says it sends it |
 | `community.<key>.title` | A Community list |
 | `community.<key>.column.<field>.header`, `...help` | One of its columns |
 | `community.<key>.view.<key>.name`, `...help` | One of its views |
@@ -480,7 +481,12 @@ routes under `base`, with the player's id, and draws the answer on every player.
 `fields` are the same as settings' - `{key, label, type, value, help}` - and `status` is
 one line in words: *Sent 2 minutes ago*, or why not. An act is `{key, label, description}`.
 `card` says whether a card can be made for this player now. The words are the
-extension's, from `ctx.t`. Core asks these in-process as whoever asked core, so the
+extension's, from `ctx.t`.
+
+The Console follows what an act answers. A `message` is said, and a `url` is opened in a
+new tab. The acts keyed `show_card` and `save_card` answer the card as the card route does,
+with the `filename` to save it under: the Console shows core's drawing of it, or saves it
+as that SVG file, and says the `message` beside it. Core asks these in-process as whoever asked core, so the
 routes are gated and fail the way any of its routes do. A route answering a `404` or
 an `HTTPException` is an answer, passed on as it was given.
 
@@ -504,7 +510,9 @@ sorted. `cards=` lists the `type`s it reads: a card arriving at `POST
 /api/v1/players/guests/card` goes to the extension that declared its `type`, which answers
 who it is for. The guest joins up alone with the card's initials, one to three characters,
 as they are, and their account shares. The same card again puts that guest up rather than
-adding a second.
+adding a second. A card used for a player's existing account, `POST
+/api/v1/players/{id}/accounts/{extension}/card`, is read the same way, and the `values` it
+answers are written to that account with `PUT {base}/{player_id}`.
 
 VPinPlay's card is the one 2.x's *Download QR Code* saved, byte for byte: the same text,
 the same QR settings, the same hiding places. Cards are on people's phones, so a card

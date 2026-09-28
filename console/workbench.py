@@ -84,6 +84,7 @@ from console import devices as devices_page
 from console import dialog as frame
 from console import launchers as launchers_page
 from console import locations as locations_page
+from console import players as players_page
 from console import record as recorder
 from console import settings as settings_page
 from console import themes as themes_page
@@ -406,7 +407,7 @@ DEFAULT_SECTION = {"game": "game_details", "table": "table_details",
                    # Games, not Details: a collection is opened to see
                    # what is in it far more often than to rename it.
                    "collection": "collection_games",
-                   "theme": "theme_details"}
+                   "theme": "theme_details", "player": "player_details"}
 # Every section closed. Named, because it travels in the state and the address, and
 # "" appearing in either wants to be findable as a decision rather than as a blank.
 COLLAPSED = ""
@@ -1225,6 +1226,54 @@ async def _draw_launcher(container: ui.column, title: ui.column, library: Librar
         await _rail(context, "launcher", state)
 
 
+async def build_player(container: ui.column, title: ui.column, library: Library,
+                       player_id: str | None, state: dict[str, Any]) -> None:
+    """The panel, for a player."""
+    await _pane_build(container, state,
+                      lambda: _draw_player(container, title, library, player_id, state))
+
+
+async def _draw_player(container: ui.column, title: ui.column, library: Library,
+                       player_id: str | None, state: dict[str, Any]) -> None:
+    if not player_id:
+        _blank(container, title, t("console.page.player"), t("console.page.select_player"))
+        return
+    # Read fresh rather than from the grid's copy: who is up moves from a phone and from
+    # the frontend as well as from here.
+    roster = await offload.io(library.players)
+    player = next((one for one in roster if one.get("id") == player_id), None)
+    if player is None:
+        _blank(container, title, t("console.page.player"), t("console.page.not_found"))
+        return
+    try:
+        held = await offload.io(library.player_accounts, player_id)
+    except Exception:  # noqa: BLE001 - the player is still worth drawing without them
+        logger.warning("Could not read a player's accounts", exc_info=True)
+        held = []
+
+    container.clear()
+    title.clear()
+    with container:
+        _title(title, players_page.shown_name(player), players_page.kind_word(player))
+        fixed = sections_for("player")
+        accounts = tuple(Section(key, label, build, subjects=frozenset({"player"}))
+                         for key, label, build in map(players_page.account_section, held))
+        context: dict[str, Any] = {
+            "library": library, "player": player, "roster": roster, "state": state,
+            "rail": (*fixed[:1], *accounts, *fixed[1:]), "redraws": [], "dock": None,
+        }
+
+        def retitle(name: str) -> None:
+            title.clear()
+            _title(title, name, players_page.kind_word(player))
+
+        context["retitle"] = retitle
+        context["rebuild"] = _rebuilds(
+            context, f"player:{player_id}",
+            lambda: build_player(container, title, library, player_id, state))
+        await _rail(context, "player", state)
+
+
 async def build_device(container: ui.column, title: ui.column, library: Library,
                        device: dict[str, Any] | None, state: dict[str, Any],
                        local_device_id: str | None = None,
@@ -1425,7 +1474,7 @@ async def _rail(context: dict[str, Any], subject: str,
     verbs_of = SUBJECT_VERBS.get(subject)
     if header is not None and verbs_of is not None:
         panel.subject_menu(header, verbs_of(context))
-    rows = tuple(item for item in sections_for(subject)
+    rows = tuple(item for item in context.get("rail") or sections_for(subject)
                  if item.shown is None or item.shown(context))
     section = chosen_section(state, subject, rows)
     # A section this subject has no answer for is not a place to land, so an address or a
@@ -1470,15 +1519,16 @@ async def _rail(context: dict[str, Any], subject: str,
                     context["dock"] = None
     if body is not None:
         with body, busy.held(body):
-            await _one_section(context, section)
+            await _one_section(context, section, rows)
         if context.get("dock") is not None:
             ui.run_javascript(_GRIP)
 
 
-async def _one_section(context: dict[str, Any], key: str) -> None:
+async def _one_section(context: dict[str, Any], key: str,
+                       rows: tuple[Section, ...] = ()) -> None:
     """The chosen section's content. No heading - the row that opened it is the
     heading, and a second copy of the same words under it is furniture."""
-    await next(item for item in SECTIONS if item.key == key).build(context)
+    await next(item for item in rows or SECTIONS if item.key == key).build(context)
 
 
 def _section_row(context: dict[str, Any], section: Section, open_now: bool,
@@ -7166,6 +7216,11 @@ def _theme_verbs(context: dict[str, Any]) -> list[panel.Verb]:
                             partial(themes_page.changed, context))
 
 
+def _player_verbs(context: dict[str, Any]) -> list[panel.Verb]:
+    return players_page.acts(context["library"], context["state"], context["player"],
+                             _page_redraw(context))
+
+
 def _device_verbs(context: dict[str, Any]) -> list[panel.Verb]:
     if devices_page.is_local(context) or context.get("library") is None:
         return []
@@ -7181,6 +7236,7 @@ SUBJECT_VERBS: dict[str, Callable[[dict[str, Any]], list[panel.Verb]]] = {
     "location": _location_verbs,
     "theme": _theme_verbs,
     "device": _device_verbs,
+    "player": _player_verbs,
 }
 
 
@@ -7254,4 +7310,11 @@ SECTIONS: tuple[Section, ...] = (
     Section("theme_settings", lambda _: t("console.themes.settings"),
             themes_page.settings_section, subjects=frozenset({"theme"}),
             shown=lambda context: bool(context["theme"].get("configurable"))),
+    # A player: who they are, then an account per running extension offering one, which
+    # the panel puts between these two, then what they have played.
+    Section("player_details", lambda _: t("console.workbench.details"),
+            players_page.details, subjects=frozenset({"player"})),
+    Section("player_plays", lambda _: t("console.players.plays"), players_page.plays,
+            subjects=frozenset({"player"}),
+            shown=lambda context: players_page.has_plays(context["player"])),
 )

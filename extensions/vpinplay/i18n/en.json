@@ -7,6 +7,7 @@
   "account.key.label": "Key",
   "account.key.help": "Made when a user ID is first entered. VPinPlay ties the user ID to it.",
   "account.status.no_initials": "Needs initials",
+  "account.share.help": "Makes your tables, play history, ratings and high scores public on VPinPlay",
   "account.status.waiting": {
     "one": "{count} game waiting to send",
     "other": "{count} games waiting to send"

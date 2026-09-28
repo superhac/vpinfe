@@ -471,6 +471,51 @@ class Library:
         show the value that was there before the edit that just happened."""
         return self._client.launchers()
 
+    def players(self) -> list[dict]:
+        """Read fresh every time: a phone or the frontend can change who is up, and a
+        guest can join from either."""
+        return self._client.players()
+
+    def add_player(self, name: str, initials: str) -> dict:
+        return self._client.add_player(name, initials)
+
+    def add_guest(self, initials: str) -> dict:
+        return self._client.add_guest(initials)
+
+    def add_guest_from_card(self, card: str) -> dict:
+        return self._client.add_guest_from_card(card)
+
+    def change_player(self, player_id: str, *, name: str | None = None,
+                      initials: str | None = None) -> dict:
+        return self._client.change_player(player_id, name=name, initials=initials)
+
+    def remove_player(self, player_id: str) -> None:
+        self._client.remove_player(player_id)
+
+    def set_player_up(self, player_id: str, up: bool) -> list[dict]:
+        return self._client.set_player_up(player_id, up)
+
+    def player_record(self, player_id: str) -> list[dict]:
+        return self._client.player_record(player_id)
+
+    def player_accounts(self, player_id: str) -> list[dict]:
+        return self._client.player_accounts(player_id)
+
+    def put_account(self, player_id: str, extension: str, values: dict) -> dict:
+        return self._client.put_account(player_id, extension, values)
+
+    def put_share(self, player_id: str, extension: str, share: bool) -> dict:
+        return self._client.put_share(player_id, extension, share)
+
+    def use_card(self, player_id: str, extension: str, card: str) -> dict:
+        return self._client.use_card(player_id, extension, card)
+
+    def account_act(self, player_id: str, extension: str, act: str) -> dict:
+        return self._client.account_act(player_id, extension, act)
+
+    def player_card(self, player_id: str, extension: str) -> bytes:
+        return self._client.player_card(player_id, extension)
+
     def locations(self) -> dict:
         """Read fresh every time, for the reason launchers are - this page edits it, and
         what the disk says can change without anybody editing anything."""

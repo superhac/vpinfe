@@ -89,6 +89,22 @@ async def get_card(player_id: str, extension: str, request: Request) -> Response
     return _card_file(declared, said)
 
 
+@router.post("/{player_id}/accounts/{extension}/card",
+             summary="Use a card for one of a player's accounts",
+             dependencies=[requires(scopes.PLAYERS_WRITE)])
+async def use_card(player_id: str, extension: str, request: Request,
+                   body: models.GuestCardRequest = Body(...)) -> models.PlayerAccount:
+    """The card's values replace the account's. The player's name, initials and Share
+    stay as they are."""
+    get_roster().player_state(player_id)
+    card = cards.read(body.card)
+    declared = accounts.reading(extension, card)
+    said = await ask(request, extension, "POST", f"{declared['base']}/cards", {"card": card})
+    values = dict((said.get("values") if isinstance(said, dict) else None) or {})
+    written = await ask(request, extension, "PUT", _at(declared, player_id), {"values": values})
+    return _shaped(declared, player_id, written)
+
+
 @router.post("/guests/card", summary="Add a guest from their card", status_code=201,
              dependencies=[requires(scopes.PLAYERS_WRITE)])
 async def add_guest_from_card(request: Request, body: models.GuestCardRequest = Body(...),
@@ -121,7 +137,9 @@ async def _read(request: Request, player_id: str,
     except ApiError as exc:
         return models.PlayerAccount(
             extension=declared["extension"], label=declared["label"], error=why(exc),
-            share=get_roster().sharing(player_id, declared["extension"]))
+            share=get_roster().sharing(player_id, declared["extension"]),
+            share_help=str(declared.get("share_help") or ""),
+            reads_cards=bool(declared.get("cards")))
     return _shaped(declared, player_id, said)
 
 
@@ -132,13 +150,14 @@ def _shaped(declared: dict[str, Any], player_id: str, said: Any) -> models.Playe
     return models.PlayerAccount(
         extension=declared["extension"], label=declared["label"],
         share=get_roster().sharing(player_id, declared["extension"]),
+        share_help=str(declared.get("share_help") or ""),
         fields=[one for one in answer.get("fields") or [] if isinstance(one, dict)],
         status=str(answer.get("status") or ""),
         acts=[models.AccountAct(key=str(one["key"]),
                                 label=str(one.get("label") or one["key"]),
                                 description=str(one.get("description") or ""))
               for one in acts],
-        card=bool(answer.get("card")))
+        card=bool(answer.get("card")), reads_cards=bool(declared.get("cards")))
 
 
 def _card_file(declared: dict[str, Any], said: Any) -> Response:

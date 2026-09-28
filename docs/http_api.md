@@ -244,6 +244,7 @@ the documented entry point is a plain 200. Both spellings work.
 | PUT | `/api/v1/players/{id}/accounts/{extension}/share` | Say whether it shares, `{"share": true}`. Answers the account |
 | POST | `/api/v1/players/{id}/accounts/{extension}/acts/{act}` | Do one of the account's acts. Answers what the extension says came of it |
 | GET | `/api/v1/players/{id}/accounts/{extension}/card` | The player's card, an SVG file. `404` while the extension cannot make one |
+| POST | `/api/v1/players/{id}/accounts/{extension}/card` | Use a card for this account, `{"card": "..."}`, taken as `POST /players/guests/card` takes one. Its values replace the account's; the player's name, initials and Share stay. Answers the account. `400` for a card this extension does not read |
 | GET | `/api/v1/metrics` | What this device is doing now. `history_seconds` adds as much of this session as you ask for; 0 means none |
 | GET | `/api/v1/metrics/gpu` | What the graphics cards are doing. Separate because it shells out to nvtop, and says so where nvtop is missing rather than reporting no cards |
 | GET | `/api/v1/about` | What this install and this device *are* - version, build, OS, browser, and where files live. `text` is the same answer as something to paste into a report |
@@ -1560,10 +1561,11 @@ values. A guest's are held in memory and gone when they are.
 ```json
 {"accounts": [
   {"extension": "scores_site", "label": "Scores Site", "share": false,
+   "share_help": "Posts your scores to Scores Site",
    "fields": [{"key": "user_id", "label": "User ID", "type": "string", "value": "jordan"},
               {"key": "key", "label": "Key", "type": "secret", "set": true}],
    "status": "Sent 2 minutes ago", "acts": [{"key": "send", "label": "Send Now",
-   "description": ""}], "card": true, "error": ""}
+   "description": ""}], "card": true, "reads_cards": true, "error": ""}
 ]}
 ```
 
@@ -1573,6 +1575,8 @@ back as `set`, true or false, by this route and by every route an extension serv
 **Share** is whether the account sends what this install records, and it is core's, kept
 per player per extension in `players.json`. It is off until someone turns it on, except for
 a guest who joined with a card, whose account with that card's extension shares.
+`share_help` is what the extension says Share makes of its account, empty where it says
+nothing.
 
 `error` says why an extension could not answer for its account; the rest is then empty,
 and the other accounts are listed as usual.
@@ -1584,6 +1588,10 @@ text on its own is what `POST /players/guests/card` takes. The extension that re
 kind of card says who it is for, and the guest keeps the card's initials, one to three
 characters, as they are. A VPinPlay card is the one 2.x's *Download QR Code* saved, and a
 card from either version joins on the other.
+
+A card is also how an account moves to an install where its player already is:
+`POST /players/{id}/accounts/{extension}/card` writes the card's values into that player's
+account. `reads_cards` on an account says whether its extension reads any card.
 
 Removing a player, or signing a guest out, forgets their accounts with every extension.
 

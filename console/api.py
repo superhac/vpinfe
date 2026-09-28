@@ -833,6 +833,74 @@ class ApiClient:
         return dict(self._put(f"/launchers/mappings/{table_id}",
                               {"launcher_id": launcher_id}) or {})
 
+    # --- players --------------------------------------------------------------
+
+    def players(self) -> list[dict]:
+        """The owner, the kept players, then the guests as they joined."""
+        return list(self._get("/players").get("players") or [])
+
+    def add_player(self, name: str, initials: str) -> dict:
+        return dict(self._post("/players", {"name": name, "initials": initials}) or {})
+
+    def add_guest(self, initials: str) -> dict:
+        return dict(self._post("/players/guests", {"initials": initials}) or {})
+
+    def add_guest_from_card(self, card: str) -> dict:
+        """`card` is a card file's text, or the card's own text."""
+        return dict(self._post("/players/guests/card", {"card": card}) or {})
+
+    def change_player(self, player_id: str, *, name: str | None = None,
+                      initials: str | None = None) -> dict:
+        body = {key: value for key, value in (("name", name), ("initials", initials))
+                if value is not None}
+        return dict(self._patch(f"/players/{quote(player_id, safe='')}", body) or {})
+
+    def remove_player(self, player_id: str) -> None:
+        """Removes a kept player or signs a guest out, with their accounts and record."""
+        self._delete(f"/players/{quote(player_id, safe='')}")
+
+    def set_player_up(self, player_id: str, up: bool) -> list[dict]:
+        """The whole roster afterwards."""
+        said = self._put(f"/players/{quote(player_id, safe='')}/up", {"up": bool(up)})
+        return list((said or {}).get("players") or [])
+
+    def player_record(self, player_id: str) -> list[dict]:
+        """What a player other than the owner has played, most recently first."""
+        return list(self._get(f"/players/{quote(player_id, safe='')}/record")
+                    .get("games") or [])
+
+    def player_accounts(self, player_id: str) -> list[dict]:
+        """One per running extension that offers an account."""
+        return list(self._get(f"/players/{quote(player_id, safe='')}/accounts")
+                    .get("accounts") or [])
+
+    def _account(self, player_id: str, extension: str) -> str:
+        return f"/players/{quote(player_id, safe='')}/accounts/{quote(extension, safe='')}"
+
+    def put_account(self, player_id: str, extension: str, values: dict) -> dict:
+        return dict(self._put(self._account(player_id, extension), {"values": values}) or {})
+
+    def put_share(self, player_id: str, extension: str, share: bool) -> dict:
+        return dict(self._put(f"{self._account(player_id, extension)}/share",
+                              {"share": bool(share)}) or {})
+
+    def use_card(self, player_id: str, extension: str, card: str) -> dict:
+        """`card` is a card file's text, or the card's own text. Answers the account."""
+        return dict(self._post(f"{self._account(player_id, extension)}/card",
+                               {"card": card}) or {})
+
+    def account_act(self, player_id: str, extension: str, act: str) -> dict:
+        return dict(self._post(f"{self._account(player_id, extension)}/acts/"
+                               f"{quote(act, safe='')}", {}) or {})
+
+    def player_card(self, player_id: str, extension: str) -> bytes:
+        """The card as its SVG file."""
+        path = f"{self._account(player_id, extension)}/card"
+        _refuse_the_event_loop(path)
+        response = self._session.get(f"{self._base}{path}", timeout=_TIMEOUT)
+        self._answered(response)
+        return response.content
+
     # --- imports ------------------------------------------------------------
     # The files themselves are uploaded by the browser straight to the API, so nothing
     # streams through here. What the Console does is the three steps after that: read

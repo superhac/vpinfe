@@ -113,6 +113,11 @@ class TheAccount(VPinPlayCase):
         self.assertEqual((found["status"], found["acts"], found["card"], found["share"]),
                          ("", [], False, False))
 
+    def test_share_says_what_it_makes_public(self) -> None:
+        self.assertEqual(self.account(self.owner)["share_help"],
+                         "Makes your tables, play history, ratings and high scores public "
+                         "on VPinPlay")
+
     def test_a_key_is_minted_when_a_user_id_is_first_entered(self) -> None:
         found = self.fill(self.owner, user_id=" jordan ")
 

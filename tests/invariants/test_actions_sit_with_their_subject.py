@@ -30,6 +30,7 @@ GRID_OF = {
     "location": "locations.py",
     "theme": "themes.py",
     "device": "devices.py",
+    "player": "players.py",
 }
 
 # Direct `ui.button(` calls outside `panel.py`. A count that only comes down: lower it

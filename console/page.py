@@ -46,6 +46,7 @@ from console import logs as logs_page
 from console import media as media_page
 from console import metrics as metrics_page
 from console import panel as panel_parts
+from console import players as players_page
 from console import record as recorder
 from console import settings as settings_page
 from console import themes as themes_page
@@ -135,7 +136,9 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] 
     # Subjects, not settings: both are collections of objects with per-row actions,
     # which is not what a page of (label, value) pairs does. The frontend's *settings*
     # stay in Settings, the way media's do - one holds things, the other holds values.
-    (NAV_FRONTEND, (("launchers", "console.section.launchers", "rocket_launch",
+    (NAV_FRONTEND, (("players", "console.section.players", "person",
+                     install_identity.FRONTEND),
+                    ("launchers", "console.section.launchers", "rocket_launch",
                      install_identity.FRONTEND),
                     ("themes", "console.section.themes", "palette", install_identity.FRONTEND))),
     (NAV_COMMUNITY, ()),
@@ -214,6 +217,7 @@ SECTIONS = {
     "settings": "console.section.settings",
     "launchers": "console.section.launchers",
     "themes": "console.section.themes",
+    "players": "console.section.players",
     "metrics": "console.section.metrics",
     "logs": "console.section.logs",
     "about": "console.section.about",
@@ -291,6 +295,7 @@ EMPTY_PANE = {
     "locations": ("console.page.location", "console.page.select_location"),
     "launchers": ("console.page.launcher", "console.page.select_launcher"),
     "themes": ("console.page.theme", "console.page.select_theme"),
+    "players": ("console.page.player", "console.page.select_player"),
 }
 
 # The pages the pane has a role on. Media is one of them: a row is one game's slot, so
@@ -441,7 +446,8 @@ def reads_before_drawing(view: str, library: Library) -> Callable[[], Any] | Non
 @ui.page("/console", title=t("console.page.vpinfe_console"), reconnect_timeout=300)
 async def console_page(view: str = "", game: str = "", table: str = "", section: str = "",
                    slot: str = "", page: str = "", mode: str = "",
-                   collection: str = "", launcher: str = "", sets: str = "") -> None:
+                   collection: str = "", launcher: str = "", sets: str = "",
+                   player: str = "") -> None:
     """The Console. Query parameters say where in it, so a place can be linked to."""
     # The palette and Quasar's dark mode are two separate switches. The toggle button
     # that used to own the second one is gone, so it is set here - without it the shell
@@ -520,7 +526,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # the front door followed by a jump.
     deeplink.apply(state, {"view": view, "game": game, "table": table,
                            "section": section, "slot": slot, "page": page,
-                           "collection": collection, "launcher": launcher, "sets": sets},
+                           "collection": collection, "launcher": launcher, "sets": sets,
+                           "player": player},
                    views=[key for key, _label, _icon, _feature in nav_items],
                    sections=[item.key for item in workbench.SECTIONS])
 
@@ -1162,6 +1169,17 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                                        state["launcher"], state)
         deeplink.sync(state)
 
+    @on_page
+    async def show_player(row: dict | None) -> None:
+        """What the grid has selected is what the workbench is about, the same rule
+        every other subject follows."""
+        if row and not state["workbench"]:
+            show_workbench(True)
+        state["player"] = (row or {}).get("id")
+        await workbench.build_player(panel, workbench_title, library, state["player"],
+                                     state)
+        deeplink.sync(state)
+
     async def show_location(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about - the same rule
         Games and Collections follow, so the panel needs no control of its own."""
@@ -1295,6 +1313,9 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 launchers_page.build(library, state, show_launcher, redraw)
             elif view == "themes":
                 themes_page.build(library, state, show_theme, redraw)
+            elif view == "players":
+                state["rerender"] = redraw
+                players_page.build(library, state, show_player, redraw)
             elif view == "metrics":
                 metrics_page.build(library, state, redraw)
             elif view == "logs":
@@ -1422,6 +1443,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         arrival = show_collection({"id": state["collection"]})
     elif state["view"] == "launchers" and state.get("launcher"):
         arrival = show_launcher({"id": state["launcher"]})
+    elif state["view"] == "players" and state.get("player"):
+        arrival = show_player({"id": state["player"]})
     elif state["view"] == "devices":
         # Arriving at Devices lands on this device with its rail open, so reaching a
         # setting is the two clicks it was when Settings was a place of its own. It is
@@ -1491,6 +1514,8 @@ def _land(state: dict[str, Any]) -> None:
                      {"game_id": game, "kind": kind, "table": ""})
     elif view == "launchers" and state.get("launcher"):
         grid.land_on(launchers_page.SCOPE, {"id": str(state["launcher"])})
+    elif view == "players" and state.get("player"):
+        grid.land_on(players_page.SCOPE, {"id": str(state["player"])})
     elif view == "collections" and state.get("collection"):
         grid.land_on(collections_page.SCOPE, {"id": str(state["collection"])})
 
@@ -1550,6 +1575,7 @@ def leave_for(state: dict[str, Any], view: str) -> None:
         state["table"] = ""
         state["collection"] = None
         state["launcher"] = None
+        state["player"] = None
         state["sets"] = None
     state["view"] = view
     remembered.put("section", view)

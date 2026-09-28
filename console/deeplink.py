@@ -34,6 +34,7 @@ _FIELDS = (
     ("page", lambda state: state.get("settings_page") or ""),
     ("collection", lambda state: state.get("collection") or ""),
     ("launcher", lambda state: state.get("launcher") or ""),
+    ("player", lambda state: state.get("player") or ""),
     # A setting by its key: the Tables grid arrives on the launcher's tables that set it.
     ("sets", lambda state: state.get("sets") or ""),
 )
@@ -49,7 +50,8 @@ _FIELDS = (
 _PANEL = ("games", "tables", "media", "assets")
 _ONLY_ON = {"game": _PANEL, "table": _PANEL, "section": _PANEL, "slot": _PANEL,
             "page": ("settings",), "collection": ("collections", "games"),
-            "launcher": ("launchers", "tables"), "sets": ("tables",)}
+            "launcher": ("launchers", "tables"), "sets": ("tables",),
+            "player": ("players",)}
 
 
 # What the address calls a panel with nothing open.
@@ -117,3 +119,5 @@ def apply(state: dict[str, Any], params: dict[str, str], *,
         state["launcher"] = str(params["launcher"]).strip()
     if str(params.get("sets") or "").strip():
         state["sets"] = str(params["sets"]).strip()
+    if str(params.get("player") or "").strip():
+        state["player"] = str(params["player"]).strip()

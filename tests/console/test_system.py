@@ -45,11 +45,11 @@ class NavTests(unittest.TestCase):
                                                    "metrics", "logs", "about"])
 
     def test_a_frontend_only_install_opens_on_what_it_has(self) -> None:
-        """Launchers, because that is the first real place such an install holds. It has
+        """Players, because that is the first real place such an install holds. It has
         no library, so there are no Games to open on, and Extensions is never a front
         door."""
         self.assertEqual(page.landing_for(_rail([install_identity.FRONTEND])),
-                         "launchers")
+                         "players")
 
     def test_extensions_is_not_a_front_door(self) -> None:
         """Guaranteed by the order rather than by an exception: Settings is `core`, so
@@ -117,7 +117,7 @@ class NavTests(unittest.TestCase):
                           if parent == page.NAV_FRONTEND]
 
         self.assertEqual([key for key, *_rest in under_frontend[0]],
-                         ["launchers", "themes"])
+                         ["players", "launchers", "themes"])
 
     def test_launchers_goes_with_the_feature_that_launches(self) -> None:
         """An install that curates a library and never starts a game has nothing to run

@@ -7,6 +7,7 @@
   "account.key.label": "Ķèý",
   "account.key.help": "Ḿàđè ŵĥèñ à ûšèř ÎĐ îš ƒîřšţ èñţèřèđ. ṼÞîñÞŀàý ţîèš ţĥè ûšèř ÎĐ ţö îţ.",
   "account.status.no_initials": "Ñèèđš îñîţîàŀš",
+  "account.share.help": "Ḿàķèš ýöûř ţàƀŀèš, þŀàý ĥîšţöřý, řàţîñĝš àñđ ĥîĝĥ šçöřèš þûƀŀîç öñ ṼÞîñÞŀàý",
   "account.status.waiting": {
     "one": "{count} ĝàɱè ŵàîţîñĝ ţö šèñđ",
     "other": "{count} ĝàɱèš ŵàîţîñĝ ţö šèñđ"

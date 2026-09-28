@@ -149,7 +149,8 @@ class Record:
             return {}
         return {**self.account,
                 "label": self.said(self.account["label"], "account.label",
-                                   self.display_name)[0]}
+                                   self.display_name)[0],
+                "share_help": self.said("", "account.share.help")[0]}
 
     def _surfaces(self) -> dict:
         found = dict(self.surfaces)

@@ -41,6 +41,7 @@ VIEWS = (
     ("locations", LAST),
     ("launchers", None),
     ("launchers", f"launcher={VPX}"),
+    ("players", None),
     ("devices", None),
     ("media", None),
     ("assets", None),

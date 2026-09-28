@@ -93,7 +93,10 @@ class ReadingAccounts(AccountsCase):
 
         self.assertEqual(next(one for one in listed if one["name"] == "sample")["account"],
                          {"base": "/accounts", "label": "Sample", "cards": ["sample_card"],
-                          "marker": "sample"})
+                          "marker": "sample", "share_help": ""})
+
+    def test_an_extension_with_no_words_for_share_leaves_them_to_core(self) -> None:
+        self.assertEqual(self.account(self.owner)["share_help"], "")
 
     def test_an_extension_that_holds_no_accounts_is_a_404(self) -> None:
         response = self.client.get(f"/players/{self.owner}/accounts/bystander")
@@ -300,6 +303,73 @@ class Cards(AccountsCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"]["message"],
                          t("error.players.card_unreadable"))
+
+
+class UsingACard(AccountsCase):
+    """A card made elsewhere, taken into an account a player already has here."""
+
+    def use(self, player_id: str, card: str, status: int = 200) -> dict:
+        return self.ok(self.client.post(f"/players/{player_id}/accounts/sample/card",
+                                        json={"card": card}), status)
+
+    def made_elsewhere(self, **more: str) -> str:
+        return cards.drawn({"type": "sample_card", "version": 1, "handle": "far-handle",
+                            "token": TOKEN, "initials": "FAR", **more}, "sample")
+
+    def test_the_card_s_values_become_the_account_s(self) -> None:
+        answered = self.use(self.owner, self.made_elsewhere())
+
+        self.assertEqual(accounts.values("sample", self.owner),
+                         {"handle": "far-handle", "token": TOKEN})
+        self.assertEqual(next(one for one in answered["fields"]
+                              if one["key"] == "token")["set"], True)
+        self.assertEqual(self.secrets_answered(answered), [])
+
+    def test_they_replace_the_values_held(self) -> None:
+        self.fill(self.owner, handle="own-handle", token="tok-old")
+
+        self.use(self.owner, self.made_elsewhere())
+
+        self.assertEqual(accounts.values("sample", self.owner),
+                         {"handle": "far-handle", "token": TOKEN})
+
+    def test_the_player_keeps_their_initials_and_share(self) -> None:
+        self.use(self.owner, self.made_elsewhere())
+
+        owner = players.get_roster().get(self.owner)
+        assert owner is not None
+        self.assertEqual((owner.initials, self.account(self.owner)["share"]), ("OWN", False))
+
+    def test_the_card_s_text_on_its_own_is_taken_too(self) -> None:
+        self.use(self.owner, json.dumps({"type": "sample_card", "version": 1,
+                                         "handle": "h", "token": TOKEN, "initials": "AB"}))
+
+        self.assertEqual(accounts.values("sample", self.owner)["handle"], "h")
+
+    def test_a_card_another_extension_reads_is_refused(self) -> None:
+        response = self.client.post(f"/players/{self.owner}/accounts/sample/card",
+                                    json={"card": '{"type": "elsewhere_card"}'})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["message"],
+                         t("error.players.card_not_for", extension="Sample"))
+        self.assertEqual(accounts.values("sample", self.owner), {})
+
+    def test_a_card_the_extension_will_not_read_writes_nothing(self) -> None:
+        response = self.client.post(f"/players/{self.owner}/accounts/sample/card",
+                                    json={"card": '{"type": "sample_card", "version": 9}'})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(accounts.values("sample", self.owner), {})
+
+    def test_a_player_nobody_has_is_a_404(self) -> None:
+        response = self.client.post("/players/nobody/accounts/sample/card",
+                                    json={"card": self.made_elsewhere()})
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_an_account_says_whether_a_card_can_be_used_for_it(self) -> None:
+        self.assertTrue(self.account(self.owner)["reads_cards"])
 
 
 class SecretsNeverLeave(AccountsCase):
