@@ -935,6 +935,9 @@ def _up_section(state: dict[str, Any], client_for_target: Callable[[], Any],
             return
         redraw()
 
+    def flip(player_id: str) -> Callable[[Any], Any]:
+        return lambda e: toggle(player_id, bool(e.value))
+
     if identity is not None:
         mine = next((one for one in players if one.get("id") == identity.get("id")),
                     identity)
@@ -948,7 +951,7 @@ def _up_section(state: dict[str, Any], client_for_target: Callable[[], Any],
         if identity.get("guest"):
             with ui.row().classes("w-full items-center justify-between console-card"):
                 ui.label(shown_name(mine)).classes("remote-headline")
-                panel.switch(True, lambda e: toggle(str(mine["id"]), bool(e.value)))()
+                panel.switch(True, flip(str(mine["id"])))()
             return
 
     with ui.column().classes("w-full gap-0 console-card"):
@@ -956,8 +959,7 @@ def _up_section(state: dict[str, Any], client_for_target: Callable[[], Any],
         for player in players:
             with ui.row().classes("w-full items-center justify-between remote-up-row"):
                 ui.label(shown_name(player)).classes("remote-row-name")
-                panel.switch(bool(player.get("up")),
-                             lambda e, pid=player["id"]: toggle(str(pid), bool(e.value)))()
+                panel.switch(bool(player.get("up")), flip(str(player["id"])))()
 
 
 def _idle(state: dict[str, Any], client_for_target: Callable[[], Any],
