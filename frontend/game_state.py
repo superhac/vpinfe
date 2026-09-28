@@ -45,7 +45,7 @@ from common.games.game_metadata import (
 from common.games.media_lookup import resolved_kinds
 from common.games.tables import entry_file
 from common.media_specs import game_media_payload
-from common.shared_assets import manufacturer_logo_web_path
+from common.manufacturer_logos import manufacturer_logo_url
 from common.timestamps import epoch_to_iso
 from common.values import is_truthy
 from frontend.input_api import PAGING_GROUP_ALIASES, PAGING_GROUP_DEFAULT
@@ -120,7 +120,7 @@ def _legacy_row(game: Game, logo_cache: dict[str, str | None]) -> dict:
     row.update(game_media_payload(game))
     maker = game_manufacturer(game)
     if maker not in logo_cache:
-        logo_cache[maker] = manufacturer_logo_web_path(maker)
+        logo_cache[maker] = manufacturer_logo_url(maker)
     row["ManufacturerLogoPath"] = logo_cache[maker]
     return row
 
@@ -141,7 +141,7 @@ def _entry_row(entry: Entry, logo_cache: dict[str, str | None],
     vpinfe = vpinfe_section(meta)
     maker = game_manufacturer(game)
     if maker not in logo_cache:
-        logo_cache[maker] = manufacturer_logo_web_path(maker)
+        logo_cache[maker] = manufacturer_logo_url(maker)
     return {
         "game": {
             "id": game_identity.game_id(game),

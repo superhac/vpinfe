@@ -149,7 +149,7 @@ At `contract: 2` the payload is an object, and the list you iterate is `entries`
         "name": "Attack from Mars", "manufacturer": "Bally",
         "year": "1995", "type": "SS", "themes": ["Aliens"],
         "dir_name": "Attack from Mars (Bally 1995)",
-        "manufacturer_logo": "/assets/manufacturers/bally.png",
+        "manufacturer_logo": "/manufacturers/bally/logo",
         "created_at": "2026-08-01T09:30:00Z",
         "path": "/games/Attack from Mars (Bally 1995)",
         "user": { "rating": 4, "favorite": false, "tags": [],
@@ -194,7 +194,7 @@ the game it belongs to attached.
 | `entries[].assets` | What the game needs to play as intended, as booleans. |
 | `entries[].siblings` | How many tables this entry's game offers. `1` means there is nothing to switch to. |
 | `entries[].media` | The media kinds this game **has a file for**: `playfield`, `backglass`, `wheel` and the rest, the same names `vpin.getMedia(index, kind)` takes. Names, not paths: fetch one from `/media/<table id>/<kind>`. |
-| `entries[].game.manufacturer_logo` | Web path to the manufacturer's shared logo, or `null`. Art about the manufacturer rather than about this game, which is why it is not a media kind. |
+| `entries[].game.manufacturer_logo` | Web path to the manufacturer's logo, `/manufacturers/<slug>/logo`, or `null`. Art about the manufacturer rather than about this game, which is why it is not a media kind. |
 | `entries[].game.created_at` | When the game's folder appeared, ISO 8601 UTC, or `null` where the filesystem gave no answer. What a "Newest" sort orders on. |
 
 **`detects` loses the `detect_` prefix.** `table.detects.ssf`, not `detect_ssf` — the
@@ -1534,7 +1534,7 @@ Returns the same priority-aware selection with metadata: `{ url, kind, priority,
 Returns an HTTP URL for a game's audio file, or `null` if no audio exists. See [Audio Support](#audio-support).
 
 #### getManufacturerLogoURL(index)
-Returns an HTTP URL for the game manufacturer's logo, or `null` if none is installed. Logos live in the shared assets folder (`[Settings] assetsdir`, `manufacturers/` subfolder) and are matched to the game's `Info.Manufacturer` metadata, so "Williams Electronics" and "Williams" find the same file. Always handle `null` — a fresh install has no logos.
+Returns an HTTP URL for the game manufacturer's logo, or `null` if none is installed. Logos live in the manufacturer logos folder (`media.manufacturer_logos_dir`) and are matched to the game's `Info.Manufacturer` metadata, so "Williams Electronics" and "Williams" find the same file. Always handle `null`: a fresh install has no logos.
 
 #### playTableAudio(indexOrUrl, retries=3)
 Plays game audio via VPinFECore's centralized audio manager. Normally you pass `currentGameIndex`; passing a URL string is also supported.
@@ -1796,11 +1796,12 @@ Matching is case-insensitive. A hand-placed `wheel.jpg` resolves; it does not ha
 table-specific wheel still wins and a media refresh never beats the set. A theme picks the
 set it wants with `wheelSet` in its `theme.json`.
 
-### Shared assets
+### Manufacturer logos
 
-Manufacturer logos are art about the manufacturer, not about a game, so they live under
-`/assets/` and are not a media kind. `vpin.getManufacturerLogoURL(index)` returns one, and
-`entry.game.manufacturer_logo` carries the web path.
+Manufacturer logos are art about the manufacturer, not about a game, so they are not a
+media kind and are served at `/manufacturers/<slug>/logo`. `vpin.getManufacturerLogoURL(index)`
+returns one, and `entry.game.manufacturer_logo` carries the web path. Neither says which
+layer a logo came from or what kind of image it is, so use the URL as given.
 
 ### Reaching media from a theme
 

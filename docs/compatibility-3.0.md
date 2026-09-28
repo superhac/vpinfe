@@ -149,17 +149,17 @@ in the standalone export bundle. Detection is deliberately narrow — never a bl
 *Why:* whoever made the table wrote those notes for whoever installs it; now they arrive.
 Covered by `tests/media/test_asset_analyzer.py` and `tests/media/test_export_bundle.py`.
 
-**PAR-15 — Manufacturer logos, served from a shared assets root.**
-*(machine-checked)* Themes gain one payload field, `ManufacturerLogoPath`: a
-`/assets/`-relative web path to the game manufacturer's logo, or `null` when there is
-none — which is every install today, since nothing ships and nothing downloads yet. The
-assets root is `[Settings] assetsdir` (default: `assets/` under the config dir), served
-at `/assets/`, with `manufacturers/user/` overriding `manufacturers/default/`. Lookup
-normalizes the VPSdb manufacturer string ("Williams Electronics" finds `williams.png`)
-with a `manufacturers.json` alias map for the exceptions.
+**PAR-15 — Manufacturer logos, served from a folder of their own.**
+*(machine-checked)* Themes gain one payload field, `ManufacturerLogoPath`: the web path
+`/manufacturers/<slug>/logo` of the game manufacturer's logo, or `null` when there is
+none, which is every install today, since nothing ships and nothing downloads yet. The
+folder is `media.manufacturer_logos_dir` (default: `manufacturer_logos/` under the config
+dir), with `user/` overriding `default/`. Lookup normalizes the VPSdb manufacturer string
+("Williams Electronics" finds `williams.png`) with a `manufacturers.json` alias map for
+the exceptions.
 *Why:* manufacturer is already a first-class metadata and filter dimension; themes just
-had nothing to render for it. A shared root exists because a manufacturer logo is neither
-per-game nor per-theme. Covered by `tests/media/test_shared_assets.py`.
+had nothing to render for it. A folder of its own exists because a manufacturer logo is
+neither per-game nor per-theme. Covered by `tests/media/test_manufacturer_logos.py`.
 
 **PAR-16 — Game files can be hidden, and several are peers rather than one default.**
 A game folder can hold more than one launchable `.vpx` — a desktop table and a VR build,

@@ -39,7 +39,7 @@ class ManufacturerEndpointTests(unittest.TestCase):
         from unittest.mock import patch
 
         from common.games.game import Game
-        from common.shared_assets import configure_shared_assets
+        from common.manufacturer_logos import configure_manufacturer_logos
 
         def _game(folder: str, manufacturer: str) -> Game:
             return fake_game(f"/games/{folder}", folder,
@@ -52,11 +52,11 @@ class ManufacturerEndpointTests(unittest.TestCase):
         }
 
         with TemporaryDirectory() as tmp:
-            root = Path(tmp) / "assets"
-            (root / "manufacturers" / "default").mkdir(parents=True)
-            (root / "manufacturers" / "default" / "bally.png").write_bytes(b"png")
-            configure_shared_assets(root)
-            self.addCleanup(configure_shared_assets, None)
+            root = Path(tmp) / "manufacturer_logos"
+            (root / "default").mkdir(parents=True)
+            (root / "default" / "bally.png").write_bytes(b"png")
+            configure_manufacturer_logos(root)
+            self.addCleanup(configure_manufacturer_logos, None)
 
             with patch("httpapi.manufacturers._vps_names",
                        return_value=["Bally Manufacturing", "Bally Wulff"]), \
@@ -66,8 +66,7 @@ class ManufacturerEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         rows = {row["name"]: row for row in response.json()["manufacturers"]}
         self.assertEqual(rows["Bally Manufacturing"]["slug"], "bally")
-        self.assertEqual(rows["Bally Manufacturing"]["logo"],
-                         "/assets/manufacturers/default/bally.png")
+        self.assertEqual(rows["Bally Manufacturing"]["logo"], "/manufacturers/bally/logo")
         self.assertEqual(rows["Bally Manufacturing"]["games"], 2)
         self.assertIsNone(rows["Bally Wulff"]["logo"])
         self.assertEqual(rows["Bally Wulff"]["games"], 0)

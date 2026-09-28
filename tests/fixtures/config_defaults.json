@@ -1,7 +1,4 @@
 {
-  "assets": {
-    "dir": ""
-  },
   "behavior": {
     "confirm": "false",
     "hide_quit_button": "false",
@@ -82,6 +79,7 @@
   "media": {
     "browse_dirs": "",
     "default_missing_image": "",
+    "manufacturer_logos_dir": "",
     "playfield_resolution": "4k",
     "playfield_variant": "table",
     "playfield_video_resolution": "1k",

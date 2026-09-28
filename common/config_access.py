@@ -157,7 +157,6 @@ class SettingsConfig:
     colliding with every one of these names.
     """
 
-    assets_dir: str = ""
     rar_tool_path: str = ""
     theme: str = "Revolution"
     startup_collection: str = ""
@@ -168,12 +167,12 @@ class SettingsConfig:
     hide_quit_button: bool = False
     restore_last_table: bool = True
     media_browse_dirs: tuple[str, ...] = ()
+    manufacturer_logos_dir: str = ""
 
     @classmethod
     def from_config(cls, source: Any) -> SettingsConfig:
         theme = cfg_get(source, "Settings", "theme", "Revolution").strip() or "Revolution"
         return cls(
-            assets_dir=cfg_get(source, "Settings", "assetsdir", "").strip(),
             rar_tool_path=cfg_get(source, "Settings", "rartoolpath", "").strip(),
             theme=theme,
             startup_collection=cfg_get(source, "behavior", "startup_collection", "").strip(),
@@ -184,9 +183,11 @@ class SettingsConfig:
                 source, "Settings", "disabledefaultchromeoptions", False),
             hide_quit_button=cfg_bool(source, "Settings", "MMhideQuitButton", False),
             restore_last_table=cfg_bool(source, "Settings", "restorelasttable", True),
-            # Canonical section, not the "Settings" alias the rest of these carry: this
-            # one is new in 3.0 and never lived anywhere else.
+            # Canonical section, not the "Settings" alias the rest of these carry: these
+            # are new in 3.0 and never lived anywhere else.
             media_browse_dirs=tuple(cfg_list(source, "media", "browse_dirs")),
+            manufacturer_logos_dir=cfg_get(source, "media", "manufacturer_logos_dir",
+                                           "").strip(),
         )
 
 

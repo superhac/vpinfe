@@ -16,6 +16,7 @@ import posixpath
 import re
 import threading
 from functools import partial
+from pathlib import Path
 from socketserver import ThreadingTCPServer
 from typing import Any
 from urllib.parse import unquote, urlsplit
@@ -346,7 +347,10 @@ class CustomHTTPServer:
             if path is None:
                 self.send_error(404, "No such media")
                 return True
+            self._serve_revalidated(path)
+            return True
 
+        def _serve_revalidated(self, path: Path) -> None:
             # Validated by ETag rather than a version baked into the URL: a token in the
             # payload would mean stat-ing every resolved file of every game on every
             # build, and the browser already knows how to ask "has this changed".
@@ -356,16 +360,28 @@ class CustomHTTPServer:
                 self.send_response(304)
                 self.send_header("ETag", etag)
                 self.end_headers()
-                return True
+                return
 
             self._serve_file(str(path), extra_headers={
                 "ETag": etag,
-                # Revalidate rather than trust: replacing art in the Manager UI has to
-                # show up, and a conditional GET to localhost costs a fraction of a
-                # millisecond.
+                # Revalidate rather than trust: replacing art has to show up, and a
+                # conditional GET to localhost costs a fraction of a millisecond.
                 "Cache-Control": "no-cache",
             })
-            return True
+
+        def _serve_manufacturer_logo(self, request_path: str) -> None:
+            """/manufacturers/<slug>/logo - the logo the payload names, from either
+            layer."""
+            from common.manufacturer_logos import manufacturer_logo_file
+
+            parts = [p for p in unquote(request_path)[len("/manufacturers/"):].split("/")
+                     if p]
+            path = manufacturer_logo_file(parts[0]) \
+                if len(parts) == 2 and parts[1] == "logo" else None
+            if path is None:
+                self.send_error(404, "No such logo")
+                return
+            self._serve_revalidated(path)
 
         def _serve_game_file(self, request_path: str) -> bool:
             """/tables/<folder>/<file> - a file in a game's folder, found by the folder's
@@ -486,6 +502,9 @@ class CustomHTTPServer:
             if request_path.startswith("/tables/"):
                 if self._serve_game_file(request_path):
                     return
+            if request_path.startswith("/manufacturers/"):
+                self._serve_manufacturer_logo(request_path)
+                return
 
             range_header = self.headers.get('Range')
             if not range_header:

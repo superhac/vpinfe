@@ -108,10 +108,10 @@ describe("every url the page builds comes from the block", () => {
   test("the manufacturer logo resolves against the asset server", () => {
     const vpin = withPorts("?window=table&themeAssetsPort=9000");
     vpin.tableData = [{}];
-    vpin._reader = { logo: () => "/assets/manufacturers/default/bally.png" };
+    vpin._reader = { logo: () => "/manufacturers/bally/logo" };
 
     assert.equal(vpin.getManufacturerLogoURL(0),
-                 "http://127.0.0.1:9000/assets/manufacturers/default/bally.png");
+                 "http://127.0.0.1:9000/manufacturers/bally/logo");
   });
 
   test("the frontend channel is dialled at its own endpoint", () => {

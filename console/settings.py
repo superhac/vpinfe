@@ -769,7 +769,7 @@ DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
     )),
     ("console.settings.group_library", (
         ("library.media", "console.settings.page_media", SCHEMA_PAGE, ("media",), "library"),
-        ("library.assets", "console.settings.page_assets", SCHEMA_PAGE, ("assets",), "library"),
+        ("library.assets", "console.settings.page_assets", SCHEMA_PAGE, (), "library"),
         ("library.audit", "console.settings.page_audit", SCHEMA_PAGE, (), "library"),
         ("library.updates", "console.settings.page_updates", SCHEMA_PAGE, ("updates",),
                 "library"),
@@ -796,7 +796,7 @@ PAGE_KINDS: dict[str, tuple[tuple[str, str, str], ...]] = {
     "library.audit": (("library_checks", "", ""),),
     "library.media": (("media_kinds", "console.settings.heading_kinds", "Local Sources"),
               ("media_sources", "console.settings.heading_online_sources", "Wheels")),
-    "library.assets": (("asset_kinds", "console.settings.heading_kinds", "Local Sources"),),
+    "library.assets": (("asset_kinds", "", ""),),
 }
 
 

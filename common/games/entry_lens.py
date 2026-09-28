@@ -23,7 +23,7 @@ from common.games.game_metadata import (
     table_descriptor,
 )
 from common.games.media_lookup import resolved_kinds
-from common.shared_assets import manufacturer_logo_web_path
+from common.manufacturer_logos import manufacturer_logo_url
 from common.timestamps import epoch_to_iso
 
 
@@ -51,7 +51,7 @@ def entry_resource(entry: Entry, group: str | None = None) -> dict:
             "type": game_type(entry.game),
             "themes": game_themes(entry.game),
             "dir_name": str(entry.game.game_dir_name or ""),
-            "manufacturer_logo": manufacturer_logo_web_path(maker),
+            "manufacturer_logo": manufacturer_logo_url(maker),
             "created_at": epoch_to_iso(getattr(entry.game, "creation_time", None)) or None,
             "rating": game_rating(entry.game),
             "user": play_record(meta),

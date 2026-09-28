@@ -565,18 +565,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ConfigOption("encode_command", type="string", default="",
                      group=setting_groups.COMMANDS, editor=EDITOR_CAPTURE_COMMAND, legacy=()),
     ),
-    # Art a theme or the frontend draws that is not a game's own.
-    *in_section(
-        "assets",
-        ConfigOption(
-            "dir",
-            group=setting_groups.LOCAL_SOURCES,
-            type="string",
-            path="dir",
-            default="",
-            legacy=(("general", "assetsdir"),),
-        ),
-    ),
     # What this install does to the library on its own, as against `media`, which is what
     # it collects. Drawn in this order, with the spreadsheet's Last checked / Check now
     # under the whole section: `download_spreadsheet` stays last so the two sit together.
@@ -832,6 +820,15 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "browse_dirs",
             group=setting_groups.LOCAL_SOURCES,
             type="list",
+            default="",
+            legacy=(),
+        ),
+        # Art keyed by a game's manufacturer rather than owned by one game.
+        ConfigOption(
+            "manufacturer_logos_dir",
+            group=setting_groups.LOCAL_SOURCES,
+            type="string",
+            path="dir",
             default="",
             legacy=(),
         ),

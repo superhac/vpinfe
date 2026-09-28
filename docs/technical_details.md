@@ -117,12 +117,6 @@ Runtime state written by VPinFE, not shown as a setting.
 | `record_command` | string |  | The command that records each screen. Left empty, VPinFE's own runs |
 | `encode_command` | string |  | Turns each recording into the stored file. Left empty, VPinFE's own runs |
 
-### `assets`
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `dir` | string |  | Root folder for assets shared across games rather than owned by one, such as manufacturer logos. Served at /assets/. |
-
 ### `updates`
 
 | Key | Type | Default | Description |
@@ -184,6 +178,7 @@ Runtime state written by VPinFE, not shown as a setting.
 | `playfield_resolution` | choice (4k, 1k) | `4k` | Playfield Resolution |
 | `playfield_video_resolution` | choice (4k, 1k) | `1k` | Playfield Video Resolution |
 | `browse_dirs` | list |  | Extra folders you can pick artwork from by hand. Your game library is always available; anywhere else has to be listed here first. |
+| `manufacturer_logos_dir` | string |  | Logos a theme can show for a game's manufacturer. Your own go in its user folder and win over a downloaded pack's in default. |
 | `wheelset` | string |  | Which wheel art set to use, as a folder under a game's medias/wheels/. The name logo shows each game's own logo instead. A theme can override this. |
 | `default_missing_image` | string |  | Default Missing Media Image |
 | `thumb_cache_max_mb` | int | `500` | Thumbnail Cache Max (MB) |

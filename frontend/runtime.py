@@ -161,20 +161,23 @@ def build_mount_points(base_path: str, config_dir: Path,
     }
     settings = SettingsConfig.from_config(iniconfig)
 
-    from common.shared_assets import configure_shared_assets, resolve_assets_dir
+    from common.manufacturer_logos import (
+        configure_manufacturer_logos,
+        layer_dirs,
+        resolve_logos_dir,
+    )
 
-    assets_dir = resolve_assets_dir(settings.assets_dir, config_dir)
-    for layer in ("default", "user"):
-        os.makedirs(assets_dir / "manufacturers" / layer, exist_ok=True)
-    configure_shared_assets(assets_dir)
-    mount_points["/assets/"] = os.path.abspath(assets_dir)
+    logos_dir = resolve_logos_dir(settings.manufacturer_logos_dir, config_dir)
+    for layer in layer_dirs(logos_dir):
+        os.makedirs(layer, exist_ok=True)
+    configure_manufacturer_logos(logos_dir)
 
     # Refresh the manufacturer reference from the cached VPSdb, off the boot
     # path - it exists for people reading it between runs, so boot is the one
     # guaranteed refresh even when no sync happens this session.
     def _refresh_reference() -> None:
+        from common.manufacturer_logos import vps_manufacturer_names, write_manufacturer_reference
         from common.paths import CONFIG_DIR
-        from common.shared_assets import vps_manufacturer_names, write_manufacturer_reference
 
         names = vps_manufacturer_names(CONFIG_DIR / "vpsdb.json")
         if names:

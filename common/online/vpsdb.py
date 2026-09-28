@@ -131,7 +131,7 @@ class VPSdb:
         never allowed to break loading the database.
         """
         try:
-            from common.shared_assets import write_manufacturer_reference
+            from common.manufacturer_logos import write_manufacturer_reference
             names = {str(t.get("manufacturer", "")) for t in self.data or []
                      if isinstance(t, dict)}
             write_manufacturer_reference(names)

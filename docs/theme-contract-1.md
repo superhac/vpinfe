@@ -65,7 +65,7 @@ should normally call.
 | `AudioPath` | `audio.mp3` | Per-game audio. |
 | `AudioLaunchPath` | `audiolaunch.mp3` | Audio played on launch. |
 | `RuleSheetPath` | `rulesheet.pdf` | Rule sheet document. |
-| `ManufacturerLogoPath` | — | **Web** path under `/assets/`, unlike every other `*Path` here. Use `vpin.getManufacturerLogoURL(index)`. |
+| `ManufacturerLogoPath` | — | **Web** path, `/manufacturers/<slug>/logo`, unlike every other `*Path` here. Use `vpin.getManufacturerLogoURL(index)`. |
 
 ### Addon flags
 

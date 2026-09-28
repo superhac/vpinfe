@@ -355,12 +355,6 @@
   ],
   [
     "Settings",
-    "assetsdir",
-    "assets",
-    "dir"
-  ],
-  [
-    "Settings",
     "cabmode",
     "presentation",
     "cab_mode"
@@ -478,12 +472,6 @@
     "MMhideQuitButton",
     "behavior",
     "hide_quit_button"
-  ],
-  [
-    "general",
-    "assetsdir",
-    "assets",
-    "dir"
   ],
   [
     "general",
