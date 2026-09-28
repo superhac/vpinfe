@@ -20,6 +20,7 @@ from nicegui import ui
 from common import icons
 from common.i18n import t
 from console import game_tables, list_art, offload, tag_chips, verbs
+from console.on_page import on_page
 
 # Rows that are not a fact. A group's title and an action strip span both columns, so
 # every group keeps the one shared label width.
@@ -266,11 +267,17 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
     and answers the path chosen, or nothing where browsing was cancelled; a path it
     answers goes through `leave` exactly as typing and leaving does.
     """
-    async def leave(control: ui.input) -> None:
-        said = on_save(control.value or "")
+    held = {"was": value or ""}
+
+    async def leave(control: ui.input, text: str) -> None:
+        if text == held["was"]:
+            return
+        said = on_save(text)
         if inspect.isawaitable(said):
             said = await said
-        if refuses:
+        if not (refuses and said):
+            held["was"] = text
+        if refuses and not control.is_deleted:
             if said:
                 control.props["error"] = True
                 control.props["error-message"] = str(said)
@@ -292,7 +299,7 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
                 control.value = value
                 control.props("dense borderless debounce=0") \
                     .classes("console-edit-field")
-                control.on("blur", lambda: leave(control))
+                control.on("blur", lambda: leave(control, control.value or ""))
                 control.on("keydown.enter", lambda: control.run_method("blur"))
                 if left_empty:
                     with control:
@@ -303,11 +310,14 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
                         if status is not None:
                             status(control)
                         if browse is not None:
+                            @on_page
                             async def _browsed() -> None:
                                 chosen = await browse(control.value or "")
-                                if chosen:
+                                if not chosen:
+                                    return
+                                if not control.is_deleted:
                                     control.value = chosen
-                                    await leave(control)
+                                await leave(control, chosen)
 
                             ui.button(icon=verbs.BROWSE, on_click=_browsed) \
                                 .props("flat round dense") \
