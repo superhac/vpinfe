@@ -226,6 +226,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/config` | What this install is set to, by section and key |
 | PUT | `/api/v1/config` | Change settings, `{section: {key: value}}`. A patch: only what is sent is written |
 | GET | `/api/v1/config/paths` | Whether each path setting finds anything on this device |
+| GET | `/api/v1/config/tools` | Each Tool - a program VPinFE runs and does not ship, such as unar or ffmpeg - as this device finds it when asked: `state` (`found`, `missing`, `unusable`, `not_here`), the `path` and `version` found, `set_here` where its `setting` is what found it. A missing or unusable one carries `fix: "user"` and a `remedy` of `key`, `params` and `setting`, rendered with the setting's label and the Settings section as its `setting` and `section` slots; an unusable one also a `reason` of `key` and `params` |
 | GET | `/api/v1/preferences/{scope}` | A stored UI arrangement |
 | PUT | `/api/v1/preferences/{scope}` | Store one. The body is the whole value |
 | GET | `/api/v1/locations` | Every location this install looks in, in order, each with what the disk says about it now |

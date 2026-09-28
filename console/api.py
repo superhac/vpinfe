@@ -959,6 +959,10 @@ class ApiClient:
         disk, so it is answered by that install and not worked out from the value."""
         return list(self._get("/config/paths").get("checks") or [])
 
+    def config_tools(self) -> list[dict]:
+        """Each Tool as the install finds it on its own disk and PATH."""
+        return list(self._get("/config/tools").get("tools") or [])
+
     def put_config(self, changes: dict) -> dict:
         """A patch, section then key. Refused whole if any key is unknown."""
         return dict(self._put("/config", changes).get("values") or {})

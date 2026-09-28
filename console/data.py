@@ -565,6 +565,10 @@ class Library:
         good, and a cached answer would be about the value it replaced."""
         return self._client.config_path_checks()
 
+    def config_tools(self) -> list[dict]:
+        """Never cached, for the same reason."""
+        return self._client.config_tools()
+
     def devices(self) -> list[dict]:
         """Never cached: the page holding a device reads this back after changing it,
         and a cached copy would hand it the value it just replaced."""

@@ -695,6 +695,45 @@ class ConfigPathChecks(ApiModel):
     checks: list[ConfigPathCheck]
 
 
+class Said(ApiModel):
+    """Words as a catalog key and the values for its slots, rendered where they are read
+    so each reader says them in its own language."""
+
+    key: str
+    params: dict[str, str] = {}
+
+
+class ToolRemedy(Said):
+    """What to do about a Tool, and the setting that points at one instead. The hint's
+    `setting` and `section` slots are that setting's label and the Settings section."""
+
+    setting: str
+
+
+class ConfigTool(ApiModel):
+    """One Tool on this device, as discovery finds it when asked.
+
+    `state` is `found`, `missing`, `unusable` (found, and it does not run) or `not_here`
+    (nothing to look for on this platform). `set_here` says the setting is what found it.
+    `fix` is `user` where a person has to act and `none` otherwise.
+    """
+
+    id: str
+    name: str
+    setting: str
+    state: str
+    path: str = ""
+    version: str = ""
+    set_here: bool = False
+    reason: Said | None = None
+    fix: str
+    remedy: ToolRemedy | None = None
+
+
+class ConfigTools(ApiModel):
+    tools: list[ConfigTool]
+
+
 class ConfigValues(ApiModel):
     """Values keyed section then key, typed as the store types them. A setting the file
     omits answers its default, which is what the install is running on."""

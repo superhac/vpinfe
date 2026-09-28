@@ -359,6 +359,11 @@ esac""")
                          {"libx264", "h264_videotoolbox", "png", "libvpx-vp9", "libmp3lame"})
         self.assertEqual(probe.can[tools.INPUTS], {"avfoundation", "pulse", "lavfi"})
 
+    def test_a_program_that_lists_no_encoder_is_not_ffmpeg(self) -> None:
+        says_nothing = _program(self.root, "ffmpeg")
+
+        self.assertEqual(tools.FFMPEG.probe(says_nothing).reason, tools.FAILED)
+
     def test_what_grim_can_do_is_what_its_help_lists(self) -> None:
         grim = self._answering("grim", **{"-h": GRIM_HELP})
 

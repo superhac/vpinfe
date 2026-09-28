@@ -396,9 +396,12 @@ def trouble_mark(reason: str = "") -> Callable[[], None]:
 # nothing - an optional path left empty is a choice - and a feature's requirement left
 # empty is the thing that broke it.
 REQUIRED = "required"
+# A program that is there and does not run.
+UNUSABLE = "unusable"
 
 _VALUE_STATES = {
     REQUIRED: ("cancel", "negative"),
+    UNUSABLE: ("error", "warning"),
     "ok": ("check_circle", "positive"),
     "missing": ("cancel", "negative"),
     "wrong_kind": ("cancel", "negative"),

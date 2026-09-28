@@ -285,8 +285,11 @@ _INPUT_DEVICE = re.compile(r"^ D[E. ] +(\w+) ", re.MULTILINE)
 @probing
 def _ffmpeg(path: Path) -> Probe:
     version = version_in(ask(path, "-hide_banner", "-version"))
+    encoders = frozenset(_ENCODER.findall(ask(path, "-hide_banner", "-encoders")))
+    if not encoders:
+        raise _FailedError(0)
     return Probe(True, version, {
-        ENCODERS: frozenset(_ENCODER.findall(ask(path, "-hide_banner", "-encoders"))),
+        ENCODERS: encoders,
         INPUTS: frozenset(_INPUT_DEVICE.findall(ask(path, "-hide_banner", "-devices"))),
     })
 

@@ -24,6 +24,7 @@ from nicegui import run, ui
 from common import config_schema, feature_checks, install_identity, path_checks, tokens
 from common.failures import why
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
+from common.host import tools
 from common.i18n import t
 from common.labels import humanize
 from common.media_specs import media_label_map
@@ -822,6 +823,74 @@ def field_marks(items: Any, checks: list[dict]) -> dict[tuple[str, str], dict]:
     return found
 
 
+TOOLS = "tools"
+
+
+def with_discovery(schema: list[dict], found: list[dict]) -> list[dict]:
+    """The Tools section with a row only for each Tool this device could run, and each
+    field saying what it stands for left empty."""
+    rows = {str(row.get("setting") or ""): row for row in found}
+    drawn = []
+    for block in schema:
+        if block.get("name") != TOOLS:
+            drawn.append(block)
+            continue
+        options = []
+        for option in block.get("options") or []:
+            row = rows.get(f"{TOOLS}.{option.get('key')}")
+            if row is None:
+                options.append(option)
+            elif row.get("state") != tools.State.NOT_HERE:
+                options.append({**option, **_left_empty(row)})
+        drawn.append({**block, "options": options})
+    return drawn
+
+
+def _left_empty(row: dict) -> dict[str, str]:
+    """The empty field's words, and its tooltip."""
+    state = row.get("state")
+    path = str(row.get("path") or "")
+    if state == tools.State.FOUND:
+        version = str(row.get("version") or "")
+        return {"blank": (t("console.settings.tool_found", path=path, version=version)
+                          if version else t("console.settings.tool_found_at", path=path)),
+                "left_empty": path}
+    if state == tools.State.UNUSABLE:
+        return {"blank": t("console.settings.tool_unusable", path=path),
+                "left_empty": tools.words(row.get("reason") or {})}
+    return {"blank": t("word.not_found"), "left_empty": tools.words(row.get("remedy") or {})}
+
+
+def tool_marks(found: list[dict], values: dict,
+               marks: dict[tuple[str, str], dict]) -> dict[tuple[str, str], dict]:
+    """`marks`, with each set Tool path whose program is there and does not run marked."""
+    held = dict(values.get(TOOLS) or {})
+    marked = dict(marks)
+    for row in found:
+        section, _, key = str(row.get("setting") or "").partition(".")
+        if not str(held.get(key) or "").strip() \
+           or (marked.get((section, key)) or {}).get("state") != path_checks.OK:
+            continue
+        if row.get("state") == tools.State.UNUSABLE and row.get("set_here"):
+            said = tools.words(row.get("reason") or {})
+        elif row.get("state") == tools.State.FOUND and not row.get("set_here"):
+            said = t("console.settings.tool_used_instead", path=str(row.get("path") or ""))
+        else:
+            continue
+        marked[(section, key)] = {"state": panel.UNUSABLE, "reason": said}
+    return marked
+
+
+async def _tools_found(library: Library, sections: tuple[str, ...]) -> list[dict]:
+    if TOOLS not in sections:
+        return []
+    try:
+        return await offload.io(library.config_tools)
+    except Exception as exc:  # noqa: BLE001 - the fields are drawn without it
+        logger.warning("Could not read what the Tools found: %s", why(exc))
+        return []
+
+
 def local_trouble() -> list[Any]:
     """What this install's enabled features are missing.
 
@@ -1064,6 +1133,10 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
             panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings"),
                                          hint=why(exc))])
         return
+    marks = field_marks(trouble, checks)
+    if found := await _tools_found(library, sections):
+        schema = with_discovery(schema, found)
+        marks = tool_marks(found, values, marks)
     blocks = []
     for registry, heading, above in PAGE_KINDS.get(key, ()):
         rows = await _kind_rows(library, redraw, registry)
@@ -1072,8 +1145,7 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
     with body:
         page_head(key)
         await build_device_page(library, {"library": library, "rebuild": redraw},
-                                schema, values, sections,
-                                checks=field_marks(trouble, checks),
+                                schema, values, sections, checks=marks,
                                 suggestions=offered, blocks=blocks)
 
 

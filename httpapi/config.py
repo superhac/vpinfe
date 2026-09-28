@@ -13,6 +13,7 @@ from fastapi import APIRouter, Body
 
 from common import config_service
 from common.failures import why
+from common.host import tools
 from common.i18n import t
 from common.paths import get_ini_config
 from frontend import theme_windows
@@ -46,6 +47,13 @@ def get_path_checks() -> models.ConfigPathChecks:
     caller is not otherwise allowed to look.
     """
     return models.ConfigPathChecks.model_validate(config_service.path_states())
+
+
+@router.get("/tools", summary="What each program VPinFE runs is, found or not",
+            dependencies=[requires(scopes.CONFIG_READ)])
+def get_tools() -> models.ConfigTools:
+    """Looked for when asked, so a program installed a moment ago is found."""
+    return models.ConfigTools.model_validate({"tools": tools.report()})
 
 
 @router.get("", summary="What this install is set to",
