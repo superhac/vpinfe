@@ -27,6 +27,7 @@ from common.games import (
     collection_ops,
     game_lens,
     game_ops,
+    high_score_reads,
     library_vps_state,
     media_browse,
     media_ops,
@@ -500,6 +501,24 @@ def put_play_record(game_id: str, body: models.PlayRecordUpdate) -> models.PlayR
 def reset_play_record(game_id: str) -> models.PlayRecord:
     """A DELETE, because what it removes is a record of what happened."""
     return models.PlayRecord(**game_ops.reset_play_record(game_id))
+
+
+@router.get("/{game_id}/high_scores", summary="A game's high scores",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_high_scores(game_id: str) -> models.HighScores | None:
+    """The default table's ROM. Read again first where its score file is newer than the
+    read kept. Null where the table has no ROM, or a ROM with nothing that could be read."""
+    return _high_scores(high_score_reads.for_game(game_id))
+
+
+@router.get("/{game_id}/tables/{table_id}/high_scores", summary="A table's high scores",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_table_high_scores(game_id: str, table_id: str) -> models.HighScores | None:
+    return _high_scores(high_score_reads.for_table(game_id, table_id))
+
+
+def _high_scores(found: dict | None) -> models.HighScores | None:
+    return models.HighScores.model_validate(found) if found is not None else None
 
 
 @router.put("/{game_id}/tables/{table_id}/tags", summary="The tags on one table",

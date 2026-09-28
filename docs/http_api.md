@@ -167,6 +167,8 @@ the documented entry point is a plain 200. Both spellings work.
 | PUT | `/api/v1/games/{id}/tags` | The game's tags, the whole set |
 | PUT | `/api/v1/games/{id}/play_record` | Set a game's play counters, for a library that arrives already played. `play_count`, `play_time_seconds` and `last_played`; one left out is left alone |
 | DELETE | `/api/v1/games/{id}/play_record` | Reset them |
+| GET | `/api/v1/games/{id}/high_scores` | The machine's high score table for the default table's ROM, read again first where its score file is newer than the read kept. See [High scores](#high-scores) |
+| GET | `/api/v1/games/{id}/tables/{table_id}/high_scores` | The same, for one table's ROM |
 | DELETE | `/api/v1/games/{id}/tables/{table_id}/play_record` | Reset one table's |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/tags` | One table's own tags, the whole set |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/hidden` | Hide one table, or show it again, `{"hidden": bool}`. The file stays on disk. Answers with `table` and `default`, the table the game now offers first, or `null` when it offers none. Hiding the table chosen as the default clears the choice |
@@ -1366,6 +1368,21 @@ machine that keeps one number is one section named by the score map, `HIGHEST SC
 | `prefix`, `suffix` | The machine's words either side of `score`, spacing included: `$ `, ` LOOPS` |
 | `text` | The value as the machine shows it: `prefix`, `score` and `suffix`, or the entry's lines joined with a newline where it holds no number |
 | `new` | Not on the table before the last game |
+
+`GET /games/{id}/high_scores` and `GET /games/{id}/tables/{table_id}/high_scores` answer
+in the same shape. Each reads the score file again first where it is newer than the read
+kept, as after a game played outside VPinFE or a file copied in, and keeps what it finds,
+with `new` counted against the read before it. Their `state` says what can be shown:
+
+| `state` | When |
+|---|---|
+| `read` | There are rows |
+| `none` | A ROM the score map knows, and nothing saved yet |
+| `unsupported` | A score file the score map cannot read |
+| `unreadable` | The read failed; `reason` says why, and the log has it too |
+
+A table with no ROM, or a ROM outside the score map with no score file, answers `null`:
+nothing is there, and no game will change that.
 
 ## Adding routes
 

@@ -179,6 +179,13 @@ class ApiClient:
     def tables(self, game_id: str) -> list[dict]:
         return self._get(f"/games/{game_id}/tables").get("tables", [])
 
+    def high_scores(self, game_id: str, table_id: str = "") -> dict:
+        """A ROM's high score table, read again where its score file is newer. `{}`
+        where there is nothing to show."""
+        path = (f"/games/{game_id}/tables/{table_id}/high_scores" if table_id
+                else f"/games/{game_id}/high_scores")
+        return self._get(path) or {}
+
     def media(self, game_id: str) -> dict:
         # Cached per client: /games carries VPS addon flags, not media coverage, so
         # coverage costs one call per game. 147 games measured at 1.1s, and threading
