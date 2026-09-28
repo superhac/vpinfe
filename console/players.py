@@ -46,7 +46,7 @@ KINDS = {OWNER: ("console.players.owner", "console.players.owner.help"),
 # The account acts core knows by key. Every extension offering an account uses this
 # vocabulary; `send_now` is the only one drawn generically, since claiming and
 # disconnecting each have their own dialog or confirm.
-SEND_NOW, CLAIM, DISCONNECT = "send_now", "claim", "disconnect"
+SEND_NOW, CLAIM, CONSENT, DISCONNECT = "send_now", "claim", "consent", "disconnect"
 
 CARD_FILES = (".svg", "image/svg+xml", ".json", ".txt")
 
@@ -579,11 +579,12 @@ async def _account(context: dict[str, Any], account: dict[str, Any]) -> None:
     service = str(account.get("label") or account["extension"])
     user_id = str(account.get("user_id") or "")
     claimed = bool(account.get("claimed"))
+    needs_consent = bool(account.get("needs_consent"))
 
     @on_page
     async def share(on: bool) -> None:
-        if on and not claimed:
-            await _share_on(context, account, service)
+        if on and needs_consent:
+            await _share_on(context, account, service, claimed)
             return
         try:
             await run.io_bound(library.put_share, player["id"], account["extension"], on)
@@ -605,8 +606,8 @@ async def _account(context: dict[str, Any], account: dict[str, Any]) -> None:
         entries.append((panel.HEADING, t("console.players.account_heading")))
         entries += [(t("console.players.user_id"),
                     _user_id_value(user_id, str(account.get("page") or ""), service)),
-                    (t("console.players.share"), panel.switch(True, lambda e: share(
-                        bool(e.value)))),
+                    (t("console.players.share"), panel.switch(
+                        bool(account.get("share")), lambda e: share(bool(e.value)))),
                     panel.note(share_help(account))]
         waiting = int(account.get("waiting_count") or 0)
         if waiting:
@@ -778,9 +779,11 @@ async def choose_user_id(context: dict[str, Any], account: dict[str, Any]) -> No
 
 
 @on_page
-async def _share_on(context: dict[str, Any], account: dict[str, Any], service: str) -> None:
-    """Share, turned on while unclaimed: what becomes public, then claim with an empty
-    send. Declining leaves Share off; so does a claim that fails."""
+async def _share_on(context: dict[str, Any], account: dict[str, Any], service: str,
+                    claimed: bool) -> None:
+    """Share, turned on for the first time this account has seen what it makes public:
+    unclaimed, that means claim with an empty send; already claimed, only the consent
+    mark. Declining leaves Share off; so does a claim that fails."""
     library, player = context["library"], _of(context)
     extension = str(account["extension"])
     user_id = str(account.get("user_id") or "")
@@ -804,7 +807,8 @@ async def _share_on(context: dict[str, Any], account: dict[str, Any], service: s
     if not agreed:
         return
     try:
-        await offload.io(library.account_act, player["id"], extension, CLAIM)
+        await offload.io(library.account_act, player["id"], extension,
+                         CONSENT if claimed else CLAIM)
         await run.io_bound(library.put_share, player["id"], extension, True)
     except Exception as exc:  # noqa: BLE001 - "taken", "can't reach": said, Share stays off
         ui.notify(t("said.could_not_turn_on"), caption=why(exc), type="negative")

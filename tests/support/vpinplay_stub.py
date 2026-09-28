@@ -13,7 +13,9 @@ from typing import Any
 
 class VPinPlayStub(BaseHTTPRequestHandler):
     """`taken` names ids nothing may claim; `unreachable` names ids answered as though
-    the service could not be reached at all; every claim seen is kept in `claimed`."""
+    the service could not be reached at all; every claim seen is kept in `claimed`, and
+    an id already in it answers `/available` the same as one in `taken` - a real send
+    against this stub is as good as a marker, the way it is against the real service."""
 
     taken: set[str] = set()
     unreachable: set[str] = set()
@@ -33,7 +35,10 @@ class VPinPlayStub(BaseHTTPRequestHandler):
             if user_id in type(self).unreachable:
                 self._answer(503, {"detail": "down"})
                 return
-            self._answer(200, {"available": user_id not in type(self).taken})
+            registered = {str((one.get("client") or {}).get("userId") or "")
+                         for one in type(self).claimed}
+            self._answer(200, {"available": user_id not in type(self).taken
+                               and user_id not in registered})
             return
         self._answer(404, {"detail": "none"})
 

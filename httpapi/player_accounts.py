@@ -156,6 +156,7 @@ def _shaped(declared: dict[str, Any], player_id: str, said: Any) -> models.Playe
         consent=[str(one) for one in declared.get("consent") or []],
         check=str(declared.get("check") or ""),
         user_id=str(answer.get("user_id") or ""), claimed=bool(answer.get("claimed")),
+        needs_consent=bool(answer.get("needs_consent")),
         page=str(answer.get("page") or ""),
         fields=[one for one in answer.get("fields") or [] if isinstance(one, dict)],
         status=str(answer.get("status") or ""),

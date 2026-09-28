@@ -48,7 +48,7 @@ from console import dialog as frame
 from console.api import ApiClient, ApiError, local_base_url
 from console.data import Library
 from console.on_page import on_page
-from console.players import CARD_FILES, CLAIM, kind_of, save_card, shown_name
+from console.players import CARD_FILES, CLAIM, CONSENT, kind_of, save_card, shown_name
 
 logger = logging.getLogger("vpinfe.console.remote")
 
@@ -829,8 +829,9 @@ async def _share_with(state: dict[str, Any], identity: dict[str, Any],
 
     @on_page
     async def do_share() -> None:
+        act = CONSENT if account.get("claimed") else CLAIM
         try:
-            await offload.io(library.account_act, identity["id"], extension, CLAIM)
+            await offload.io(library.account_act, identity["id"], extension, act)
             await run.io_bound(library.put_share, identity["id"], extension, True)
         except Exception as exc:  # noqa: BLE001 - "taken", "can't reach": said, Share off
             ui.notify(t("said.could_not_turn_on"), caption=why(exc), type="negative")

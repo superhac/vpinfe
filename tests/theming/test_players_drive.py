@@ -150,6 +150,26 @@ class PlayersDrive(unittest.TestCase):
             owner_name = _text(_cell(owner, ".console-cell-identifier"))
             seen["alone"] = await browser.wait_for(owner_name)
 
+            # A key with no `claimed` marker resolves once against the stub; this id
+            # is free, so it draws as state 2.
+            urllib.request.urlopen(urllib.request.Request(
+                instance.console_url(f"/api/v1/players/{owner}/accounts/vpinplay"),
+                method="PUT", data=json.dumps({"values": {
+                    "user_id": "old-key-holder", "key": "k" * 64}}).encode(),
+                headers={"Content-Type": "application/json"}), timeout=10).close()
+            for _ in range(100):
+                if not instance.api(
+                        f"/api/v1/players/{owner}/accounts/vpinplay")["claimed"]:
+                    break
+                await asyncio.sleep(0.05)
+            await open_player(owner)
+            await open_section("VPinPlay")
+            seen["resolved_state2"] = await browser.wait_for(
+                f"(said => said && said.includes('old-key-holder') ? said : null)"
+                f"({_text(WORK)})")
+            seen["resolved_state2_acts"] = await browser.evaluate(f"{SHOWN_ACTS}.map({SAYS})")
+            await open_section("Details")
+
             # A kept player, and what the dialog refuses.
             await add("Add Player")
             await type_into(f"{DIALOG} input", 0, "Jordan")
@@ -327,6 +347,13 @@ class PlayersDrive(unittest.TestCase):
 
     def test_a_household_of_one_shows_no_up(self) -> None:
         self.assertEqual(self.seen["alone"], "No name Owner")
+
+    def test_a_key_with_no_marker_resolves_to_state_two_when_available(self) -> None:
+        said = self.seen["resolved_state2"]
+        self.assertIn("Not on VPinPlay until you share", said)
+        self.assertIn("old-key-holder", said)
+        self.assertEqual(self.seen["resolved_state2_acts"],
+                         ["Change User ID", "Remove", "Use a Card"])
 
     def test_initials_that_are_not_three_are_refused_in_the_dialog(self) -> None:
         self.assertEqual(self.seen["refused"], "Initials are three characters")

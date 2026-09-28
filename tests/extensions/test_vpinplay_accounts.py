@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import tempfile
 import unittest
 from configparser import ConfigParser
@@ -24,6 +25,7 @@ from common import extensions, players, tokens
 from common.extensions import accounts, catalogs, contributions, host, store
 from common.i18n import t
 from extensions.vpinplay import client as vpinplay_client
+from extensions.vpinplay import sending as vpinplay_sending
 from extensions.vpinplay import sync
 from httpapi import events as event_stream
 from tests.extensions.test_cards import KEY, _2x_card
@@ -80,6 +82,18 @@ class VPinPlayCase(unittest.TestCase):
         record = self.registry.load(host.BUNDLED_DIR / NAME)
         self.assertEqual(record.state, host.LOADED, record.reason)
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
+        # A resolve asked after this point - a read or a write, never the sweep this
+        # load just ran - is deferred to `run_resolves` rather than a real thread, the
+        # way a send already is in `tests.extensions.test_vpinplay_sending`.
+        self.resolve_later: list = []
+        deferred = patch.object(sys.modules[f"vpinfe_ext_{NAME}.accounts"], "_on_a_thread",
+                                self.resolve_later.append)
+        deferred.start()
+        self.addCleanup(deferred.stop)
+
+    def run_resolves(self) -> None:
+        while self.resolve_later:
+            self.resolve_later.pop(0)()
 
     def ok(self, response, status: int = 200) -> dict:
         self.assertEqual(response.status_code, status, response.text)
@@ -319,6 +333,149 @@ class TheClaim(VPinPlayCase):
 
         self.assertEqual(response.status_code, 503)
         self.assertEqual(self.held(self.owner), {"user_id": "jordan"})
+
+    def test_claiming_sets_the_claimed_marker(self) -> None:
+        self.fill(self.owner, user_id="jordan")
+
+        self.claim(self.owner)
+
+        self.assertEqual(self.held(self.owner)["claimed"], "true")
+
+    def test_claiming_settles_the_consent_marker_too(self) -> None:
+        """The Console's own dialog already showed consent on this path."""
+        self.fill(self.owner, user_id="jordan")
+
+        self.claim(self.owner)
+
+        self.assertFalse(self.account(self.owner)["needs_consent"])
+
+
+class TheResolvedClaim(VPinPlayCase):
+    """A key with no `claimed` marker is resolved once against VPinPlay rather than
+    trusted."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.owner = self.make_owner()
+        self.load()
+
+    def resolve_as(self, **get_kwargs: object) -> None:
+        with patch.object(vpinplay_client.requests, "get", **get_kwargs):
+            self.run_resolves()
+
+    def test_undecided_draws_claimed_the_safe_state(self) -> None:
+        found = self.fill(self.owner, user_id="jordan", key=KEY)
+
+        self.assertTrue(found["claimed"])
+
+    def test_an_available_id_resolves_to_unclaimed(self) -> None:
+        self.fill(self.owner, user_id="jordan", key=KEY)
+
+        self.resolve_as(return_value=_answer(200, {"available": True}))
+
+        self.assertFalse(self.account(self.owner)["claimed"])
+
+    def test_a_taken_id_resolves_to_claimed(self) -> None:
+        self.fill(self.owner, user_id="jordan", key=KEY)
+
+        self.resolve_as(return_value=_answer(200, {"available": False}))
+
+        self.assertTrue(self.account(self.owner)["claimed"])
+
+    def test_an_unreachable_service_resolves_to_claimed(self) -> None:
+        """Change would otherwise drop a key that may already be registered."""
+        self.fill(self.owner, user_id="jordan", key=KEY)
+
+        self.resolve_as(side_effect=requests.ConnectionError("down"))
+
+        self.assertTrue(self.account(self.owner)["claimed"])
+
+    def test_it_is_asked_only_once_for_the_same_id(self) -> None:
+        self.fill(self.owner, user_id="jordan", key=KEY)
+        self.account(self.owner)
+        self.account(self.owner)
+
+        with patch.object(vpinplay_client.requests, "get",
+                          return_value=_answer(200, {"available": True})) as get:
+            self.run_resolves()
+
+        self.assertEqual(get.call_count, 1)
+
+
+class _FakeAccountCtx:
+    """Just enough of `ctx` for `Sender._book` on its own, with no extension loaded:
+    one account to read and write, always sharing."""
+
+    def __init__(self, held: dict[str, str]) -> None:
+        self.players = self
+        self.held = held
+
+    def account(self, player_id: str) -> dict[str, str]:
+        return self.held
+
+    def sharing(self, player_id: str) -> bool:
+        return True
+
+    def set_account(self, player_id: str, values: dict[str, str]) -> None:
+        self.held = values
+
+
+class TheSendMarksClaimed(unittest.TestCase):
+    """A send going through is as much proof VPinPlay holds the pair as a claim is -
+    `sending._book` sets the same marker."""
+
+    def holder(self) -> vpinplay_sending.Holder:
+        return vpinplay_sending.Holder("p1", False, "ABC", "jordan", KEY)
+
+    def test_a_successful_send_sets_the_claimed_marker(self) -> None:
+        ctx = _FakeAccountCtx({"user_id": "jordan", "key": KEY})
+        sender = vpinplay_sending.Sender(ctx, lambda: "")
+
+        sender._book(self.holder(), sent=["Gme1111111"])
+
+        self.assertEqual(ctx.held.get("claimed"), "true")
+
+    def test_nothing_sent_yet_leaves_the_marker_unset(self) -> None:
+        ctx = _FakeAccountCtx({"user_id": "jordan", "key": KEY})
+        sender = vpinplay_sending.Sender(ctx, lambda: "")
+
+        sender._book(self.holder(), waiting=["Gme1111111"])
+
+        self.assertNotIn("claimed", ctx.held)
+
+
+class TheConsent(VPinPlayCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.owner = self.make_owner()
+        self.load()
+
+    def test_a_freshly_chosen_id_needs_consent(self) -> None:
+        found = self.fill(self.owner, user_id="jordan")
+
+        self.assertTrue(found["needs_consent"])
+
+    def test_consenting_settles_it_with_no_send(self) -> None:
+        self.fill(self.owner, user_id="jordan")
+
+        found = self.ok(self.act(self.owner, "consent"))
+
+        self.assertFalse(found["needs_consent"])
+
+    def test_consenting_a_key_resolved_as_claimed_needs_no_claim_send(self) -> None:
+        """Exactly the Remote's own bug: `claim` on an id already registered elsewhere
+        is refused, so consent alone has to be enough to turn Share on. `sync.requests`
+        stays the default that fails the test if anything tries to send."""
+        self.fill(self.owner, user_id="jordan", key=KEY)
+        with patch.object(vpinplay_client.requests, "get",
+                          return_value=_answer(200, {"available": False})):
+            self.run_resolves()
+        self.assertTrue(self.account(self.owner)["claimed"])
+
+        found = self.ok(self.act(self.owner, "consent"))
+
+        self.assertTrue(found["claimed"])
+        self.assertFalse(found["needs_consent"])
 
 
 class TheDisconnect(VPinPlayCase):

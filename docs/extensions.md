@@ -536,17 +536,23 @@ iScored can hold one the same way; nothing about the shape below is VPinPlay's.
 
 | call | answers |
 |---|---|
-| `GET {base}/{player_id}` | `user_id`, `claimed`, `page`, `card`, `status`, `waiting`, `waiting_count`, `acts`, `fields` (unused by this shape, kept for a simpler account that is only ever settings-like) |
+| `GET {base}/{player_id}` | `user_id`, `claimed`, `needs_consent`, `page`, `card`, `status`, `waiting`, `waiting_count`, `acts`, `fields` (unused by this shape, kept for a simpler account that is only ever settings-like) |
 | `PUT {base}/{player_id}` | receives `{"values": {…}}`; saves what is given and answers as the `GET` does. Never mints a key - claiming is its own act, never a side effect of a write |
-| `POST {base}/{player_id}/acts/{key}` | what came of it, with an optional `message`; `claim` and `disconnect` answer the account itself, as the `GET` does |
+| `POST {base}/{player_id}/acts/{key}` | what came of it, with an optional `message`; `claim`, `consent` and `disconnect` answer the account itself, as the `GET` does |
 | `GET {base}/{player_id}/card` | `{"card": {…}, "filename"}` - the card to draw, or a `404` while there is none |
 | `POST {base}/cards` | receives `{"card": {…}}`; answers `name`, `initials` and the account's `values` |
 | `GET {check}?candidate=…` | `{"available": bool}` for a candidate id, asked live as one is typed. Not under `{base}/{player_id}`: it needs no player, and the Console asks it straight through to the extension, the way it asks `settings` and a Community list's `about` - `GET /ext/{extension}{check}?candidate=…`. Raise to say it could not be reached; the Console reads that as "can't reach", never as "taken" |
 
 `user_id` is the id chosen, lower case as the service will keep it, or `""` before one is
 chosen. `claimed` says whether it is registered with the service - free to change or drop
-until then with a plain `PUT`, read-only after. `page` is the account's public page once
-claimed, `""` before. `status` is one line in words - *1 game waiting to send*, *Sent 2
+until then with a plain `PUT`, read-only after; where an extension cannot yet vouch for a
+key it holds - one carried over from an older version, say - answering `claimed` true is
+the safe side of that guess. `needs_consent` says whether Share still owes the player a
+look at what it makes public before it next turns on, true until `claim` or a plain
+`consent` act settles it - independently of `claimed`, since an account already
+registered elsewhere the first time this install sees it still owes that look. `page` is
+the account's public page once claimed, `""` before. `status` is one line in
+words - *1 game waiting to send*, *Sent 2
 minutes ago* - or `""` while unclaimed; `waiting` is the same fact `waiting_count` puts as
 a number, as a plain boolean, for a caller that has to branch on it rather than show it -
 the Remote's after-a-game card, which says what became of a specific play rather than
@@ -563,6 +569,11 @@ initials, or the account already holds a key; the Console shows whatever it says
 leaves Share off. `disconnect` forgets the id and key here - the extension's own
 `set_account(player_id, {})` - while the account stays with the service, whatever was
 already shared.
+
+Where `claimed` is already true - an id resolved as somebody else's registration rather
+than a fresh one - `claim` would only be refused, so the Console runs the `consent` act
+instead: it settles `needs_consent` with no send of any kind, and Share turns on right
+after.
 
 `consent` is what Share tells the player becomes public, asked once, the first time it is
 turned on: each line already in its own words from `ctx.t`, drawn as what the account

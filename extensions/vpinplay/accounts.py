@@ -30,8 +30,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("vpinfe.ext.vpinplay.accounts")
 
+
+def _on_a_thread(work: Callable[[], object]) -> None:
+    threading.Thread(target=work, name="vpinplay-resolve", daemon=True).start()
+
 USER_ID = "user_id"
 KEY = "key"
+CLAIMED = "claimed"
+CONSENTED = "consented"
 # What the account has been sent and what is waiting to go, as comma-separated game ids,
 # and when a send last went. About the user id they were sent under.
 SENT = "sent"
@@ -47,6 +53,7 @@ CARD_INITIALS_AT_MOST = 3
 
 SEND_NOW = "send_now"
 CLAIM = "claim"
+CONSENT = "consent"
 DISCONNECT = "disconnect"
 
 PLAYERS_CHANGED = "players.changed"
@@ -75,11 +82,34 @@ def routers(ctx: Any, site: str, sender: Sender,
            endpoint: Callable[[], str]) -> tuple[APIRouter, APIRouter]:
     """Reading and writing, the way settings are split.
 
-    An act answers what came of it: Send Now a `message`; Claim and Disconnect the
-    account, as `GET {base}/{player_id}` does.
+    An act answers what came of it: Send Now a `message`; Claim, Consent and Disconnect
+    the account, as `GET {base}/{player_id}` does.
     """
     reading = APIRouter()
     writing = APIRouter()
+    # Per extension load: a guest's in-memory account resolves again after a restart
+    # the way a kept one does.
+    resolved: dict[str, bool] = {}
+    asking: set[str] = set()
+    resolve_lock = threading.Lock()
+
+    def ensure_resolved(user_id: str) -> None:
+        with resolve_lock:
+            if user_id in resolved or user_id in asking:
+                return
+            asking.add(user_id)
+
+        def work() -> None:
+            where = sync.endpoint_for(endpoint())
+            try:
+                available = client.check_available(where, user_id)
+            except Exception:
+                available = False
+            with resolve_lock:
+                resolved[user_id] = available
+                asking.discard(user_id)
+
+        _on_a_thread(work)
 
     def initials_of(player_id: str) -> str:
         return str((ctx.players.get(player_id) or {}).get("initials") or "").strip().upper()
@@ -105,15 +135,27 @@ def routers(ctx: Any, site: str, sender: Sender,
             return ctx.t("account.status.waiting", count=waiting)
         return sent_ago(ctx, held.get(LAST_SENT, ""))
 
+    def claimed_of(user_id: str, key: str, held: dict[str, str]) -> bool:
+        if not (user_id and key):
+            return False
+        if held.get(CLAIMED):
+            return True
+        known = resolved.get(user_id)
+        if known is None:
+            ensure_resolved(user_id)
+            return True
+        return not known
+
     def answer(player_id: str) -> dict:
         held = ctx.players.account(player_id)
         user_id, key = held.get(USER_ID, ""), held.get(KEY, "")
-        claimed = bool(user_id and key)
+        claimed = claimed_of(user_id, key, held)
         waiting = len(listed(held.get(WAITING)))
         return {
             "fields": [],
             "user_id": user_id,
             "claimed": claimed,
+            "needs_consent": not bool(held.get(CONSENTED)),
             "page": page_for(site, user_id) if claimed else "",
             "status": status(claimed, held, waiting),
             "waiting": bool(waiting),
@@ -158,7 +200,17 @@ def routers(ctx: Any, site: str, sender: Sender,
         if not result.get("ok"):
             raise HTTPException(503, detail=ctx.t("error.claim_failed"))
         with sender.books():
-            ctx.players.set_account(player_id, {USER_ID: user_id, KEY: key})
+            ctx.players.set_account(player_id, {USER_ID: user_id, KEY: key,
+                                                CLAIMED: "true", CONSENTED: "true"})
+        return answer(player_id)
+
+    def consent(player_id: str) -> dict:
+        """Marks Share's consent seen, with no send - safe to call whether or not the
+        account is already claimed."""
+        with sender.books():
+            held = dict(ctx.players.account(player_id))
+            held[CONSENTED] = "true"
+            ctx.players.set_account(player_id, {k: v for k, v in held.items() if v})
         return answer(player_id)
 
     def disconnect(player_id: str) -> dict:
@@ -190,15 +242,23 @@ def routers(ctx: Any, site: str, sender: Sender,
             written_key = str(offered.get(KEY) or "").strip()
             if written_key:
                 held[KEY] = written_key
-            kept = (USER_ID, KEY, *(BOOKS if held.get(USER_ID) == was else ()))
+            elif held.get(USER_ID) and held.get(USER_ID) != was:
+                held.pop(CLAIMED, None)
+            kept = (USER_ID, KEY, CLAIMED, CONSENTED,
+                   *(BOOKS if held.get(USER_ID) == was else ()))
             ctx.players.set_account(player_id, {key: value for key, value in held.items()
                                                 if key in kept and value})
+        written = ctx.players.account(player_id)
+        if written.get(USER_ID) and written.get(KEY) and not written.get(CLAIMED):
+            ensure_resolved(written[USER_ID])
         return answer(player_id)
 
     @writing.post("/accounts/{player_id}/acts/{act}")
     def run_act(player_id: str, act: str) -> dict:
         if act == CLAIM:
             return claim(player_id)
+        if act == CONSENT:
+            return consent(player_id)
         if act == DISCONNECT:
             return disconnect(player_id)
         if act != SEND_NOW:
@@ -223,7 +283,19 @@ def routers(ctx: Any, site: str, sender: Sender,
         return {"name": card["userId"], "initials": card["initials"],
                 "values": {USER_ID: card["userId"], KEY: card["machineId"]}}
 
+    resolve_unmarked(ctx, ensure_resolved)
+
     return reading, writing
+
+
+def resolve_unmarked(ctx: Any, ensure_resolved: Callable[[str], None]) -> None:
+    """Every held account with a key and no `claimed` marker gets the same one-time
+    resolve a fresh write does."""
+    for player in ctx.players.roster():
+        held = ctx.players.account(str(player.get("id") or ""))
+        user_id, key = held.get(USER_ID, ""), held.get(KEY, "")
+        if user_id and key and not held.get(CLAIMED):
+            ensure_resolved(user_id)
 
 
 def sent_ago(ctx: Any, when: str) -> str:

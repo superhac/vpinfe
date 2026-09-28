@@ -14,7 +14,7 @@ from functools import partial
 from typing import Any
 
 from . import sync
-from .accounts import KEY, LAST_SENT, SENT, USER_ID, WAITING, listed
+from .accounts import CLAIMED, KEY, LAST_SENT, SENT, USER_ID, WAITING, listed
 
 PLAY_RECORDED = "table.play_recorded"
 GAME_RATED = "game.rated"
@@ -260,6 +260,7 @@ class Sender:
             if sent:
                 held[SENT] = ",".join(dict.fromkeys([*listed(held.get(SENT)), *sent]))
                 held[LAST_SENT] = datetime.now(UTC).isoformat(timespec="seconds")
+                held[CLAIMED] = "true"
             try:
                 self._ctx.players.set_account(holder.player_id,
                                               {k: v for k, v in held.items() if v})
