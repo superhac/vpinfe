@@ -49,7 +49,7 @@ class LiveInstance:
         self.extra_settings = extra_settings or {}
         # The library's asset port, which the real launcher reads out of its discovery
         # document. A test that stands up a library sets it from that instance.
-        self.library_assets_port = 0
+        self.library_files_port = 0
         # No trailing hyphen on purpose. The Metrics page renders this path, and the
         # pseudo-locale check reads the screen for bare English words - a hyphen is a
         # word boundary, so "vpinfe-live-<random>" offered the suffix as a word and it
@@ -188,7 +188,7 @@ class LiveInstance:
             query += (f"&libraryHost={urllib.parse.quote(parsed.hostname or '', safe='')}"
                       f"&libraryPort={parsed.port or self.ports['manager']}"
                       f"&devicePort={self.ports['manager']}"
-                      f"&libraryAssetsPort={self.library_assets_port or self.ports['assets']}")
+                      f"&libraryFilesPort={self.library_files_port or self.ports['assets']}")
         return self.url(query)
 
     def api(self, path: str):

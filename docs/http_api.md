@@ -286,7 +286,7 @@ rather than matching a version number against a document.
   "api_version": "v1",
   "vpinfe_version": "2.5.0",
   "capabilities": [],
-  "services": {"assets": {"port": 8000}},
+  "services": {"files": {"port": 8000}},
   "extensions": [],
   "links": {
     "self": "/api/v1",

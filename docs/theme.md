@@ -1249,8 +1249,8 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 | `vpin.playfieldOrientation` | `string` | Playfield orientation from config: `"landscape"` or `"portrait"`. |
 | `vpin.playfieldRotation` | `number` | Playfield rotation in degrees from config (default `0`). |
 | `vpin.layout` | `object` | The resolved layout answers — `{ cabinet, uprightRotation, surface }`. This is what a theme should read; the two properties above it are the raw ini values. See [Playfield geometry](#playfield-geometry-mounting-rotation-and-cab-mode). |
-| `vpin.themeAssetsPort` | `number` | Asset server port (default `8000`). Prefer `vpin.endpoints.assets`, which is the whole base URL. |
-| `vpin.endpoints` | `object` | Where the things this page talks to are — `{ library, device, assets, frontend_channel }`. The first three are addresses you add a path to: `library` is the catalog and what's known about it, `device` is this machine (launching, play state, hardware), `assets` is the files themselves (theme packages, table media, shared art). `frontend_channel` is not an address but a line held open — how this page and VPinFE talk to each other, both ways — so nothing is appended to it. Build URLs from these rather than assuming a host or a port: the halves can be separate machines, and only this knows where they are. |
+| `vpin.themeAssetsPort` | `number` | File server port (default `8000`). Prefer `vpin.endpoints.files`, which is the whole base URL. |
+| `vpin.endpoints` | `object` | Where the things this page talks to are — `{ library, device, files, frontend_channel }`. The first three are addresses you add a path to: `library` is the catalog and what's known about it, `device` is this machine (launching, play state, hardware), `files` is the files themselves (theme packages, table media, manufacturer logos). `frontend_channel` is not an address but a line held open — how this page and VPinFE talk to each other, both ways — so nothing is appended to it. Build URLs from these rather than assuming a host or a port: the halves can be separate machines, and only this knows where they are. |
 | `vpin.menuUP` | `boolean` | Whether the main menu overlay is currently visible. |
 | `vpin.capabilities` | `object` | What this build does on your behalf, and whether each is on — `{ core_paging: true, core_audio: false, core_preload: false }`. A name that is absent is a behavior this build does not have, so check before relying on it. Reading it gives you a copy; use `enableCorePaging()` / `enableCoreAudio()` to change anything. At contract 2 `core_navigation` covers stepping *and* paging, so `enableCorePaging(false)` turns off both — a page is a bigger step, not a separate feature. |
 | `vpin.contract` | `number` | Which contract you are being served. |
@@ -1668,7 +1668,7 @@ const entry = vpin.getTableMeta(currentGameIndex);
 
 function mediaURL(kind) {
     if (!entry.media.includes(kind)) return null;
-    return `${vpin.endpoints.assets}/media/${entry.table.id}/${kind}`;
+    return `${vpin.endpoints.files}/media/${entry.table.id}/${kind}`;
 }
 
 const playfield = mediaURL('playfield_video') || mediaURL('playfield');
@@ -1812,7 +1812,7 @@ Two ways, and they answer different questions.
 ```javascript
 const entry = vpin.getTableMeta(currentGameIndex);
 const url = (kind) => entry.media.includes(kind)
-    ? `${vpin.endpoints.assets}/media/${entry.table.id}/${kind}`
+    ? `${vpin.endpoints.files}/media/${entry.table.id}/${kind}`
     : null;
 
 showMedia(url('playfield_video') || url('playfield'));

@@ -462,10 +462,10 @@ fields need a matcher that does not exist yet, and building the slot ahead of th
 is the mistake that document's own audit section exists to prevent. Covered by
 `tests/curation/test_wire_entry.py` and `tests/curation/test_entry_lens_parity.py`.
 
-**PAR-76 — An install publishes where its asset server is.** *(machine-checked)* Discovery
-(`GET /api/v1/`) gains `services`, currently `{"assets": {"port": N}}`. Purely additive.
+**PAR-76 — An install publishes where its file server is.** *(machine-checked)* Discovery
+(`GET /api/v1/`) gains `services`, currently `{"files": {"port": N}}`. Purely additive.
 *Why:* artwork is served on a different port from the API, and nothing said which
-- so `endpoints.assets` paired the library's host with the *reader's* asset port and every
+- so `endpoints.files` paired the library's host with the *reader's* file port and every
 image 404'd. The port only: the host is wherever the caller reached the document, which is
 the one address known to route there. An install that says nothing leaves the reader's own
 answer standing, which is what a single-machine install has always used. Covered by

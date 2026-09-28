@@ -80,7 +80,7 @@ class Discovery(ApiModel):
     api_version: str
     vpinfe_version: str
     capabilities: list[CapabilityInfo]
-    # Servers that are not the API. `assets` is where artwork is fetched from, which a
+    # Servers that are not the API. `files` is where artwork is fetched from, which a
     # device cannot guess: it is a different port from the one it asked this on.
     services: dict[str, ServiceEndpoint] = Field(default_factory=dict)
     extensions: list[dict]
@@ -2064,7 +2064,7 @@ class Entry(ApiModel):
     siblings: int
     assets: EntryAssets = Field(default_factory=EntryAssets)
     # Which art exists, not where it lives: the names of the kinds that resolved. The
-    # bytes come from `endpoints.assets`, so naming files here would put a filesystem
+    # bytes come from `endpoints.files`, so naming files here would put a filesystem
     # path on the wire and several hundred kilobytes with it.
     media: list[str] = Field(default_factory=list)
     # Which group this entry falls in under the collection's order - a letter, a year, a

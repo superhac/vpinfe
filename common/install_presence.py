@@ -94,13 +94,13 @@ def identity() -> dict:
 def service_ports() -> dict:
     """Where this install's other servers are, for a caller that is not on this machine.
 
-    Only the asset server so far, and only its port: the host is wherever the caller
+    Only the file server so far, and only its port: the host is wherever the caller
     reached this install, which is the one address known to be routable to here. A device
     needs this because artwork is served off a different port from the API, and nothing
     else tells it which - guessing 8000 is right until someone moves it.
     """
     try:
-        return {"assets": {
+        return {"files": {
             "port": NetworkConfig.from_config(get_ini_config()).theme_assets_port}}
     except Exception as exc:
         logger.warning("Could not read this install's service ports: %s", exc)

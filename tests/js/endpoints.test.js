@@ -21,7 +21,7 @@ describe("the endpoint block", () => {
   test("is resolved from the url before any theme code runs", () => {
     const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&libraryPort=9001");
 
-    assert.equal(vpin.endpoints.assets, "http://127.0.0.1:9000");
+    assert.equal(vpin.endpoints.files, "http://127.0.0.1:9000");
     assert.equal(vpin.endpoints.device, "http://127.0.0.1:9001");
     assert.equal(vpin.endpoints.library, "http://127.0.0.1:9001", "one api answers for both today");
     assert.equal(vpin.endpoints.frontend_channel, "ws://127.0.0.1:9002");
@@ -31,7 +31,7 @@ describe("the endpoint block", () => {
     // A page opened by hand, or an older launcher that sends no ports.
     const vpin = withPorts("?window=table");
 
-    assert.equal(vpin.endpoints.assets, "http://127.0.0.1:8000");
+    assert.equal(vpin.endpoints.files, "http://127.0.0.1:8000");
     assert.equal(vpin.endpoints.device, "http://127.0.0.1:8001");
     assert.equal(vpin.endpoints.frontend_channel, "ws://127.0.0.1:8002");
   });
@@ -39,16 +39,16 @@ describe("the endpoint block", () => {
   test("a port given in the url wins over the assumed one", () => {
     const vpin = withPorts("?window=table&themeAssetsPort=9000");
 
-    assert.equal(vpin.endpoints.assets, "http://127.0.0.1:9000");
+    assert.equal(vpin.endpoints.files, "http://127.0.0.1:9000");
     assert.equal(vpin.endpoints.device, "http://127.0.0.1:8001", "the rest are untouched");
   });
 
   test("each key points where its own setting says", () => {
-    // The keys are not interchangeable: media comes off the asset server and the api
-    // off the manager ui port. Pointing the library at the asset server was the original bug.
+    // The keys are not interchangeable: media comes off the file server and the api
+    // off the manager ui port. Pointing the library at the file server was the original bug.
     const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&libraryPort=9001");
 
-    assert.equal(vpin.endpoints.assets, `http://127.0.0.1:${vpin.themeAssetsPort}`);
+    assert.equal(vpin.endpoints.files, `http://127.0.0.1:${vpin.themeAssetsPort}`);
     assert.equal(vpin.endpoints.library, `http://127.0.0.1:${vpin.libraryPort}`);
     assert.equal(vpin.endpoints.device, `http://127.0.0.1:${vpin.devicePort}`);
     assert.equal(vpin.endpoints.frontend_channel, `ws://127.0.0.1:${vpin.wsPort}`);
@@ -62,16 +62,24 @@ describe("the endpoint block", () => {
       "&libraryHost=library.example&devicePort=8001");
 
     assert.equal(vpin.endpoints.library, "http://library.example:9000");
-    assert.equal(vpin.endpoints.assets, "http://library.example:8000", "art follows the library");
+    assert.equal(vpin.endpoints.files, "http://library.example:8000", "art follows the library");
     assert.equal(vpin.endpoints.device, "http://127.0.0.1:8001", "this machine, always");
     assert.equal(vpin.endpoints.frontend_channel, "ws://127.0.0.1:8002", "this machine, always");
+  });
+
+  test("a library on another machine serves its files on the port it published", () => {
+    const vpin = withPorts(
+      "?window=table&wsPort=8002&themeAssetsPort=8000&libraryPort=9000" +
+      "&libraryHost=library.example&devicePort=8001&libraryFilesPort=9500");
+
+    assert.equal(vpin.endpoints.files, "http://library.example:9500");
   });
 
   test("no libraryHost is every single-machine install, unchanged", () => {
     const vpin = withPorts("?window=table&wsPort=8002&themeAssetsPort=8000&libraryPort=8001");
 
     assert.equal(vpin.endpoints.library, "http://127.0.0.1:8001");
-    assert.equal(vpin.endpoints.assets, "http://127.0.0.1:8000");
+    assert.equal(vpin.endpoints.files, "http://127.0.0.1:8000");
     assert.equal(vpin.endpoints.device, "http://127.0.0.1:8001");
   });
 
@@ -90,12 +98,12 @@ describe("the endpoint block", () => {
 
     vpin.themeAssetsPort = 9000;
 
-    assert.equal(vpin.endpoints.assets, "http://127.0.0.1:9000");
+    assert.equal(vpin.endpoints.files, "http://127.0.0.1:9000");
   });
 });
 
 describe("every url the page builds comes from the block", () => {
-  test("game media resolves against the asset server", () => {
+  test("game media resolves against the file server", () => {
     const vpin = withPorts("?window=table&themeAssetsPort=9000");
     vpin.tableData = ROWS;
     const index = ROWS.findIndex((row) => row.tableDirName === "Attack from Mars (Bally 1995)");
@@ -105,7 +113,7 @@ describe("every url the page builds comes from the block", () => {
     assert.ok(url.startsWith("http://127.0.0.1:9000/"), url);
   });
 
-  test("the manufacturer logo resolves against the asset server", () => {
+  test("the manufacturer logo resolves against the file server", () => {
     const vpin = withPorts("?window=table&themeAssetsPort=9000");
     vpin.tableData = [{}];
     vpin._reader = { logo: () => "/manufacturers/bally/logo" };

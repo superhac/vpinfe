@@ -135,5 +135,22 @@ class RecordingWhatWasHeardTests(TempTree):
         self.assertEqual(self.registry.devices(), [])
 
 
+class PublishedServicesTests(unittest.TestCase):
+    def test_a_frontend_reads_the_file_server_under_the_name_it_is_published(self) -> None:
+        from types import SimpleNamespace
+
+        from frontend import chromium_manager
+
+        published = install_presence.service_ports()
+        elsewhere = SimpleNamespace(library_url="http://library.example:9000",
+                                    http_port=8001, theme_assets_port=1)
+        with patch.object(chromium_manager.remote_library, "remote_services",
+                          return_value=published):
+            resolved = chromium_manager._library_endpoint(elsewhere)
+
+        self.assertEqual(resolved.files_port, published["files"]["port"])
+        self.assertNotEqual(resolved.files_port, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -504,20 +504,20 @@ class LibraryEndpointTests(unittest.TestCase):
                          ("cab.local", 8005, 8005, 8000))
 
 
-    def test_the_library_s_asset_port_comes_from_the_library(self) -> None:
+    def test_the_library_s_file_server_port_comes_from_the_library(self) -> None:
         """It is in no url and cannot be guessed: artwork is served on a different port
         from the api, and this install's own number describes the wrong machine."""
         resolved = self._resolve("https://library.example:9000",
-                                 services={"assets": {"port": 9500}})
+                                 services={"files": {"port": 9500}})
 
         self.assertEqual(resolved, ("library.example", 9000, 8001, 9500))
 
     def test_a_library_that_says_nothing_leaves_this_install_s_answer(self) -> None:
         """An older install, or one that could not be reached for its discovery document."""
-        for services in ({}, {"assets": {}}, {"assets": {"port": "nonsense"}}):
+        for services in ({}, {"files": {}}, {"files": {"port": "nonsense"}}):
             with self.subTest(services=services):
                 self.assertEqual(
-                    self._resolve("https://library.example:9000", services=services).assets_port,
+                    self._resolve("https://library.example:9000", services=services).files_port,
                     8000)
 
 
@@ -583,6 +583,16 @@ class WindowUrlTests(unittest.TestCase):
 
         self.assertIn("libraryPort=9000", url)
         self.assertIn("devicePort=8001", url)
+
+    def test_a_remote_library_s_file_server_port_travels_under_the_name_the_page_reads(
+            self) -> None:
+        with mock.patch("frontend.chromium_manager.platform.system", return_value="Darwin"):
+            url = chromium_manager._build_window_url(
+                base_url="http://127.0.0.1", theme_assets_port=9000,
+                theme_name="Some Theme", window_name="playfield", splash_enabled=False,
+                library_host="library.example", library_files_port=9500)
+
+        self.assertIn("libraryFilesPort=9500", url)
 
     def test_a_host_that_needs_encoding_is_encoded(self) -> None:
         url = self._url("Darwin", library_host="library name")

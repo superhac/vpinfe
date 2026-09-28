@@ -138,7 +138,7 @@ class LibraryEndpoint(NamedTuple):
     host: str
     port: int
     device_port: int
-    assets_port: int
+    files_port: int
 
 
 def _library_endpoint(network: NetworkConfig) -> LibraryEndpoint:
@@ -148,24 +148,24 @@ def _library_endpoint(network: NetworkConfig) -> LibraryEndpoint:
     single-machine setup. With one, three of the four belong to that install and have to
     be asked for separately: `network.http_port` and `network.theme_assets_port` describe
     what *this* install serves, so reading a library on other ports would dial our own
-    numbers at the other machine. The api port is in the url; the asset port is not in it
-    at all, so the other install is asked - it publishes its own in discovery.
+    numbers at the other machine. The api port is in the url; the file server's is not
+    in it at all, so the other install is asked - it publishes its own in discovery.
 
     """
     trimmed = str(getattr(network, "library_url", "") or "").strip()
     own_api = network.http_port
-    own_assets = network.theme_assets_port
+    own_files = network.theme_assets_port
     if not trimmed:
-        return LibraryEndpoint("", own_api, own_api, own_assets)
+        return LibraryEndpoint("", own_api, own_api, own_files)
 
     parsed = urlparse(trimmed)
-    assets = remote_library.remote_services(trimmed).get("assets") or {}
+    files = remote_library.remote_services(trimmed).get("files") or {}
     try:
-        remote_assets = int(assets.get("port") or own_assets)
+        remote_files = int(files.get("port") or own_files)
     except (TypeError, ValueError):
-        remote_assets = own_assets
+        remote_files = own_files
     return LibraryEndpoint(parsed.hostname or "", parsed.port or own_api, own_api,
-                           remote_assets)
+                           remote_files)
 
 
 def _build_window_url(
@@ -178,7 +178,7 @@ def _build_window_url(
     http_port: int = 8001,
     library_host: str = "",
     device_port: int = 8001,
-    library_assets_port: int = 0,
+    library_files_port: int = 0,
 ) -> str:
     """Where a window opens, and how it finds the services.
 
@@ -197,7 +197,7 @@ def _build_window_url(
     if library_host:
         endpoints += (f"&libraryHost={quote(library_host, safe='')}"
                       f"&devicePort={device_port}"
-                      f"&libraryAssetsPort={library_assets_port or theme_assets_port}")
+                      f"&libraryFilesPort={library_files_port or theme_assets_port}")
 
     if platform.system() == "Linux":
         return f"{base_url}:{theme_assets_port}/app/{window_name}?{endpoints}"
@@ -589,7 +589,7 @@ class ChromiumManager:
                 http_port=library.port,
                 library_host=library.host,
                 device_port=library.device_port,
-                library_assets_port=library.assets_port,
+                library_files_port=library.files_port,
             )
 
             section = OVERRIDE_SECTIONS.get(theme_windows.canonical(window_name))

@@ -136,7 +136,7 @@ class SeparationTests(TempTree):
                               extra_settings={("network", "library_url"): library_api}) as device:
                 device.wait_for_api()
                 # What the launcher learns from the library's discovery document.
-                device.library_assets_port = library.ports["assets"]
+                device.library_files_port = library.ports["assets"]
                 device_api = f"http://127.0.0.1:{device.ports['manager']}"
                 self.assertEqual(_fetch(f"{device_api}/api/v1/library/entries")["count"],
                                  0,
@@ -169,7 +169,7 @@ class SeparationTests(TempTree):
                               extra_settings={("network", "library_url"): library_api}) as two:
                 for device in (one, two):
                     device.wait_for_api()
-                    device.library_assets_port = library.ports["assets"]
+                    device.library_files_port = library.ports["assets"]
 
                 self.assertNotEqual(one.ports["manager"], two.ports["manager"],
                                     "two devices on one machine need their own ports")
@@ -297,7 +297,7 @@ class SeparationTests(TempTree):
             with LiveInstance(self.device_root,
                               extra_settings={("network", "library_url"): library_api}) as device:
                 device.wait_for_api()
-                device.library_assets_port = library.ports["assets"]
+                device.library_files_port = library.ports["assets"]
                 device.post("/api/v1/collections", {"name": "Only Here", "games": []})
 
                 (items, drawn), failures = self._evaluate(device, (
@@ -342,7 +342,7 @@ class SeparationTests(TempTree):
             with LiveInstance(self.device_root,
                               extra_settings={("network", "library_url"): library_api}) as device:
                 device.wait_for_api()
-                device.library_assets_port = library.ports["assets"]
+                device.library_files_port = library.ports["assets"]
                 device_api = f"http://127.0.0.1:{device.ports['manager']}"
                 device.post("/api/v1/collections", {"name": "Hub Picks", "games": []})
 
@@ -373,7 +373,7 @@ class SeparationTests(TempTree):
             with LiveInstance(self.device_root,
                               extra_settings={("network", "library_url"): library_api}) as device:
                 device.wait_for_api()
-                device.library_assets_port = library.ports["assets"]
+                device.library_files_port = library.ports["assets"]
 
                 (count, shown), failures = self._evaluate(device, (
                     "vpin.callInternal('apply_filters', 'T', 'All', 'All', 'All', 'All',"
@@ -395,7 +395,7 @@ class SeparationTests(TempTree):
             with LiveInstance(self.device_root,
                               extra_settings={("network", "library_url"): library_api}) as device:
                 device.wait_for_api()
-                device.library_assets_port = library.ports["assets"]
+                device.library_files_port = library.ports["assets"]
 
                 (_, letters), failures = self._evaluate(device, (
                     "vpin.call('set_tables_by_collection', 'Hub Picks')",
@@ -416,7 +416,7 @@ class SeparationTests(TempTree):
             with LiveInstance(self.device_root,
                               extra_settings={("network", "library_url"): library_api}) as device:
                 device.wait_for_api()
-                device.library_assets_port = library.ports["assets"]
+                device.library_files_port = library.ports["assets"]
 
                 def hub_deletes_it_then_device_refreshes() -> None:
                     requests.delete(f"{library_api}/api/v1/collections/Hub%20Picks",
@@ -443,7 +443,7 @@ class SeparationTests(TempTree):
             with LiveInstance(self.device_root,
                               extra_settings={("network", "library_url"): library_api}) as device:
                 device.wait_for_api()
-                device.library_assets_port = library.ports["assets"]
+                device.library_files_port = library.ports["assets"]
                 save = ("vpin.call('save_filter_collection', 'Saved Here', 'T', 'All',"
                         " 'All', 'All', 'All', 'year', 'All', false, 'asc')")
 
@@ -474,7 +474,7 @@ class SeparationTests(TempTree):
             with LiveInstance(self.device_root,
                               extra_settings={("network", "library_url"): library_api}) as device:
                 device.wait_for_api()
-                device.library_assets_port = library.ports["assets"]
+                device.library_files_port = library.ports["assets"]
                 device_api = f"http://127.0.0.1:{device.ports['manager']}"
 
                 def hub_stops_then_device_is_asked() -> tuple[int, str]:

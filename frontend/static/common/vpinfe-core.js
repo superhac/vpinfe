@@ -166,7 +166,7 @@ class ContractTwoReader {
     // and still appears in the wheel. The route accepts either id.
     const id = String(entry.table?.id || entry.game?.id || "");
     if (!id) return null;
-    return `${this.core.endpoints.assets}/media/${encodeURIComponent(id)}/${kind}`;
+    return `${this.core.endpoints.files}/media/${encodeURIComponent(id)}/${kind}`;
   }
 
   imageURL(entry, kind) { return this.url(entry, kind) || MISSING_MEDIA_URL; }
@@ -619,17 +619,17 @@ class ContractOneReader {
     const normalized = localPath.replace(/\\/g, '/');       // Windows separators
     const parts = normalized.split('/');
     const file = parts[parts.length - 1];
-    const assets = this.core.endpoints.assets;
+    const files = this.core.endpoints.files;
     // The file may sit deeper than medias/ itself - wheel sets live in
     // medias/wheels/<set>/ - so keep everything from medias/ down.
     const mediasIndex = parts.lastIndexOf('medias');
     if (mediasIndex > 0) {
       const gameDir = parts[mediasIndex - 1];
       const rest = parts.slice(mediasIndex).map(encodeURIComponent).join('/');
-      return `${assets}/tables/${encodeURIComponent(gameDir)}/${rest}`;
+      return `${files}/tables/${encodeURIComponent(gameDir)}/${rest}`;
     }
     const dir = parts[parts.length - 2];        // media sitting in the game folder
-    return `${assets}/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
+    return `${files}/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
   }
 }
 
@@ -753,9 +753,9 @@ class VPinFECore {
     // What this install serves on, which is not what a remote library answers on -
     // `libraryPort` carries that one's, so the two cannot be the same number.
     this.devicePort = port('devicePort', this.libraryPort);
-    // The library's asset server, when the library is elsewhere. Its own port, not this
+    // The library's file server, when the library is elsewhere. Its own port, not this
     // machine's: pairing a remote host with the local port addresses neither.
-    this.libraryAssetsPort = port('libraryAssetsPort', this.themeAssetsPort);
+    this.libraryFilesPort = port('libraryFilesPort', this.themeAssetsPort);
 
     // Display config, as the ini states it. Raw values - `layout` below is what a theme
     // should read.
@@ -1001,7 +1001,7 @@ class VPinFECore {
   getManufacturerLogoURL(index) {
     const item = this.tableData[index];
     const path = item ? this._reader.logo(item) : null;
-    return path ? `${this.endpoints.assets}${path}` : null;
+    return path ? `${this.endpoints.files}${path}` : null;
   }
 
   getPreferredMediaURL(index, kind) {
@@ -1054,7 +1054,7 @@ class VPinFECore {
    * Three are addresses you fetch from - take one, add a path, get an answer back:
    *   `library`  the catalog and what is known about it: games, collections, uploads
    *   `device`   this machine: launching, play state, its hardware
-   *   `assets`   the files themselves: theme packages, table media, shared art
+   *   `files`    the files themselves: theme packages, table media, manufacturer logos
    *
    * One is a line held open instead, so it takes no path:
    *   `frontend_channel`  how this page and VPinFE talk to each other, both ways
@@ -1074,7 +1074,7 @@ class VPinFECore {
     return {
       library: `http://${libraryHost}:${this.libraryPort}`,
       device: `http://${host}:${this.devicePort}`,
-      assets: `http://${libraryHost}:${this.libraryHost ? this.libraryAssetsPort : this.themeAssetsPort}`,
+      files: `http://${libraryHost}:${this.libraryHost ? this.libraryFilesPort : this.themeAssetsPort}`,
       frontend_channel: `ws://${host}:${this.wsPort}`,
     };
   }
@@ -2149,9 +2149,9 @@ class VPinFECore {
     // page opened without them - `endpoints` derives from the ports, so correcting one
     // corrects every url built from it.
     this.themeAssetsPort = await this.call("get_theme_assets_port");
-    // Only this machine's. With the library elsewhere its asset port came in the url
+    // Only this machine's. With the library elsewhere its file server's port came in the url
     // and this answer is about the wrong machine.
-    if (!this.libraryHost) this.libraryAssetsPort = this.themeAssetsPort;
+    if (!this.libraryHost) this.libraryFilesPort = this.themeAssetsPort;
     try {
       const ownPort = await this.call("get_http_port");
       // What this install serves on. It is the library's port too, unless one
