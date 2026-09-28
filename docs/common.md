@@ -90,6 +90,8 @@ to 2.x still finds them.
 - `frontend_state.py`: what the frontend is showing, as it last reported, and the door a request to switch its collection or move its wheel goes through. The frontend registers what answers it.
 - `tools.py`: the Tools registry - each program VPinFE runs on this device but does not ship, found through its setting, `PATH` and the places a short `PATH` misses, probed for what it can do, and the hint a person follows when it is missing. A new Tool comes with its `tools.*` setting, and a check holds the two lists equal.
 - `vpinos.py`: whether this device runs VPinOS, for what is VPinOS's alone.
+- `keys.py`, `key_simulator.py`: a key by the code a binding names it with, and pressing one into the running table - through `wtype` or `ydotool` on Wayland, pynput elsewhere - with `sender()` saying whether this device can.
+- `key_reader.py`: while a table plays and a key is bound to Take Picture, the keys bound to the play-time actions, heard from outside the frontend's page and pressed as those actions; `hearing()` says whether this device can.
 - `display_service.py`, `system_actions.py`, `vpx_log.py`.
 
 **`common/capture/`** - recording this machine's own screens into its tables' media.
@@ -101,6 +103,7 @@ to 2.x still finds them.
 - `pipeline.py`: the FFmpeg command lines from a recording to the stored file - turn, constant rate, size, format, pictures, sound.
 - `session.py`: one table - launched, waited for, recorded, closed, then encoded and placed.
 - `run.py`: what a recording would fill and replace, and starting one as a job.
+- `freeze.py`: Take Picture during play - the table paused with its own key, every screen taken at once, the table resumed - and `compose.py`, the screens as one picture laid out as the cabinet is. The picture goes to the game's `pictures/` folder (`common/games/pictures.py`).
 
 Depends on `common/host/`, whose Tools it runs.
 

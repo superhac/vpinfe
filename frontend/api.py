@@ -17,6 +17,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from common import events, lifecycle
+from common.capture import freeze
 from common.config_access import cfg_get
 from common.deprecations import announce
 from common.extensions import services as ext_services
@@ -155,6 +156,10 @@ API_INTERNAL_METHODS = {
     # Core's own probe of the browser it runs in. A theme reporting here would be
     # rewriting what the Console says the cabinet can play.
     'report_browser',
+    # Take Picture and Back while a table runs. A theme calling them would pause a game
+    # nobody asked to pause.
+    'take_picture',
+    'resume_play',
 }
 
 
@@ -660,6 +665,14 @@ class API:
     def report_browser(self, report: Any) -> dict[str, Any]:
         """What this browser plays, as the controller window probed it."""
         return frontend_browser.record(report)
+
+    def take_picture(self) -> dict[str, Any]:
+        """Take Picture pressed while a table runs: freezes it, or takes the picture."""
+        return freeze.take_picture()
+
+    def resume_play(self) -> dict[str, Any]:
+        """Back pressed while a table runs: resumes it where it is frozen."""
+        return freeze.resume()
 
     def console_out(self, output: Any, frame: str = "") -> Any:
         """A line from the browser. `frame` names an overlay within this window.

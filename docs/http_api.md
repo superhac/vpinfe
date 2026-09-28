@@ -1061,7 +1061,7 @@ What's on it, each alongside the `install_id` described below:
 | `game.selected` | `{"game": {"id", "name", "links"}, "table": null}` — the wheel stops on a game, so there is no table to name |
 | `game.changed` | `{"game": {"id", "name", "links"}}` — a game's metadata was rewritten, so anything holding it is stale |
 | `collections.changed` | `{}` — the collections were edited, or a read of a Community list moved a ranked order; re-read them |
-| `play.state_changed` | `{"state": {"launching", "game_name", "source"}}` |
+| `play.state_changed` | `{"state": {"launching", "game_name", "source", "paused"}}` — `paused` while the running table has paused itself, as Take Picture pauses it |
 | `frontend.state_changed` | `{"state": {"running", "collection", "game"}}`, `game` a reference like the others or null. The same as `GET /frontend/state` |
 | `players.changed` | `{"state": {"players": [...]}}` - somebody joined, left, was renamed or went up. The whole list, the same as `GET /players` |
 | `job.progress` | `{"job_id", "pct", "message"}` |

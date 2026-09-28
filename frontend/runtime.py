@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from common import discovery, shutdown
+from common.capture import freeze
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
 from common.config_store import ConfigStore
 from common.extensions import services as ext_services
@@ -83,6 +84,7 @@ def create_api_instances(iniconfig: ConfigStore,
     play_events.register(ws_bridge, frontend_browser, iniconfig)
     input_events.register(ws_bridge)
     key_reader.register()
+    freeze.register()
     showing.register(ws_bridge, shared_library)
     # What extensions add to an entry, fetched by core when the wheel stops. Given the
     # bridge's own send rather than a bridge of its own, so one answer reaches every

@@ -34,6 +34,8 @@ describe("vpin.call refuses core's own methods", () => {
       "get_paging_state",
       "keep_filter_collection",
       "report_browser",
+      "resume_play",
+      "take_picture",
     ]);
   });
 

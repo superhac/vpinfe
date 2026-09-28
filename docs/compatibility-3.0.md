@@ -1446,6 +1446,17 @@ blank could not be told from the machine's own initials. Covered by `tests/games
 `tests/games/test_info_migration.py`, `tests/host/test_launch.py` and
 `tests/theming/test_theme_contract.py`.
 
+**PAR-99 - Take Picture and Back reach core while a table runs.**
+Two WebSocket methods, `take_picture` and `resume_play`, carry what the controller window
+hears during play: Take Picture, which pauses the table with its own key or, where it is
+paused, takes every screen as one picture; and Back, which resumes it. Refused to themes,
+like `get_paging_state`: their caller is core's own page. Nothing a theme reads changes,
+and neither action is ever handed to a theme's `handleInput`.
+*Why:* the page stops answering input while a table runs, so that a flipper in the game does
+not also move the wheel, and a gamepad button bound to Take Picture still has to be heard.
+Covered by `tests/js/take-picture.test.js`, `tests/js/internal-methods.test.js`,
+`tests/capture/test_freeze.py` and `tests/invariants/test_theme_api_surface.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

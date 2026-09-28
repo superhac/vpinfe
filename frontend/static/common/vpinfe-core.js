@@ -138,6 +138,10 @@ function configValue(config, key) {
 const REPEATING_ACTIONS = new Set(
   ["previous", "next", "page_previous", "page_next"]);
 
+// What the page still answers while a table runs, and only by handing it to core, which
+// knows whether the table is frozen. `IN_PLAY` in common/input_registry.py.
+const PLAY_ACTIONS = new Set(["take_picture", "back"]);
+
 const MISSING_MEDIA_URL = "/core/images/file_missing.png";
 
 // The contract a theme declares in its manifest. 1 is what declaring nothing gets, and
@@ -392,6 +396,8 @@ const INTERNAL_METHODS = new Set([
   "get_paging_state",
   "keep_filter_collection",
   "report_browser",
+  "take_picture",
+  "resume_play",
 ]);
 
 // By the ids `common/host/frontend_browser.py` knows.
@@ -2714,18 +2720,77 @@ class VPinFECore {
   // hold engine reads - so until then a held button steps once, which is what a client
   // sending a press and a release straight after already means.
   #applyRemoteInput(message) {
-    if (!this.frontendInputEnabled) return;
     const action = String(message && message.action || "");
+    if (!this.frontendInputEnabled) {
+      if (message && message.phase !== "release") this.#inPlay(action);
+      return;
+    }
     if (!action) return;
     if (message.phase === "release") return this.#endHold(action);
     this.#dispatchAction(action);
     this.#startHold(action);
   }
 
+  // Take Picture and Back while a table runs, from a gamepad or any other producer; the
+  // page's own keys are the table's then. What happened decides the tone.
+  async #inPlay(action) {
+    if (!this._launchInputSuppressedByLifecycle || !PLAY_ACTIONS.has(action)) return;
+    let answer = null;
+    try {
+      answer = await this.callInternal(
+        action === "take_picture" ? "take_picture" : "resume_play");
+    } catch (err) {
+      this.call("console_out", `Take Picture: ${err.message}`);
+      return;
+    }
+    const state = answer && answer.state;
+    if (state === "frozen") this.#tone("ready");
+    else if (state === "taken") this.#tone("shutter");
+  }
+
+  #tone(kind) {
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!Context) return;
+    try {
+      this._toneContext = this._toneContext || new Context();
+      const ctx = this._toneContext;
+      if (ctx.state === "suspended" && ctx.resume) ctx.resume();
+      const start = ctx.currentTime + 0.01;
+      if (kind === "ready") {
+        [[880, 0], [1320, 0.11]].forEach(([pitch, at]) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.frequency.value = pitch;
+          gain.gain.setValueAtTime(0.0001, start + at);
+          gain.gain.exponentialRampToValueAtTime(0.3, start + at + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + at + 0.09);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(start + at);
+          osc.stop(start + at + 0.1);
+        });
+        return;
+      }
+      const length = Math.floor(ctx.sampleRate * 0.05);
+      const noise = ctx.createBuffer(1, length, ctx.sampleRate);
+      const samples = noise.getChannelData(0);
+      for (let i = 0; i < length; i++) samples[i] = (Math.random() * 2 - 1) * (1 - i / length);
+      [0, 0.08].forEach((at) => {
+        const burst = ctx.createBufferSource();
+        const gain = ctx.createGain();
+        burst.buffer = noise;
+        gain.gain.value = at ? 0.25 : 0.5;
+        burst.connect(gain).connect(ctx.destination);
+        burst.start(start + at);
+      });
+    } catch (err) {
+      console.warn("vpinfe: a tone could not be played", err);
+    }
+  }
+
   // What an action does, whichever input produced it. One place, so the keyboard and
   // the gamepad cannot drift apart again.
   #dispatchAction(action) {
-    // Core's own, and only while a table runs; never a theme's.
+    // Core's own, and answered only while a table runs; never a theme's.
     if (action === "take_picture") return;
     if (!this.isController() && action !== "select") return this.#triggerInputAction(action);
 
@@ -2991,7 +3056,12 @@ class VPinFECore {
 }
 
 async #onButtonPressed(buttonIndex, gamepadIndex) {
-    if (!this.frontendInputEnabled) return;
+    if (!this.frontendInputEnabled) {
+      for (const action of this.joyButtonMap[buttonIndex.toString()] || []) {
+        this.#inPlay(action);
+      }
+      return;
+    }
 
     // Every action bound to this button. The branching is #dispatchAction's, shared with
     // the keyboard so the two cannot drift apart again.
@@ -3033,8 +3103,8 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
             }
           }
         }
-        if (this.frontendInputEnabled && isPressed && !wasPressed) {
-          //this.call("console_out", "Button: " + index);
+        if (isPressed && !wasPressed
+            && (this.frontendInputEnabled || this._launchInputSuppressedByLifecycle)) {
           this.#onButtonPressed(index, i); // new press
         }
         this.previousButtonStates[i][index] = isPressed;

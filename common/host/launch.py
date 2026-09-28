@@ -48,7 +48,7 @@ from common.games.tables import (
     table_entries,
     table_names,
 )
-from common.host import commands, launch_state, table_commands
+from common.host import commands, key_simulator, launch_state, table_commands
 from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
 from common.i18n import t
 from common.launcher_path import resolve_launcher_path
@@ -248,14 +248,40 @@ def _plan(entry: apps.Entry, binary: str, launcher: launchers.Launcher, *,
         raise LaunchUnavailableError(
             t("error.launch.app_starts_nothing", app_name=apps.app_name(app.id)))
 
-    settings = {declared.key: launcher.value(declared.key)
-                for declared in launcher.fields()}
-    settings["bin_path"] = binary
+    settings = _settings(launcher, binary)
     marker = app.launch.session(settings).readiness_marker
     if capture is not None and app.capture is not None:
         return (app.capture.command(entry, settings, sound=record_sound,
                                     folder=str(capture)), marker)
     return app.launch.command(entry, settings), marker
+
+
+def _settings(launcher: launchers.Launcher, binary: str) -> dict[str, Any]:
+    settings = {declared.key: launcher.value(declared.key)
+                for declared in launcher.fields()}
+    settings["bin_path"] = binary
+    return settings
+
+
+def _pause_of(launcher: launchers.Launcher, binary: str,
+              ) -> tuple[apps.Pause | None, Callable[[], bool] | None]:
+    """How the app pauses, and what presses its key: looked up at the press, since the
+    key comes from a file the person may change while the table runs."""
+    app = apps.get(getattr(launcher, "app", "")) or apps.default_app()
+    pause = app.pause
+    if pause is None:
+        return None, None
+    settings = _settings(launcher, binary)
+
+    def press() -> bool:
+        code = pause.key(settings)
+        if not code:
+            logger.warning("%s has no pause key to press", apps.app_name(app.id))
+            return False
+        logger.info("Pressing the table's pause key, %s", code)
+        return key_simulator.press_code(code)
+
+    return pause, press
 
 
 def _capture_folder() -> Path:
@@ -505,7 +531,8 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
                 text=True,
                 env=_launch_env(launcher),
             )
-            launch_state.attach(process)
+            pause, press = (None, None) if capturing else _pause_of(launcher, binary)
+            launch_state.attach(process, press)
             started_at = time.time()
             if not capturing:
                 started = ext_services.ask(
@@ -533,6 +560,12 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
                     running = True
                     events.emit(events.TABLE_LAUNCHED, **launched)
                     logger.info("table running")
+                elif pause is not None and pause.resumed_marker \
+                        and pause.resumed_marker in line:
+                    launch_state.set_paused(False)
+                elif pause is not None and pause.paused_marker \
+                        and pause.paused_marker in line:
+                    launch_state.set_paused(True)
 
             process.wait()
             around.values["exit_code"] = str(process.returncode)

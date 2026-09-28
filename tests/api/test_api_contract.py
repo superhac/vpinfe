@@ -115,7 +115,8 @@ class ApiContractTests(unittest.TestCase):
 
         self.assertEqual(entry["status"], 200)
         self.assertEqual(entry["json"],
-                         {"launching": False, "game_name": None, "source": None})
+                         {"launching": False, "game_name": None, "source": None,
+                          "paused": False})
         self.assertEqual(entry["cors"], "*", "themes call this from another origin")
         # Same-origin callers get no CORS header, which is correct and not a regression:
         # the header only has meaning in a cross-origin response.
@@ -135,9 +136,10 @@ class ApiContractTests(unittest.TestCase):
 
         self.assertEqual(launching, {"launching": True,
                                      "game_name": "Medieval Madness (Williams 1997)",
-                                     "source": "remote"})
+                                     "source": "remote", "paused": False})
         self.assertEqual(cleared,
-                         {"launching": False, "game_name": None, "source": None})
+                         {"launching": False, "game_name": None, "source": None,
+                          "paused": False})
 
     def test_launch_refuses_before_it_starts_anything(self) -> None:
         """Every refusal is answered synchronously. A launch that returns 202 and

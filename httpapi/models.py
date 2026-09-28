@@ -370,11 +370,13 @@ class DeviceAnnouncement(ApiModel):
 class PlayState(ApiModel):
     """Also the payload of the `play.state_changed` event, so a subscriber and a
     poller see the same shape. `source` is who asked - the frontend filters its
-    own launches on it, so dropping the field breaks the remote overlay."""
+    own launches on it, so dropping the field breaks the remote overlay. `paused` is the
+    running table saying it has paused itself and not yet that it has resumed."""
 
     launching: bool
     game_name: str | None
     source: str | None
+    paused: bool = False
 
 
 class PlayStopped(ApiModel):

@@ -12,7 +12,8 @@ from __future__ import annotations
 import logging
 import subprocess
 import threading
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 
 from common import events
 
@@ -33,10 +34,12 @@ class LaunchState:
     launching: bool = False
     game_name: str | None = None
     source: str | None = None
+    # The running table says it has paused itself, and not yet that it has resumed.
+    paused: bool = False
 
     def as_dict(self) -> dict:
         return {"launching": self.launching, "game_name": self.game_name,
-                "source": self.source}
+                "source": self.source, "paused": self.paused}
 
 
 _state = LaunchState()
@@ -45,6 +48,9 @@ _state = LaunchState()
 # end it. Deliberately not a field on LaunchState: that is serialized into every
 # `play.state_changed` payload, and a Popen is not something to put on the wire.
 _process: subprocess.Popen | None = None
+# Presses the running table's own pause key; True where a key was pressed.
+_pause: Callable[[], bool] | None = None
+_paused_changed = threading.Condition()
 
 
 def current() -> LaunchState:
@@ -80,17 +86,50 @@ def set_launching(game_name: str | None, *, source: str) -> LaunchState:
 
 def clear() -> LaunchState:
     """Record that nothing is launching. Safe to call when nothing was."""
-    global _process
+    global _process, _pause
     with _lock:
         _process = None
-    return _replace(LaunchState())
+        _pause = None
+    cleared = _replace(LaunchState())
+    with _paused_changed:
+        _paused_changed.notify_all()
+    return cleared
 
 
-def attach(process: subprocess.Popen) -> None:
-    """Hold the launched table's process. Released by `clear()`."""
-    global _process
+def attach(process: subprocess.Popen, pause: Callable[[], bool] | None = None) -> None:
+    """Hold the launched table's process, and what presses its pause key where it has
+    one. Released by `clear()`."""
+    global _process, _pause
     with _lock:
         _process = process
+        _pause = pause
+
+
+def set_paused(paused: bool) -> LaunchState:
+    """Record that the running table said it paused, or resumed. Nothing while none runs."""
+    with _lock:
+        now = _state
+    if not now.launching:
+        return now
+    changed = _replace(replace(now, paused=paused))
+    with _paused_changed:
+        _paused_changed.notify_all()
+    return changed
+
+
+def wait_paused(paused: bool, timeout: float) -> bool:
+    """Until the running table's paused state is `paused`, or `timeout` has passed.
+    Whether it is."""
+    with _paused_changed:
+        return _paused_changed.wait_for(lambda: current().paused == paused, timeout)
+
+
+def toggle_pause() -> bool:
+    """Press the running table's own pause key. False where none runs, it has no pause,
+    or the key could not be pressed."""
+    with _lock:
+        pause = _pause
+    return bool(pause()) if pause is not None else False
 
 
 def stop(timeout: float = 5.0) -> bool:

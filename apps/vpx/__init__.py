@@ -12,6 +12,7 @@ from .capability import VPXCapability
 from .capture import VPXCapture
 from .config import VPXConfig
 from .launch import VPXLaunch
+from .pause import VPXPause
 
 # What sits beside a table and belongs to it: its settings, a patched script, its
 # backglass, a point of view, a saved camera. Here rather than in a generic module
@@ -43,4 +44,5 @@ VPX = App(
     config=VPXConfig(),
     capability=VPXCapability(),
     capture=VPXCapture(),
+    pause=VPXPause(),
 )

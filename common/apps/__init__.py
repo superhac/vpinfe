@@ -28,12 +28,13 @@ from .contract import (
     Kinds,
     Pair,
     Parsed,
+    Pause,
     Session,
 )
 
 __all__ = [
     "App", "Availability", "Claim", "ConfigGroup", "Entry", "Field", "Heading", "Kinds",
-    "Pair", "Parsed", "Session", "all_apps", "app_for", "app_name", "default_app",
+    "Pair", "Parsed", "Pause", "Session", "all_apps", "app_for", "app_name", "default_app",
     "field_blank", "field_help", "field_words", "get", "group_words", "heading_words",
     "pair_words",
     "strip_suffix", "table_suffixes",

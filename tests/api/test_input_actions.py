@@ -162,8 +162,11 @@ class InputRouteTests(unittest.TestCase):
         from pathlib import Path
         from unittest import mock
 
-        from common.host import key_reader, key_simulator
+        from httpapi import input as route
 
+        # Through the route's own references: a test that imports the simulator afresh
+        # leaves the package holding a different module object.
+        key_reader, key_simulator = route.key_reader, route.key_simulator
         refused = {"key": key_reader.NO_INPUT_GROUP, "params": {}, "fix": "user",
                    "remedy": {"key": key_reader.JOIN_INPUT_GROUP, "params": {}}}
         with mock.patch.object(key_simulator, "sender", return_value=key_simulator.Sender(

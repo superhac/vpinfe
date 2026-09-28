@@ -336,6 +336,14 @@ class JavaScriptCopiesTests(unittest.TestCase):
                               if a.legacy_joy_key})
 
 
+class PlayActionsTests(unittest.TestCase):
+    def test_the_page_hears_in_play_what_the_registry_says(self) -> None:
+        block = re.search(r"const PLAY_ACTIONS = new Set\(\[(.*?)\]\);", CORE_JS, re.S)
+        self.assertIsNotNone(block, "PLAY_ACTIONS moved; this test needs updating")
+        self.assertEqual(re.findall(r'"(\w+)"', block.group(1)),
+                         list(input_registry.IN_PLAY))
+
+
 class BridgeTests(unittest.TestCase):
     def test_the_old_bridge_methods_still_answer(self) -> None:
         """Projected out of the lists, so anything built against them keeps working."""

@@ -194,8 +194,52 @@ class LifecycleTests(LaunchTests):
         self._run(popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
 
         self.assertEqual(during, [{"launching": True, "game_name": "Example",
-                                   "source": "api"}])
+                                   "source": "api", "paused": False}])
         self.assertFalse(launch_state.current().launching)
+
+
+class PauseTests(LaunchTests):
+    """The table's own lines say when it paused, and its own key pauses it."""
+
+    def test_the_tables_lines_are_the_paused_state(self) -> None:
+        seen = []
+        events.subscribe(events.PLAY_STATE_CHANGED,
+                         lambda state, **_: seen.append(state["paused"]))
+
+        self._run(popen=lambda cmd, **k: _FakePopen([
+            "Startup done\n", "Pausing Game\n", "Unpausing Game\n", "Pausing Game\n"]))
+
+        self.assertEqual(seen, [False, True, False, True, False])
+
+    def test_a_recording_has_no_pause(self) -> None:
+        seen = []
+        events.subscribe(events.PLAY_STATE_CHANGED,
+                         lambda state, **_: seen.append(state["paused"]))
+
+        self._run(source=launch_state.SOURCE_CAPTURE, popen=lambda cmd, **k: _FakePopen(
+            ["Startup done\n", "Pausing Game\n"]))
+
+        self.assertNotIn(True, seen)
+
+    def test_the_pause_key_is_the_apps_pressed_through_the_simulator(self) -> None:
+        pressed: list = []
+
+        def lines():
+            yield "Startup done\n"
+            pressed.append(launch_state.toggle_pause())
+
+        def popen(cmd, **k):
+            running = _FakePopen()
+            running.stdout = lines()
+            return running
+
+        with mock.patch.object(launch.key_simulator, "press_code",
+                               side_effect=lambda code: pressed.append(code) or True), \
+                mock.patch("apps.vpx.pause.VPXPause.key", return_value="KeyP"):
+            self._run(popen=popen)
+
+        self.assertEqual(pressed, ["KeyP", True])
+        self.assertFalse(launch_state.toggle_pause(), "nothing runs once it has exited")
 
 
 class PlayDataTests(LaunchTests):

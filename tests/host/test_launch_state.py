@@ -66,7 +66,8 @@ class LaunchStateTests(unittest.TestCase):
         launch_state.clear()
 
         self.assertEqual(launch_state.current().as_dict(),
-                         {"launching": False, "game_name": None, "source": None})
+                         {"launching": False, "game_name": None, "source": None,
+                          "paused": False})
 
     def test_clearing_when_idle_is_harmless(self) -> None:
         """The remote page clears in a finally and in an except; both can run."""
@@ -191,13 +192,14 @@ class LaunchStateEventTests(unittest.TestCase):
         launch_state.set_launching("Medieval Madness", source=launch_state.SOURCE_REMOTE)
 
         self.assertEqual(self.seen, [{"launching": True, "game_name": "Medieval Madness",
-                           "source": "remote"}])
+                           "source": "remote", "paused": False}])
 
     def test_clearing_is_announced(self) -> None:
         launch_state.set_launching("Medieval Madness", source=launch_state.SOURCE_REMOTE)
         launch_state.clear()
 
-        self.assertEqual(self.seen[-1], {"launching": False, "game_name": None, "source": None})
+        self.assertEqual(self.seen[-1], {"launching": False, "game_name": None, "source": None,
+                                         "paused": False})
 
     def test_an_unchanged_state_is_not_announced(self) -> None:
         """The remote page clears in both a finally and an except; both can run."""
@@ -212,7 +214,8 @@ class LaunchStateEventTests(unittest.TestCase):
         launch_state.set_launching("B", source=launch_state.SOURCE_API)
 
         self.assertEqual(self.seen[-1],
-                         {"launching": True, "game_name": "B", "source": "api"})
+                         {"launching": True, "game_name": "B", "source": "api",
+                          "paused": False})
 
     def test_a_handler_may_read_the_state_back(self) -> None:
         """The event goes out after the lock is released, so this cannot deadlock."""
@@ -234,6 +237,57 @@ class LaunchStateEventTests(unittest.TestCase):
             launch_state.set_launching("Medieval Madness", source=launch_state.SOURCE_REMOTE)
 
         self.assertTrue(launch_state.current().launching)
+
+
+
+class PauseTests(unittest.TestCase):
+    """What the running table said about pausing, and pressing its key."""
+
+    def setUp(self) -> None:
+        launch_state.clear()
+        events.clear()
+        self.addCleanup(events.clear)
+        self.addCleanup(launch_state.clear)
+
+    def test_a_running_table_says_it_paused_and_resumed(self) -> None:
+        launch_state.set_launching("A", source=launch_state.SOURCE_FRONTEND)
+
+        launch_state.set_paused(True)
+        self.assertTrue(launch_state.current().as_dict()["paused"])
+        launch_state.set_paused(False)
+        self.assertFalse(launch_state.current().paused)
+
+    def test_nothing_running_is_never_paused(self) -> None:
+        launch_state.set_paused(True)
+        self.assertFalse(launch_state.current().paused)
+
+    def test_the_table_closing_ends_the_pause(self) -> None:
+        launch_state.set_launching("A", source=launch_state.SOURCE_FRONTEND)
+        launch_state.set_paused(True)
+
+        launch_state.clear()
+
+        self.assertFalse(launch_state.current().paused)
+
+    def test_a_wait_ends_when_the_table_says_so(self) -> None:
+        launch_state.set_launching("A", source=launch_state.SOURCE_FRONTEND)
+        threading.Timer(0.05, launch_state.set_paused, (True,)).start()
+
+        self.assertTrue(launch_state.wait_paused(True, 2.0))
+        self.assertFalse(launch_state.wait_paused(False, 0.05))
+
+    def test_the_pause_key_is_the_running_tables_own(self) -> None:
+        pressed = []
+        launch_state.attach(FakeProcess(), lambda: pressed.append("key") or True)
+
+        self.assertTrue(launch_state.toggle_pause())
+        self.assertEqual(pressed, ["key"])
+        launch_state.clear()
+        self.assertFalse(launch_state.toggle_pause())
+
+    def test_a_table_with_no_pause_presses_nothing(self) -> None:
+        launch_state.attach(FakeProcess())
+        self.assertFalse(launch_state.toggle_pause())
 
 
 if __name__ == "__main__":

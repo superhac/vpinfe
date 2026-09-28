@@ -337,6 +337,21 @@ class Capture(Protocol):
     def window(self, app_id: str, title: str) -> str: ...
 
 
+# --- pausing ----------------------------------------------------------------------
+
+
+@runtime_checkable
+class Pause(Protocol):
+    """How a running entry pauses and resumes itself: the key it listens for, named as a
+    binding names one (`KeyP`), and the lines it writes once it has done either. `key`
+    answers "" where it has none."""
+
+    paused_marker: str
+    resumed_marker: str
+
+    def key(self, settings: Mapping[str, Any]) -> str: ...
+
+
 # --- the app ----------------------------------------------------------------------
 
 
@@ -356,3 +371,4 @@ class App:
     config: Config | None = None
     capability: Capability | None = None
     capture: Capture | None = None
+    pause: Pause | None = None
