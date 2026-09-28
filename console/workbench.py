@@ -2400,6 +2400,10 @@ def _game_marks(context: dict[str, Any]) -> list[tuple[Any, Any]]:
         await _write(context, context["library"].set_game_favorite,
                      context["game_id"], bool(event.value), shape=False)
 
+    async def private(event: Any) -> None:
+        await _write(context, context["library"].set_game_private,
+                     context["game_id"], bool(event.value), shape=False)
+
     async def retag(chosen: list[str]) -> None:
         await _write(context, context["library"].set_game_tags,
                      context["game_id"], chosen)
@@ -2410,6 +2414,8 @@ def _game_marks(context: dict[str, Any]) -> list[tuple[Any, Any]]:
         (t("word.favorite"),
          lambda: _switch(bool(record.get("favorite")), favorite,
                          hint=t("console.workbench.frontend_can_filter"))),
+        (game_tables.PRIVATE_WORDS[0], lambda: _switch(bool(game.get("private")), private)),
+        panel.note(game_tables.PRIVATE_HELP),
         (t("console.workbench.tags"),
          _tag_picker(list(record.get("tags") or []), context["library"], retag,
                      list(game.get("derived_tags") or []))),

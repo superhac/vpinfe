@@ -96,6 +96,10 @@ LAUNCH_WORDS = (t("console.game_tables.blocked"), t("word.ready"))
 # half by a long way - a matched game is the ordinary case, and it is the unmatched one
 # that can look nothing up: no art, no release list, no update.
 VPS_WORDS = (t("console.game_tables.unmatched"), t("console.game_tables.matched"))
+# Whether a game is kept from every community service. Private is the notable half.
+COMMUNITY = t("console.game_tables.community")
+PRIVATE_WORDS = (t("console.game_tables.private"), t("console.game_tables.not_private"))
+PRIVATE_HELP = t("console.game_tables.private.help")
 # How the match in force was made, by the token `how_matched` gives a row.
 HOW_MATCHED = {"auto": t("console.game_tables.auto_matched"),
                "import": t("console.game_tables.matched_on_import"),

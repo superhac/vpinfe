@@ -47,8 +47,9 @@ def _under(entries: list[tuple[Any, Any]], heading: str) -> list[str]:
 YOURS = t("console.workbench.yours")
 RATING = t("console.workbench.your_rating")
 FAVORITE = t("word.favorite")
+PRIVATE = game_tables.PRIVATE_WORDS[0]
 TAGS = t("console.workbench.tags")
-MARKS = {RATING, FAVORITE, TAGS}
+MARKS = {RATING, FAVORITE, PRIVATE, TAGS}
 DOF_EVENT = t("console.workbench.dof_event")
 
 
@@ -58,7 +59,7 @@ class GameSectionTests(unittest.TestCase):
         self.entries = workbench._game_entries(context, {}, [], held=False)
 
     def test_the_marks_sit_under_yours(self) -> None:
-        self.assertEqual(_under(self.entries, YOURS), [RATING, FAVORITE, TAGS])
+        self.assertEqual(_under(self.entries, YOURS), [RATING, FAVORITE, PRIVATE, TAGS])
 
     def test_yours_follows_the_details(self) -> None:
         headings = _headings(self.entries)

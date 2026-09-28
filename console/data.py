@@ -400,6 +400,18 @@ class Library:
         self._client.set_favorite(game_id, favorite)
         self._forget_game(game_id)
 
+    def set_game_private(self, game_id: str, private: bool) -> None:
+        self._client.set_private(game_id, private)
+        self._forget_game(game_id)
+
+    def set_games_private(self, game_ids: list[str], private: bool) -> dict:
+        result = self._client.set_private_many(game_ids, private)
+        named = set(game_ids)
+        for game in self.games:
+            if game.get("id") in named:
+                game["private"] = bool(result.get("private", private))
+        return result
+
     def reset_play_record(self, game_id: str, table_id: str = "") -> None:
         self._client.reset_play_record(game_id, table_id)
         if table_id:
@@ -1545,6 +1557,7 @@ class Library:
                 "vps_unmatched": not game.get("vps_id"),
                 "vps_matched_by": game_tables.how_matched(game),
                 "hidden": bool(game.get("hidden")),
+                "private": bool(game.get("private")),
                 "rating": game.get("rating") or 0,
                 "themes": list(game.get("themes") or []),
                 "tags": [*((game.get("user") or {}).get("tags") or []),

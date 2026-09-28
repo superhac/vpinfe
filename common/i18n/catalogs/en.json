@@ -886,6 +886,7 @@
   "console.game_tables.automatic": "Automatic",
   "console.game_tables.automatic.help": "The newest table you added. Lock it to keep it.",
   "console.game_tables.blocked": "Blocked",
+  "console.game_tables.community": "Community",
   "console.game_tables.default_table": "Default Table",
   "console.game_tables.deleted_every_table_runs_own": "Deleted - every table without its own .vbs runs the script inside its .vpx",
   "console.game_tables.every_table_loses_script": "Every table without its own .vbs loses it, and any patch or edit it holds.",
@@ -916,10 +917,13 @@
   "console.game_tables.mod_noted": "Mod · {note}",
   "console.game_tables.mod_of": "Mod of {told}",
   "console.game_tables.not_library": "Not in this library",
+  "console.game_tables.not_private": "Not Private",
   "console.game_tables.now_plays": "{game} now plays {table}.",
   "console.game_tables.offered": "Offered",
   "console.game_tables.offered_now_plays": "Offered. {game} now plays {table}.",
   "console.game_tables.play": "Play",
+  "console.game_tables.private": "Private",
+  "console.game_tables.private.help": "Never sent to VPinPlay or any community service",
   "console.game_tables.reachable": "Reachable",
   "console.game_tables.table_file": "Table File",
   "console.game_tables.unlock": "Unlock: VPinFE picks the newest",
@@ -930,6 +934,10 @@
   "console.game_tables.where": "Where It Is",
   "console.games.actions_selected_games": "Actions for the selected games",
   "console.games.actions_selected_tables": "Actions for the selected tables",
+  "console.games.already_private": {
+    "one": "Already Private",
+    "other": "All {count} already Private"
+  },
   "console.games.alt_color": "Alt Color",
   "console.games.altsound": "AltSound",
   "console.games.auto_match": "Auto-match",
@@ -974,6 +982,16 @@
   "console.games.launcher_plays_file_dot.help": "Which launcher plays this file",
   "console.games.launching": "Launching {name}",
   "console.games.library": "In this library",
+  "console.games.mark_not_private": "Mark Not Private",
+  "console.games.mark_private": "Mark Private",
+  "console.games.marked_not_private": {
+    "one": "{count} game marked Not Private",
+    "other": "{count} games marked Not Private"
+  },
+  "console.games.marked_private": {
+    "one": "{count} game marked Private",
+    "other": "{count} games marked Private"
+  },
   "console.games.match_vps": "Match to VPS...",
   "console.games.missing": "Missing",
   "console.games.mod": "Mod",
@@ -983,6 +1001,10 @@
   "console.games.no": "No",
   "console.games.no_mod_known": "None known",
   "console.games.no_newer_version": "None known",
+  "console.games.none_private": {
+    "one": "Not Private",
+    "other": "None of the {count} is Private"
+  },
   "console.games.not_default": "Not the default",
   "console.games.not_recorded": "Not recorded",
   "console.games.on_vps": "On VPS",
@@ -990,6 +1012,7 @@
   "console.games.own_settings": "Own Settings",
   "console.games.own_settings.help": "Which settings this table sets differently from all tables",
   "console.games.pinmame_rom_table_resolves.help": "The PinMAME ROM this table resolves to",
+  "console.games.private_game.help": "Private where the game is never sent to a community service",
   "console.games.rate_game_s": {
     "one": "Rate {count} game",
     "other": "Rate {count} games"

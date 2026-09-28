@@ -339,6 +339,15 @@ class ApiClient:
                                      json={"favorite": favorite}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def set_private(self, game_id: str, private: bool) -> None:
+        """Mark one game Private, or not: never sent to a community service."""
+        self._put(f"/games/{game_id}/private", {"private": private})
+
+    def set_private_many(self, game_ids: list[str], private: bool) -> dict:
+        """Mark a selection Private, or not, in one request. `{private, games, changed}`;
+        an id the library does not hold refuses the lot."""
+        return self._put("/library/private", {"game_ids": list(game_ids), "private": private})
+
     def set_tags(self, game_id: str, tags: list[str]) -> None:
         """The whole set. What comes back is what was stored, which may differ - the
         the API trims and drops repeats."""

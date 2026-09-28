@@ -886,6 +886,7 @@
   "console.game_tables.automatic": "Àûţöɱàţîç",
   "console.game_tables.automatic.help": "Ţĥè ñèŵèšţ ţàƀŀè ýöû àđđèđ. Ŀöçķ îţ ţö ķèèþ îţ.",
   "console.game_tables.blocked": "Ɓŀöçķèđ",
+  "console.game_tables.community": "Çöɱɱûñîţý",
   "console.game_tables.default_table": "Đèƒàûŀţ Ţàƀŀè",
   "console.game_tables.deleted_every_table_runs_own": "Đèŀèţèđ - èṽèřý ţàƀŀè ŵîţĥöûţ îţš öŵñ .ṽƀš řûñš ţĥè šçřîþţ îñšîđè îţš .ṽþẋ",
   "console.game_tables.every_table_loses_script": "Èṽèřý ţàƀŀè ŵîţĥöûţ îţš öŵñ .ṽƀš ŀöšèš îţ, àñđ àñý þàţçĥ öř èđîţ îţ ĥöŀđš.",
@@ -916,10 +917,13 @@
   "console.game_tables.mod_noted": "Ḿöđ · {note}",
   "console.game_tables.mod_of": "Ḿöđ öƒ {told}",
   "console.game_tables.not_library": "Ñöţ îñ ţĥîš ŀîƀřàřý",
+  "console.game_tables.not_private": "Ñöţ Þřîṽàţè",
   "console.game_tables.now_plays": "{game} ñöŵ þŀàýš {table}.",
   "console.game_tables.offered": "Öƒƒèřèđ",
   "console.game_tables.offered_now_plays": "Öƒƒèřèđ. {game} ñöŵ þŀàýš {table}.",
   "console.game_tables.play": "Þŀàý",
+  "console.game_tables.private": "Þřîṽàţè",
+  "console.game_tables.private.help": "Ñèṽèř šèñţ ţö ṼÞîñÞŀàý öř àñý çöɱɱûñîţý šèřṽîçè",
   "console.game_tables.reachable": "Řèàçĥàƀŀè",
   "console.game_tables.table_file": "Ţàƀŀè Ƒîŀè",
   "console.game_tables.unlock": "Ûñŀöçķ: ṼÞîñƑÈ þîçķš ţĥè ñèŵèšţ",
@@ -930,6 +934,10 @@
   "console.game_tables.where": "Ŵĥèřè Îţ Îš",
   "console.games.actions_selected_games": "Àçţîöñš ƒöř ţĥè šèŀèçţèđ ĝàɱèš",
   "console.games.actions_selected_tables": "Àçţîöñš ƒöř ţĥè šèŀèçţèđ ţàƀŀèš",
+  "console.games.already_private": {
+    "one": "Àŀřèàđý Þřîṽàţè",
+    "other": "Àŀŀ {count} àŀřèàđý Þřîṽàţè"
+  },
   "console.games.alt_color": "Àŀţ Çöŀöř",
   "console.games.altsound": "ÀŀţŠöûñđ",
   "console.games.auto_match": "Àûţö-ɱàţçĥ",
@@ -974,6 +982,16 @@
   "console.games.launcher_plays_file_dot.help": "Ŵĥîçĥ ŀàûñçĥèř þŀàýš ţĥîš ƒîŀè",
   "console.games.launching": "Ŀàûñçĥîñĝ {name}",
   "console.games.library": "Îñ ţĥîš ŀîƀřàřý",
+  "console.games.mark_not_private": "Ḿàřķ Ñöţ Þřîṽàţè",
+  "console.games.mark_private": "Ḿàřķ Þřîṽàţè",
+  "console.games.marked_not_private": {
+    "one": "{count} ĝàɱè ɱàřķèđ Ñöţ Þřîṽàţè",
+    "other": "{count} ĝàɱèš ɱàřķèđ Ñöţ Þřîṽàţè"
+  },
+  "console.games.marked_private": {
+    "one": "{count} ĝàɱè ɱàřķèđ Þřîṽàţè",
+    "other": "{count} ĝàɱèš ɱàřķèđ Þřîṽàţè"
+  },
   "console.games.match_vps": "Ḿàţçĥ ţö ṼÞŠ...",
   "console.games.missing": "Ḿîššîñĝ",
   "console.games.mod": "Ḿöđ",
@@ -983,6 +1001,10 @@
   "console.games.no": "Ñö",
   "console.games.no_mod_known": "Ñöñè ķñöŵñ",
   "console.games.no_newer_version": "Ñöñè ķñöŵñ",
+  "console.games.none_private": {
+    "one": "Ñöţ Þřîṽàţè",
+    "other": "Ñöñè öƒ ţĥè {count} îš Þřîṽàţè"
+  },
   "console.games.not_default": "Ñöţ ţĥè đèƒàûŀţ",
   "console.games.not_recorded": "Ñöţ řèçöřđèđ",
   "console.games.on_vps": "Öñ ṼÞŠ",
@@ -990,6 +1012,7 @@
   "console.games.own_settings": "Öŵñ Šèţţîñĝš",
   "console.games.own_settings.help": "Ŵĥîçĥ šèţţîñĝš ţĥîš ţàƀŀè šèţš đîƒƒèřèñţŀý ƒřöɱ àŀŀ ţàƀŀèš",
   "console.games.pinmame_rom_table_resolves.help": "Ţĥè ÞîñḾÀḾÈ ŘÖḾ ţĥîš ţàƀŀè řèšöŀṽèš ţö",
+  "console.games.private_game.help": "Þřîṽàţè ŵĥèřè ţĥè ĝàɱè îš ñèṽèř šèñţ ţö à çöɱɱûñîţý šèřṽîçè",
   "console.games.rate_game_s": {
     "one": "Řàţè {count} ĝàɱè",
     "other": "Řàţè {count} ĝàɱèš"

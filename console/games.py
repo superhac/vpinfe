@@ -42,6 +42,7 @@ from console import (
     stars,
     table_features,
     tag_chips,
+    undo,
     verbs,
     views,
     vps_match,
@@ -151,6 +152,17 @@ COLUMNS = [
                     "label": game_tables.HIDDEN_WORDS[0],
                     "why": t("console.game_tables.hidden_game.help"),
                     "chip": "console-chip-warn"}})),
+    # Quiet where Hidden is amber: Private is a choice somebody made, not something to fix.
+    grid.column("private", game_tables.COMMUNITY, group=t(_GAME),
+                help=t("console.games.private_game.help"),
+                **{":valueFormatter":
+                   "params => params.value ? "
+                   + json.dumps(game_tables.PRIVATE_WORDS[0]) + " : ''",
+                   **grid.choice_filter(_two(game_tables.PRIVATE_WORDS), formatted=True)},
+                **renderers.drawable("state", states={True: {
+                    "label": game_tables.PRIVATE_WORDS[0],
+                    "why": game_tables.PRIVATE_HELP,
+                    "chip": "console-chip-quiet"}})),
     grid.column("manufacturer", t("word.manufacturer"), group=t(_GAME),
                 help=t("help.who_made_it")),
     grid.column("year", t("word.year"), group=t(_GAME),
@@ -205,10 +217,11 @@ COLUMNS = [
 # panel was, which is what stepping down a list needs.
 VIEW_SECTIONS = {views.builtin_id(_MEDIA): "media"}
 
-# A column that reports a problem, and the panel section that fixes it. Clicking the
-# word is the only thing to do with it, so the click lands where it is fixed rather
+# A column that reports a state, and the panel section that changes it. Clicking the
+# word is the only thing to do with it, so the click lands where it is changed rather
 # than on Details and one more click.
-COLUMN_SECTIONS = {"vps_unmatched": "game_details", "hidden": "game_details"}
+COLUMN_SECTIONS = {"vps_unmatched": "game_details", "hidden": "game_details",
+                   "private": "game_details"}
 
 # The grid on its Unmatched filter, as `state["arriving"]`.
 UNMATCHED = {"vps_unmatched": {"values": [True]}}
@@ -218,8 +231,8 @@ GAME_VIEWS: dict[str, list[str] | views.Preset] = {
     # group about the same facts carry the same word, so crossing between the grid and
     # the panel is not a translation.
     "console.view.game": views.Preset(
-        columns=("name", "table_count", "hidden", "manufacturer", "year", "game_type",
-                 "themes", "vps_unmatched", "rating", "tags", "collections"),
+        columns=("name", "table_count", "hidden", "private", "manufacturer", "year",
+                 "game_type", "themes", "vps_unmatched", "rating", "tags", "collections"),
         help=t("console.view.game.help")),
     # Media and Assets are built from what the library reports it has, so both are
     # filled at render time. Two views, not one: they answer different questions - what
@@ -608,6 +621,46 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                 if inspect.isawaitable(answer):
                     await answer
 
+    async def show_private(ids: list[str]) -> None:
+        await refresh_games(ids)
+        if state.get("game") in ids:
+            answer = on_select(by_id.get(str(state["game"])))
+            if inspect.isawaitable(answer):
+                await answer
+
+    @on_page
+    async def mark_private(games: list[dict[str, Any]], private: bool) -> None:
+        ids = [str(one["id"]) for one in games]
+        flipping = [str(one["id"]) for one in games if bool(one.get("private")) != private]
+        try:
+            await run.io_bound(library.set_games_private, ids, private)
+        except Exception as exc:  # noqa: BLE001 - said, and the grid is as it was
+            ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
+            return
+        await show_private(ids)
+        said = t("console.games.marked_private" if private
+                 else "console.games.marked_not_private", count=len(ids))
+
+        @on_page
+        async def put_back() -> None:
+            await run.io_bound(library.set_games_private, flipping, not private)
+            await show_private(flipping)
+
+        if flipping:
+            undo.offer(said, put_back)
+        else:
+            ui.notify(said, type="positive")
+
+    def private_entries(games: list[dict[str, Any]]) -> None:
+        marked = [bool(one.get("private")) for one in games]
+        panel.menu_entry(t("console.games.mark_private"), lambda: mark_private(games, True),
+                         refused=t("console.games.already_private", count=len(games))
+                         if all(marked) else "")
+        panel.menu_entry(t("console.games.mark_not_private"),
+                         lambda: mark_private(games, False),
+                         refused="" if any(marked)
+                         else t("console.games.none_private", count=len(games)))
+
     async def get_missing_art(games: list[dict[str, Any]]) -> None:
         ids = [str(one["id"]) for one in games]
 
@@ -638,6 +691,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         bulk_menu.clear()
         with bulk_menu:
             panel.menu_entry(t("console.games.rate_selected"), lambda: _rate(chosen))
+            private_entries(chosen)
             # One picker at a time: a person decides every one, and Skip leaves a game
             # exactly as it was.
             panel.menu_entry(t("console.games.match_vps"),
