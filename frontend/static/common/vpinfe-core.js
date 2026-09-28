@@ -391,7 +391,42 @@ const INTERNAL_METHODS = new Set([
   "get_current_order_state",
   "get_paging_state",
   "keep_filter_collection",
+  "report_browser",
 ]);
+
+// By the ids `common/host/frontend_browser.py` knows.
+const PLAYBACK_TYPES = [
+  ["h264", 'video/mp4; codecs="avc1.42E01E"'],
+  ["hevc", 'video/mp4; codecs="hvc1.1.6.L93.B0"'],
+  ["vp9", 'video/mp4; codecs="vp09.00.10.08"'],
+  ["av1", 'video/mp4; codecs="av01.0.05M.08"'],
+  ["aac", 'audio/mp4; codecs="mp4a.40.2"'],
+  ["mp3", "audio/mpeg"],
+  ["vorbis", 'audio/ogg; codecs="vorbis"'],
+  ["opus", 'audio/ogg; codecs="opus"'],
+];
+
+// Whether a real file shows a picture: true, false, or null when it neither loaded nor
+// failed in time. The width is the answer, not the load event.
+function decodesPicture(url, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    let settled = false;
+    const finish = (answer) => {
+      if (settled) return;
+      settled = true;
+      video.removeAttribute("src");
+      video.load();
+      resolve(answer);
+    };
+    video.muted = true;
+    video.preload = "auto";
+    video.addEventListener("loadeddata", () => finish(video.videoWidth > 0));
+    video.addEventListener("error", () => finish(false));
+    setTimeout(() => finish(null), timeoutMs);
+    video.src = url;
+  });
+}
 
 // Same once-per-name reporting as announceLegacy, and for the same reason: without it the
 // only evidence about who still calls these is a console nobody reads on a cabinet.
@@ -2126,6 +2161,33 @@ class VPinFECore {
       this.#setupGamepadListeners();
       this.#updateGamepads();           // No await needed here — runs loop
       this.#watchPlayState();           // Subscribe to remote launch events
+      this.#probePlayback();
+    }
+  }
+
+  // Once per page load, although its caller runs again on every reconnect.
+  async #probePlayback() {
+    if (this._playbackProbed) return;
+    this._playbackProbed = true;
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const probe = document.createElement("video");
+    const canPlay = {};
+    for (const [id, type] of PLAYBACK_TYPES) canPlay[id] = probe.canPlayType(type);
+    const decoded = {};
+    for (const id of ["h264", "vp9"]) decoded[id] = await decodesPicture(`/core/probe/${id}.mp4`);
+    let brands = [];
+    try {
+      const hints = await navigator.userAgentData?.getHighEntropyValues(["fullVersionList"]);
+      brands = hints?.fullVersionList || [];
+    } catch (e) {
+      brands = [];
+    }
+    try {
+      await this.callInternal("report_browser", {
+        user_agent: navigator.userAgent, brands, can_play: canPlay, decoded,
+      });
+    } catch (e) {
+      console.warn("[VPinFE] Could not report what this browser plays", e);
     }
   }
 

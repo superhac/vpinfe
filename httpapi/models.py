@@ -399,6 +399,33 @@ class FrontendState(ApiModel):
     game: FrontendGame | None
 
 
+class FrontendBrowserFix(ApiModel):
+    """`action` is `use_chrome` where Google Chrome is installed and not in use, with its
+    path in `chrome_path`; otherwise empty, and the fix is something a person does."""
+
+    key: str
+    action: str = ""
+    chrome_path: str = ""
+
+
+class FrontendBrowser(ApiModel):
+    """What this device's frontend browser can play. `state` is `plays`, `no_h264`,
+    `no_video`, `no_browser` or `unknown` - nothing has reported since this browser was
+    chosen, which is not a no. A format is true, false, or null for not known."""
+
+    state: str
+    browser: str
+    path: str
+    bundled: bool
+    formats: dict[str, bool | None]
+    plays: list[str]
+    does_not_play: list[str]
+    reported_at: str | None = None
+    finding: str = ""
+    fix: FrontendBrowserFix | None = None
+    fix_text: str = ""
+
+
 class ShowCollectionRequest(ApiModel):
     name: str = ""
 

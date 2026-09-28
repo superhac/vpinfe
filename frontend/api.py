@@ -31,7 +31,7 @@ from common.games.collection_store import (
 )
 from common.games.game_metadata import game_rating, normalize_meta, set_game_rating
 from common.games.game_repository import all_games
-from common.host import frontend_state, launch, launch_state
+from common.host import frontend_browser, frontend_state, launch, launch_state
 from common.host.display_service import monitors_as_dicts
 from common.service_errors import ServiceError
 from frontend import (
@@ -152,6 +152,9 @@ API_INTERNAL_METHODS = {
     'get_current_order_state',
     'get_paging_state',
     'keep_filter_collection',
+    # Core's own probe of the browser it runs in. A theme reporting here would be
+    # rewriting what the Console says the cabinet can play.
+    'report_browser',
 }
 
 
@@ -653,6 +656,10 @@ class API:
             [e.game for e in self.entries], index, direction, self.current_sort,
             paging["group"], paging["size"]
         )
+
+    def report_browser(self, report: Any) -> dict[str, Any]:
+        """What this browser plays, as the controller window probed it."""
+        return frontend_browser.record(report)
 
     def console_out(self, output: Any, frame: str = "") -> Any:
         """A line from the browser. `frame` names an overlay within this window.

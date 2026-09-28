@@ -1426,6 +1426,15 @@ unchanged.
 pressing it twice must not make two. Covered by `tests/theming/test_keep_filter_collection.py`,
 `tests/js/internal-methods.test.js` and `tests/invariants/test_theme_api_surface.py`.
 
+**PAR-97 - The frontend says what its browser can play.**
+One WebSocket method, `report_browser`, carries what the controller window found when it
+probed its own browser: `canPlayType` for each format VPinFE media can hold, and a real
+decode of two small clips in `frontend/static/probe/`. Refused to themes, like
+`get_paging_state`: its caller is core's own page. Nothing a theme reads changes.
+*Why:* only the browser knows what it plays, and the bundled Chromium plays no H.264 while
+most shared videos are H.264. Covered by `tests/host/test_frontend_browser.py`,
+`tests/js/internal-methods.test.js` and `tests/invariants/test_theme_api_surface.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

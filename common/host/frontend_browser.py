@@ -1,0 +1,238 @@
+"""What this device's frontend browser can play, and how to fix what it cannot.
+
+The frontend's controller window reports here through `record`; `current` is what the API
+serves.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import platform
+import re
+import threading
+from dataclasses import dataclass
+from typing import Any
+
+from common import paths
+from common.atomic_write import write_atomic
+from common.i18n import t, t_source
+from common.timestamps import utc_now_iso
+
+logger = logging.getLogger("vpinfe.common.host.frontend_browser")
+
+VIDEO = "video"
+AUDIO = "audio"
+
+
+@dataclass(frozen=True)
+class Format:
+    id: str
+    name: str
+    kind: str
+
+
+# The page probes these ids; anything else it sends is dropped.
+FORMATS = (
+    Format("h264", "H.264", VIDEO),
+    Format("hevc", "HEVC", VIDEO),
+    Format("vp9", "VP9", VIDEO),
+    Format("av1", "AV1", VIDEO),
+    Format("aac", "AAC", AUDIO),
+    Format("mp3", "MP3", AUDIO),
+    Format("vorbis", "Vorbis", AUDIO),
+    Format("opus", "Opus", AUDIO),
+)
+_IDS = {one.id for one in FORMATS}
+
+PLAYS = "plays"
+NO_H264 = "no_h264"
+NO_VIDEO = "no_video"
+NO_BROWSER = "no_browser"
+UNKNOWN = "unknown"
+
+USE_CHROME = "use_chrome"
+
+_FINDINGS = {NO_H264: "frontend_browser.finding.no_h264",
+             NO_VIDEO: "frontend_browser.finding.no_video",
+             NO_BROWSER: "frontend_browser.finding.no_browser"}
+
+_lock = threading.Lock()
+_logged: tuple[str, str] | None = None
+
+
+@dataclass(frozen=True)
+class Fix:
+    key: str
+    action: str = ""
+    chrome_path: str = ""
+
+
+def _answer(can_play: Any, decoded: Any) -> bool | None:
+    """A decode that ran is the answer; otherwise what `canPlayType` said, where it said
+    anything."""
+    if isinstance(decoded, bool):
+        return decoded
+    if can_play in ("probably", "maybe"):
+        return True
+    if can_play == "":
+        return False
+    return None
+
+
+def _browser_name(brands: Any, user_agent: str) -> str:
+    """"Chromium 145.0.7632.0" from the page's brand list, else the user agent's major
+    version. The list carries a made-up "Not A Brand" entry on purpose, which is skipped."""
+    named = [(str(one.get("brand") or ""), str(one.get("version") or ""))
+             for one in brands if isinstance(one, dict)] if isinstance(brands, list) else []
+    real = [one for one in named if one[0] and "brand" not in one[0].lower()]
+    chosen = next((one for one in real if one[0] != "Chromium"), None) \
+        or next(iter(real), None)
+    if chosen:
+        return f"{chosen[0]} {chosen[1]}".strip()
+    found = re.search(r"(Edg|Chrome|Chromium)/(\d+)", user_agent or "")
+    if not found:
+        return ""
+    name = {"Edg": "Microsoft Edge"}.get(found.group(1), "Chromium")
+    return f"{name} {found.group(2)}"
+
+
+def _in_use() -> tuple[str, bool]:
+    from common import device_client
+
+    return device_client.local().browser_in_use()
+
+
+def _google_chrome() -> str:
+    from common import device_client
+
+    return device_client.local().google_chrome_path() or ""
+
+
+def _read() -> dict[str, Any] | None:
+    try:
+        held = json.loads(paths.FRONTEND_BROWSER_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError):
+        logger.warning("Could not read %s; the browser is probed again when the frontend opens",
+                       paths.FRONTEND_BROWSER_PATH, exc_info=True)
+        return None
+    return held if isinstance(held, dict) else None
+
+
+def state_of(formats: dict[str, bool | None]) -> str:
+    """Which of the states a set of answers is. Only H.264 and VP9 decide it."""
+    h264, vp9 = formats.get("h264"), formats.get("vp9")
+    if h264 is True:
+        return PLAYS
+    if h264 is False and vp9 is True:
+        return NO_H264
+    if h264 is False and vp9 is False:
+        return NO_VIDEO
+    return UNKNOWN
+
+
+def fix_for(state: str, *, system: str, bundled: bool, in_use: str,
+            chrome: str) -> Fix | None:
+    """What to do about a state, on this OS, with this browser. Mirrors the order
+    `get_chromium_path` finds a browser in, so a change there changes this."""
+    if state == NO_BROWSER:
+        return Fix("frontend_browser.fix.no_browser")
+    if state not in (NO_H264, NO_VIDEO):
+        return None
+    if chrome and os.path.realpath(chrome) != os.path.realpath(in_use or "."):
+        return Fix("frontend_browser.fix.use_chrome", USE_CHROME, chrome)
+    if system == "Darwin":
+        return Fix("frontend_browser.fix.install_chrome_mac")
+    if system == "Linux" and bundled:
+        return Fix("frontend_browser.fix.install_chrome_linux")
+    return Fix("frontend_browser.fix.install_chrome_set")
+
+
+def _log(state: str, browser: str, path: str, bundled: bool,
+         formats: dict[str, bool | None], fix: Fix | None) -> None:
+    """Once per browser and state."""
+    global _logged
+    with _lock:
+        if _logged == (path, state):
+            return
+        _logged = (path, state)
+    plays = ", ".join(one.name for one in FORMATS if formats.get(one.id))
+    missing = ", ".join(one.name for one in FORMATS if formats.get(one.id) is False)
+    logger.info("Frontend browser: %s (%s). Plays %s; not %s", browser or "unknown",
+                "bundled" if bundled else path, plays or "nothing", missing or "nothing")
+    if state in _FINDINGS:
+        logger.warning("%s. %s", t_source(_FINDINGS[state]),
+                       t_source(fix.key) if fix else "")
+
+
+def record(raw: Any) -> dict[str, Any]:
+    """Keep what the page reported. Untrusted: only known format ids and plain values are
+    read out of it. Answers the report as `current()` would."""
+    raw = raw if isinstance(raw, dict) else {}
+    can_play = raw.get("can_play") if isinstance(raw.get("can_play"), dict) else {}
+    decoded = raw.get("decoded") if isinstance(raw.get("decoded"), dict) else {}
+    formats = {one: _answer(can_play.get(one), decoded.get(one)) for one in _IDS}
+    path, bundled = _in_use()
+    browser = _browser_name(raw.get("brands"), str(raw.get("user_agent") or ""))[:80]
+    held = {"browser": browser, "path": path, "bundled": bundled, "formats": formats,
+            "reported_at": utc_now_iso()}
+    try:
+        paths.FRONTEND_BROWSER_PATH.parent.mkdir(parents=True, exist_ok=True)
+        write_atomic(paths.FRONTEND_BROWSER_PATH,
+                     lambda handle: json.dump(held, handle, indent=2, sort_keys=True))
+    except OSError:
+        logger.warning("Could not keep the browser report in %s",
+                       paths.FRONTEND_BROWSER_PATH, exc_info=True)
+    answer = current(held)
+    _log(answer["state"], browser, path, bundled, formats,
+         Fix(**answer["fix"]) if answer["fix"] else None)
+    return answer
+
+
+def current(held: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The report as the API serves it: state, the browser, what it plays and does not,
+    and the finding and fix in words."""
+    path, bundled = _in_use()
+    held = _read() if held is None else held
+    if held and str(held.get("path") or "") != path:
+        held = None
+    if not path or not os.path.exists(path):
+        state = NO_BROWSER
+    elif held is None:
+        state = UNKNOWN
+    else:
+        state = state_of(held.get("formats") or {})
+    formats = {one.id: (held or {}).get("formats", {}).get(one.id) for one in FORMATS}
+    fix = fix_for(state, system=platform.system(), bundled=bundled, in_use=path,
+                  chrome=_google_chrome())
+    return {
+        "state": state,
+        "browser": str((held or {}).get("browser") or ""),
+        "path": path,
+        "bundled": bundled,
+        "formats": formats,
+        "plays": [one.name for one in FORMATS if formats[one.id]],
+        "does_not_play": [one.name for one in FORMATS if formats[one.id] is False],
+        "reported_at": (held or {}).get("reported_at"),
+        "finding": t(_FINDINGS[state]) if state in _FINDINGS else "",
+        "fix": ({"key": fix.key, "action": fix.action, "chrome_path": fix.chrome_path}
+                if fix else None),
+        "fix_text": t(fix.key) if fix else "",
+    }
+
+
+def available() -> bool | tuple[bool, str]:
+    """For the `media_playback` capability: false only where nothing can play."""
+    found = current()
+    if found["state"] in (NO_VIDEO, NO_BROWSER):
+        return False, found["finding"]
+    return True
+
+
+def reset_for_tests() -> None:
+    global _logged
+    with _lock:
+        _logged = None

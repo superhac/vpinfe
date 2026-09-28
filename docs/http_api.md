@@ -45,6 +45,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/play/state` | What this play host is doing. The snapshot you take once; `play.state_changed` on the stream is how you hear about it after that |
 | POST | `/api/v1/play/stop` | Close the table this play host is running. `stopped` is false when there was nothing to close, which is an answer rather than a failure |
 | GET | `/api/v1/frontend/state` | What the frontend is showing: whether it is up, its collection and the game on the wheel. `frontend.state_changed` on the stream carries the same after every change |
+| GET | `/api/v1/frontend/browser` | What this device's frontend browser can play, and how to fix what it cannot. `state` is `unknown` until the frontend has reported since this browser was chosen |
 | PUT | `/api/v1/frontend/collection` | Show a collection on the frontend, `""` being the whole library. 202, and the switch arrives as the next `frontend.state_changed`. 409 when the frontend is not running, or when this install reads its library from another that cannot be reached; 404 when there is no collection by that name |
 | PUT | `/api/v1/frontend/game` | Move the frontend's wheel to a game. 202; 409 when the frontend is not running, 404 when the collection on screen does not hold that game |
 | POST | `/api/v1/input/actions` | Press, hold or release an input action on this install — the door a remote drives the frontend through |
@@ -758,6 +759,33 @@ switching what is on screen is acting as the player; the read carries `play:read
 `game.selected` stays beside it for a different reader. It fires as the wheel stops and is
 how in-process handlers - DOF, an extension's data - hear about it. `frontend.state_changed`
 carries the whole state, so a client that missed one is right again after the next.
+
+`GET /api/v1/frontend/browser` is what the browser the frontend runs in can play, as the
+frontend's controller window found when it last opened with that browser:
+
+```
+{"state": "no_h264", "browser": "Chromium 145.0.7632.0",
+ "path": "/opt/vpinfe/_internal/chromium/linux/chrome/chrome", "bundled": true,
+ "formats": {"h264": false, "hevc": false, "vp9": true, "av1": true,
+             "aac": false, "mp3": true, "vorbis": true, "opus": true},
+ "plays": ["VP9", "AV1", "MP3", "Vorbis", "Opus"],
+ "does_not_play": ["H.264", "HEVC", "AAC"],
+ "reported_at": "2026-09-27T20:14:02Z",
+ "finding": "Most shared videos won't play in this browser",
+ "fix": {"key": "frontend_browser.fix.install_chrome_linux", "action": "", "chrome_path": ""},
+ "fix_text": "Install Google Chrome, and VPinFE uses it from then on"}
+```
+
+- `state` is `plays`, `no_h264`, `no_video`, `no_browser`, or `unknown`: nothing has
+  reported since this browser was chosen. Unknown is never a no.
+- A format is `true`, `false`, or `null` where the probe could not tell. H.264 and VP9 are
+  decoded from a real file, not only asked of `canPlayType`, because a file can load with no
+  picture.
+- `fix.action` is `use_chrome` where Google Chrome is installed and not the browser in use,
+  with its path; setting `chromium.path` to it and restarting the frontend is the fix.
+  Otherwise the fix is something a person does, and `fix_text` says what.
+- The `media_playback` capability is unavailable only where nothing plays or there is no
+  browser, with `finding` as its reason.
 
 ## Event stream
 

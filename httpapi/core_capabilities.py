@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from common.host import metrics
+from common.host import frontend_browser, metrics
 from common.i18n import t
 
 from . import capabilities
@@ -113,6 +113,12 @@ def declare_core() -> None:
         name="metrics",
         description="Live readings from this device",
         is_available=lambda: metrics.measurable(),
+    ))
+    capabilities.declare(capabilities.Capability(
+        name="media_playback",
+        feature=capabilities.install_identity.FRONTEND,
+        description="Which video and audio formats this device's frontend browser plays",
+        is_available=frontend_browser.available,
     ))
     capabilities.declare(capabilities.Capability(
         name="launchers",

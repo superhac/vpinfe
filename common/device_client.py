@@ -73,6 +73,26 @@ class LocalDevice:
         except Exception:
             return None
 
+    def browser_in_use(self) -> tuple[str, bool]:
+        """The browser this device opens its windows with, and whether it is the bundled
+        copy. ("", False) on an install with no frontend."""
+        try:
+            from frontend.chromium_manager import get_chromium_path
+
+            found = get_chromium_path()
+            return str(found.path or ""), not bool(found.using_local_install)
+        except Exception:
+            return "", False
+
+    def google_chrome_path(self) -> str | None:
+        """Where Google Chrome is installed on this machine, or None."""
+        try:
+            from frontend.chromium_manager import google_chrome_path
+
+            return google_chrome_path()
+        except Exception:
+            return None
+
     def browser_options(self, **kwargs: Any) -> list[str]:
         """The flags this device would launch its browser with."""
         from frontend.chromium_manager import get_builtin_chromium_options

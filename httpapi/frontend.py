@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Response
 
 from common import events
-from common.host import frontend_state
+from common.host import frontend_browser, frontend_state
 
 from . import models, scopes
 from .auth import requires
@@ -26,6 +26,12 @@ def _state() -> dict:
             dependencies=[requires(scopes.PLAY_READ)])
 def get_frontend_state() -> models.FrontendState:
     return models.FrontendState.model_validate(_state()["state"])
+
+
+@router.get("/browser", summary="What the frontend's browser can play",
+            dependencies=[requires(scopes.PLAY_READ)])
+def get_frontend_browser() -> models.FrontendBrowser:
+    return models.FrontendBrowser.model_validate(frontend_browser.current())
 
 
 @router.put("/collection", summary="Show a collection on the frontend", status_code=202,
