@@ -1167,6 +1167,7 @@
   "console.launchers.tables_name_no_launcher.help": "Ţàƀŀèš ţĥàţ ñàɱè ñö ŀàûñçĥèř ûšè ţĥîš öñè",
   "console.locations.actions_selected_locations": "Àçţîöñš ƒöř ţĥè šèŀèçţèđ ƒöŀđèřš",
   "console.locations.add_location": "Àđđ à ƒöŀđèř",
+  "console.locations.ask_each_time": "Àšķ èàçĥ ţîɱè",
   "console.locations.could_not_read_locations": "Çöûŀđ ñöţ řèàđ ţĥè ŀîƀřàřý ƒöŀđèřš",
   "console.locations.device_or_server_whose.help": "Ţĥîš đèṽîçè, öř ţĥè šèřṽèř ŵĥöšè šĥàřè ĥöŀđš ţĥè ƒöŀđèř",
   "console.locations.folder_location_last_two.help": "Ţĥè ŀàšţ ţŵö þàřţš öƒ ţĥè ƒöŀđèř'š þàţĥ",
@@ -1184,6 +1185,7 @@
   "console.locations.location_wins_two_them.help": "Ŵĥîçĥ ƒöŀđèř ŵîñš ŵĥèñ ţŵö ĥöŀđ ţĥè šàɱè ĝàɱè, 1 ĥîĝĥèšţ",
   "console.locations.name_a_folder": "Ñàɱè à ƒöŀđèř",
   "console.locations.new_games": "Ñèŵ Ĝàɱèš",
+  "console.locations.new_games_go_to": "Ñèŵ ĝàɱèš ĝö ţö",
   "console.locations.no_locations_yet_add": "Ñö ŀîƀřàřý ƒöŀđèřš ýèţ. Àđđ ţĥè ƒöŀđèř ýöûř ĝàɱèš àřè îñ.",
   "console.locations.one_game": "Öñè ĝàɱè",
   "console.locations.one_game_folder": "À šîñĝŀè ĝàɱè ƒöŀđèř",
@@ -2220,7 +2222,6 @@
   "console.workbench.could_not_forget": "Çöûŀđ ñöţ ƒöřĝèţ îţ",
   "console.workbench.could_not_launch": "Çöûŀđ ñöţ ŀàûñçĥ",
   "console.workbench.could_not_move": "Çöûŀđ ñöţ ɱöṽè îţ",
-  "console.workbench.could_not_point": "Çöûŀđ ñöţ þöîñţ îţ ĥèřè",
   "console.workbench.could_not_point_launcher": "Çöûŀđ ñöţ þöîñţ îţ àţ ţĥàţ ŀàûñçĥèř",
   "console.workbench.could_not_put_back": "Çöûŀđ ñöţ þûţ îţ ƀàçķ",
   "console.workbench.could_not_read_collections": "Çöûŀđ ñöţ řèàđ îţš çöŀŀèçţîöñš",
@@ -2253,7 +2254,6 @@
     "one": "{count} ŀàûñçĥèš ŵîţĥ {name}",
     "other": "{count} ŀàûñçĥ ŵîţĥ {name}"
   },
-  "console.workbench.create_new_games": "Çřèàţè ñèŵ ĝàɱèš ĥèřè",
   "console.workbench.default_another": "Ḿàķè àñöţĥèř ŀàûñçĥèř ţĥè đèƒàûŀţ îñšţèàđ",
   "console.workbench.default_help": "{app} ţàƀŀèš ûšè ţĥîš ŀàûñçĥèř ûñŀèšš ţĥèý ñàɱè àñöţĥèř",
   "console.workbench.default_needs_on": "Šŵîţçĥ îţ öñ ţö ɱàķè îţ ţĥè đèƒàûŀţ",
@@ -2427,7 +2427,6 @@
   "console.workbench.not_matched": "Ñöţ ɱàţçĥèđ",
   "console.workbench.not_saved_rules": "Ţĥè ƒřöñţèñđ šţîŀŀ šĥöŵš ţĥè šàṽèđ řûŀèš",
   "console.workbench.not_used": "Ĥèřè ƀûţ ñöţ ûšèđ",
-  "console.workbench.nothing_can_written": "Ñöţĥîñĝ çàñ ƀè ŵřîţţèñ ĥèřè.",
   "console.workbench.nothing_device_can_play": "Ñöţĥîñĝ öñ ţĥîš đèṽîçè çàñ þŀàý îţ",
   "console.workbench.nothing_in_it_yet": "Ñöţĥîñĝ îñ îţ ýèţ",
   "console.workbench.nothing_remove_level": "Ñöţĥîñĝ ţö řèɱöṽè àţ ţĥîš ŀèṽèŀ",
@@ -2518,7 +2517,6 @@
   "console.workbench.show_in_frontend": "Šĥöŵ îñ Ƒřöñţèñđ",
   "console.workbench.show_in_frontend.help": "Öƒƒ ŀèàṽèš îţ öûţ öƒ ţĥè ƒřöñţèñđ'š çöŀŀèçţîöñ ɱèñûš",
   "console.workbench.show_in_games": "Šĥöŵ îñ Ĝàɱèš",
-  "console.workbench.single_game_folder_no": "À šîñĝŀè ĝàɱè ƒöŀđèř ĥàš ñö řööɱ ƒöř àñöţĥèř ĝàɱè.",
   "console.workbench.smart_games": {
     "one": "Šɱàřţ · {count} ĝàɱè",
     "other": "Šɱàřţ · {count} ĝàɱèš"

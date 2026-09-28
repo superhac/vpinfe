@@ -125,6 +125,12 @@ class LocationApiTests(unittest.TestCase):
         self.assertEqual(self.client.delete("/locations/one").status_code, 200)
         self.assertEqual(self.client.get("/locations").json()["locations"], [])
 
+    def test_the_listing_says_whether_an_import_asks_where_a_new_game_goes(self) -> None:
+        with patch("common.games.location_ops._asks", return_value=False):
+            body = self.client.get("/locations").json()
+
+        self.assertIs(body["ask_where_new_games_go"], False)
+
     def test_a_folder_on_this_device_says_so(self) -> None:
         self._put("one", self._folder("share"))
 

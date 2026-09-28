@@ -89,6 +89,7 @@ def listing() -> dict[str, Any]:
         # the location nearer the top. Said here rather than left to be inferred from
         # the list being a list.
         "order_is_priority": True,
+        "ask_where_new_games_go": _asks(),
     }
 
 

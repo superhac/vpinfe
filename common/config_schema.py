@@ -112,6 +112,7 @@ class ConfigOption:
     # Runtime state that happens to live in the config file - a last-played pointer, a
     # cache marker. Nobody sets these, so nothing should offer them as settings.
     internal: bool = False
+    home: str = ""
     # What this string names on disk, when it names something: `file`, `dir`, or `exe`.
     # Declared rather than inferred from the key - `vpx_bin_path` and `vpx_ini_path` end
     # the same way and want different answers, and a surface that guesses from a name is
@@ -606,6 +607,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "ask_where_new_games_go",
             type="bool",
             default="true",
+            home="locations",
             legacy=(),
         ),
         ConfigOption(

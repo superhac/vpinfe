@@ -702,6 +702,7 @@ class ConfigOptionInfo(ApiModel):
     # What an empty value stands for, in this install's language, for a client to show in
     # the empty field; empty where it needs no words.
     blank: str = ""
+    home: str = ""
 
 
 class ConfigSection(ApiModel):

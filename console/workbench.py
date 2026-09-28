@@ -1170,6 +1170,7 @@ async def _draw_location(container: ui.column, title: ui.column, library: Librar
         # sits among the others, so it cannot be read off the row alone.
         context: dict[str, Any] = {"library": library, "location": row,
                                    "locations": held, "state": state,
+                                   "asking": locations_page.asking(found),
                                    "redraws": [], "dock": None}
 
         context["rebuild"] = _rebuilds(
@@ -5856,8 +5857,10 @@ async def _location_details(context: dict[str, Any]) -> None:
         (t("word.where"), (row.get("origin") or {}).get("source")
          or locations_page.where_of(row)),
         (t("word.state"), _location_state(row)),
-        (t("console.workbench.new_games"), _location_write_to(context, row)),
     ]
+    if row["write_to"] and not context.get("asking"):
+        entries.append((t("console.workbench.new_games"),
+                        panel.state(t("word.created_here"), "on")))
     # Only where there is something to outrank. With one location the row would be a
     # control that cannot do anything and a word nobody needs to learn.
     if len(context.get("locations") or []) > 1:
@@ -5975,33 +5978,6 @@ def _location_state(row: dict[str, Any]) -> Callable[[], None]:
     return panel.state(locations_page.state_of(row),
                        locations_page.STATE_TIERS.get(row["state"], "bad"),
                        beside=row["reason"])
-
-
-def _location_write_to(context: dict[str, Any],
-                       row: dict[str, Any]) -> Callable[[], None]:
-    """A choice rather than a switch: exactly one location holds it, and a switch on
-    every row would let somebody turn two on and expect both."""
-    if row["write_to"]:
-        return panel.state(t("word.created_here"), "on")
-
-    @on_page
-    async def choose() -> None:
-        try:
-            await run.io_bound(context["library"].set_location_write_to,
-                               row["location_id"])
-        except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.workbench.could_not_point"), caption=why(exc), type="negative")
-            return
-        await context["rebuild"]()
-
-    reason = ""
-    if row["kind"] != "root":
-        reason = t("console.workbench.single_game_folder_no")
-    elif not row["writable"]:
-        reason = row["reason"] or t("console.workbench.nothing_can_written")
-    return panel.action(t("console.workbench.create_new_games"), choose,
-                        icon=verbs.CREATE,
-                        enabled=row["writable"] and row["kind"] == "root", hint=reason)
 
 
 async def _collection_details(context: dict[str, Any]) -> None:

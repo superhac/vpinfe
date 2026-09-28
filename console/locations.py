@@ -94,7 +94,28 @@ def where_of(row: dict[str, Any]) -> str:
     return origin["server"] if origin else t("word.this_device")
 
 
-def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+ASK = "ask"
+ASKING = {"updates": {"ask_where_new_games_go": True}}
+NOT_ASKING = {"updates": {"ask_where_new_games_go": False}}
+
+
+def asking(found: dict[str, Any]) -> bool:
+    """Whether an import asks where a new game goes: set to, and with a choice to make."""
+    roots = [one for one in found.get("locations") or [] if one.get("kind") == model.KIND_ROOT]
+    return bool(found.get("ask_where_new_games_go")) and len(roots) > 1
+
+
+def destinations(found: dict[str, Any]) -> tuple[dict[str, str], str]:
+    """Where new games can be sent, by id, and which of those is in force."""
+    roots = [one for one in found.get("locations") or [] if one.get("kind") == model.KIND_ROOT]
+    offered = {str(one["location_id"]): str(one.get("name") or one.get("path") or "")
+               for one in roots}
+    if len(roots) > 1:
+        offered[ASK] = t("console.locations.ask_each_time")
+    return offered, ASK if asking(found) else str(found.get("write_to") or "")
+
+
+def rows(locations: list[dict[str, Any]], asks: bool = False) -> list[dict[str, Any]]:
     """One row per location, with the wire's flags turned into words a column shows."""
     return [{
         "id": one["location_id"],
@@ -106,7 +127,7 @@ def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
         "state": state_of(one),
         # Blank on every other row rather than "No": a column that says the same thing
         # everywhere but once is a column about the exception.
-        "new_games": t("word.created_here") if one.get("write_to") else "",
+        "new_games": t("word.created_here") if one.get("write_to") and not asks else "",
         # From the list order, which is what the install reads it from. 1 is highest,
         # because a person counts places from one and this is a rank, not an index.
         "priority": place + 1,
@@ -142,7 +163,7 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
     from console.games import view_control
 
     held = list(found.get("locations") or [])
-    built = rows(held)
+    built = rows(held, asking(found))
     fields = [definition["field"] for definition in COLUMNS]
 
     with body:
@@ -174,6 +195,7 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
             panel.facts(ui, [panel.intro(
                 t("console.locations.no_locations_yet_add"))])
             return
+        _new_games_line(library, found, rerender)
 
         by_id = {row["id"]: row for row in built}
         grid.on_row_focus(SCOPE,
@@ -205,6 +227,37 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
                                           search.value or ""))
         # After the grid exists: the widgets sit above it and the behavior needs it.
         wire_views(table)
+
+
+def _new_games_line(library: Library, found: dict[str, Any],
+                    rerender: Callable[[], None] | None) -> None:
+    offered, chosen = destinations(found)
+    if not offered:
+        return
+
+    @on_page
+    async def changed(event: Any) -> None:
+        wanted = str(getattr(event, "value", "") or "")
+        if not wanted or wanted == chosen:
+            return
+        try:
+            if wanted == ASK:
+                await run.io_bound(library.put_config, ASKING)
+            else:
+                await run.io_bound(library.set_location_write_to, wanted)
+                await run.io_bound(library.put_config, NOT_ASKING)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
+            return
+        if rerender is not None:
+            rerender()
+
+    with ui.row().classes("w-full items-center gap-2 px-3 pb-2 shrink-0 no-wrap"):
+        ui.label(t("console.locations.new_games_go_to")).classes("console-fact-label")
+        if len(offered) == 1:
+            ui.label(next(iter(offered.values())))
+        else:
+            panel.select(offered, chosen, changed)()
 
 
 @on_page

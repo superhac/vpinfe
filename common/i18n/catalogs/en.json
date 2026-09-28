@@ -1167,6 +1167,7 @@
   "console.launchers.tables_name_no_launcher.help": "Tables that name no launcher use this one",
   "console.locations.actions_selected_locations": "Actions for the selected folders",
   "console.locations.add_location": "Add a folder",
+  "console.locations.ask_each_time": "Ask each time",
   "console.locations.could_not_read_locations": "Could not read the library folders",
   "console.locations.device_or_server_whose.help": "This device, or the server whose share holds the folder",
   "console.locations.folder_location_last_two.help": "The last two parts of the folder's path",
@@ -1184,6 +1185,7 @@
   "console.locations.location_wins_two_them.help": "Which folder wins when two hold the same game, 1 highest",
   "console.locations.name_a_folder": "Name a folder",
   "console.locations.new_games": "New Games",
+  "console.locations.new_games_go_to": "New games go to",
   "console.locations.no_locations_yet_add": "No library folders yet. Add the folder your games are in.",
   "console.locations.one_game": "One game",
   "console.locations.one_game_folder": "A single game folder",
@@ -2220,7 +2222,6 @@
   "console.workbench.could_not_forget": "Could not forget it",
   "console.workbench.could_not_launch": "Could not launch",
   "console.workbench.could_not_move": "Could not move it",
-  "console.workbench.could_not_point": "Could not point it here",
   "console.workbench.could_not_point_launcher": "Could not point it at that launcher",
   "console.workbench.could_not_put_back": "Could not put it back",
   "console.workbench.could_not_read_collections": "Could not read its collections",
@@ -2253,7 +2254,6 @@
     "one": "{count} launches with {name}",
     "other": "{count} launch with {name}"
   },
-  "console.workbench.create_new_games": "Create new games here",
   "console.workbench.default_another": "Make another launcher the default instead",
   "console.workbench.default_help": "{app} tables use this launcher unless they name another",
   "console.workbench.default_needs_on": "Switch it on to make it the default",
@@ -2427,7 +2427,6 @@
   "console.workbench.not_matched": "Not matched",
   "console.workbench.not_saved_rules": "The frontend still shows the saved rules",
   "console.workbench.not_used": "Here but not used",
-  "console.workbench.nothing_can_written": "Nothing can be written here.",
   "console.workbench.nothing_device_can_play": "Nothing on this device can play it",
   "console.workbench.nothing_in_it_yet": "Nothing in it yet",
   "console.workbench.nothing_remove_level": "Nothing to remove at this level",
@@ -2518,7 +2517,6 @@
   "console.workbench.show_in_frontend": "Show in Frontend",
   "console.workbench.show_in_frontend.help": "Off leaves it out of the frontend's collection menus",
   "console.workbench.show_in_games": "Show in Games",
-  "console.workbench.single_game_folder_no": "A single game folder has no room for another game.",
   "console.workbench.smart_games": {
     "one": "Smart · {count} game",
     "other": "Smart · {count} games"

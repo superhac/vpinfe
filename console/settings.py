@@ -914,6 +914,13 @@ def field_marks(items: Any, checks: list[dict]) -> dict[tuple[str, str], dict]:
     return found
 
 
+def settings_here(schema: list[dict]) -> list[dict]:
+    """The schema without the settings another page is the home of."""
+    return [{**block, "options": [option for option in block.get("options") or []
+                                  if not option.get("home")]}
+            for block in schema]
+
+
 def with_discovery(schema: list[dict], found: list[dict]) -> list[dict]:
     """The Tools section with a row only for each Tool this device could run, and each
     field saying what it stands for left empty."""
@@ -1334,7 +1341,7 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
             build_library_page(library, redraw, key, kind)
         return
     try:
-        schema = await offload.io(library.config_schema)
+        schema = settings_here(await offload.io(library.config_schema))
         sections = _with_windows(sections, schema)
         values = await offload.io(library.config_values)
         checks = await offload.io(library.config_path_checks)
