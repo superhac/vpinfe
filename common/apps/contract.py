@@ -327,6 +327,9 @@ class Capture(Protocol):
     by the name the desktop gives the output (`DP-1`), or "" where the app shows that
     window on no screen of its own; a window it cannot say is left out. `window` answers
     which window a desktop window is, from its app id and its title, or "".
+
+    `placed_by` answers what the app reads to decide which windows it shows for the entry,
+    as one string that stays the same until any of it changes, or "" where it cannot say.
     """
 
     def command(self, entry: Entry, settings: Mapping[str, Any], *, sound: bool,
@@ -335,6 +338,8 @@ class Capture(Protocol):
     def outputs(self, entry: Entry, settings: Mapping[str, Any]) -> Mapping[str, str]: ...
 
     def window(self, app_id: str, title: str) -> str: ...
+
+    def placed_by(self, entry: Entry, settings: Mapping[str, Any]) -> str: ...
 
 
 # --- pausing ----------------------------------------------------------------------

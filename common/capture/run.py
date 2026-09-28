@@ -22,7 +22,7 @@ from common.i18n import t
 from common.paths import CONFIG_DIR, get_ini_config
 from common.timestamps import utc_now_iso
 
-from . import adapters, placing, preflight, session, settings, slots, space
+from . import adapters, placing, preflight, session, settings, slots, space, unshown
 
 logger = logging.getLogger("vpinfe.common.capture.run")
 
@@ -146,17 +146,24 @@ def _estimate(kinds: Sequence[str], at_once: bool, chosen: settings.Settings) ->
             + ENCODE_SECONDS * len(screens))
 
 
+_WINDOW_OF = {kind: window for window, pair in session.KINDS.items() for kind in pair}
+
+
 def _plan_one(game_id: str, table_id: str, request: Request, report: Mapping[str, Any],
               chosen: settings.Settings, kinds: Sequence[str]) -> dict[str, Any]:
     """What recording one game or table would do."""
     game = game_lens.game_or_refuse(game_id)
-    _launch_key(game, table_id)
-    open_kinds = [kind for kind in kinds if not _blocked(kind, report)]
+    unseen = unshown.of(game_id, game, _launch_key(game, table_id))
+
+    def blocked_here(kind: str) -> dict[str, Any] | None:
+        return _blocked(kind, report) or unseen.get(_WINDOW_OF.get(kind, ""))
+
+    open_kinds = [kind for kind in kinds if not blocked_here(kind)]
     held = slots.serving_each(game_id, table_id, open_kinds) if open_kinds else {}
     rows: list[dict[str, Any]] = []
     doing: list[str] = []
     for kind in kinds:
-        blocked = _blocked(kind, report)
+        blocked = blocked_here(kind)
         serving = held.get(kind)
         source = slots.source(serving)
         what = LEFT if blocked else decide(request.existing, source, request.review)
@@ -178,6 +185,18 @@ def _plan_one(game_id: str, table_id: str, request: Request, report: Mapping[str
             if doing else 0}
 
 
+def _counted(kind: str, rows: Sequence[Mapping[str, Any]],
+             report: Mapping[str, Any]) -> dict[str, Any]:
+    """A kind over every target: the slots it can record that have no file and that have
+    one, and why not where no target can record it."""
+    able = [row for row in rows if not row["reason"]]
+    return {"kind": kind,
+            "reason": _blocked(kind, report) or (rows[0]["reason"] if rows and not able
+                                                 else None),
+            "missing": sum(1 for row in able if row["source"] is None),
+            "have": sum(1 for row in able if row["source"])}
+
+
 def _plan(request: Request, report: Mapping[str, Any],
           chosen: settings.Settings) -> dict[str, Any]:
     if request.existing not in EXISTING:
@@ -191,10 +210,7 @@ def _plan(request: Request, report: Mapping[str, Any],
     for target in targets:
         for source, count in target["replacing_by_source"].items():
             replacing[source] = replacing.get(source, 0) + count
-    each = [{"kind": kind, "reason": _blocked(kind, report),
-             "missing": sum(1 for row in rows
-                            if row["kind"] == kind and row["source"] is None),
-             "have": sum(1 for row in rows if row["kind"] == kind and row["source"])}
+    each = [_counted(kind, [row for row in rows if row["kind"] == kind], report)
             for kind in kinds]
     return {"games": len(targets), "targets": targets, "kinds": each,
             "recording": [kind for kind in kinds
@@ -528,8 +544,7 @@ def _go(job: jobs.Job, run: dict[str, Any], kit: session.Kit | None) -> dict[str
             continue
         if not planned["recording"]:
             _advance(run, _outcome(target, session.Result(
-                session.SKIPPED, reason=session.said(session.NOTHING_TO_RECORD),
-                at_once=at_once)))
+                session.SKIPPED, reason=_why_nothing(planned), at_once=at_once)))
             continue
         if many and _short([planned], planned["recording"], chosen):
             return _pause(run, session.said(PAUSED_SPACE, device=_device_name()), at_once)
@@ -547,6 +562,11 @@ def _go(job: jobs.Job, run: dict[str, Any], kit: session.Kit | None) -> dict[str
         _advance(run, _outcome(target, result, time.monotonic() - began,
                                int(planned["estimate_seconds"])))
     return _end(run, "done", at_once)
+
+
+def _why_nothing(planned: Mapping[str, Any]) -> dict[str, Any]:
+    left = next((row["reason"] for row in planned["kinds"] if row["reason"]), None)
+    return dict(left) if left else session.said(session.NOTHING_TO_RECORD)
 
 
 def _advance(run: dict[str, Any], outcome: dict[str, Any]) -> None:

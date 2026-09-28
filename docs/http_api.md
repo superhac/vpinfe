@@ -1030,12 +1030,15 @@ The plan has an entry in `targets` for each game or table: per kind what it `doe
 (`fill`, `replace`, `propose` or `leave`), the `source` of the file serving the slot
 (`vpinmediadb`, `user`, `capture`, `unknown`) and its `file`, whether that file `goes` once
 a recording is placed, and a `reason` where this device cannot record the kind - on a
-device that records nothing, the report's own reason for every kind named; then its
-`recording`, `replacing` (the files it deletes), `replacing_by_source` and
-`estimate_seconds`. Over all of them it answers `games`, `kinds` as each kind's `reason`
-and how many slots are `missing` a file and `have` one, `recording`, `fills` (slots filled
-without deleting anything), `asks` (recordings kept for a decision), `replacing`,
-`replacing_by_source`, `launches` and an `estimate_seconds` that is always approximate.
+device that records nothing, the report's own reason for every kind named, and
+`capture.screen.not_shown_last` for a window the table's last recording found the app did
+not show (see below); then its `recording`, `replacing` (the files it deletes),
+`replacing_by_source` and `estimate_seconds`. Over all of them it answers `games`, `kinds`
+as each kind's `reason` (the report's, or the targets' own where none of them can record
+it) and how many of the slots that can be recorded are `missing` a file and `have` one,
+`recording`, `fills` (slots filled without deleting anything), `asks` (recordings kept for
+a decision), `replacing`, `replacing_by_source`, `launches` and an `estimate_seconds` that
+is always approximate.
 
 A run is one job, recording each game in turn, and is refused where the disks it writes to
 would be left with under 1 GB: the recordings of one game while it is encoded, and every
@@ -1046,11 +1049,12 @@ without launching. The job's message says which game, *Recording "Attack from Ma
 
 The job's `result` has an entry in `tables` for each game done: `state` is `recorded`,
 `failed`, `closed` (the table was closed at the cabinet before its recording finished, and
-nothing was placed) or `skipped` (nothing asked for needed recording), with the kinds
-`placed`, those `proposed` with their proposal's `id`, those `failed` with a `reason`, and
-`at_once`, false where the screens could not keep up together and were recorded again one
-at a time. `run` says how the job ended: `state` `done`, `paused` with its `reason`, or
-`stopped`, and `done` of `of`.
+nothing was placed) or `skipped` (nothing asked for needed recording, with the `reason` of
+the first kind asked for that this device cannot record for it where there is one), with
+the kinds `placed`, those `proposed` with their proposal's `id`, those `failed` with a
+`reason`, and `at_once`, false where the screens could not keep up together and were
+recorded again one at a time. `run` says how the job ended: `state` `done`, `paused` with
+its `reason`, or `stopped`, and `done` of `of`.
 
 The run is written to the device's data directory as it goes, and
 `GET /api/v1/capture/runs/current` answers it:
@@ -1110,6 +1114,15 @@ window the desktop shows on none of them is not recorded, and its kinds fail wit
 `capture.screen.not_shown`. A screen whose recording or picture is one flat color throughout,
 as a desktop's background is where nothing was drawn, is not placed either, and its kinds
 fail with `capture.outcome.one_color`: the net where the desktop cannot say.
+
+A window the desktop shows on none of them is remembered for that table, in the device's
+data directory, against what the app's capture hook says decides its windows there - for
+Visual Pinball, its Settings File's contents, the program, the table file, and the `.ini`,
+`.directb2s` and `.scv` beside it by the table's name or its folder's. Until any of that
+changes, or a later recording of the table sees the window, a plan leaves the window's
+kinds for that table with `capture.screen.not_shown_last`, *Visual Pinball X showed no DMD
+window when last recorded*. It is per table because Visual Pinball shows a Backglass, Score
+View or Topper window only once something draws in it, which depends on the table.
 
 A recording launches the table with `source: "capture"`, which counts no play (see
 `docs/extensions.md`), and each file it places is recorded in the `.info` ledger with the

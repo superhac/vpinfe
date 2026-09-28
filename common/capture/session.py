@@ -18,7 +18,7 @@ from common.failures import why
 from common.games import asset_origin
 from common.host import launch, launch_state, tools
 
-from . import adapters, commands, geometry, pipeline, placing, proposals, slots
+from . import adapters, commands, geometry, pipeline, placing, proposals, slots, unshown
 from .adapters import Output, Recording
 from .placing import Placing
 from .settings import Settings
@@ -185,6 +185,13 @@ class Session:
         seen = placing.seen(self.adapter, self.placed.shown)
         if seen is None:
             return
+        try:
+            unshown.learn(self.target.game_id, self.placed.shown.placer, seen,
+                          [window for window in [*self.video, *self.stills]
+                           if window not in seen])
+        except OSError:
+            logger.warning("Recording %s: could not keep which windows were shown",
+                           self.target.game_id, exc_info=True)
         self._place(self.placed.screens(seen))
         self._choose()
 

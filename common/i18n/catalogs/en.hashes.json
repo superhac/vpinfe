@@ -86,6 +86,7 @@
   "capture.screen.none": "b9d3c9687b94",
   "capture.screen.not_found": "eee37ffe1fa9",
   "capture.screen.not_shown": "bbc706f46759",
+  "capture.screen.not_shown_last": "713e387135cb",
   "capture.screen.unreadable": "b85b7b6499de",
   "capture.sound.needs_loopback": "c709c7544b7b",
   "capture.sound.no_input": "1e96375ae12e",

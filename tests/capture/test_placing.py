@@ -125,12 +125,27 @@ class ShownTests(unittest.TestCase):
         vpx = apps.get("vpx")
         entry = apps.Entry(table="/games/Example/Example.vpx")
         with patch.object(launch, "launched_by", return_value=(vpx, entry, {})) as found, \
-                patch.object(VPXCapture, "outputs", return_value={"topper": ""}):
+                patch.object(VPXCapture, "outputs", return_value={"topper": ""}), \
+                patch.object(VPXCapture, "placed_by", return_value="settings-1"):
             said = placing.shown("game", "Example.vpx")
 
         found.assert_called_once_with("game", "Example.vpx")
         self.assertEqual((said.app, dict(said.outputs)), ("Visual Pinball X", {"topper": ""}))
         self.assertEqual(said.window("", "Visual Pinball Player"), "playfield")
+        self.assertEqual(said.placer, placing.Placer("Visual Pinball X",
+                                                     "/games/Example/Example.vpx",
+                                                     "settings-1"))
+
+    def test_what_placed_a_tables_windows_is_asked_without_where_they_go(self) -> None:
+        vpx = apps.get("vpx")
+        entry = apps.Entry(table="/games/Example/Example.vpx")
+        with patch.object(launch, "launched_by", return_value=(vpx, entry, {})), \
+                patch.object(VPXCapture, "outputs") as outputs, \
+                patch.object(VPXCapture, "placed_by", return_value="settings-1"):
+            said = placing.placer("game", "Example.vpx")
+
+        outputs.assert_not_called()
+        self.assertEqual(said, ("Visual Pinball X", "/games/Example/Example.vpx", "settings-1"))
 
     def test_nothing_is_said_without_a_launcher_or_a_capture_hook(self) -> None:
         for answer in (None, (apps.get("generic"), apps.Entry(), {}),
@@ -140,6 +155,18 @@ class ShownTests(unittest.TestCase):
                     **({"side_effect": answer} if isinstance(answer, Exception)
                        else {"return_value": answer})):
                 self.assertIsNone(placing.shown())
+                self.assertIsNone(placing.placer("game"))
+
+    def test_the_default_launchers_app_with_no_table_has_no_placer(self) -> None:
+        with patch.object(launch, "launched_by",
+                          return_value=(apps.get("vpx"), apps.Entry(), {})), \
+                patch.object(VPXCapture, "outputs", return_value={}), \
+                patch.object(VPXCapture, "placed_by") as asked:
+            said = placing.shown()
+
+        assert said is not None
+        self.assertIsNone(said.placer)
+        asked.assert_not_called()
 
 
 if __name__ == "__main__":

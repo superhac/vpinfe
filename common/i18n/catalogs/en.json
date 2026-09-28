@@ -89,6 +89,7 @@
   "capture.screen.none": "No screen is set as {window}",
   "capture.screen.not_found": "Can't tell which screen is the {window}",
   "capture.screen.not_shown": "{app} doesn't show the {window} on a screen of its own",
+  "capture.screen.not_shown_last": "{app} showed no {window} window when last recorded",
   "capture.screen.unreadable": "The desktop didn't say which screens it has",
   "capture.sound.needs_loopback": "Needs a loopback audio device",
   "capture.sound.no_input": "FFmpeg here can't read sound",

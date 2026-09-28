@@ -6,7 +6,10 @@ Visual Pinball keeps: it writes its settings back when it exits.
 
 from __future__ import annotations
 
+import hashlib
+import os
 import re
+import threading
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -38,11 +41,53 @@ TITLES = {"Visual Pinball Player": "playfield", "Visual Pinball Backglass": "bac
 # `Samsung Electric Company SAMSUNG 0x00000001 (DP-1 via HDMI)`.
 _CONNECTOR = re.compile(r"\(\s*([^\s()]+)[^()]*\)\s*$")
 
+# Beside a table, by its name or its folder's: VPX's settings for it, B2S's backglass
+# (`B2SServer.cpp`) and ScoreView's layouts (`ScoreViewPlugin.cpp`).
+BESIDE = (".ini", ".directb2s", ".scv")
+
 _LAUNCH = VPXLaunch()
+
+# The Settings File's digest by path, with the size and time it was read at.
+_DIGESTS: dict[str, tuple[int, int, str]] = {}
+_DIGESTS_LOCK = threading.Lock()
 
 
 def recording_values(sound: bool) -> dict[str, str]:
     return dict(PACING) if sound else {**PACING, **MUTED}
+
+
+def _stamp(path: Path) -> str:
+    try:
+        found = path.stat()
+    except OSError:
+        return f"{path}:-"
+    return f"{path}:{found.st_size}:{found.st_mtime_ns}"
+
+
+def _content(path: Path | None) -> str:
+    if path is None:
+        return "-"
+    try:
+        found = path.stat()
+        with _DIGESTS_LOCK:
+            held = _DIGESTS.get(str(path))
+            if held is None or held[:2] != (found.st_size, found.st_mtime_ns):
+                held = (found.st_size, found.st_mtime_ns,
+                        hashlib.sha256(path.read_bytes()).hexdigest())
+                _DIGESTS[str(path)] = held
+    except OSError:
+        return f"{path}:-"
+    return f"{path}:{held[2]}"
+
+
+def _beside(table: Path) -> list[str]:
+    wanted = {f"{stem}{suffix}".lower() for stem in (table.stem, table.parent.name)
+              for suffix in BESIDE}
+    try:
+        names = os.listdir(table.parent)
+    except OSError:
+        return []
+    return sorted(_stamp(table.parent / name) for name in names if name.lower() in wanted)
 
 
 def connector(display: str) -> str:
@@ -88,3 +133,11 @@ class VPXCapture:
 
     def window(self, app_id: str, title: str) -> str:
         return TITLES.get(str(title or "").strip(), "")
+
+    def placed_by(self, entry: Entry, settings: Mapping[str, Any]) -> str:
+        program = str(settings.get("bin_path") or "").strip()
+        said = [_content(settings_file(settings)), _stamp(Path(program)) if program else "-"]
+        if entry.table:
+            table = Path(entry.table)
+            said += [_stamp(table), *_beside(table)]
+        return hashlib.sha256("\n".join(said).encode("utf-8")).hexdigest()

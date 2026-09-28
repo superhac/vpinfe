@@ -1,6 +1,8 @@
 """Visual Pinball launched to be recorded: through copies of its settings, never its own."""
 
+import os
 import unittest
+from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -222,6 +224,56 @@ class OutputTests(unittest.TestCase):
                                 ("VPinFE Table", ""), ("", "")):
             with self.subTest(title):
                 self.assertEqual(capture.window("VPinballX_BGFX", title), expected)
+
+
+class PlacedByTests(unittest.TestCase):
+    """What VPX reads to decide which windows it shows for a table."""
+
+    def setUp(self) -> None:
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        self.settings_file = root / "VPinballX.ini"
+        self.settings_file.write_text(SHOWN_ON_THREE, encoding="utf-8")
+        self.game = root / "Example"
+        self.game.mkdir()
+        self.table = self.game / "Mod.vpx"
+        self.table.write_bytes(b"vpx")
+
+    def _placed_by(self, table: Path | None = None) -> str:
+        return VPXCapture().placed_by(Entry(table=str(table or self.table)),
+                                      {"ini_path": str(self.settings_file)})
+
+    def _changes(self, change) -> bool:
+        before = self._placed_by()
+        change()
+        return self._placed_by() != before
+
+    def test_the_same_until_something_it_reads_changes(self) -> None:
+        self.assertEqual(self._placed_by(), self._placed_by())
+        self.assertNotEqual(self._placed_by(self.game / "Other.vpx"), self._placed_by())
+
+    def test_the_settings_file_by_what_it_holds(self) -> None:
+        """VPX may write it back unchanged when it exits."""
+        later = self.settings_file.stat().st_mtime_ns + 10**9
+        self.assertFalse(self._changes(lambda: os.utime(self.settings_file,
+                                                        ns=(later, later))))
+        self.assertTrue(self._changes(lambda: self.settings_file.write_text(
+            SHOWN_ON_THREE.replace("ScoreViewOutput = 1", "ScoreViewOutput = 0"),
+            encoding="utf-8")))
+
+    def test_a_file_beside_the_table_that_decides_a_window(self) -> None:
+        for name in ("Mod.directb2s", "example.DIRECTB2S", "Mod.scv", "Example.scv",
+                     "Mod.ini", "example.ini"):
+            with self.subTest(name):
+                beside = self.game / name
+                self.assertTrue(self._changes(partial(beside.write_bytes, b"x")))
+                beside.unlink()
+
+    def test_not_the_files_beside_it_that_decide_nothing(self) -> None:
+        for name in ("Example.info", "Other.directb2s", "Mod.vbs"):
+            with self.subTest(name):
+                self.assertFalse(self._changes(partial((self.game / name).write_bytes, b"x")))
 
 
 if __name__ == "__main__":
