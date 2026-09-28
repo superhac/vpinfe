@@ -74,12 +74,16 @@ LOCATION_VIEWS: dict[str, list[str] | views.Preset] = {
 }
 
 
+STATE_WORDS = {model.READY: "word.ready", model.READ_ONLY: "word.read_only",
+               model.NOT_FOUND: "word.not_found", model.NOT_ANSWERING: "word.not_answering"}
+# What each state costs, for its chip. Anything not listed is a location that cannot be read.
+STATE_TIERS = {model.READY: "on", model.READ_ONLY: "warn"}
+
+
 def state_of(row: dict[str, Any]) -> str:
     """The fewest true words. Why is in the column's help and in the panel."""
-    if not row.get("reachable"):
-        return t("word.unreachable")
-    return t("word.ready") if row.get("writable") \
-        else t("word.read_only")
+    word = STATE_WORDS.get(str(row.get("state") or ""))
+    return t(word) if word else ""
 
 
 def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:

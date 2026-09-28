@@ -5741,11 +5741,9 @@ async def _adopt_shadowed(context: dict[str, Any], one: dict[str, Any]) -> None:
 
 
 def _location_state(row: dict[str, Any]) -> Callable[[], None]:
-    if not row["reachable"]:
-        return panel.state(t("word.unreachable"), "bad", beside=row["reason"])
-    if not row["writable"]:
-        return panel.state(t("word.read_only"), "warn", beside=row["reason"])
-    return panel.state(t("word.ready"), "on")
+    return panel.state(locations_page.state_of(row),
+                       locations_page.STATE_TIERS.get(row["state"], "bad"),
+                       beside=row["reason"])
 
 
 def _location_write_to(context: dict[str, Any],

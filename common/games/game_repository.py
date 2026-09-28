@@ -49,6 +49,10 @@ _LOCK = threading.Lock()
 # One parser per location, keyed by its path and kind. A parser reads one path and knows
 # nothing about locations, which is what keeps the plural half here and out of the scan.
 _PARSERS: dict[tuple[str, str], GameParser] = {}
+# Locations that could not be reached at the last read, left alone until the next reload.
+_AWAY: set[tuple[str, str]] = set()
+# Not the Console's two seconds: an automounted share answers only once it is up.
+SCAN_WAIT_SECONDS = 30.0
 logger = logging.getLogger("vpinfe.common.games.game_repository")
 
 
@@ -63,20 +67,33 @@ def _held(reload: bool) -> tuple[list[Any], bool]:
     keys = {(one.path, one.kind) for one in wanted}
     for gone in [key for key in _PARSERS if key not in keys]:
         _PARSERS.pop(gone)
+    _AWAY.intersection_update(keys)
+
+    unread = [one for one in wanted if reload
+              or (one.path, one.kind) not in _PARSERS and (one.path, one.kind) not in _AWAY]
+    states = locations.states_of(unread, wait=SCAN_WAIT_SECONDS) if unread else {}
 
     games: list[Any] = []
     read = False
     for location in wanted:
         key = (location.path, location.kind)
+        state = states.get(location.location_id)
+        if state is not None:
+            read = True
+            if not state.reachable:
+                _PARSERS.pop(key, None)
+                _AWAY.add(key)
+                logger.warning("Skipped %s: %s", location.path, state.reason)
+                continue
+            _AWAY.discard(key)
+            if key in _PARSERS:
+                _PARSERS[key].load_games(reload=True)
+            else:
+                _PARSERS[key] = GameParser(location.path, get_ini_config(),
+                                           one_game=location.kind == locations.KIND_GAME)
         parser = _PARSERS.get(key)
         if parser is None:
-            parser = _PARSERS[key] = GameParser(
-                location.path, get_ini_config(),
-                one_game=location.kind == locations.KIND_GAME)
-            read = True
-        elif reload:
-            parser.load_games(reload=True)
-            read = True
+            continue
         for game in parser.get_all_games():
             game.location_id = location.location_id
             games.append(game)

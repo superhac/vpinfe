@@ -745,10 +745,11 @@ def local_trouble() -> list[Any]:
 
     store = launchers.get_launcher_store()
     held = locations.configured()
+    states = locations.states_of(held)
     return feature_checks.unmet(
         get_ini_config(),
         launcher=launchers.default_for("vpx", store.launchers()),
-        locations=[(one, locations.state_of(one)) for one in held])
+        locations=[(one, states[one.location_id]) for one in held])
 
 
 def build_library_page(library: Library, rerender: Callable[[], None], key: str,

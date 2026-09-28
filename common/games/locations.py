@@ -21,12 +21,14 @@ import json
 import logging
 import os
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 from common.atomic_write import write_atomic
 from common.config_access import cfg_get
 from common.config_store import ConfigStore
+from common.failures import why
 from common.i18n import t
 from common.install_identity import mint_id
 from common.paths import CONFIG_DIR
@@ -91,29 +93,95 @@ class Location:
                    kind=kind if kind in KINDS else KIND_ROOT)
 
 
+READY = "ready"
+READ_ONLY = "read_only"
+NOT_FOUND = "not_found"
+NOT_ANSWERING = "not_answering"
+
+# How long a caller waits for the disk before calling a location Not answering.
+PROBE_SECONDS = 2.0
+
+
 @dataclass(frozen=True)
 class LocationState:
     """What the disk says about a location right now."""
 
-    reachable: bool
-    writable: bool
+    state: str
     reason: str = ""
+
+    @property
+    def reachable(self) -> bool:
+        return self.state in (READY, READ_ONLY)
+
+    @property
+    def writable(self) -> bool:
+        return self.state == READY
+
+
+def _look(raw_path: str) -> LocationState:
+    # Resolved the same way `canonical` resolves it. Reading the raw string would call
+    # `~/tables` unreachable while the scan happily walked it.
+    path = Path(canonical(raw_path) or raw_path)
+    if not path.exists():
+        return LocationState(NOT_FOUND, t("error.locations.nothing_at_path"))
+    if not path.is_dir():
+        return LocationState(NOT_FOUND, t("error.locations.not_a_folder"))
+    if not os.access(path, os.W_OK):
+        return LocationState(READ_ONLY, t("error.locations.nothing_can_be_written"))
+    return LocationState(READY)
+
+
+class _Probe:
+    def __init__(self, raw_path: str) -> None:
+        self.raw_path = raw_path
+        self.started = time.monotonic()
+        self.done = threading.Event()
+        self.answer = LocationState(NOT_ANSWERING, t("error.locations.not_answering"))
+
+    def run(self) -> None:
+        try:
+            self.answer = _look(self.raw_path)
+        except (OSError, ValueError) as exc:
+            self.answer = LocationState(NOT_FOUND, why(exc, self.raw_path))
+        finally:
+            with _PROBES_LOCK:
+                if _PROBES.get(self.raw_path) is self:
+                    del _PROBES[self.raw_path]
+            self.done.set()
+
+
+_PROBES: dict[str, _Probe] = {}
+_PROBES_LOCK = threading.Lock()
+
+
+def _probe(raw_path: str) -> _Probe:
+    """The question in flight for this path, or a new one. Nothing cancels a stat on a
+    dead mount, so a second question would be a second thread lost to it."""
+    with _PROBES_LOCK:
+        probe = _PROBES.get(raw_path)
+        if probe is None:
+            probe = _PROBES[raw_path] = _Probe(raw_path)
+            threading.Thread(target=probe.run, daemon=True,
+                             name="location-probe").start()
+    return probe
+
+
+def states_of(held: list[Location],
+              wait: float | None = None) -> dict[str, LocationState]:
+    """What the disk says about each location, keyed by id, asked of all of them at once.
+
+    `wait` counts from when the question was first asked, not from this call, so a
+    question already out that long answers Not answering at once.
+    """
+    limit = PROBE_SECONDS if wait is None else wait
+    probes = {one.location_id: _probe(one.path) for one in held}
+    for probe in probes.values():
+        probe.done.wait(max(0.0, probe.started + limit - time.monotonic()))
+    return {location_id: probe.answer for location_id, probe in probes.items()}
 
 
 def state_of(location: Location) -> LocationState:
-    """Asked of the disk every time. A late mount is the ordinary case here, and the
-    honest report is "this location is unreachable" rather than every entry in it
-    reading as gone."""
-    # Resolved the same way `canonical` resolves it. Reading the raw string would call
-    # `~/tables` unreachable while the scan happily walked it.
-    path = Path(canonical(location.path) or location.path)
-    if not path.exists():
-        return LocationState(False, False, t("error.locations.nothing_at_path"))
-    if not path.is_dir():
-        return LocationState(False, False, t("error.locations.not_a_folder"))
-    if not os.access(path, os.W_OK):
-        return LocationState(True, False, t("error.locations.nothing_can_be_written"))
-    return LocationState(True, True)
+    return states_of([location])[location.location_id]
 
 
 class LocationStore:
@@ -144,11 +212,12 @@ class LocationStore:
         that has never been asked still has to be able to create something."""
         with self._lock:
             held, wanted = self._load()
+        states = states_of(held)
         named = next((one for one in held if one.location_id == wanted), None)
-        if named is not None and state_of(named).writable:
+        if named is not None and states[named.location_id].writable:
             return named
         return next((one for one in held
-                     if one.kind == KIND_ROOT and state_of(one).writable), None)
+                     if one.kind == KIND_ROOT and states[one.location_id].writable), None)
 
     # -- writing -------------------------------------------------------------
 
@@ -321,9 +390,10 @@ class Destination:
         return self.location.path if self.location is not None else ""
 
 
-def _writable_roots(held: list[Location]) -> tuple[Location, ...]:
+def _writable_roots(held: list[Location],
+                    states: dict[str, LocationState]) -> tuple[Location, ...]:
     return tuple(one for one in held
-                 if one.kind == KIND_ROOT and state_of(one).writable)
+                 if one.kind == KIND_ROOT and states[one.location_id].writable)
 
 
 def destination(location_id: str = "") -> Destination:
@@ -339,7 +409,8 @@ def destination(location_id: str = "") -> Destination:
     """
     store = get_location_store()
     held = store.locations()
-    writable = _writable_roots(held)
+    states = states_of(held)
+    writable = _writable_roots(held, states)
     wanted = str(location_id or "").strip() or store.chosen_write_to()
 
     if not wanted:
@@ -354,7 +425,7 @@ def destination(location_id: str = "") -> Destination:
     if named is None:
         return Destination(reason=t("error.locations.new_games_location_gone"),
                            alternatives=others)
-    state = state_of(named)
+    state = states[named.location_id]
     if named.kind != KIND_ROOT:
         return Destination(reason=t("error.locations.single_game_folder", name=named.name),
                            alternatives=others)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import unittest
 from configparser import ConfigParser
 from pathlib import Path
@@ -19,6 +20,7 @@ from common.games.locations import (
     canonical,
     state_of,
 )
+from tests.support.hung_folder import never_answering
 from tests.support.skips import needs_posix_permissions
 
 
@@ -125,6 +127,7 @@ class StateTests(unittest.TestCase):
     def test_a_folder_that_is_not_there_is_unreachable_with_a_reason(self) -> None:
         state = state_of(Location("id", "/nowhere/at/all"))
 
+        self.assertEqual(state.state, locations.NOT_FOUND)
         self.assertFalse(state.reachable)
         self.assertTrue(state.reason)
 
@@ -149,6 +152,58 @@ class StateTests(unittest.TestCase):
 
         self.assertTrue(state.reachable and state.writable)
         self.assertEqual(state.reason, "")
+
+
+class FolderThatDoesNotAnswerTests(_WithStore, unittest.TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        patcher = patch.object(locations, "PROBE_SECONDS", 0.2)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_it_reads_not_answering_within_the_bound(self) -> None:
+        hung = Location("hung", "/hung/bound")
+        with never_answering(hung.path):
+            started = time.monotonic()
+            state = state_of(hung)
+            took = time.monotonic() - started
+
+        self.assertEqual(state.state, locations.NOT_ANSWERING)
+        self.assertFalse(state.reachable)
+        self.assertTrue(state.reason)
+        self.assertLess(took, 1.0)
+
+    def test_a_question_still_out_answers_at_once_and_is_not_asked_twice(self) -> None:
+        hung = Location("hung", "/hung/once")
+        with never_answering(hung.path) as looked:
+            state_of(hung)
+            started = time.monotonic()
+            state = state_of(hung)
+            took = time.monotonic() - started
+
+        self.assertEqual(state.state, locations.NOT_ANSWERING)
+        self.assertLess(took, 0.1)
+        self.assertEqual(looked.call_count, 1)
+
+    def test_the_others_are_answered_beside_it(self) -> None:
+        here = self._location("here")
+        hung = Location("hung", "/hung/beside")
+        with never_answering(hung.path):
+            states = locations.states_of([hung, here])
+
+        self.assertEqual(states["hung"].state, locations.NOT_ANSWERING)
+        self.assertEqual(states[here.location_id].state, locations.READY)
+
+    def test_new_games_go_to_the_next_folder_that_answers(self) -> None:
+        hung = self._location("hung")
+        here = self._location("here")
+        with never_answering(hung.path):
+            started = time.monotonic()
+            chosen = self.store.write_to()
+            took = time.monotonic() - started
+
+        self.assertEqual(chosen, here)
+        self.assertLess(took, 1.0)
 
 
 class CanonicalTests(unittest.TestCase):

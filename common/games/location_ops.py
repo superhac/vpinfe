@@ -24,13 +24,13 @@ logger = logging.getLogger("vpinfe.common.games.location_ops")
 
 
 def _described(location: locations.Location, write_to: str,
-               shadowed: int = 0) -> dict[str, Any]:
-    state = locations.state_of(location)
+               state: locations.LocationState, shadowed: int = 0) -> dict[str, Any]:
     return {
         "location_id": location.location_id,
         "path": location.path,
         "name": location.name,
         "kind": location.kind,
+        "state": state.state,
         "reachable": state.reachable,
         "writable": state.writable,
         # Empty when there is nothing to say. A reason on every row would say nothing.
@@ -71,8 +71,10 @@ def listing() -> dict[str, Any]:
     target = store.write_to()
     write_to = target.location_id if target is not None else ""
     found = _shadowed()
+    states = locations.states_of(held)
     return {
-        "locations": [_described(one, write_to, len(found.under(one.location_id)))
+        "locations": [_described(one, write_to, states[one.location_id],
+                                 len(found.under(one.location_id)))
                       for one in held],
         "write_to": write_to,
         "kinds": list(locations.KINDS),
@@ -150,7 +152,8 @@ def put(location_id: str, path: str, kind: str = "") -> dict[str, Any]:
     store = locations.get_location_store()
     written = store.put(locations.Location(location_id=wanted, path=path, kind=kind))
     target = store.write_to()
-    return _described(written, target.location_id if target is not None else "")
+    return _described(written, target.location_id if target is not None else "",
+                      locations.state_of(written))
 
 
 def forget(location_id: str) -> dict[str, Any]:

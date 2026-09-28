@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -9,6 +10,7 @@ from unittest import mock
 
 from common.games import game_repository
 from common.games.locations import KIND_GAME, KIND_ROOT, Location
+from tests.support.hung_folder import never_answering
 
 
 def _game_folder(root: Path, name: str) -> Path:
@@ -30,7 +32,9 @@ class ManyLocationTests(unittest.TestCase):
         _game_folder(self.second, "Two (Gottlieb 1975)")
 
         game_repository._PARSERS.clear()
+        game_repository._AWAY.clear()
         self.addCleanup(game_repository._PARSERS.clear)
+        self.addCleanup(game_repository._AWAY.clear)
 
     def _configured(self, *paths: Path, kind: str = KIND_ROOT) -> list[Location]:
         return [Location(location_id=f"loc{n}", path=str(path), kind=kind)
@@ -76,6 +80,28 @@ class ManyLocationTests(unittest.TestCase):
             games = game_repository.all_games()
 
         self.assertEqual([g.game_dir_name for g in games], ["Two (Gottlieb 1975)"])
+
+    def test_a_location_that_does_not_answer_is_skipped_within_the_bound(self) -> None:
+        with self._with(self.first, self.second), never_answering(str(self.first)), \
+                mock.patch.object(game_repository, "SCAN_WAIT_SECONDS", 0.2):
+            started = time.monotonic()
+            games = game_repository.all_games()
+            took = time.monotonic() - started
+
+        self.assertEqual([g.game_dir_name for g in games], ["Two (Gottlieb 1975)"])
+        self.assertLess(took, 1.0)
+
+    def test_a_location_found_away_is_asked_again_on_reload_and_not_before(self) -> None:
+        later = self.root / "mounted-later"
+        with self._with(later, self.second):
+            game_repository.all_games()
+            _game_folder(later, "Three (Stern 2016)")
+            before = game_repository.all_games()
+            after = game_repository.all_games(reload=True)
+
+        self.assertEqual([g.game_dir_name for g in before], ["Two (Gottlieb 1975)"])
+        self.assertEqual(sorted(g.game_dir_name for g in after),
+                         ["Three (Stern 2016)", "Two (Gottlieb 1975)"])
 
     def test_dropping_a_location_drops_its_games(self) -> None:
         with self._with(self.first, self.second):
