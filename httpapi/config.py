@@ -9,19 +9,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Response
 
 from common import config_service
 from common.capture import settings as capture_settings
 from common.failures import why
-from common.host import tools
+from common.host import get_ffmpeg, tools
 from common.i18n import t
 from common.paths import get_ini_config
 from frontend import theme_windows
 
+from . import jobs as jobs_api
 from . import models, scopes
 from .auth import requires
-from .errors import ConflictError, InvalidRequestError
+from .errors import ConflictError, InvalidRequestError, NotFoundError
 
 router = APIRouter(prefix="/config", tags=["config"])
 
@@ -55,6 +56,18 @@ def get_path_checks() -> models.ConfigPathChecks:
 def get_tools() -> models.ConfigTools:
     """Looked for when asked, so a program installed a moment ago is found."""
     return models.ConfigTools.model_validate({"tools": tools.report()})
+
+
+@router.post("/tools/{tool_id}/get", summary="Download a Tool VPinFE can get itself",
+             status_code=202, dependencies=[requires(scopes.CONFIG_WRITE)])
+def get_tool(tool_id: str, response: Response) -> models.JobResource:
+    """Accepted, not done. The request is the consent. Only FFmpeg, on Windows and macOS,
+    can be got."""
+    if tool_id != tools.FFMPEG.id:
+        raise NotFoundError(t("error.config.no_tool_to_get", tool=tool_id))
+    job = get_ffmpeg.start()
+    response.headers["Location"] = f"/api/v1/jobs/{job.id}"
+    return models.JobResource(**jobs_api.resource(job))
 
 
 @router.get("", summary="What this install is set to",

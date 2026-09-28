@@ -993,6 +993,10 @@ class ApiClient:
         """Each Tool as the install finds it on its own disk and PATH."""
         return list(self._get("/config/tools").get("tools") or [])
 
+    def get_tool(self, tool_id: str) -> dict:
+        """Starts downloading a Tool the install can get itself; its job."""
+        return self._post(f"/config/tools/{tool_id}/get", {})
+
     def input_play(self) -> dict:
         """What the install can do with keys while a table runs: press and hear them."""
         return dict(self._get("/input/play") or {})

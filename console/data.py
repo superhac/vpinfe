@@ -569,6 +569,9 @@ class Library:
         """Never cached, for the same reason."""
         return self._client.config_tools()
 
+    def get_tool(self, tool_id: str) -> dict:
+        return self._client.get_tool(tool_id)
+
     def input_play(self) -> dict:
         """Never cached: a Tool installed or a permission granted changes it."""
         return self._client.input_play()

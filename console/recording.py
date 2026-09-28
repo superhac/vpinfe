@@ -118,11 +118,17 @@ def finding(offered: dict[str, Any]) -> Callable[[], None] | None:
     if not found or found.get("available") or not found.get("reason"):
         return None
     said = preflight.words(found["reason"])
+    gettable = bool((found["reason"].get("remedy") or {}).get("get"))
 
     def draw() -> None:
+        from console.settings import TOOLS, address_for
+
         with ui.element("div").classes("console-attention w-full mt-2"):
             ui.icon("error_outline").classes("console-attention-icon")
-            ui.label(said).classes("console-attention-line")
+            with ui.column().classes("gap-0 min-w-0 grow"):
+                ui.label(said).classes("console-attention-line")
+                if gettable:
+                    panel.link(t("console.settings.page_tools"), to=address_for(TOOLS))()
 
     return draw
 

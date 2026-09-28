@@ -51,10 +51,10 @@ _FORMAT_NAMES = {settings.H264: "H.264", settings.VP9: "VP9"}
 
 def reason(key: str, params: Mapping[str, str] | None = None,
            remedy: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    fix = REASONS[key]
     remedy = remedy or REMEDIES.get(key)
+    fix = tools.FIX_AUTO if remedy and remedy.get("get") else REASONS[key]
     return {"key": key, "params": dict(params or {}), "fix": fix,
-            "remedy": dict(remedy) if fix == tools.FIX_USER and remedy else None}
+            "remedy": dict(remedy) if fix != tools.FIX_NONE and remedy else None}
 
 
 def words(said: Mapping[str, Any]) -> str:
@@ -77,7 +77,7 @@ def _needs(found: Mapping[str, tools.Found], tool: tools.Tool,
     """Why `tool` cannot do its part, or None where it can."""
     have = found[tool.id]
     if have.state is not tools.State.FOUND or have.probe is None:
-        return reason(NEEDS_TOOL, {"tool": tool.name}, tools.remedy(tool))
+        return reason(NEEDS_TOOL, {"tool": tool.name}, tools.remedy(tool, missing=True))
     if encoder and not have.probe.has(tools.ENCODERS, encoder):
         return reason(NO_ENCODER, {"format": format_name}, tools.remedy(tool))
     return None

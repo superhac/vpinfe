@@ -26,7 +26,7 @@ from typing import Any
 from common.i18n import t
 from common.launcher_path import resolve_launcher_path
 
-from . import vpinos
+from . import get_ffmpeg, vpinos
 
 logger = logging.getLogger("vpinfe.common.host.tools")
 
@@ -50,7 +50,8 @@ class State(StrEnum):
     NOT_HERE = "not_here"
 
 
-# Who can put it right: a person, or nobody. VPinFE itself, with consent, is `auto`.
+# Who can put it right: VPinFE itself, once a person agrees; a person; or nobody.
+FIX_AUTO = "auto"
 FIX_USER = "user"
 FIX_NONE = "none"
 
@@ -86,6 +87,10 @@ class Tool:
     hint: Mapping[str, str]
     # Folders of its own to look in beyond PATH, by platform. `${VAR}` is expanded.
     places: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    # What VPinFE would download in its place here, where it can get one itself, and the
+    # hint that says so.
+    offer: Callable[[], Mapping[str, Any] | None] | None = None
+    get_hint: str = ""
 
     @property
     def section(self) -> str:
@@ -328,6 +333,9 @@ FFMPEG = Tool(
     probe=_ffmpeg,
     hint={**_ON_LINUX_ONLY, DARWIN: "tools.ffmpeg.hint.darwin",
           WINDOWS: "tools.ffmpeg.hint.windows"},
+    places={DARWIN: (str(get_ffmpeg.FOLDER),), WINDOWS: (str(get_ffmpeg.FOLDER),)},
+    offer=get_ffmpeg.offer,
+    get_hint="tools.ffmpeg.hint.get",
 )
 
 GRIM = Tool(
@@ -412,12 +420,22 @@ TOOLS: tuple[Tool, ...] = (RAR, FFMPEG, GRIM, WF_RECORDER, WTYPE, YDOTOOL)
 
 # --- what a person reads ------------------------------------------------------------
 
-def remedy(tool: Tool) -> dict[str, Any]:
+def remedy(tool: Tool, missing: bool = False) -> dict[str, Any]:
     """The fix for a missing or unusable one, as a catalog key with its parameters, and
-    the setting that points at one instead. `words` renders it."""
+    the setting that points at one instead. `words` renders it. Where it is `missing` and
+    VPinFE can get one here, `get` is what it would fetch."""
+    offered = tool.offer() if missing and tool.offer is not None else None
+    if offered:
+        return {"key": tool.get_hint, "params": {"tool": tool.name},
+                "setting": tool.option, "get": dict(offered)}
     key = tool.hint.get(VPINOS, "") if vpinos.detected() else ""
     return {"key": key or tool.hint.get(here(), ""), "params": {"tool": tool.name},
             "setting": tool.option}
+
+
+def fix_of(said: Mapping[str, Any] | None) -> str:
+    """Who can put a stuck Tool right, by its remedy."""
+    return FIX_AUTO if said and said.get("get") else FIX_USER
 
 
 def words(said: Mapping[str, Any]) -> str:
@@ -436,6 +454,7 @@ def row(found: Found) -> dict[str, Any]:
     """One Tool as the API and the capture preflight report it."""
     tool = found.tool
     stuck = found.state in (State.MISSING, State.UNUSABLE)
+    said = remedy(tool, missing=True) if stuck else None
     reason = found.probe.reason if found.probe is not None else ""
     return {
         "id": tool.id,
@@ -447,8 +466,8 @@ def row(found: Found) -> dict[str, Any]:
         "set_here": found.set_here,
         "reason": ({"key": reason, "params": {}}
                    if found.state is State.UNUSABLE and reason else None),
-        "fix": FIX_USER if stuck else FIX_NONE,
-        "remedy": remedy(tool) if stuck else None,
+        "fix": fix_of(said) if stuck else FIX_NONE,
+        "remedy": said,
     }
 
 

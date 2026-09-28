@@ -112,7 +112,17 @@ class ToolsPageTests(unittest.IsolatedAsyncioTestCase):
                           "wf_recorder": "not_here", "wtype": "not_here",
                           "ydotool": "not_here"})
         self.assertEqual(found[0]["remedy"], {"key": "tools.rar.hint.darwin", "params":
-                                              {"tool": "unar"}, "setting": "tools.rar_path"})
+                                              {"tool": "unar"}, "setting": "tools.rar_path",
+                                              "get": None})
+        self.assertEqual((found[1]["fix"], found[1]["remedy"]["get"]["source"]),
+                         (tools.FIX_AUTO, "martin-riedl.de"))
+
+    async def test_a_missing_ffmpeg_is_offered_above_the_paths(self) -> None:
+        rows = await settings._tools_head(self.library, Mock(), {})
+
+        self.assertEqual([kind for kind, _draw in rows], [panel.FULL])
+        self._program("ffmpeg")
+        self.assertEqual(await settings._tools_head(self.library, Mock(), {}), [])
 
     async def test_only_the_tools_this_platform_has_are_drawn(self) -> None:
         drawn = await self._fields()

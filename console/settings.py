@@ -32,12 +32,13 @@ from common import (
 from common.failures import why
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.host import frontend_browser, key_reader, key_simulator, tools
-from common.i18n import t
+from common.i18n import size, t
 from common.labels import humanize
 from common.media_specs import media_label_map
 from console import (
     binding_editor,
     busy,
+    confirm,
     deeplink,
     input_watch,
     offload,
@@ -562,8 +563,58 @@ async def _browser_head(library: Library, rerender: Callable[[], None],
     return rows
 
 
+TOOLS = "tools"
+
+
+def _get_tool(library: Library, rerender: Callable[[], None], row: dict[str, Any],
+              offered: dict[str, Any]) -> None:
+    """A missing Tool VPinFE can get itself, and Get, asking first what and from where."""
+    @on_page
+    async def get() -> None:
+        if not await confirm.ask(
+                t("console.settings.get_ffmpeg_ask"),
+                detail=t("console.settings.get_ffmpeg_detail",
+                         version=str(offered.get("version")),
+                         source=str(offered.get("source")),
+                         size=size(int(offered.get("size") or 0))),
+                confirm=t("console.settings.get_ffmpeg"), icon=verbs.FETCH, danger=False):
+            return
+        try:
+            job = await offload.io(library.get_tool, str(row.get("id")))
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
+            ui.notify(t("console.settings.could_not_get_ffmpeg"), caption=why(exc),
+                      type="negative")
+            return
+        from console import record
+
+        ended = await record.ended_job(library, str(job.get("id") or ""))
+        if not ended or ended.get("error"):
+            ui.notify(t("console.settings.could_not_get_ffmpeg"),
+                      caption=str(ended.get("error") or ""), type="negative")
+        else:
+            ui.notify(t("console.settings.got_ffmpeg", version=str(ended.get("version"))),
+                      type="positive")
+        rerender()
+
+    with ui.element("div").classes("console-attention w-full mb-2"):
+        ui.icon("error_outline").classes("console-attention-icon")
+        ui.label(t("console.settings.ffmpeg_missing")) \
+            .classes("console-attention-line min-w-0 grow")
+        panel.action(t("console.settings.get_ffmpeg"), get, icon=verbs.FETCH)()
+
+
+async def _tools_head(library: Library, rerender: Callable[[], None],
+                      values: dict, **_: Any) -> list[tuple[Any, Any]]:
+    """Get, for each missing Tool VPinFE can get itself, before the paths."""
+    rows = await _tools_found(library, (TOOLS,))
+    return [(panel.FULL, lambda row=row, offered=offered:
+             _get_tool(library, rerender, row, offered))
+            for row in rows
+            if (offered := (row.get("remedy") or {}).get("get"))]
+
+
 # section -> what to draw above its settings, the counterpart of FOOTERS.
-HEADS: dict[str, Callable] = {"chromium": _browser_head}
+HEADS: dict[str, Callable] = {"chromium": _browser_head, TOOLS: _tools_head}
 
 # section -> what is wrong with a whole page, drawn with its name, from what the page was
 # offered; None where nothing is.
@@ -852,9 +903,6 @@ def field_marks(items: Any, checks: list[dict]) -> dict[tuple[str, str], dict]:
         state = panel.REQUIRED if item.state == path_checks.UNSET else item.state
         found[(item.section, item.key)] = {"state": state, "reason": item.reason}
     return found
-
-
-TOOLS = "tools"
 
 
 def with_discovery(schema: list[dict], found: list[dict]) -> list[dict]:

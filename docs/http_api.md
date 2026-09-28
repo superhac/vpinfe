@@ -250,7 +250,8 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/config` | What this install is set to, by section and key |
 | PUT | `/api/v1/config` | Change settings, `{section: {key: value}}`. A patch: only what is sent is written |
 | GET | `/api/v1/config/paths` | Whether each path setting finds anything on this device |
-| GET | `/api/v1/config/tools` | Each Tool - a program VPinFE runs and does not ship, such as unar or ffmpeg - as this device finds it when asked: `state` (`found`, `missing`, `unusable`, `not_here`), the `path` and `version` found, `set_here` where its `setting` is what found it. A missing or unusable one carries `fix: "user"` and a `remedy` of `key`, `params` and `setting`, rendered with the setting's label and the Settings section as its `setting` and `section` slots; an unusable one also a `reason` of `key` and `params` |
+| GET | `/api/v1/config/tools` | Each Tool - a program VPinFE runs and does not ship, such as unar or ffmpeg - as this device finds it when asked: `state` (`found`, `missing`, `unusable`, `not_here`), the `path` and `version` found, `set_here` where its `setting` is what found it. A missing or unusable one carries `fix: "user"` and a `remedy` of `key`, `params` and `setting`, rendered with the setting's label and the Settings section as its `setting` and `section` slots; an unusable one also a `reason` of `key` and `params`. Where VPinFE can get the Tool itself - FFmpeg, on Windows and macOS - `fix` is `"auto"` and the remedy's `get` says what it would download: `version`, `source` and `size` in bytes |
+| POST | `/api/v1/config/tools/{id}/get` | Get a Tool VPinFE can get itself, as a `202` job; the request is the consent. The build pinned for this device is downloaded into this install's own folder, kept only where its size and SHA-256 are the pin's, and run once, after which discovery finds it. `404` for a Tool VPinFE cannot get, `501` on a device it has no build for, `409` while one is being got. `config:write` |
 | GET | `/api/v1/preferences/{scope}` | A stored UI arrangement |
 | PUT | `/api/v1/preferences/{scope}` | Store one. The body is the whole value |
 | GET | `/api/v1/locations` | Every location this install looks in, in order, each with what the disk says about it now |
@@ -921,7 +922,9 @@ is asked of that device.
   `capture.screen.not_shown`, with the app's name in `app`.
 - Every `reason` is a catalog key and its values, rendered where it is read. `fix` is
   `user` where a person must act, and then `remedy` says how, in the shape of the Tools'
-  remedy; `none` where nobody can. A `window` value is a window's id, said with its media
+  remedy; `auto` where VPinFE can do it once a person agrees - a missing FFmpeg on Windows
+  and macOS, which `POST /api/v1/config/tools/ffmpeg/get` fetches - with the remedy's
+  `get` saying what; `none` where nobody can. A `window` value is a window's id, said with its media
   kind's word.
 - `video_codec` is what Automatic records here: `h264`, unless this device's frontend
   browser reports it plays no H.264, then `vp9` in `.mp4`.

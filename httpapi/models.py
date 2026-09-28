@@ -765,11 +765,23 @@ class Said(ApiModel):
     params: dict[str, str] = {}
 
 
+class ToolGet(ApiModel):
+    """What VPinFE would download in a missing Tool's place: its version, who publishes
+    it, and its size in bytes."""
+
+    version: str
+    source: str
+    size: int
+
+
 class ToolRemedy(Said):
     """What to do about a Tool, and the setting that points at one instead. The hint's
-    `setting` and `section` slots are that setting's label and the Settings section."""
+    `setting` and `section` slots are that setting's label and the Settings section.
+    `get` is there where VPinFE can get the Tool itself, with `POST
+    /config/tools/{id}/get`."""
 
     setting: str
+    get: ToolGet | None = None
 
 
 class PlayInputRemedy(Said):
@@ -808,7 +820,8 @@ class ConfigTool(ApiModel):
 
     `state` is `found`, `missing`, `unusable` (found, and it does not run) or `not_here`
     (nothing to look for on this platform). `set_here` says the setting is what found it.
-    `fix` is `user` where a person has to act and `none` otherwise.
+    `fix` is `auto` where VPinFE can get it once a person agrees, `user` where a person has
+    to act and `none` otherwise.
     """
 
     id: str
@@ -831,7 +844,8 @@ class ConfigTools(ApiModel):
 
 class CaptureReason(Said):
     """Why something cannot be recorded. `fix` is `user` where a person has to act, and
-    then `remedy` says how; `none` where nobody can."""
+    then `remedy` says how; `auto` where VPinFE can do it once a person agrees, the remedy
+    saying what with its `get`; `none` where nobody can."""
 
     fix: str
     remedy: ToolRemedy | None = None

@@ -13,7 +13,8 @@ from starlette.testclient import TestClient
 
 import httpapi
 from common import config_schema, paths
-from common.capture import adapters, commands
+from common.capture import adapters, commands, preflight
+from common.host import tools
 from common.i18n import t
 from console import panel, recording, settings
 from console.data import Library
@@ -228,6 +229,21 @@ class RecordingPageTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(recording.ui.label.call_args.args[0],
                          t(adapters.NOT_YET, desktop="macOS"))
+
+    async def test_a_missing_ffmpeg_vpinfe_can_get_links_to_the_tools_page(self) -> None:
+        with patch.object(tools, "here", return_value=tools.WINDOWS):
+            blocked = preflight.reason(preflight.NEEDS_TOOL, {"tool": "FFmpeg"},
+                                       tools.remedy(tools.FFMPEG, missing=True))
+        self.report = {**self.unsupported, "reason": blocked}
+        link = self.enterContext(patch.object(panel, "link"))
+        await self._drawn()
+
+        [said] = self.head.call_args.args[1]
+        said()
+
+        self.assertEqual(blocked["fix"], tools.FIX_AUTO)
+        link.assert_called_once_with(t("console.settings.page_tools"),
+                                     to=settings.address_for(settings.TOOLS))
 
     async def test_a_device_that_records_says_nothing_with_it(self) -> None:
         await self._drawn()

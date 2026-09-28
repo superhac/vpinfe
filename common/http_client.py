@@ -185,11 +185,16 @@ def download_file(
     timeout: int = DOWNLOAD_TIMEOUT,
     headers: dict[str, str] | None = None,
     chunk_size: int = 1024 * 1024,
+    progress: Callable[[int], None] | None = None,
 ) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     with _asked(requests.get, url, timeout=timeout, headers=headers, stream=True) as response:
         response.raise_for_status()
+        written = 0
         with open(dest, "wb") as fh:
             for chunk in response.iter_content(chunk_size=chunk_size):
                 if chunk:
                     fh.write(chunk)
+                    written += len(chunk)
+                    if progress is not None:
+                        progress(written)
