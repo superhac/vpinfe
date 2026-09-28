@@ -1,6 +1,6 @@
 """Every input action VPinFE understands, declared once.
 
-Ten actions, each with one ordered list of bindings. The names say what the player
+Eleven actions, each with one ordered list of bindings. The names say what the player
 *meant* rather than which way a stick moved: three surfaces - the wheel, a vertical menu
 and a scrolling page - already disagreed about what "left" pointed at, and every overlay
 carried a fall-through case as the evidence.
@@ -121,7 +121,18 @@ INPUT_ACTIONS: tuple[InputAction, ...] = (
         bindings=("key:Escape", "key:KeyQ"),
         legacy=("joyexit", "keyexit"),
     ),
+    # Unbound out of the box: a key bound here is listened for from outside the page
+    # while a table runs, which asks for a permission on some systems.
+    InputAction(
+        "take_picture",
+        group=setting_groups.DURING_PLAY,
+        bindings=(),
+    ),
 )
+
+# The actions heard while a table runs. The first is what starts anything, and the rest
+# only answer it, so nothing is listened for during play until the first is bound.
+IN_PLAY = ("take_picture", "back")
 
 
 def actions() -> tuple[InputAction, ...]:
@@ -131,6 +142,39 @@ def actions() -> tuple[InputAction, ...]:
 def defaults() -> dict[str, tuple[str, ...]]:
     """The bindings a fresh install ships, keyed by action."""
     return {action.name: action.bindings for action in INPUT_ACTIONS}
+
+
+def bound(config: object) -> dict[str, list[str]]:
+    """Every action and what is bound to it, in order, as `config` holds it.
+
+    A parser the store has migrated holds the list directly. One it has not - a config an
+    older build wrote, or one a caller assembled - still holds a key per input, and those
+    are assembled here rather than read as if they were already selectors.
+    """
+    parser = getattr(config, "config", config)
+
+    def raw(section: str, key: str) -> str | None:
+        # Exactly this key rather than cfg_get, which answers every legacy key of an
+        # action with the one option they all resolve to.
+        try:
+            has = parser.has_option(section, key)  # type: ignore[attr-defined]
+            return parser.get(section, key) if has else None  # type: ignore[attr-defined]
+        except Exception:  # noqa: BLE001 - a config that cannot answer holds nothing
+            return None
+
+    out: dict[str, list[str]] = {}
+    for action in INPUT_ACTIONS:
+        current = raw(SECTION, action.name)
+        if current is not None:
+            out[action.name] = [p.strip() for p in current.split(",") if p.strip()]
+            continue
+        found: list[str] = []
+        for old in action.legacy:
+            value = raw("Input", old)
+            if value is not None:
+                found += binding_for_legacy(old, value)
+        out[action.name] = found or list(action.bindings)
+    return out
 
 
 def action_for_legacy_key(key: str) -> str:

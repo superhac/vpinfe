@@ -374,6 +374,18 @@ describe("a theme is handed the action names its contract published", () => {
 
     assert.deepEqual(seen, [], "core handles paging; the theme is not asked");
   });
+
+  test("take picture is core's, and no contract is handed it", async () => {
+    for (const contract of [1, 2]) {
+      const { vpin, press } = controller();
+      vpin.contract = contract;
+      vpin.keyActionMap.take_picture = ["keyp"];
+      const seen = [];
+      vpin.inputHandlers.push((action) => { seen.push(action); });
+      await press("p");
+      assert.deepEqual(seen, [], `contract ${contract}`);
+    }
+  });
 });
 
 describe("a paging action moves the way its name says", () => {

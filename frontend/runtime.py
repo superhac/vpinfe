@@ -19,7 +19,7 @@ from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
 from common.config_store import ConfigStore
 from common.extensions import services as ext_services
 from common.games import remote_library
-from common.host import system_actions
+from common.host import key_reader, system_actions
 from common.host.display_service import get_display_monitors
 from frontend import ext_data, input_events, library_resolver, play_events, showing
 from frontend.api import API
@@ -82,6 +82,7 @@ def create_api_instances(iniconfig: ConfigStore,
     # every launch message three times.
     play_events.register(ws_bridge, frontend_browser, iniconfig)
     input_events.register(ws_bridge)
+    key_reader.register()
     showing.register(ws_bridge, shared_library)
     # What extensions add to an entry, fetched by core when the wheel stops. Given the
     # bridge's own send rather than a bridge of its own, so one answer reaches every

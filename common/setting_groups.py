@@ -8,6 +8,7 @@ gathers settings by.
 from __future__ import annotations
 
 NAVIGATION = "navigation"
+DURING_PLAY = "during_play"
 STARTUP = "startup"
 EXIT = "exit"
 AUDIO = "audio"

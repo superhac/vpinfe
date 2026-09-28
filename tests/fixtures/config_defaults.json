@@ -66,6 +66,7 @@
     "page_previous": "key:PageUp,key:ArrowUp",
     "previous": "key:ArrowLeft,key:ShiftLeft",
     "select": "key:Enter",
+    "take_picture": "",
     "tutorial": "key:KeyT"
   },
   "install": {

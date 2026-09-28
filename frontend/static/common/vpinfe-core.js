@@ -671,6 +671,7 @@ class VPinFECore {
       collection_menu: ['keyc'],
       tutorial: ['keyt'],
       exit: ['escape', 'keyq'],
+      take_picture: [],
     };
     this.previousButtonStates = {};
     // Held input repeats here, not wherever the press came from. A press acts once;
@@ -2724,6 +2725,8 @@ class VPinFECore {
   // What an action does, whichever input produced it. One place, so the keyboard and
   // the gamepad cannot drift apart again.
   #dispatchAction(action) {
+    // Core's own, and only while a table runs; never a theme's.
+    if (action === "take_picture") return;
     if (!this.isController() && action !== "select") return this.#triggerInputAction(action);
 
     // A field owns its keystrokes; back and select still reach the dialog, so a cabinet

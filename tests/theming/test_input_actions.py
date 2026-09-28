@@ -24,11 +24,19 @@ CORE_JS = _CORE_JS_PATH.read_text(encoding="utf-8")
 
 
 class RegistryTests(unittest.TestCase):
-    def test_there_are_ten_actions(self) -> None:
-        """Twelve became ten: up/down and pageup/pagedown were one intent twice."""
+    def test_there_are_eleven_actions(self) -> None:
+        """Twelve became ten, up/down and pageup/pagedown being one intent twice, and
+        Take Picture made eleven."""
         self.assertEqual([a.name for a in input_registry.actions()],
                          ["previous", "next", "page_previous", "page_next", "select",
-                          "back", "menu", "collection_menu", "tutorial", "exit"])
+                          "back", "menu", "collection_menu", "tutorial", "exit",
+                          "take_picture"])
+
+    def test_the_actions_heard_in_play_are_registered_and_start_unbound(self) -> None:
+        """Nothing is listened for during play until the first of them is bound."""
+        names = {a.name: a for a in input_registry.actions()}
+        self.assertTrue(set(input_registry.IN_PLAY) <= set(names))
+        self.assertEqual(names[input_registry.IN_PLAY[0]].bindings, ())
 
     def test_every_action_is_a_config_option(self) -> None:
         declared = {(o.section, o.key) for o in config_schema.options()}
@@ -324,7 +332,8 @@ class JavaScriptCopiesTests(unittest.TestCase):
         self.assertIsNotNone(block, "the legacy name map moved")
         js = dict(re.findall(r"(\w+):\s*\"(\w+)\"", block.group(1)))
 
-        self.assertEqual(js, {a.name: a.legacy_joy_key for a in input_registry.actions()})
+        self.assertEqual(js, {a.name: a.legacy_joy_key for a in input_registry.actions()
+                              if a.legacy_joy_key})
 
 
 class BridgeTests(unittest.TestCase):

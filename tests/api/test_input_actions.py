@@ -158,6 +158,26 @@ class InputRouteTests(unittest.TestCase):
 
         self.assertTrue(self.heard.seen[0]["source"].startswith("api/"))
 
+    def test_the_device_says_what_it_can_do_with_keys_during_play(self) -> None:
+        from pathlib import Path
+        from unittest import mock
+
+        from common.host import key_reader, key_simulator
+
+        refused = {"key": key_reader.NO_INPUT_GROUP, "params": {}, "fix": "user",
+                   "remedy": {"key": key_reader.JOIN_INPUT_GROUP, "params": {}}}
+        with mock.patch.object(key_simulator, "sender", return_value=key_simulator.Sender(
+                "wtype", Path("/usr/bin/wtype"))), \
+                mock.patch.object(key_reader, "hearing",
+                                  return_value=key_reader.Hearing("", refused)):
+            answer = self.client.get("/input/play")
+
+        self.assertEqual(answer.status_code, 200)
+        self.assertEqual(answer.json()["press"],
+                         {"available": True, "via": "wtype", "reason": None})
+        self.assertEqual(answer.json()["hear"]["reason"]["remedy"]["key"],
+                         key_reader.JOIN_INPUT_GROUP)
+
 
 class BridgeTests(unittest.TestCase):
     """What actually reaches the windows."""

@@ -21,10 +21,17 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common import config_schema, feature_checks, install_identity, path_checks, tokens
+from common import (
+    config_schema,
+    feature_checks,
+    input_registry,
+    install_identity,
+    path_checks,
+    tokens,
+)
 from common.failures import why
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
-from common.host import tools
+from common.host import key_reader, key_simulator, tools
 from common.i18n import t
 from common.labels import humanize
 from common.media_specs import media_label_map
@@ -881,6 +888,58 @@ def tool_marks(found: list[dict], values: dict,
     return marked
 
 
+INPUT = "input"
+TAKE_PICTURE = "take_picture"
+
+
+def play_findings(found: dict, values: dict) -> list[tuple[str, str]]:
+    """What stops Take Picture on this device, each as a finding and its fix: pausing a
+    table at all, and hearing a key bound to it while one runs."""
+    out = []
+    press = dict(found.get("press") or {})
+    if press and not press.get("available"):
+        out.append((t("keys.send.not_sent"), key_simulator.words(press.get("reason") or {})))
+    hear = dict(found.get("hear") or {})
+    held = (values.get(INPUT) or {}).get(TAKE_PICTURE) or ""
+    bindings = held.split(",") if isinstance(held, str) else list(held)
+    if hear and not hear.get("available") and input_registry.keys_in(bindings):
+        out.append((t("keys.hear.not_heard"), key_reader.words(hear.get("reason") or {})))
+    return out
+
+
+def with_play_input(schema: list[dict], found: dict, values: dict) -> list[dict]:
+    """The Take Picture row carrying what stops it here, where something does."""
+    findings = play_findings(found, values)
+    if not findings:
+        return schema
+    return [{**block, "options": [{**option, "findings": findings}
+                                  if option.get("key") == TAKE_PICTURE else option
+                                  for option in block.get("options") or []]}
+            if block.get("name") == INPUT else block for block in schema]
+
+
+def _finding(text: str, fix: str) -> tuple[Any, Callable[[], None]]:
+    def draw() -> None:
+        with ui.element("div").classes("console-attention w-full"):
+            ui.icon("error_outline").classes("console-attention-icon")
+            with ui.column().classes("gap-0 min-w-0 grow"):
+                ui.label(text).classes("console-attention-line")
+                if fix:
+                    ui.label(fix).classes("console-member-table")
+
+    return (panel.ASIDE, draw)
+
+
+async def _play_input(library: Library, sections: tuple[str, ...]) -> dict:
+    if INPUT not in sections:
+        return {}
+    try:
+        return await offload.io(library.input_play)
+    except Exception as exc:  # noqa: BLE001 - the bindings are drawn without it
+        logger.warning("Could not read what keys can do during play: %s", why(exc))
+        return {}
+
+
 async def _tools_found(library: Library, sections: tuple[str, ...]) -> list[dict]:
     if TOOLS not in sections:
         return []
@@ -978,6 +1037,8 @@ def section_rows(source: Any, section: str, options: list[dict], values: dict,
                             section_values=effective)))
         if option.get("description"):
             entries.append(panel.note(option["description"]))
+        for text, fix in option.get("findings") or ():
+            entries.append(_finding(text, fix))
         # Under the last field of a pair, where somebody has just read what it does and
         # is about to type into it.
         if section == "commands" and option["key"] == "on_vpinfe_exit":
@@ -1137,6 +1198,8 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
     if found := await _tools_found(library, sections):
         schema = with_discovery(schema, found)
         marks = tool_marks(found, values, marks)
+    if play := await _play_input(library, sections):
+        schema = with_play_input(schema, play, values)
     blocks = []
     for registry, heading, above in PAGE_KINDS.get(key, ()):
         rows = await _kind_rows(library, redraw, registry)

@@ -30,36 +30,9 @@ def _parser(config: ConfigSource) -> Any:
     return getattr(config, "config", config)
 
 
-def _raw(config: ConfigSource, section: str, key: str) -> str | None:
-    """Read exactly this key, or None. Deliberately not cfg_get: every legacy key of an
-    action resolves to the same option, so cfg_get would answer `keytutorial` with
-    whatever `joytutorial` holds."""
-    try:
-        parser = _parser(config)
-        return parser.get(section, key) if parser.has_option(section, key) else None
-    except Exception:
-        return None
-
-
 def get_bindings(config: ConfigSource) -> dict[str, list[str]]:
-    """Every action and what is bound to it, in order.
-
-    A parser the store has migrated holds the list directly. One it has not - a config
-    an older build wrote, or one a caller assembled - still holds a key per input, and
-    those are assembled here rather than read as if they were already selectors.
-    """
-    out: dict[str, list[str]] = {}
-    for action in input_registry.actions():
-        current = _raw(config, input_registry.SECTION, action.name)
-        if current is not None:
-            out[action.name] = [p.strip() for p in current.split(",") if p.strip()]
-            continue
-        found: list[str] = []
-        for old in action.legacy:
-            value = _raw(config, "Input", old)
-            if value is not None:
-                found += input_registry.binding_for_legacy(old, value)
-        out[action.name] = found or list(action.bindings)
+    """Every action and what is bound to it, in order, with any binding two hold said."""
+    out = input_registry.bound(config)
     _say_what_collides(out)
     return out
 

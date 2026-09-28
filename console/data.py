@@ -569,6 +569,10 @@ class Library:
         """Never cached, for the same reason."""
         return self._client.config_tools()
 
+    def input_play(self) -> dict:
+        """Never cached: a Tool installed or a permission granted changes it."""
+        return self._client.input_play()
+
     def devices(self) -> list[dict]:
         """Never cached: the page holding a device reads this back after changing it,
         and a cached copy would hand it the value it just replaced."""

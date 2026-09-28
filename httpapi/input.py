@@ -15,6 +15,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from common import input_actions
+from common.host import key_reader, key_simulator
 
 from . import models, scopes
 from .auth import requires
@@ -30,6 +31,13 @@ def act(payload: models.InputActionRequest, request: Request) -> models.InputAct
         input_actions.act(payload.action, payload.phase,
                           source=_source(payload.source, request),
                           ttl_ms=payload.ttl_ms))
+
+
+@router.get("/play", summary="What this device can do with keys while a table runs",
+            dependencies=[requires(scopes.PLAY_READ)])
+def get_play_input() -> models.PlayInput:
+    return models.PlayInput.model_validate({"press": key_simulator.sender().as_dict(),
+                                            "hear": key_reader.hearing().as_dict()})
 
 
 def _source(said: str, request: Request) -> str:

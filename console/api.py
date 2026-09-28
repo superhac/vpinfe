@@ -963,6 +963,10 @@ class ApiClient:
         """Each Tool as the install finds it on its own disk and PATH."""
         return list(self._get("/config/tools").get("tools") or [])
 
+    def input_play(self) -> dict:
+        """What the install can do with keys while a table runs: press and hear them."""
+        return dict(self._get("/input/play") or {})
+
     def put_config(self, changes: dict) -> dict:
         """A patch, section then key. Refused whole if any key is unknown."""
         return dict(self._put("/config", changes).get("values") or {})

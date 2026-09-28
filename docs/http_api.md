@@ -57,6 +57,7 @@ the documented entry point is a plain 200. Both spellings work.
 | PUT | `/api/v1/frontend/collection` | Show a collection on the frontend, `""` being the whole library. 202, and the switch arrives as the next `frontend.state_changed`. 409 when the frontend is not running, or when this install reads its library from another that cannot be reached; 404 when there is no collection by that name |
 | PUT | `/api/v1/frontend/game` | Move the frontend's wheel to a game. 202; 409 when the frontend is not running, 404 when the collection on screen does not hold that game |
 | POST | `/api/v1/input/actions` | Press, hold or release an input action on this install — the door a remote drives the frontend through |
+| GET | `/api/v1/input/play` | Whether this device can press keys into a running table and hear them from outside the frontend, and why not |
 | GET | `/api/v1/update` | Whether a newer build is published, and whether this install can take it. `update_supported` is the second question, and `support_reason` says which case it is. Answered from the last check while it is under a day old, or under an hour after a failed one; `refresh=true` asks GitHub now, unless GitHub has said to wait. `checked_at` is when a check last succeeded, null if none has, and `error` is set when the last attempt failed |
 | POST | `/api/v1/update` | Stage the published build and go down to take it. 501 when this install cannot replace itself, 409 when a table is running and `stop_table` was not set |
 | GET | `/api/v1/collections` | List collections |
@@ -731,9 +732,11 @@ POST /api/v1/input/actions
 {"action": "next", "phase": "press", "ttl_ms": 1500, "source": "remote"}
 ```
 
-`action` is one of the ten in `common/input_registry.py` — `previous`, `next`,
+`action` is one of the eleven in `common/input_registry.py` — `previous`, `next`,
 `page_previous`, `page_next`, `select`, `back`, `menu`, `collection_menu`, `tutorial`,
-`exit`. Anything else is a 400 that lists them.
+`exit`, `take_picture`. Anything else is a 400 that lists them. `take_picture` does
+something only while a table runs, and `back` answers it there; the frontend hears the
+two of them during play and nothing else.
 
 `phase` is `tap` (the default), `press` or `release`. **A hold is a press and a release,
 not a discrete action on a timer.** Send `press` when the button goes down and `release`
@@ -753,6 +756,23 @@ transport.
 
 The endpoint carries `input:act`, deliberately its own scope: this is the first capability
 that lets a network caller act *as the player*, which is neither reading nor launching.
+
+`GET /api/v1/input/play` says what this device can do with keys while a table runs:
+
+```json
+{"press": {"available": true, "via": "wtype", "reason": null},
+ "hear": {"available": false, "via": "",
+          "reason": {"key": "keys.hear.no_input_group", "params": {}, "fix": "user",
+                     "remedy": {"key": "keys.hear.join_input_group", "params": {}}}}}
+```
+
+`press` is whether VPinFE can press a key into the running table, as Take Picture presses
+the table's own Pause: through `wtype` or `ydotool` on Wayland, `pynput` elsewhere. `hear`
+is whether it can hear the keyboard from outside the frontend's page, which a key bound to
+Take Picture needs during play: `evdev` on Wayland, where the device's user has to be in the
+`input` group, and `pynput` elsewhere, which on macOS needs Input Monitoring. Where one
+can't, `reason` says why as a catalog key, with a `remedy` where a person can fix it. It
+carries `play:read`.
 
 Two producers at once isn't decided. A phone and a cabinet flipper holding opposite
 directions is last-press-wins because that's what the dispatch already does, not because

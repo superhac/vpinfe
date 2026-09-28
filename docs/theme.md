@@ -1180,6 +1180,7 @@ The following actions are handled internally by VPinFECore and do **not** reach 
 | `joytutorial` | Mapped button | `[Input] keytutorial` (default `t`) | Toggles the Pinball Primer tutorial overlay |
 | `joyexit` | Mapped button | `[Input] keyexit` (default `Escape,q`) | Closes the application |
 | `joypageup` / `joypagedown` | Mapped button | `[Input] keypageup`/`keypagedown` (defaults `PageUp`/`PageDown`) | Pages the game wheel (see below) |
+| `take_picture` | Mapped button | `[input] take_picture` (unbound) | While a table runs: pauses it, and a second press takes a picture of every screen |
 
 #### Wheel Paging
 

@@ -744,6 +744,37 @@ class ToolRemedy(Said):
     setting: str
 
 
+class PlayInputRemedy(Said):
+    """What to do about it. `setting` is the one that points at a Tool, where one does."""
+
+    setting: str = ""
+
+
+class PlayInputReason(Said):
+    """`fix` is `user` where a person has to act, and then `remedy` says how."""
+
+    fix: str
+    remedy: PlayInputRemedy | None = None
+
+
+class PlayInputAbility(ApiModel):
+    """`via` is what does it here: `wtype`, `ydotool` or `pynput` to press, `evdev` or
+    `pynput` to hear. Empty, with a `reason`, where nothing can."""
+
+    available: bool
+    via: str = ""
+    reason: PlayInputReason | None = None
+
+
+class PlayInput(ApiModel):
+    """What this device can do with keys while a table runs: `press` them into it, as
+    Take Picture presses the table's own Pause, and `hear` them from outside the
+    frontend's page, as a key bound to Take Picture needs."""
+
+    press: PlayInputAbility
+    hear: PlayInputAbility
+
+
 class ConfigTool(ApiModel):
     """One Tool on this device, as discovery finds it when asked.
 

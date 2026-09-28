@@ -289,6 +289,7 @@ Owned by the VPinPlay extension. Declared here so a 2.x file converts, read once
 | `collection_menu` | list | `key:KeyC` | Collection Menu |
 | `tutorial` | list | `key:KeyT` | Tutorial |
 | `exit` | list | `key:Escape,key:KeyQ` | Exit |
+| `take_picture` | list |  | Pauses the game. Press again to take a picture of the screens; Back resumes. |
 
 ## Game Metadata File (based on the Zero install table format)
 When you run VPinFE with the `--buildmeta` option it recursively goes through your game directory attempts to match your games to their VPSDB id.  When matched, it will then parse the VPX for the game for more meta information and produce a `GAME FOLDER NAME(manufactuer year).info` in that game's directory.  Heres an example for the game 1-2-3:
