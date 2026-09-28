@@ -157,8 +157,6 @@ def build_mount_points(base_path: str, config_dir: Path,
         "/collection_icons/": collection_icons_dir,
     }
     settings = SettingsConfig.from_config(iniconfig)
-    if settings.game_root_dir:
-        mount_points["/tables/"] = os.path.abspath(settings.game_root_dir)
 
     from common.shared_assets import configure_shared_assets, resolve_assets_dir
 

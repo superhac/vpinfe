@@ -110,7 +110,7 @@ class Resolution:
                      if one.location_id == str(location_id or ""))
 
 
-def _priority(games: Iterable[Any], order: Sequence[str] | None) -> list[Any]:
+def in_priority(games: Iterable[Any], order: Sequence[str] | None = None) -> list[Any]:
     """Games in the order their claim on an id is honoured.
 
     Locations are a list and that list is the priority: the earlier location wins, which
@@ -153,7 +153,7 @@ def resolve_ids(games: Iterable[Any],
     shadowed: list[Shadowed] = []
     minted = 0
 
-    for game in _priority(games, order):
+    for game in in_priority(games, order):
         current = game_id(game)
         if not current:
             current = _ensure(game, False, keep_game_meta)

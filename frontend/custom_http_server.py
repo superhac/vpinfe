@@ -367,6 +367,34 @@ class CustomHTTPServer:
             })
             return True
 
+        def _serve_game_file(self, request_path: str) -> bool:
+            """/tables/<folder>/<file> - a file in a game's folder, found by the folder's
+            name in whichever library folder holds it. It is the URL contract 1 themes
+            build from a media path.
+
+            Returns False when the shape does not match. Serves only a file inside that
+            game's folder.
+            """
+            parts = [p for p in unquote(request_path)[len("/tables/"):].split("/") if p]
+            if len(parts) < 2:
+                return False
+
+            from common.games import game_repository
+            try:
+                game = game_repository.by_folder_name(parts[0])
+            except Exception:
+                logger.exception("[HTTP] game lookup failed for %s", parts[0])
+                self.send_error(500, "Game lookup failed")
+                return True
+            folder = os.path.abspath(str(game.full_path_game or "")) if game else ""
+            path = os.path.abspath(os.path.join(folder, *parts[1:])) if folder else ""
+            if not path or os.path.commonpath([folder, path]) != folder \
+                    or not os.path.isfile(path):
+                self.send_error(404, "File not found")
+                return True
+            self._serve_file(path)
+            return True
+
         def _serve_app_bootstrap(self, window_name: str) -> None:
             window_label = window_title(window_name)
             if window_label is None:
@@ -454,6 +482,9 @@ class CustomHTTPServer:
                 return
             if request_path.startswith("/media/"):
                 if self._serve_game_media(request_path):
+                    return
+            if request_path.startswith("/tables/"):
+                if self._serve_game_file(request_path):
                     return
 
             range_header = self.headers.get('Range')

@@ -18,7 +18,6 @@ class TypedConfigTests(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser.read_dict({
             "Settings": {
-                "gamerootdir": "/games",
                 "vpxinipath": "/home/player/.vpinball/VPinballX.ini",
                 "vpxlogdeleteonstart": "yes",
                 "theme": "",
@@ -47,7 +46,6 @@ class TypedConfigTests(unittest.TestCase):
             },
         })
 
-        self.assertEqual(SettingsConfig.from_config(parser).game_root_dir, "/games")
         self.assertEqual(SettingsConfig.from_config(parser).theme, "Revolution")
         self.assertFalse(SettingsConfig.from_config(parser).disable_default_chrome_options)
         media_config = MediaConfig.from_config(parser)

@@ -157,7 +157,6 @@ class SettingsConfig:
     colliding with every one of these names.
     """
 
-    game_root_dir: str = ""
     assets_dir: str = ""
     rar_tool_path: str = ""
     theme: str = "Revolution"
@@ -174,7 +173,6 @@ class SettingsConfig:
     def from_config(cls, source: Any) -> SettingsConfig:
         theme = cfg_get(source, "Settings", "theme", "Revolution").strip() or "Revolution"
         return cls(
-            game_root_dir=cfg_get(source, "Settings", "gamerootdir", "").strip(),
             assets_dir=cfg_get(source, "Settings", "assetsdir", "").strip(),
             rar_tool_path=cfg_get(source, "Settings", "rartoolpath", "").strip(),
             theme=theme,

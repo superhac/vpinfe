@@ -77,13 +77,12 @@ def vpx_patches(progress_cb=None):
 
 def gamepadtest():
     """Run the gamepad test window using Chromium and the HTTP server."""
-    from common.config_access import SettingsConfig, cfg_get, cfg_int
+    from common.config_access import cfg_get, cfg_int
     from frontend.api import API
     from frontend.chromium_manager import ChromiumManager
     from frontend.device_channel import DeviceChannel
 
     mount_points = {
-        '/tables/': os.path.abspath(SettingsConfig.from_config(config_store).game_root_dir),
         '/core/': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend', 'static'),
     }
     http_server = CustomHTTPServer(mount_points)

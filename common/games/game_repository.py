@@ -17,7 +17,7 @@ from common import events
 from common.games import derived_tags, locations, unwritten
 from common.games.collection_store import CollectionStore
 from common.games.game import Game
-from common.games.game_identity import ensure_unique_ids
+from common.games.game_identity import ensure_unique_ids, in_priority
 from common.games.game_identity import game_id as vpinfe_id
 from common.games.game_metadata import (
     GAME_OVERRIDES,
@@ -122,6 +122,12 @@ def game_folder(game_id: str) -> Path | None:
     """The folder one game lives in, for a caller that has an id and needs the files."""
     game = game_by_id(game_id)
     return Path(str(game.full_path_game)) if game is not None else None
+
+
+def by_folder_name(name: str) -> Any | None:
+    """The game whose folder has this name, from the higher location when two do."""
+    return next(iter(in_priority(game for game in all_games()
+                                 if game.game_dir_name == name)), None)
 
 
 def on_this_device(game: Any) -> Any | None:
