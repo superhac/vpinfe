@@ -846,7 +846,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
           on_context: Callable[[dict | None], Any] | None = None,
           on_header_context: Callable[[str | None], Any] | None = None,
           view_of: Callable[[], str] | None = None,
-          rows_without_a_menu: list[str] | None = None) -> ui.aggrid:
+          rows_without_a_menu: list[str] | None = None,
+          rows_not_selectable: list[str] | None = None) -> ui.aggrid:
     """A grid whose column layout is restored from, and saved to, the API.
 
     `view_of` names the view showing now. Given one, geometry is stored per view - the
@@ -872,7 +873,10 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
                     "landing": _LANDING.get(ui.context.client, {}).pop(scope, None),
                     "fit": fit},
         "defaultColDef": DEFAULT_COL_DEF,
-        "rowSelection": dict(ROW_SELECTION),
+        "rowSelection": {**ROW_SELECTION, **({
+            ":isRowSelectable":
+                f"node => !{json.dumps(rows_not_selectable)}.includes(node.data.id)"}
+            if rows_not_selectable else {})},
         # The ":" prefix marks this as JavaScript. Without it AG Grid calls a string and
         # the grid dies as an empty table rather than an error.
         ":getRowId": "params => params.data.id",

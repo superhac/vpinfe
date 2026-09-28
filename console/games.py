@@ -515,11 +515,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             # looking at - and it costs no vertical space of its own.
             count = ui.label(t("console.games.games", count=len(rows))) \
                 .classes("text-xs console-label")
-            actions = ui.button(icon=verbs.MORE).props("flat round dense") \
-                .tooltip(t("console.games.actions_selected_games"))
-            with actions:
-                bulk_menu = ui.menu().props("no-parent-event")
-            actions.set_visibility(False)
+            actions, bulk_menu = panel.selection_actions(t("console.games.actions_selected_games"))
             if rescan is not None:
                 panel.refresh(rescan, t("console.games.read_library_disk_pick"))
 
@@ -1258,11 +1254,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         with bar.bottom, panel.bar_end():
             count = ui.label(_tables_said(built, len(built))) \
                 .classes("text-xs console-label")
-            actions = ui.button(icon=verbs.MORE).props("flat round dense") \
-                .tooltip(t("console.games.actions_selected_tables"))
-            with actions:
-                bulk_menu = ui.menu().props("no-parent-event")
-            actions.set_visibility(False)
+            actions, bulk_menu = panel.selection_actions(t("console.games.actions_selected_tables"))
             if rescan is not None:
                 panel.refresh(rescan, t("console.games.read_library_disk_pick"))
 

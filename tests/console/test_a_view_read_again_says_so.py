@@ -105,6 +105,23 @@ class ARailClick(unittest.IsolatedAsyncioTestCase):
         with patch.object(page.run, "io_bound", new=io_bound):
             await self._arrive("games", library)
 
+    async def test_devices_are_read_again_into_the_list_the_page_holds(self) -> None:
+        held = [{"device_id": "forgotten"}]
+        library = Mock()
+        library.devices.return_value = [{"device_id": "kept"}]
+        content = _region()
+        drawn: list[list[dict]] = []
+
+        async def io(call: Callable[..., Any], *args: Any) -> Any:
+            return call(*args)
+
+        with patch.object(page.offload, "io", new=io):
+            page.read_then_render({"view": "devices", "devices": held}, library, content,
+                                  lambda: drawn.append(list(held)), Mock(), Mock())
+            await _until(lambda: bool(drawn))
+
+        self.assertEqual([[{"device_id": "kept"}]], drawn)
+
     def test_a_view_that_holds_what_it_needs_draws_at_once(self) -> None:
         content = _region()
         library = Mock()

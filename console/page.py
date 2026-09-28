@@ -509,6 +509,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     state: dict[str, Any] = {"view": landing_view, "device": None, "mini": False,
                              "workbench": True, "settings_page": "",
                              "collection": None, "trouble": loaded["trouble"],
+                             "devices": devices,
                              "ranked_orders": community_page.ranked_orders(
                                  installed_extensions)}
     # Before anything is built, so the first render is the place asked for rather than
@@ -1358,6 +1359,12 @@ def read_then_render(state: dict[str, Any], library: Library, content: ui.elemen
             state["extensions"] = await offload.io(ApiClient().extensions)
             render()
         busy.start(content, read_extensions_then_draw)
+        return
+    if state["view"] == "devices":
+        async def read_devices_then_draw() -> None:
+            state["devices"][:] = await offload.io(library.devices)
+            render()
+        busy.start(content, read_devices_then_draw)
         return
     reads = reads_before_drawing(state["view"], library)
     if reads is not None:

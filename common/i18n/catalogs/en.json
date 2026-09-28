@@ -620,6 +620,7 @@
   "console.community.yours.help": "Only what you have",
   "console.data.console_read_d_games": "console: read %d games in %.2fs",
   "console.devices.action_the_scope": "{action} the {scope}",
+  "console.devices.actions_selected_devices": "Actions for the selected devices",
   "console.devices.address": "Address",
   "console.devices.all_devices": "All devices",
   "console.devices.announced": "Announced",
@@ -639,6 +640,7 @@
   "console.devices.could_not_check": "Could not check",
   "console.devices.could_not_check_what": "Could not check what {name} is doing",
   "console.devices.could_not_forget_device": "Could not forget that device",
+  "console.devices.could_not_forget_name": "Could not forget {name}",
   "console.devices.could_not_read_carrying": "Could not ask what it is carrying",
   "console.devices.could_not_read_log": "Could not read the log",
   "console.devices.could_not_save": "Could not save that",
@@ -662,7 +664,15 @@
   "console.devices.features": "Features",
   "console.devices.first_seen": "First seen",
   "console.devices.forget": "Forget “{name}”?",
+  "console.devices.forget_count": {
+    "one": "Forget {count} device?",
+    "other": "Forget {count} devices?"
+  },
   "console.devices.forgot": "Forgot {name}",
+  "console.devices.forgot_count": {
+    "one": "Forgot {count} device",
+    "other": "Forgot {count} devices"
+  },
   "console.devices.happen_on_this_device": "These happen on this device, not on the one you are reading from",
   "console.devices.happens_now": "This happens on {device_label}, now.",
   "console.devices.last_checked": "Last checked {when}",
@@ -683,8 +693,10 @@
   "console.devices.package_downloaded_first_vpinfe": "The package is downloaded first, then VPinFE closes, is replaced and starts again.",
   "console.devices.published_build": "the published build",
   "console.devices.remove": "Remove “{name}” from “{device_label}”?",
+  "console.devices.removes_entries_here": "Nothing on those devices changes. Each returns when it next announces itself.",
   "console.devices.removes_entry_here": "This removes its entry here. Nothing on that device changes, and it comes back the next time it announces itself.",
   "console.devices.search_devices": "Search devices",
+  "console.devices.selected": "{picked} of {shown} selected",
   "console.devices.settings": "Settings",
   "console.devices.stop_table_update": "Stop the table and update",
   "console.devices.update": "Update",

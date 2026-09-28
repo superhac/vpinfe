@@ -365,6 +365,16 @@ def refresh(on_click: Callable[[], Any], hint: str) -> Any:
         .props("flat dense round size=sm").classes("shrink-0").tooltip(hint)
 
 
+def selection_actions(hint: str) -> tuple[Any, Any]:
+    """A grid bar's `more_vert` for the selected rows, and the menu it opens. Hidden until
+    the caller shows it, which is when some rows are selected."""
+    control = ui.button(icon=verbs.MORE).props("flat round dense").tooltip(hint)
+    with control:
+        menu = ui.menu().props("no-parent-event")
+    control.set_visibility(False)
+    return control, menu
+
+
 def trouble_mark(reason: str = "") -> Callable[[], None]:
     """The mark that says something under here is misconfigured.
 

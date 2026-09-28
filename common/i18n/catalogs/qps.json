@@ -620,6 +620,7 @@
   "console.community.yours.help": "Öñŀý ŵĥàţ ýöû ĥàṽè",
   "console.data.console_read_d_games": "çöñšöŀè: řèàđ %đ ĝàɱèš îñ %.2ƒš",
   "console.devices.action_the_scope": "{action} ţĥè {scope}",
+  "console.devices.actions_selected_devices": "Àçţîöñš ƒöř ţĥè šèŀèçţèđ đèṽîçèš",
   "console.devices.address": "Àđđřèšš",
   "console.devices.all_devices": "Àŀŀ đèṽîçèš",
   "console.devices.announced": "Àññöûñçèđ",
@@ -639,6 +640,7 @@
   "console.devices.could_not_check": "Çöûŀđ ñöţ çĥèçķ",
   "console.devices.could_not_check_what": "Çöûŀđ ñöţ çĥèçķ ŵĥàţ {name} îš đöîñĝ",
   "console.devices.could_not_forget_device": "Çöûŀđ ñöţ ƒöřĝèţ ţĥàţ đèṽîçè",
+  "console.devices.could_not_forget_name": "Çöûŀđ ñöţ ƒöřĝèţ {name}",
   "console.devices.could_not_read_carrying": "Çöûŀđ ñöţ àšķ ŵĥàţ îţ îš çàřřýîñĝ",
   "console.devices.could_not_read_log": "Çöûŀđ ñöţ řèàđ ţĥè ŀöĝ",
   "console.devices.could_not_save": "Çöûŀđ ñöţ šàṽè ţĥàţ",
@@ -662,7 +664,15 @@
   "console.devices.features": "Ƒèàţûřèš",
   "console.devices.first_seen": "Ƒîřšţ šèèñ",
   "console.devices.forget": "Ƒöřĝèţ “{name}”?",
+  "console.devices.forget_count": {
+    "one": "Ƒöřĝèţ {count} đèṽîçè?",
+    "other": "Ƒöřĝèţ {count} đèṽîçèš?"
+  },
   "console.devices.forgot": "Ƒöřĝöţ {name}",
+  "console.devices.forgot_count": {
+    "one": "Ƒöřĝöţ {count} đèṽîçè",
+    "other": "Ƒöřĝöţ {count} đèṽîçèš"
+  },
   "console.devices.happen_on_this_device": "Ţĥèšè ĥàþþèñ öñ ţĥîš đèṽîçè, ñöţ öñ ţĥè öñè ýöû àřè řèàđîñĝ ƒřöɱ",
   "console.devices.happens_now": "Ţĥîš ĥàþþèñš öñ {device_label}, ñöŵ.",
   "console.devices.last_checked": "Ŀàšţ çĥèçķèđ {when}",
@@ -683,8 +693,10 @@
   "console.devices.package_downloaded_first_vpinfe": "Ţĥè þàçķàĝè îš đöŵñŀöàđèđ ƒîřšţ, ţĥèñ ṼÞîñƑÈ çŀöšèš, îš řèþŀàçèđ àñđ šţàřţš àĝàîñ.",
   "console.devices.published_build": "ţĥè þûƀŀîšĥèđ ƀûîŀđ",
   "console.devices.remove": "Řèɱöṽè “{name}” ƒřöɱ “{device_label}”?",
+  "console.devices.removes_entries_here": "Ñöţĥîñĝ öñ ţĥöšè đèṽîçèš çĥàñĝèš. Èàçĥ řèţûřñš ŵĥèñ îţ ñèẋţ àññöûñçèš îţšèŀƒ.",
   "console.devices.removes_entry_here": "Ţĥîš řèɱöṽèš îţš èñţřý ĥèřè. Ñöţĥîñĝ öñ ţĥàţ đèṽîçè çĥàñĝèš, àñđ îţ çöɱèš ƀàçķ ţĥè ñèẋţ ţîɱè îţ àññöûñçèš îţšèŀƒ.",
   "console.devices.search_devices": "Šèàřçĥ đèṽîçèš",
+  "console.devices.selected": "{picked} öƒ {shown} šèŀèçţèđ",
   "console.devices.settings": "Šèţţîñĝš",
   "console.devices.stop_table_update": "Šţöþ ţĥè ţàƀŀè àñđ ûþđàţè",
   "console.devices.update": "Ûþđàţè",

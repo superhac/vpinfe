@@ -190,6 +190,32 @@ async def _confirm_forget(library: Any, device: dict[str, Any],
         rerender()
 
 
+@on_page
+async def _confirm_forget_all(library: Any, devices: list[dict[str, Any]],
+                              rerender: Callable[[], None] | None) -> None:
+    """The selection's Forget: one question for the lot, then each in turn."""
+    if len(devices) == 1:
+        await _confirm_forget(library, devices[0], rerender)
+        return
+    if not await confirm.ask(
+            t("console.devices.forget_count", count=len(devices)),
+            detail=t("console.devices.removes_entries_here"),
+            confirm=t("word.forget"), icon=verbs.FORGET):
+        return
+    forgot = 0
+    for device in devices:
+        try:
+            await run.io_bound(library.forget_device, str(device.get("device_id") or ""))
+            forgot += 1
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
+            ui.notify(t("console.devices.could_not_forget_name", name=device_label(device)),
+                      caption=_why(exc), type="negative")
+    if forgot:
+        ui.notify(t("console.devices.forgot_count", count=forgot), type="positive")
+    if rerender is not None:
+        rerender()
+
+
 def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
                    update: dict[str, Any] | None,
                    check: Callable[[], Any] | None = None,
@@ -432,8 +458,12 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
 
     built = rows(found, state.get("device_reach"), local_device_id)
     on_screen = {"rows": len(built)}
+    selected: list[dict[str, Any]] = []
 
     def said() -> str:
+        if selected:
+            return grid.selection_said(table, len(selected), t(
+                "console.devices.selected", picked=len(selected), shown=on_screen["rows"]))
         away = sum(1 for row in built if row["state"]
                    and row["state"] != _REACH[device_client.ANSWERING][0])
         if on_screen["rows"] != len(built):
@@ -452,6 +482,8 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
             search = panel.search(t("console.devices.search_devices"))
         with bar.bottom, panel.bar_end():
             count = ui.label(said()).classes("text-xs console-label")
+            actions, bulk_menu = panel.selection_actions(
+                t("console.devices.actions_selected_devices"))
             if probe is not None:
                 panel.refresh(probe, t("console.devices.ask_every_device_whether"))
 
@@ -473,12 +505,32 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
     async def on_header_context(col_id: str | None) -> None:
         await grid.header_menu(menu, table, COLUMNS, col_id)
 
+    def on_select_rows(rows_selected: list[dict[str, Any]]) -> None:
+        selected[:] = rows_selected
+        actions.set_visibility(bool(rows_selected))
+        count.text = said()
+
+    def fill_bulk() -> None:
+        chosen = [known[str(row.get("id") or "")] for row in grid.selection(table)
+                  if str(row.get("id") or "") in known and not row.get("self")]
+        bulk_menu.clear()
+        with bulk_menu:
+            panel.verb_entries([
+                panel.Verb(t("word.clear_selection"),
+                           lambda: table.run_grid_method("deselectAll")),
+                panel.Verb(t("word.forget"),
+                           lambda: _confirm_forget_all(library, chosen, rerender),
+                           danger=True)])
+        bulk_menu.open()
+
+    actions.on_click(fill_bulk)
+    mine = [local_device_id] if local_device_id else None
+
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table = grid.build(COLUMNS, built, SCOPE,
+        table = grid.build(COLUMNS, built, SCOPE, on_select_rows,
                            on_context=_fill_row_menu,
                            on_header_context=on_header_context, view_of=showing,
-                           rows_without_a_menu=[local_device_id] if local_device_id
-                           else None)
+                           rows_without_a_menu=mine, rows_not_selectable=mine)
         menu = ui.context_menu()
 
         def keep_current() -> None:
