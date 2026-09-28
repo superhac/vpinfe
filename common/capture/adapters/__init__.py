@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import signal
 import subprocess
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
@@ -30,6 +30,9 @@ NOT_FOUND = "capture.screen.not_found"
 NOT_YET = "capture.unsupported.not_yet"
 NO_WAY = "capture.unsupported.no_way"
 NO_SESSION = "capture.unsupported.no_session"
+SCREEN_PERMISSION = "capture.permission.screen"
+SOUND_NOT_YET = "capture.sound.not_yet"
+SOUND_LOOPBACK = "capture.sound.needs_loopback"
 
 
 @dataclass(frozen=True)
@@ -91,21 +94,63 @@ class Recording:
     started: float
 
     def stop(self, timeout: float = 5.0) -> None:
-        """SIGINT, as Ctrl-C, so the recorder writes the end of its file; killed if it has
+        """Asked to finish, so the recorder writes the end of its file: `q` on a stdin
+        `spawn` left open, as FFmpeg reads it, or else SIGINT, as Ctrl-C. Killed if it has
         not gone in `timeout`."""
+        pipe = getattr(self.process, "stdin", None)
         if self.process.poll() is None:
-            self.process.send_signal(signal.SIGINT)
+            if pipe is not None:
+                try:
+                    pipe.write(b"q")
+                    pipe.flush()
+                except (OSError, ValueError):
+                    pass
+            else:
+                self.process.send_signal(signal.SIGINT)
         try:
             self.process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             self.process.kill()
             self.process.wait(timeout=timeout)
+        finally:
+            if pipe is not None:
+                try:
+                    pipe.close()
+                except OSError:
+                    pass
+
+
+def spawn(popen: Callable[..., Any], argv: list[str], **streams: Any) -> Any:
+    """A recorder, started so `Recording.stop` can end it."""
+    stdin = subprocess.PIPE if tools.here() == tools.WINDOWS else subprocess.DEVNULL
+    return popen(argv, stdin=stdin, creationflags=tools.NO_WINDOW,
+                 **{"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, **streams})
 
 
 class Adapter(Protocol):
-    id: str
+    @property
+    def id(self) -> str: ...
+
+    # The Tool that takes a picture of a screen, and the one that records it.
+    @property
+    def picture_tool(self) -> tools.Tool: ...
+
+    @property
+    def video_tool(self) -> tools.Tool: ...
 
     def requirements(self) -> tuple[tools.Tool, ...]: ...
+
+    def grabs(self, ffmpeg: tools.Found) -> bool:
+        """Whether this FFmpeg can read this desktop's screens where it has to."""
+        ...
+
+    def refused(self) -> str:
+        """A catalog key where the desktop does not let VPinFE record its screens."""
+        ...
+
+    def no_sound(self) -> tuple[str, Mapping[str, str]] | None:
+        """Why sound is never recorded here, as a catalog key and its values."""
+        ...
 
     def outputs(self) -> list[Output]: ...
 
@@ -126,14 +171,15 @@ class Adapter(Protocol):
 def resolve(env: Mapping[str, str] | None = None,
             system: str | None = None) -> Adapter | Unsupported:
     """The adapter for this session, or why there is none. The first that applies."""
+    from .ffmpeg import MacAdapter, WindowsAdapter, X11Adapter
     from .wlr import WlrAdapter
 
     env = os.environ if env is None else env
     system = tools.here() if system is None else system
     if system == tools.WINDOWS:
-        return Unsupported("ddagrab", NOT_YET, {"desktop": "Windows"})
+        return WindowsAdapter()
     if system == tools.DARWIN:
-        return Unsupported("avfoundation", NOT_YET, {"desktop": "macOS"})
+        return MacAdapter()
     if env.get("WAYLAND_DISPLAY"):
         if WlrAdapter.applies(env):
             return WlrAdapter(env)
@@ -144,7 +190,7 @@ def resolve(env: Mapping[str, str] | None = None,
             return Unsupported("portal", NOT_YET, {"desktop": "GNOME"})
         return Unsupported("wayland", NO_WAY)
     if env.get("DISPLAY"):
-        return Unsupported("x11grab", NOT_YET, {"desktop": "X11"})
+        return X11Adapter(env)
     return Unsupported("none", NO_SESSION)
 
 

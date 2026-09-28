@@ -39,6 +39,9 @@ VPINOS = vpinos.ID
 # Long enough for a first run the operating system scans before starting it.
 TIMEOUT = 10
 
+# `creationflags` for every program VPinFE starts.
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
 
 class State(StrEnum):
     FOUND = "found"
@@ -201,7 +204,7 @@ def ask(path: Path, *args: str) -> str:
     done = subprocess.run(
         [str(path), *args], capture_output=True, text=True, errors="replace",
         stdin=subprocess.DEVNULL, timeout=TIMEOUT, check=False,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        creationflags=NO_WINDOW)
     if done.returncode != 0:
         raise _FailedError(done.returncode)
     return (done.stdout or "") + (done.stderr or "")
@@ -274,12 +277,16 @@ RAR = Tool(
 
 ENCODERS = "encoders"
 INPUTS = "inputs"
+FILTERS = "filters"
 OPTIONS = "options"
 
 # ` V....D libx264   libx264 H.264 ...`: what it encodes, five flags, then the name.
 _ENCODER = re.compile(r"^ [VAS][A-Z.]{5} +([\w-]+) ", re.MULTILINE)
 # ` D  avfoundation   AVFoundation input device`: D where it can be read from.
 _INPUT_DEVICE = re.compile(r"^ D[E. ] +(\w+) ", re.MULTILINE)
+# ` .. ddagrab   |->V   Grab Windows Desktop images...`: two flags (three before FFmpeg 5),
+# the name, then what it takes and gives.
+_FILTER = re.compile(r"^ [.A-Z]{2,3} +(\w+) +[AVN|]*->[AVN|]*", re.MULTILINE)
 
 
 @probing
@@ -291,6 +298,7 @@ def _ffmpeg(path: Path) -> Probe:
     return Probe(True, version, {
         ENCODERS: encoders,
         INPUTS: frozenset(_INPUT_DEVICE.findall(ask(path, "-hide_banner", "-devices"))),
+        FILTERS: frozenset(_FILTER.findall(ask(path, "-hide_banner", "-filters"))),
     })
 
 
@@ -352,7 +360,7 @@ def said(path: Path, *args: str) -> str:
     done = subprocess.run(
         [str(path), *args], capture_output=True, text=True, errors="replace",
         stdin=subprocess.DEVNULL, timeout=TIMEOUT, check=False,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        creationflags=NO_WINDOW)
     return (done.stdout or "") + (done.stderr or "")
 
 

@@ -76,7 +76,8 @@ def _table_key(game: Any, table_id: str) -> str | None:
 
 
 # A picture no screen of this device can be taken of, whichever screen it is on.
-_TOOL_REASONS = (preflight.NEEDS_TOOL, preflight.NO_ENCODER)
+_TOOL_REASONS = (preflight.NEEDS_TOOL, preflight.NO_ENCODER, preflight.NO_GRABBER,
+                 adapters.SCREEN_PERMISSION)
 
 
 def aim(playing: Playing | None = None, config: Any = None) -> Aim | None:
@@ -140,7 +141,7 @@ def grab(aimed: Aim, runner: Callable[..., Any] = subprocess.run) -> Shot:
         argv = aimed.adapter.still(aimed.found, aimed.outputs[window], dest)
         try:
             runner(argv, capture_output=True, stdin=subprocess.DEVNULL,
-                   timeout=tools.TIMEOUT, check=True)
+                   timeout=tools.TIMEOUT, check=True, creationflags=tools.NO_WINDOW)
         except (OSError, subprocess.SubprocessError) as exc:
             logger.warning("Take Picture: no picture of the %s screen: %s", window, exc)
             return window, None

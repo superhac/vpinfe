@@ -254,6 +254,21 @@ class AimAndGrabTests(unittest.TestCase):
             self.assertIsNone(freeze.aim(config=object()))
         self.assertIn("grim", logs.output[0])
 
+    def test_macos_without_the_permission_takes_nothing_rather_than_raise_its_prompt(
+            self) -> None:
+        adapter = _Adapter(self.OUTPUTS)
+        refused = freeze.preflight.reason(adapters.SCREEN_PERMISSION)
+        report = {"screens": [{"window": "playfield", "output": "DP-1", "picture": {
+            "available": False, "reason": refused}}]}
+        with mock.patch.object(adapters, "resolve", return_value=adapter), \
+                mock.patch.object(freeze.preflight, "report", return_value=report), \
+                mock.patch("common.host.display_service.get_display_monitors",
+                           return_value=[]), \
+                mock.patch.object(freeze.placing, "shown", return_value=None), \
+                self.assertLogs("vpinfe.common.capture.freeze", "WARNING") as logs:
+            self.assertIsNone(freeze.aim(config=object()))
+        self.assertIn(freeze.preflight.words(refused), logs.output[0])
+
     def test_the_playfield_is_turned_upright_and_the_rest_left_as_shown(self) -> None:
         aimed, _ = self._aim()
 

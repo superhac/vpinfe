@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from common.host import tools
+
 from . import settings
 from .geometry import Turn
 
@@ -179,4 +181,5 @@ def peak_in(said: str) -> float:
 def run(argv: list[str], runner: Run = subprocess.run) -> Any:
     """Raises CalledProcessError where FFmpeg fails, TimeoutExpired where it hangs."""
     return runner(argv, capture_output=True, text=True, errors="replace",
-                  stdin=subprocess.DEVNULL, timeout=TIMEOUT, check=True)
+                  stdin=subprocess.DEVNULL, timeout=TIMEOUT, check=True,
+                  creationflags=tools.NO_WINDOW)

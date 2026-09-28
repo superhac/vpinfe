@@ -881,9 +881,14 @@ is asked of that device.
 ```
 
 - `adapter` is how this session's screens are reached, read off its variables: `wlr` for
-  sway and Hyprland. KDE Plasma and GNOME on Wayland (`portal`), X11 (`x11grab`), Windows
-  (`ddagrab`) and macOS (`avfoundation`) answer unavailable, not supported yet, with no
-  screens.
+  sway and Hyprland, through grim and wf-recorder; FFmpeg's own input everywhere else -
+  `x11grab` on X11, `ddagrab` on Windows (`gdigrab` where the FFmpeg has no `ddagrab`) and
+  `avfoundation` on macOS. KDE Plasma and GNOME on Wayland (`portal`) answer unavailable,
+  not supported yet, with no screens.
+- On macOS every screen is `capture.permission.screen` until macOS lets VPinFE record the
+  screen, read without asking, so nothing VPinFE does raises the prompt. `sound` is
+  `capture.sound.needs_loopback` on macOS and `capture.sound.not_yet` on Windows; elsewhere
+  it is read from PulseAudio or PipeWire's stand-in for it.
 - `screens` has a row per window - `playfield`, `backglass`, `scoreview`, `topper` - and
   the output it is on: the one the default launcher's app names for that window in its own
   settings, matched by the output's name; where the app does not say, the window's
@@ -915,7 +920,7 @@ in on its own, so a path with a space in it stays one argument.
 |---|---|---|
 | `[ffmpeg]` | the FFmpeg the Tools found | the same |
 | `[recorder]` | the program that records a screen: wf-recorder on wlroots, FFmpeg elsewhere | - |
-| `[input]` | the screen's capture input: `-o DP-1` on wlroots, `-f lavfi -i ddagrab=output_idx=1`, `-f x11grab -video_size 1920x1080 -i :0.0+1080,0`, `-f avfoundation -i 2:none` | the recording, cut to the moment every screen shares: `-ss 0.412 -t 20.000 -i <file>` |
+| `[input]` | the screen's capture input, at its refresh and without the pointer: `-o DP-1` on wlroots, `-f lavfi -i ddagrab=output_idx=1:framerate=60:draw_mouse=0,hwdownload,format=bgra` (without the download where the hardware encoder takes the frames on the graphics card), `-f gdigrab -framerate 60 -draw_mouse 0 -offset_x 1080 -offset_y 0 -video_size 1920x1080 -i desktop`, `-f x11grab -framerate 60 -draw_mouse 0 -video_size 1920x1080 -i :0.0+1080,0`, `-f avfoundation -framerate 60 -capture_cursor 0 -i "Capture screen 1:none"` | the recording, cut to the moment every screen shares: `-ss 0.412 -t 20.000 -i <file>` |
 | `[output]` | the file to write | the same |
 | `[window]` | `playfield`, `backglass`, `scoreview` or `topper` | the same |
 | `[screen]` | the output's name, `DP-1` | the same |
@@ -924,7 +929,7 @@ in on its own, so a path with a space in it stays one argument.
 | `[width]`, `[height]` | the screen's size | the same |
 | `[duration]` | Length, in seconds | the same |
 | `[fps]` | the screen's refresh | Frame Rate |
-| `[hwaccel]` | the hardware encoder's arguments, or nothing | - |
+| `[hwaccel]` | the hardware encoder's arguments, or nothing: VA-API on Linux, NVENC or AMF on Windows, VideoToolbox on macOS, each proved by encoding one frame | - |
 | `[audioDevice]` | the sound source | - |
 | `[videoFilters]` | - | `-vf` and VPinFE's filters: the turn to the stored orientation, the constant rate and the size |
 | `[videoCodec]` | - | VPinFE's arguments for the Video Format and Quality |
@@ -938,7 +943,9 @@ in on its own, so a path with a space in it stays one argument.
   naming the command and the problem; so does a run whose `settings` carry one. A command
   in the settings file that cannot run is set aside, and VPinFE's own runs.
 - VPinFE still keeps time: every recorder is stopped by the wall clock after Length and its
-  frames counted, whatever the command says.
+  frames counted, whatever the command says. It is stopped as Ctrl-C stops it, and on
+  Windows, which has no such signal for a program VPinFE starts, by `q` on its standard
+  input, as FFmpeg reads it.
 - Where the Encode Command is a person's own, the pictures are cut from what it wrote, so its
   geometry and size carry through.
 

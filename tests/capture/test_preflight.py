@@ -12,7 +12,7 @@ from typing import Any
 from unittest.mock import patch
 
 from common.capture import adapters, commands, placing, preflight, settings
-from common.capture.adapters import wlr
+from common.capture.adapters import ffmpeg, wlr
 from common.host import frontend_browser, tools
 from common.i18n import t
 from tests.capture.test_adapters import SWAY_OUTPUTS
@@ -24,15 +24,13 @@ ENCODERS = frozenset({"libx264", "libvpx-vp9", "png", "libmp3lame", "h264_vaapi"
 SOUND_ENV = {"PULSE_SERVER": "unix:/run/user/1000/pulse/native"}
 
 
-class FakeAdapter:
-    id = "wlr"
+class FakeAdapter(wlr.WlrAdapter):
+    """sway's, with its outputs and its hardware encoder handed to it."""
 
     def __init__(self, outputs: Any = None, hardware: bool = True) -> None:
+        super().__init__({})
         self._outputs = wlr.sway_outputs(SWAY_OUTPUTS) if outputs is None else outputs
         self.node = "/dev/dri/renderD128" if hardware else ""
-
-    def requirements(self):
-        return (tools.FFMPEG, tools.GRIM, tools.WF_RECORDER)
 
     def outputs(self):
         if isinstance(self._outputs, Exception):
@@ -241,11 +239,25 @@ def _blocked_reports() -> list[dict[str, Any]]:
              {"shown": placing.Shown("Visual Pinball X", {"backglass": "", "topper": ""})}]
     ways += [{"adapter": adapters.resolve(env, tools.LINUX)}
              for env in ({"WAYLAND_DISPLAY": "w", "XDG_CURRENT_DESKTOP": "KDE"},
-                         {"WAYLAND_DISPLAY": "w"}, {"DISPLAY": ":0"}, {})]
-    ways += [{"adapter": adapters.resolve({}, system)}
-             for system in (tools.WINDOWS, tools.DARWIN)]
+                         {"WAYLAND_DISPLAY": "w"}, {})]
+    ways += [{"adapter": ffmpeg.MacAdapter(mac_displays, lambda: False)},
+             {"adapter": ffmpeg.MacAdapter(mac_displays, lambda: True)},
+             {"adapter": ffmpeg.WindowsAdapter(dxgi_outputs, found()["ffmpeg"])},
+             {"adapter": ffmpeg.X11Adapter({"DISPLAY": ":0"}, lambda: MONITORS)}]
     return [report(**{**first, **second})
             for first, second in itertools.combinations_with_replacement(ways, 2)]
+
+
+def mac_displays() -> list[ffmpeg.MacDisplay]:
+    return [ffmpeg.MacDisplay(index, one.x, one.y, one.width, one.height,
+                              (one.width, one.height), 60.0)
+            for index, one in enumerate(MONITORS)]
+
+
+def dxgi_outputs() -> list[ffmpeg.DxgiOutput]:
+    return [ffmpeg.DxgiOutput(index, one.name, one.x, one.y, one.x + one.width,
+                              one.y + one.height, True, 1)
+            for index, one in enumerate(MONITORS)]
 
 
 def _capture_keys_in_source() -> set[str]:

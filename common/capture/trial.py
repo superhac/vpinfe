@@ -93,7 +93,7 @@ def _test(device: run.Device, output: adapters.Output, chosen: settings.Settings
 
     said = WORK / "record.log"
     with said.open("wb") as log:
-        process = kit.popen(record, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
+        process = adapters.spawn(kit.popen, record, stdout=log, stderr=log)
         threading.Event().wait(seconds)
         Recording(adapters.PLAYFIELD, recorded, process, kit.clock()).stop()
     if not _frames(ffmpeg, recorded, kit):
@@ -112,7 +112,8 @@ def _test(device: run.Device, output: adapters.Output, chosen: settings.Settings
 
     described = kit.runner(pipeline.describe(ffmpeg, encoded), capture_output=True,
                            text=True, errors="replace", stdin=subprocess.DEVNULL,
-                           timeout=tools.TIMEOUT, check=False)
+                           timeout=tools.TIMEOUT, check=False,
+                           creationflags=tools.NO_WINDOW)
     size, fps = pipeline.video_in(described.stderr)
     return {"ok": True, "step": None, "reason": None, "detail": "",
             "size": list(size) if size else None, "fps": fps,

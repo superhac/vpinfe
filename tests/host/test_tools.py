@@ -310,6 +310,21 @@ FFMPEG_DEVICES = """Devices:
  D  lavfi           Libavfilter virtual input device
 """
 
+# The key's own lines are a filter's shape too, and name no filter.
+FFMPEG_FILTERS = """Filters:
+  T.. = Timeline support
+  .S. = Slice threading
+  A = Audio input/output
+  V = Video input/output
+  N = Dynamic number and/or type of input/output
+  | = Source or sink filter
+ .. ddagrab           |->V       Grab Windows Desktop images using Desktop Duplication API
+ .. hwdownload        V->V       Download a hardware frame to a normal frame
+ .S signalstats       V->V       Generate statistics from video analysis.
+ TSC overlay          VV->V      Overlay a video source on top of the input.
+ .. amix              N->A       Audio mixing.
+"""
+
 GRIM_HELP = """Usage: grim [options...] [output-file]
 
   -h              Show help message and quit.
@@ -348,6 +363,9 @@ class RecordingToolTests(unittest.TestCase):
   -devices) cat <<'EOF'
 {FFMPEG_DEVICES}EOF
   ;;
+  -filters) cat <<'EOF'
+{FFMPEG_FILTERS}EOF
+  ;;
   *) exit 1 ;;
 esac""")
 
@@ -358,6 +376,8 @@ esac""")
         self.assertEqual(probe.can[tools.ENCODERS],
                          {"libx264", "h264_videotoolbox", "png", "libvpx-vp9", "libmp3lame"})
         self.assertEqual(probe.can[tools.INPUTS], {"avfoundation", "pulse", "lavfi"})
+        self.assertEqual(probe.can[tools.FILTERS],
+                         {"ddagrab", "hwdownload", "signalstats", "overlay", "amix"})
 
     def test_a_program_that_lists_no_encoder_is_not_ffmpeg(self) -> None:
         says_nothing = _program(self.root, "ffmpeg")

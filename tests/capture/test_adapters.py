@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from common.capture import adapters, geometry
-from common.capture.adapters import wlr
+from common.capture.adapters import ffmpeg, wlr
 from common.host import tools
 
 SWAY = {"WAYLAND_DISPLAY": "wayland-1", "SWAYSOCK": "/run/user/1000/sway-ipc.sock",
@@ -37,10 +37,9 @@ class ResolutionTests(unittest.TestCase):
                               "XDG_CURRENT_DESKTOP": "ubuntu:GNOME"}, "portal",
                              adapters.NOT_YET),
         "Weston": ({"WAYLAND_DISPLAY": "wayland-0"}, "wayland", adapters.NO_WAY),
-        "X11": ({"DISPLAY": ":0", "XDG_CURRENT_DESKTOP": "KDE"}, "x11grab",
-                adapters.NOT_YET),
+        "X11": ({"DISPLAY": ":0", "XDG_CURRENT_DESKTOP": "KDE"}, "x11grab", ""),
         "a sway socket left in an X11 session": ({"DISPLAY": ":0", "SWAYSOCK": "/x"},
-                                                 "x11grab", adapters.NOT_YET),
+                                                 "x11grab", ""),
         "no session": ({}, "none", adapters.NO_SESSION),
     }
 
@@ -52,13 +51,11 @@ class ResolutionTests(unittest.TestCase):
                 self.assertEqual(found.id, expected)
                 self.assertEqual(getattr(found, "reason", ""), why)
 
-    def test_windows_and_macos_are_not_supported_yet(self) -> None:
-        for system, expected in ((tools.WINDOWS, "ddagrab"), (tools.DARWIN, "avfoundation")):
+    def test_windows_and_macos_are_ffmpegs_whatever_the_variables_say(self) -> None:
+        for system, expected in ((tools.WINDOWS, ffmpeg.WindowsAdapter),
+                                 (tools.DARWIN, ffmpeg.MacAdapter)):
             with self.subTest(system):
-                found = adapters.resolve(SWAY, system)
-
-                self.assertIsInstance(found, adapters.Unsupported)
-                self.assertEqual((found.id, found.reason), (expected, adapters.NOT_YET))
+                self.assertIsInstance(adapters.resolve(SWAY, system), expected)
 
 
 def _sway_output(name: str, x: int, width: int, height: int, transform: str) -> dict:

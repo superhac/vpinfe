@@ -55,12 +55,24 @@ _TOKEN = re.compile(r"\[\[([^\[\]]*)\]\]|\[([A-Za-z][A-Za-z0-9]*)\]")
 # The adapters' ids, as `adapters.resolve` answers them.
 WLR = "wlr"
 DDAGRAB = "ddagrab"
+GDIGRAB = "gdigrab"
 X11GRAB = "x11grab"
 AVFOUNDATION = "avfoundation"
+FFMPEG_GRABS = (DDAGRAB, GDIGRAB, X11GRAB, AVFOUNDATION)
 
-# wf-recorder's own encode where no hardware one was proved: near lossless, and fast
-# enough to keep up, since the Encode Command encodes it again.
+# The encode where no hardware one was proved: near lossless, and fast enough to keep
+# up, since the Encode Command encodes it again. wf-recorder's, then FFmpeg's.
 _SOFTWARE = "-c libx264 -p preset=ultrafast -p crf=18"
+_FFMPEG_SOFTWARE = "-c:v libx264 -preset ultrafast -crf 18"
+
+# The hardware encoders a recording may use, by the name `hardware` holds, as FFmpeg
+# takes each: near lossless, as the software one.
+HARDWARE = {
+    "h264_nvenc": ["-c:v", "h264_nvenc", "-preset", "p1", "-rc", "constqp", "-qp", "18"],
+    "h264_amf": ["-c:v", "h264_amf", "-usage", "lowlatency", "-rc", "cqp",
+                 "-qp_i", "18", "-qp_p", "18"],
+    "h264_videotoolbox": ["-c:v", "h264_videotoolbox", "-realtime", "1", "-b:v", "25M"],
+}
 
 OWN_ENCODE = ("[ffmpeg] -hide_banner -nostdin -loglevel error -y [input] -map 0:v:0 -an "
               "[videoFilters] [videoCodec] -movflags +faststart [output]")
@@ -142,27 +154,44 @@ def _x_screen(display: str) -> str:
     return said if "." in said.rpartition(":")[2] else f"{said}.0"
 
 
-def inputs(adapter_id: str, output: Output, display: str | None = None) -> list[str]:
+def inputs(adapter_id: str, output: Output, display: str | None = None,
+           hardware: str = "") -> list[str]:
     """VPinFE's capture input for one screen on each platform, as FFmpeg or wf-recorder
-    takes it. Raises ValueError for an adapter with no input of its own."""
+    takes it: at the screen's rate, without the pointer. Raises ValueError for an adapter
+    with no input of its own."""
+    fps = str(rate(output))
+    size = f"{output.width}x{output.height}"
     if adapter_id == WLR:
         return ["-o", output.name]
     if adapter_id == DDAGRAB:
-        return ["-f", "lavfi", "-i", f"ddagrab=output_idx={output.index}"]
+        graph = f"ddagrab=output_idx={output.index}:framerate={fps}:draw_mouse=0"
+        return ["-f", "lavfi", "-i",
+                graph if hardware in HARDWARE else f"{graph},hwdownload,format=bgra"]
+    if adapter_id == GDIGRAB:
+        return ["-f", "gdigrab", "-framerate", fps, "-draw_mouse", "0",
+                "-offset_x", str(output.x), "-offset_y", str(output.y),
+                "-video_size", size, "-i", "desktop"]
     if adapter_id == X11GRAB:
         shown = os.environ.get("DISPLAY", "") if display is None else display
-        return ["-f", "x11grab", "-video_size", f"{output.width}x{output.height}",
-                "-i", f"{_x_screen(shown)}+{output.x},{output.y}"]
+        return ["-f", "x11grab", "-framerate", fps, "-draw_mouse", "0",
+                "-video_size", size, "-i", f"{_x_screen(shown)}+{output.x},{output.y}"]
     if adapter_id == AVFOUNDATION:
-        return ["-f", "avfoundation", "-i", f"{output.index}:none"]
+        return ["-f", "avfoundation", "-framerate", fps, "-capture_cursor", "0",
+                "-i", f"Capture screen {output.index}:none"]
     raise ValueError(adapter_id)
 
 
 def hwaccel(adapter_id: str, hardware: str) -> list[str]:
-    """The hardware encoder's arguments for recording, or none."""
-    if adapter_id == WLR and hardware:
+    """The hardware encoder's arguments for recording, or none. `hardware` is the VA-API
+    render node on Linux, and the encoder's name elsewhere."""
+    if not hardware:
+        return []
+    if adapter_id == WLR:
         return ["-c", "h264_vaapi", "-d", hardware, "-p", "qp=18"]
-    return []
+    if adapter_id == X11GRAB:
+        return ["-vaapi_device", hardware, "-vf", "format=nv12,hwupload",
+                "-c:v", "h264_vaapi", "-qp", "18"]
+    return list(HARDWARE.get(hardware, []))
 
 
 def _every_refresh(recorder: tools.Found | None) -> bool:
@@ -175,6 +204,10 @@ def _every_refresh(recorder: tools.Found | None) -> bool:
 
 def own_record(adapter_id: str, found: Mapping[str, tools.Found], hardware: str) -> str:
     """VPinFE's Record Command on this device, or "" where it has none yet."""
+    if adapter_id in FFMPEG_GRABS:
+        return " ".join(["[ffmpeg] -hide_banner -loglevel error -y [input]",
+                         "[hwaccel]" if hardware else _FFMPEG_SOFTWARE,
+                         "-f matroska [output]"])
     if adapter_id != WLR:
         return ""
     return " ".join(["[recorder]",
@@ -198,7 +231,7 @@ def record_values(adapter_id: str, found: Mapping[str, tools.Found], output: Out
     ffmpeg = _path(found, tools.FFMPEG)
     return {"ffmpeg": ffmpeg,
             "recorder": _path(found, tools.WF_RECORDER) if adapter_id == WLR else ffmpeg,
-            "input": inputs(adapter_id, output, display), "output": str(dest),
+            "input": inputs(adapter_id, output, display, hardware), "output": str(dest),
             "window": window,
             "screen": output.name, "monitorIndex": str(output.index),
             "x": str(output.x), "y": str(output.y),

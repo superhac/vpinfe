@@ -183,7 +183,8 @@ def vaapi_node(ffmpeg: tools.Found, node: str | None = None,
     if key not in _encodes:
         try:
             done = run(vaapi_probe(ffmpeg.path, node), capture_output=True,
-                       stdin=subprocess.DEVNULL, timeout=tools.TIMEOUT, check=False)
+                       stdin=subprocess.DEVNULL, timeout=tools.TIMEOUT, check=False,
+                       creationflags=tools.NO_WINDOW)
             _encodes[key] = done.returncode == 0
         except (OSError, subprocess.TimeoutExpired):
             _encodes[key] = False
@@ -192,6 +193,8 @@ def vaapi_node(ffmpeg: tools.Found, node: str | None = None,
 
 class WlrAdapter:
     id = "wlr"
+    picture_tool = tools.GRIM
+    video_tool = tools.WF_RECORDER
 
     def __init__(self, env: Mapping[str, str], connect: Connect = _unix) -> None:
         self.env = env
@@ -204,6 +207,16 @@ class WlrAdapter:
 
     def requirements(self) -> tuple[tools.Tool, ...]:
         return (tools.FFMPEG, tools.GRIM, tools.WF_RECORDER)
+
+    def grabs(self, ffmpeg: tools.Found) -> bool:
+        """FFmpeg only encodes here."""
+        return True
+
+    def refused(self) -> str:
+        return ""
+
+    def no_sound(self) -> tuple[str, Mapping[str, str]] | None:
+        return None
 
     def outputs(self) -> list[Output]:
         """Raises OSError or ValueError where the compositor does not answer."""

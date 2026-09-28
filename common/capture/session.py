@@ -228,8 +228,7 @@ class Session:
 
     def _spawn(self, argv: list[str]) -> Any:
         logger.info("Recording: %s", argv)
-        return self.kit.popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL)
+        return adapters.spawn(self.kit.popen, argv)
 
     def _ffmpeg(self) -> Path:
         return Path(str(self.found[tools.FFMPEG.id].path))
@@ -240,7 +239,8 @@ class Session:
             try:
                 self.kit.runner(self.adapter.still(self.found, self.screens[window], dest),
                                 capture_output=True, stdin=subprocess.DEVNULL,
-                                timeout=tools.TIMEOUT, check=True)
+                                timeout=tools.TIMEOUT, check=True,
+                                creationflags=tools.NO_WINDOW)
             except (OSError, subprocess.SubprocessError):
                 logger.warning("Recording: no picture of the %s screen", window,
                                exc_info=True)

@@ -20,16 +20,34 @@ from tests.api.test_config import Store
 from tests.capture.test_preflight import found
 
 # The token table in the design, and the capture input it gives on each platform for a
-# screen laid out at 1080,0 at 1920x1080, which the capture API numbers 1 or 2.
+# screen laid out at 1080,0 at 1920x1080 and 59.94 Hz, which the capture API numbers 1 or
+# 2: with no hardware encoder, then with the one each platform proves.
 DESIGNED = {"ffmpeg", "recorder", "input", "output", "window", "screen", "monitorIndex",
             "x", "y", "width", "height", "duration", "fps", "videoFilters", "videoCodec",
             "hwaccel", "audioDevice"}
+NODE = "/dev/dri/renderD128"
 INPUTS = {
     commands.WLR: (1, ["-o", "DP-2"]),
-    commands.DDAGRAB: (1, ["-f", "lavfi", "-i", "ddagrab=output_idx=1"]),
-    commands.X11GRAB: (1, ["-f", "x11grab", "-video_size", "1920x1080",
-                           "-i", ":0.0+1080,0"]),
-    commands.AVFOUNDATION: (2, ["-f", "avfoundation", "-i", "2:none"]),
+    commands.DDAGRAB: (1, ["-f", "lavfi", "-i", "ddagrab=output_idx=1:framerate=60:"
+                                                "draw_mouse=0,hwdownload,format=bgra"]),
+    commands.GDIGRAB: (1, ["-f", "gdigrab", "-framerate", "60", "-draw_mouse", "0",
+                           "-offset_x", "1080", "-offset_y", "0",
+                           "-video_size", "1920x1080", "-i", "desktop"]),
+    commands.X11GRAB: (1, ["-f", "x11grab", "-framerate", "60", "-draw_mouse", "0",
+                           "-video_size", "1920x1080", "-i", ":0.0+1080,0"]),
+    commands.AVFOUNDATION: (2, ["-f", "avfoundation", "-framerate", "60",
+                                "-capture_cursor", "0", "-i", "Capture screen 2:none"]),
+}
+HARDWARE = {
+    commands.WLR: (NODE, ["-c", "h264_vaapi", "-d", NODE, "-p", "qp=18"]),
+    commands.DDAGRAB: ("h264_nvenc", ["-c:v", "h264_nvenc", "-preset", "p1", "-rc",
+                                      "constqp", "-qp", "18"]),
+    commands.GDIGRAB: ("h264_amf", ["-c:v", "h264_amf", "-usage", "lowlatency", "-rc",
+                                    "cqp", "-qp_i", "18", "-qp_p", "18"]),
+    commands.X11GRAB: (NODE, ["-vaapi_device", NODE, "-vf", "format=nv12,hwupload",
+                              "-c:v", "h264_vaapi", "-qp", "18"]),
+    commands.AVFOUNDATION: ("h264_videotoolbox", ["-c:v", "h264_videotoolbox",
+                                                  "-realtime", "1", "-b:v", "25M"]),
 }
 CHOSEN = Settings(length=20, wait=15, picture_at=5, fps=30, size="1920",
                   video_codec="auto", playfield_orientation="bottom_right",
@@ -57,21 +75,33 @@ class TokenTests(unittest.TestCase):
 
     def test_every_record_token_expands_for_each_platforms_input(self) -> None:
         for adapter_id, (index, expected) in INPUTS.items():
-            with self.subTest(adapter_id):
-                values = commands.record_values(adapter_id, found(), _screen(index),
-                                                "backglass", Path("/tmp/a b.mkv"), CHOSEN,
-                                                "/dev/dri/renderD128", display=":0")
+            for hardware in ("", HARDWARE[adapter_id][0]):
+                with self.subTest(adapter_id, hardware=hardware):
+                    values = commands.record_values(
+                        adapter_id, found(), _screen(index), "backglass",
+                        Path("/tmp/a b.mkv"), CHOSEN, hardware, display=":0")
 
-                argv = commands.expand(_every(commands.RECORD), commands.RECORD, values)
+                    argv = commands.expand(_every(commands.RECORD), commands.RECORD, values)
 
-                wlr = adapter_id == commands.WLR
-                self.assertEqual(argv, [
-                    "/usr/bin/ffmpeg", "/usr/bin/wf_recorder" if wlr else "/usr/bin/ffmpeg",
-                    *expected, "/tmp/a b.mkv", "backglass", "DP-2", str(index), "1080", "0",
-                    "1920", "1080", "20", "60",
-                    *(["-c", "h264_vaapi", "-d", "/dev/dri/renderD128", "-p", "qp=18"]
-                      if wlr else []),
-                    "@DEFAULT_MONITOR@"])
+                    wlr = adapter_id == commands.WLR
+                    self.assertEqual(argv, [
+                        "/usr/bin/ffmpeg",
+                        "/usr/bin/wf_recorder" if wlr else "/usr/bin/ffmpeg",
+                        *commands.inputs(adapter_id, _screen(index), ":0", hardware),
+                        "/tmp/a b.mkv", "backglass", "DP-2", str(index), "1080", "0",
+                        "1920", "1080", "20", "60",
+                        *(HARDWARE[adapter_id][1] if hardware else []),
+                        "@DEFAULT_MONITOR@"])
+                    self.assertEqual(commands.inputs(adapter_id, _screen(index), ":0"),
+                                     expected)
+
+    def test_ddagrab_keeps_its_frames_on_the_card_only_for_an_encoder_there(self) -> None:
+        for hardware, kept in (("", False), ("h264_nvenc", True), ("h264_amf", True),
+                               (NODE, False)):
+            with self.subTest(hardware):
+                graph = commands.inputs(commands.DDAGRAB, _screen(), hardware=hardware)[-1]
+
+                self.assertEqual("hwdownload" not in graph, kept)
 
     def test_x_names_its_first_screen_when_the_display_does_not(self) -> None:
         for display, said in ((":0", ":0.0+1080,0"), (":1.0", ":1.0+1080,0"),
@@ -110,6 +140,14 @@ class TokenTests(unittest.TestCase):
                                                       ""))
 
         self.assertEqual(argv[2], "ddagrab=output_idx=3")
+
+    def test_ffmpeg_everywhere_but_wlroots_is_its_own_recorder(self) -> None:
+        for adapter_id in commands.FFMPEG_GRABS:
+            with self.subTest(adapter_id):
+                values = commands.record_values(adapter_id, found(), _screen(), "playfield",
+                                                Path("o.mkv"), CHOSEN, "")
+
+                self.assertEqual(values["recorder"], values["ffmpeg"])
 
     def test_double_brackets_are_the_brackets_themselves(self) -> None:
         argv = commands.expand("[ffmpeg] [input] -filter_complex [[0:v]]null[[v]] "
@@ -201,14 +239,28 @@ class OwnCommandTests(unittest.TestCase):
                          "[recorder] [input] -c libx264 -p preset=ultrafast -p crf=18 "
                          "-f [output]")
 
+    def test_everywhere_else_it_is_ffmpeg_reading_the_platforms_input(self) -> None:
+        for adapter_id in commands.FFMPEG_GRABS:
+            with self.subTest(adapter_id):
+                self.assertEqual(commands.own_record(adapter_id, found(), "h264_nvenc"),
+                                 "[ffmpeg] -hide_banner -loglevel error -y [input] "
+                                 "[hwaccel] -f matroska [output]")
+                self.assertEqual(commands.own_record(adapter_id, found(), ""),
+                                 "[ffmpeg] -hide_banner -loglevel error -y [input] "
+                                 "-c:v libx264 -preset ultrafast -crf 18 -f matroska "
+                                 "[output]")
+
     def test_a_platform_with_no_adapter_yet_has_no_record_command(self) -> None:
-        self.assertEqual(commands.own("ddagrab", {}, ""),
+        self.assertEqual(commands.own("portal", {}, ""),
                          {commands.RECORD: "", commands.ENCODE: commands.OWN_ENCODE})
 
     def test_vpinfes_own_commands_are_ones_a_person_could_have_written(self) -> None:
-        for command, template in commands.own(commands.WLR, found(), "x").items():
-            with self.subTest(command):
-                self.assertEqual(commands.problems(template, command), [])
+        for adapter_id in (commands.WLR, *commands.FFMPEG_GRABS):
+            for hardware in ("", "x"):
+                for command, template in commands.own(adapter_id, found(),
+                                                      hardware).items():
+                    with self.subTest(adapter_id, hardware=hardware, command=command):
+                        self.assertEqual(commands.problems(template, command), [])
 
 
 class ConfigRouteTests(unittest.TestCase):

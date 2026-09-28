@@ -18,6 +18,7 @@ UNREADABLE = "capture.screen.unreadable"
 NO_SOUND_INPUT = "capture.sound.no_input"
 NO_SOUND_SERVER = "capture.sound.no_server"
 NO_MP3 = "capture.sound.no_mp3"
+NO_GRABBER = "capture.input.missing"
 
 # Who can fix each reason.
 REASONS = {
@@ -33,7 +34,15 @@ REASONS = {
     NO_SOUND_INPUT: tools.FIX_USER,
     NO_SOUND_SERVER: tools.FIX_NONE,
     NO_MP3: tools.FIX_USER,
+    NO_GRABBER: tools.FIX_USER,
+    adapters.SCREEN_PERMISSION: tools.FIX_USER,
+    adapters.SOUND_NOT_YET: tools.FIX_NONE,
+    adapters.SOUND_LOOPBACK: tools.FIX_NONE,
 }
+
+# A remedy that is no Tool's, by the reason it answers.
+REMEDIES = {adapters.SCREEN_PERMISSION: {"key": "capture.permission.screen.remedy",
+                                         "params": {}}}
 
 # The encoder each stored format is written with, as FFmpeg names it.
 ENCODERS = {settings.H264: "libx264", settings.VP9: "libvpx-vp9"}
@@ -43,6 +52,7 @@ _FORMAT_NAMES = {settings.H264: "H.264", settings.VP9: "VP9"}
 def reason(key: str, params: Mapping[str, str] | None = None,
            remedy: Mapping[str, Any] | None = None) -> dict[str, Any]:
     fix = REASONS[key]
+    remedy = remedy or REMEDIES.get(key)
     return {"key": key, "params": dict(params or {}), "fix": fix,
             "remedy": dict(remedy) if fix == tools.FIX_USER and remedy else None}
 
@@ -81,7 +91,20 @@ def sound_server(env: Mapping[str, str]) -> bool:
     return bool(runtime) and os.path.exists(os.path.join(runtime, "pulse", "native"))
 
 
-def _sound(found: Mapping[str, tools.Found], env: Mapping[str, str]) -> dict[str, Any]:
+def _grabber(adapter: adapters.Adapter,
+             found: Mapping[str, tools.Found]) -> dict[str, Any] | None:
+    """Why the FFmpeg found cannot read this desktop's screens, where it has to."""
+    ffmpeg = found[tools.FFMPEG.id]
+    if ffmpeg.state is tools.State.FOUND and not adapter.grabs(ffmpeg):
+        return reason(NO_GRABBER, {}, tools.remedy(tools.FFMPEG))
+    return None
+
+
+def _sound(adapter: adapters.Adapter, found: Mapping[str, tools.Found],
+           env: Mapping[str, str]) -> dict[str, Any]:
+    never = adapter.no_sound()
+    if never is not None:
+        return _able(reason(never[0], never[1]))
     ffmpeg = found[tools.FFMPEG.id]
     blocked = _needs(found, tools.FFMPEG)
     if blocked is None and ffmpeg.probe is not None:
@@ -94,16 +117,21 @@ def _sound(found: Mapping[str, tools.Found], env: Mapping[str, str]) -> dict[str
     return _able(blocked)
 
 
-def _screen(screen: adapters.Screen, found: Mapping[str, tools.Found],
-            codec: str, unreadable: bool) -> dict[str, Any]:
+def _screen(screen: adapters.Screen, adapter: adapters.Adapter,
+            found: Mapping[str, tools.Found], codec: str,
+            unreadable: bool) -> dict[str, Any]:
     output = screen.output
     where = None
     if output is None:
         key = UNREADABLE if unreadable and screen.reason == adapters.NOT_FOUND \
             else screen.reason
         where = reason(key, {"window": screen.window, **screen.params})
-    picture = where or _needs(found, tools.GRIM) or _needs(found, tools.FFMPEG, "png", "PNG")
-    video = where or _needs(found, tools.WF_RECORDER) \
+    refused = adapter.refused()
+    where = where or (reason(refused) if refused else None)
+    grabber = _grabber(adapter, found)
+    picture = where or _needs(found, adapter.picture_tool) or grabber \
+        or _needs(found, tools.FFMPEG, "png", "PNG")
+    video = where or _needs(found, adapter.video_tool) or grabber \
         or _needs(found, tools.FFMPEG, ENCODERS[codec], _FORMAT_NAMES[codec])
     return {"window": screen.window,
             "output": output.name if output else None,
@@ -144,7 +172,7 @@ def report(*, adapter: adapters.Adapter | adapters.Unsupported | None = None,
     monitors = display_service.get_display_monitors() if monitors is None else monitors
     placed = placing.Placing(outputs, config, monitors,
                              placing.shown() if shown is None else shown)
-    screens = [_screen(screen, found, codec, unreadable)
+    screens = [_screen(screen, adapter, found, codec, unreadable)
                for screen in placed.screens().values()]
     ffmpeg = found[tools.FFMPEG.id]
     hardware = adapter.hardware(ffmpeg) if probe_hardware else ""
@@ -156,7 +184,7 @@ def report(*, adapter: adapters.Adapter | adapters.Unsupported | None = None,
             "available": bool(able),
             "reason": None if able else first,
             "screens": screens,
-            "sound": _sound(found, env),
+            "sound": _sound(adapter, found, env),
             "at_once": bool(probe_hardware and adapter.at_once(ffmpeg)),
             "tools": [tools.row(found[tool.id]) for tool in adapter.requirements()],
             "commands": commands.own(adapter.id, found, hardware)}
