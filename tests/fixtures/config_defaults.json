@@ -15,7 +15,8 @@
   "chromium": {
     "disable_defaults": "false",
     "options": "",
-    "options_exclude": ""
+    "options_exclude": "",
+    "path": ""
   },
   "commands": {
     "on_vpinfe_exit": "",

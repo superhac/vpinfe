@@ -88,6 +88,68 @@ class ChromiumManagerTests(unittest.TestCase):
                 chromium_manager.ChromiumPath(chrome, True),
             )
 
+    def test_browser_program_wins_over_the_bundled_copy(self) -> None:
+        chosen = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+        bundled = r"C:\vpinfe\chromium\windows\chrome-win\chrome.exe"
+
+        with mock.patch("frontend.chromium_manager.platform.system", return_value="Windows"), \
+            mock.patch("frontend.chromium_manager.resource_path", return_value=bundled), \
+            mock.patch("frontend.chromium_manager.os.path.isfile", return_value=True):
+            self.assertEqual(chromium_manager.get_chromium_path(chosen),
+                             chromium_manager.ChromiumPath(chosen, True))
+
+    def test_browser_program_that_is_missing_is_still_the_answer(self) -> None:
+        # Quietly falling back to another browser would hide that the setting is wrong.
+        with mock.patch("frontend.chromium_manager.os.path.isfile", return_value=False):
+            self.assertEqual(chromium_manager.get_chromium_path("/nowhere/chrome"),
+                             chromium_manager.ChromiumPath("/nowhere/chrome", True))
+
+    def test_blank_browser_program_finds_one_as_before(self) -> None:
+        chrome = "/usr/bin/google-chrome-stable"
+
+        def which(binary_name: str) -> str | None:
+            return chrome if binary_name == "google-chrome-stable" else None
+
+        with mock.patch("frontend.chromium_manager.platform.system", return_value="Linux"), \
+            mock.patch("frontend.chromium_manager.which", side_effect=which):
+            self.assertEqual(chromium_manager.get_chromium_path("  "),
+                             chromium_manager.ChromiumPath(chrome, True))
+
+    def test_browser_program_is_read_from_the_config_when_not_given(self) -> None:
+        with mock.patch("frontend.chromium_manager.configured_browser_path",
+                        return_value="/opt/chrome/chrome"):
+            self.assertEqual(chromium_manager.get_chromium_path(),
+                             chromium_manager.ChromiumPath("/opt/chrome/chrome", True))
+
+    def test_a_mac_app_bundle_resolves_to_the_program_inside(self) -> None:
+        app = "/Applications/Google Chrome.app"
+        with mock.patch("common.launcher_path.sys.platform", "darwin"):
+            self.assertEqual(chromium_manager.get_chromium_path(app).path,
+                             f"{app}/Contents/MacOS/Google Chrome")
+
+    def test_google_chrome_path_finds_it_on_linux_and_answers_none_without_it(self) -> None:
+        chrome = "/usr/bin/google-chrome"
+        with mock.patch("frontend.chromium_manager.platform.system", return_value="Linux"), \
+            mock.patch("frontend.chromium_manager.which",
+                       side_effect=lambda name: chrome if name == "google-chrome" else None), \
+            mock.patch("frontend.chromium_manager.os.path.isfile", return_value=True):
+            self.assertEqual(chromium_manager.google_chrome_path(), chrome)
+        with mock.patch("frontend.chromium_manager.platform.system", return_value="Linux"), \
+            mock.patch("frontend.chromium_manager.which", return_value=None):
+            self.assertIsNone(chromium_manager.google_chrome_path())
+
+    def test_google_chrome_path_on_windows_never_offers_chromium_or_edge(self) -> None:
+        chromium = r"C:\Program Files\Chromium\Application\chrome.exe"
+
+        def expandvars(value: str) -> str:
+            return chromium if "Chromium" in value else value
+
+        with mock.patch("frontend.chromium_manager.platform.system", return_value="Windows"), \
+            mock.patch("frontend.chromium_manager.os.path.expandvars", side_effect=expandvars), \
+            mock.patch("frontend.chromium_manager.os.path.isfile",
+                       side_effect=lambda path: path == chromium):
+            self.assertIsNone(chromium_manager.google_chrome_path())
+
     def test_parse_additional_chromium_options_supports_multiple_flags(self) -> None:
         options = chromium_manager.parse_additional_chromium_options(
             '--disable-accelerated-video-decode\n'

@@ -70,6 +70,7 @@ Runtime state written by VPinFE, not shown as a setting.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
+| `path` | string |  | The browser the frontend's windows open in. Blank finds one on this device. |
 | `options` | text |  | Additional Chrome Options |
 | `options_exclude` | text |  | Which built-in options to leave off, one per line. For when one of them is the problem and turning them all off would take the rest with it. |
 | `disable_defaults` | bool | `false` | Disable Default Chrome Options |

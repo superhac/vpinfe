@@ -222,12 +222,52 @@ def resource_path(relative_path: str) -> str:
 ChromiumPath = namedtuple("ChromiumPath", ["path", "using_local_install"])
 
 
-def get_chromium_path() -> ChromiumPath:
+def configured_browser_path() -> str:
+    """The Browser Program setting, or "" when the browser is to be found."""
+    try:
+        from common.paths import get_ini_config
+
+        return cfg_get(get_ini_config(), "chromium", "path", "").strip()
+    except Exception:  # noqa: BLE001 - no config readable means nothing was chosen
+        logger.debug("Could not read the Browser Program setting", exc_info=True)
+        return ""
+
+
+def google_chrome_path() -> str | None:
+    """Where Google Chrome is installed on this machine, or None."""
+    system = platform.system()
+    if system == "Windows":
+        candidates = [
+            os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+        ]
+    elif system == "Darwin":
+        candidates = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            os.path.expanduser("~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+        ]
+    else:
+        candidates = [found for found in (which("google-chrome"), which("google-chrome-stable"))
+                      if found]
+    return next((path for path in candidates if os.path.isfile(path)), None)
+
+
+def get_chromium_path(configured: str | None = None) -> ChromiumPath:
     """Get the platform-specific path to the Chromium binary.
 
     Returns a ChromiumPath(path, using_local_install); using_local_install is
     True when the binary came from the system rather than the bundled copy.
+
+    `configured` is the Browser Program setting, read from the config when not given.
+    Set, it is the answer on every platform, whether or not the file is there - a
+    missing one is reported as missing rather than quietly replaced by another browser.
     """
+    chosen = configured_browser_path() if configured is None else configured.strip()
+    if chosen:
+        from common.launcher_path import resolve_launcher_path
+
+        return ChromiumPath(str(resolve_launcher_path(chosen)), True)
     system = platform.system()
 
     if system == "Windows":

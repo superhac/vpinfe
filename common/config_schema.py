@@ -364,6 +364,12 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     *in_section(
         "chromium",
         ConfigOption(
+            "path",
+            type="string",
+            path="exe",
+            default="",
+        ),
+        ConfigOption(
             "options",
             # One flag per line, which is what the help beside it has always said and
             # what a one-line box could not take. Parsed with shell-style quoting, so a
