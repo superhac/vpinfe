@@ -10,6 +10,7 @@ four calls already bound to wherever it answers from - HTTP for an extension
 
 from __future__ import annotations
 
+import json
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -236,9 +237,10 @@ def _sync(values: dict[str, Any], held: dict[str, tuple[str, Any]]) -> None:
 
 
 def _focus_now(control: Any) -> None:
-    """A later step's own first field - the dialog's `show` already ran once, for the
-    first step, so `frame.focus`'s own binding never fires again. Steps down to a nested
-    `input`/`textarea` the same way `frame.focus` does.
+    """A step's own first field, focused directly rather than through a `show` event.
+    The dialog host calls this from its second step on; the page host, with no `show`
+    event of its own, calls it for every step. Steps down to a nested `input`/`textarea`
+    the same way `frame.focus` does.
     """
     ui.run_javascript(f"""
         (() => {{
@@ -262,6 +264,36 @@ def _focus_title(control: Any) -> None:
         (() => {{
           const el = document.getElementById('c{control.id}');
           if (el) el.focus();
+        }})()
+    """)
+
+
+def _enter_presses_forward(root_id: int) -> str:
+    """Enter anywhere in `root_id` but a textarea presses whichever step's forward
+    button is current."""
+    return f"""
+        (() => {{
+          const root = document.getElementById('c{root_id}');
+          if (!root) return;
+          root.addEventListener('keyup', (event) => {{
+            if (event.key !== 'Enter' || event.target.tagName === 'TEXTAREA') {{
+              return;
+            }}
+            const btn = root.querySelector('.{_FORWARD}');
+            if (btn && !btn.disabled) btn.click();
+          }});
+        }})()
+    """
+
+
+def _sync_step(step_key: str) -> None:
+    """Writes `step` into the address; every other query parameter is left alone."""
+    ui.run_javascript(f"""
+        (() => {{
+          const url = new URL(location.href);
+          const step = {json.dumps(step_key)};
+          if (step) url.searchParams.set('step', step); else url.searchParams.delete('step');
+          history.replaceState(null, '', url.pathname + url.search);
         }})()
     """)
 
@@ -370,19 +402,8 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
                     frame.focus(dialog, control)
                 # Bound once: a listener added on every redraw would pile up on the
                 # same persistent dialog element, one more for every step visited.
-                dialog.on("show", lambda: ui.run_javascript(f"""
-                    (() => {{
-                      const root = document.getElementById('c{dialog.id}');
-                      if (!root) return;
-                      root.addEventListener('keyup', (event) => {{
-                        if (event.key !== 'Enter' || event.target.tagName === 'TEXTAREA') {{
-                          return;
-                        }}
-                        const btn = root.querySelector('.{_FORWARD}');
-                        if (btn && !btn.disabled) btn.click();
-                      }});
-                    }})()
-                """))
+                dialog.on("show", lambda: ui.run_javascript(
+                    _enter_presses_forward(dialog.id)))
             elif fresh:
                 _focus_title(heading)
             elif control is not None:
@@ -435,7 +456,8 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
                 return
             job_id = str(started.get("job_id") or "")
             if job_id:
-                await _watch(job_id)
+                await _watch(calls.job, job_id, body=body, buttons=buttons, heading=heading,
+                            under=under, close=lambda: dialog.submit(True))
                 return
             if started.get("ok") is False:
                 ui.notify(str(started.get("reason") or t("console.ext_action.not_run")),
@@ -443,34 +465,143 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
                 return
             # Finished already. Some actions are one call and a sentence, and making
             # those wear a progress bar would be theatre.
-            _finished(body, buttons, dialog, started)
-
-        async def _watch(job_id: str) -> None:
-            body.clear()
-            buttons.clear()
-            with body, ui.column().classes("w-full gap-1 px-3"):
-                bar = ui.linear_progress(value=0, show_value=False).classes("w-full")
-                said = ui.label(t("console.ext_action.working")).classes("console-help")
-            with buttons:
-                close = frame.cancel(lambda: dialog.submit(True), t("word.close"))
-                close.disable()
-
-            while True:
-                job = await calls.job(job_id)
-                bar.value = int(job.get("pct") or 0) / 100
-                said.text = str(job.get("message") or t("console.ext_action.working"))
-                if str(job.get("state")) not in ("running", "queued"):
-                    break
-                await run.io_bound(_wait)
-
-            close.enable()
-            heading.text = t("console.ext_action.what_happened") if job.get("state") == "done" \
-                else t("console.ext_action.not_finish")
-            _report(body, job, under)
+            _finished(body, buttons, lambda: dialog.submit(True), started)
 
         draw(walk.step)
 
     await dialog
+
+
+async def open_page(*, label: str, calls: Calls, under: str, step: str | None = None) -> None:
+    """Run one flow as a Console view: the same steps the dialog host walks, drawn
+    with the step list beside the step's own content instead of above it, and the
+    current step kept in the address so a reload comes back to it.
+
+    `step` is the key the caller read off its own address, if any - the flow answers
+    `GET` with it, the way a done step reopens. Answering `None` gets its first step,
+    same as the dialog host.
+    """
+    walk = Walk(calls, await calls.first(step))
+    client = ApiClient()
+    held: dict[str, tuple[str, Any]] = {}
+    opened = False
+    current_key = ""
+
+    with ui.column().classes("w-full gap-0 console-wizard-page") as page:
+        heading = ui.label("").classes("console-dialog-title").props("tabindex=-1")
+        body = ui.row().classes("w-full gap-4 items-start console-wizard-page-body")
+        buttons = frame.footer()
+
+        def draw(found: dict) -> None:
+            nonlocal held, opened, current_key
+            fresh = current_key != str(found.get("step") or "")
+            current_key = str(found.get("step") or "")
+            heading.text = str(found.get("title") or label)
+            body.clear()
+            buttons.clear()
+            summary = found.get("summary")
+            with body:
+                if found.get("steps"):
+                    with ui.column().classes("console-wizard-page-steps"):
+                        _step_list(list(found["steps"]), current_key, _goto)
+                with ui.column().classes("w-full min-w-0 gap-0 console-wizard-page-content"):
+                    if found.get("help"):
+                        ui.label(str(found["help"])).classes("console-help px-3 mb-2")
+                    if summary:
+                        _summary(summary)
+                    held = _controls(list(found.get("fields") or []), walk.values,
+                                     client=client, errors=dict(found.get("errors") or {}))
+                    if found.get("acts"):
+                        _acts(list(found["acts"]), _act)
+                    _lines(list(found.get("notes") or []),
+                          t("console.ext_action.worth_knowing") if summary else "")
+                    if not found.get("ready", True):
+                        ui.label(str(found.get("reason") or "")).classes("console-help px-3")
+            with buttons:
+                if walk.history:
+                    frame.quiet(t("word.back"), _back, icon=verbs.BACK)
+                if summary:
+                    go = frame.answer(str(found.get("confirm") or label or t("word.run")),
+                                       _start, icon=verbs.RUN)
+                else:
+                    go = frame.answer(t("word.next"), _next, icon=verbs.NEXT)
+                if not found.get("ready", True):
+                    go.disable()
+            go.classes(_FORWARD)
+            _sync_step(current_key)
+            # held keeps insertion order, so its first entry is the step's first field.
+            first = next(iter(held.values()), None)
+            control = first[1] if first else None
+            if not opened:
+                opened = True
+                if control is not None:
+                    _focus_now(control)
+                # Bound once: a listener added on every redraw would pile up on the
+                # same page element, one more for every step visited.
+                ui.run_javascript(_enter_presses_forward(page.id))
+            elif fresh:
+                _focus_title(heading)
+            elif control is not None:
+                _focus_now(control)
+
+        @on_page
+        async def _next() -> None:
+            _sync(walk.values, held)
+            try:
+                found = await walk.next()
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(t("console.ext_action.could_not_go_on"), caption=why(exc),
+                          type="negative")
+                return
+            draw(found)
+
+        def _back() -> None:
+            _sync(walk.values, held)
+            draw(walk.back())
+
+        @on_page
+        async def _act(key: str) -> None:
+            _sync(walk.values, held)
+            try:
+                found = await walk.act(key)
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(t("console.ext_action.could_not_go_on"), caption=why(exc),
+                          type="negative")
+                return
+            draw(found)
+
+        @on_page
+        async def _goto(step_key: str) -> None:
+            _sync(walk.values, held)
+            try:
+                found = await walk.goto(step_key)
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(t("console.ext_action.could_not_go_on"), caption=why(exc),
+                          type="negative")
+                return
+            draw(found)
+
+        @on_page
+        async def _start() -> None:
+            _sync(walk.values, held)
+            try:
+                started = await walk.run()
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(t("said.could_not_start_it"), caption=why(exc), type="negative")
+                return
+            job_id = str(started.get("job_id") or "")
+            if job_id:
+                # No `close`: nothing here is a dialog to dismiss.
+                await _watch(calls.job, job_id, body=body, buttons=buttons, heading=heading,
+                            under=under, close=None)
+                return
+            if started.get("ok") is False:
+                ui.notify(str(started.get("reason") or t("console.ext_action.not_run")),
+                          type="negative")
+                return
+            _finished(body, buttons, None, started)
+
+        draw(walk.step)
 
 
 def _summary(rows: list[Sequence[Any]]) -> None:
@@ -506,8 +637,42 @@ def _lines(lines: list[Any], title: str) -> None:
         _line(*_worded(line))
 
 
-def _finished(body: Any, buttons: Any, dialog: Any, answer: dict) -> None:
-    """A flow that ran and is done, with whatever it wants to say about it."""
+async def _watch(poll: Callable[[str], Awaitable[dict]], job_id: str, *, body: Any,
+                 buttons: Any, heading: Any, under: str,
+                 close: Callable[[], Any] | None) -> None:
+    """Poll a run that answered with a `job_id` instead of finishing, then draw what
+    it came to. `close` is the dismiss button's own action; a page has nothing to
+    dismiss to and draws no button for it.
+    """
+    body.clear()
+    buttons.clear()
+    with body, ui.column().classes("w-full gap-1 px-3"):
+        bar = ui.linear_progress(value=0, show_value=False).classes("w-full")
+        said = ui.label(t("console.ext_action.working")).classes("console-help")
+    stop = None
+    if close is not None:
+        with buttons:
+            stop = frame.cancel(close, t("word.close"))
+            stop.disable()
+
+    while True:
+        job = await poll(job_id)
+        bar.value = int(job.get("pct") or 0) / 100
+        said.text = str(job.get("message") or t("console.ext_action.working"))
+        if str(job.get("state")) not in ("running", "queued"):
+            break
+        await run.io_bound(_wait)
+
+    if stop is not None:
+        stop.enable()
+    heading.text = t("console.ext_action.what_happened") if job.get("state") == "done" \
+        else t("console.ext_action.not_finish")
+    _report(body, job, under)
+
+
+def _finished(body: Any, buttons: Any, close: Callable[[], Any] | None, answer: dict) -> None:
+    """A flow that ran and is done, with whatever it wants to say about it. `close` is
+    the dismiss action, drawn only where there is one."""
     body.clear()
     buttons.clear()
     with body:
@@ -516,8 +681,9 @@ def _finished(body: Any, buttons: Any, dialog: Any, answer: dict) -> None:
         facts = [(one[0], one[1]) for one in (answer.get("summary") or [])]
         if facts:
             panel.facts(ui, facts)
-    with buttons:
-        frame.cancel(lambda: dialog.submit(True), t("word.close"))
+    if close is not None:
+        with buttons:
+            frame.cancel(close, t("word.close"))
 
 
 def _compare(rows: list[dict]) -> None:

@@ -1715,6 +1715,13 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    in `console-help` until they are reachable. */
 .console-wizard-step--here { color: var(--ink); font-weight: 600; }
 
+/* The page host's own frame, desktop only: the step list runs beside the step's
+   content rather than above it, so the same row that draws it in the dialog stacks
+   into a column here instead. */
+.console-wizard-page-steps { flex: 0 0 auto; min-width: 160px; }
+.console-wizard-page-steps .console-wizard-steps { flex-direction: column; }
+.console-wizard-page-content { flex: 1 1 auto; }
+
 /* A destructive action is still an action - it takes the same shape and says what it
    is with color on top, not instead. */
 .console-action.console-action--danger.q-btn { border-color: var(--danger-edge); }
