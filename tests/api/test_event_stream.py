@@ -287,7 +287,8 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(_shape(frame), {"state": roster.state()})
 
     async def test_a_game_ending_reaches_a_client_with_who_played(self) -> None:
-        """The Remote shows each player their result from this, so it has to cross."""
+        """The Remote shows each player their result from this, so it has to cross, and
+        whether the game is Private with it."""
         owner = {"id": "Own0000001", "name": "", "initials": "OWN", "owner": True,
                  "guest": False}
         entry = {"section": "HIGH SCORES", "rank": 1, "initials": "OWN", "score": 400}
@@ -296,10 +297,10 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         await self._hello(stream)
 
         events.emit(events.TABLE_LAUNCHED, game=game, ini_config="secret-ini-config",
-                    table_id="afm-1.2", up=[owner])
+                    table_id="afm-1.2", up=[owner], private=True)
         launched = await self._next(stream)
         events.emit(events.TABLE_PLAY_RECORDED, game=game, ini_config="secret-ini-config",
-                    table_id="afm-1.2", up=[owner], seconds=1800,
+                    table_id="afm-1.2", up=[owner], private=True, seconds=1800,
                     reading={"rom": "afm_113", "entries": [entry]},
                     new_entries=[{"player": owner, "entries": [entry]}],
                     added_later="not on the wire until it is chosen")
@@ -308,9 +309,9 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(_fields(recorded)["event"], events.TABLE_PLAY_RECORDED)
         reference = {"game": {"id": "", "name": "Attack from Mars"},
                      "table": {"id": "afm-1.2"}}
-        self.assertEqual(_shape(launched), reference | {"up": [owner]})
+        self.assertEqual(_shape(launched), reference | {"up": [owner], "private": True})
         self.assertEqual(_shape(recorded), reference | {
-            "up": [owner], "seconds": 1800,
+            "up": [owner], "private": True, "seconds": 1800,
             "reading": {"rom": "afm_113", "entries": [entry]},
             "new_entries": [{"player": owner, "entries": [entry]}]})
         self.assertNotIn("secret-ini-config", recorded)

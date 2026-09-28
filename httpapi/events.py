@@ -83,10 +83,12 @@ def _table_event(game: Any = None, table_id: str | None = None, **payload: Any) 
 
 
 def _session_event(game: Any = None, table_id: str | None = None, **payload: Any) -> dict:
-    """A table event, and who played it: `up` from the launch on, and at the end the
-    seconds, the high score table as read and each player's new entries."""
+    """A table event, and who played it: `up` and whether the game is Private from the
+    launch on, and at the end the seconds, the high score table as read and each player's
+    new entries."""
     return _table_event(game, table_id, **payload) | {
-        name: payload[name] for name in ("up", "seconds", "reading", "new_entries")
+        name: payload[name]
+        for name in ("up", "private", "seconds", "reading", "new_entries")
         if name in payload}
 
 

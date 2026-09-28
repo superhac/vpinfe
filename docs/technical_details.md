@@ -442,6 +442,8 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
     state when you quit. Enabling this deletes the NVRAM file on close. Default is false.
   - alt_launcher: Optional executable path override for this game alone. If set, it is used
     instead of `vpinfe.ini` `Settings.vpxbinpath`.
+  - private: (true/false) Never sent to VPinPlay or any other community service, whoever
+    plays the game. Absent is false.
   - run_time_seconds: total play time. This is the counter that accumulates; `User.RunTime`
     is it rounded down to whole minutes. Written on the first play after upgrading, seeded
     from whatever `User.RunTime` already held.

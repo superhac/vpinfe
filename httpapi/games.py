@@ -544,6 +544,13 @@ def put_game_favorite(game_id: str, payload: models.FavoriteRequest) -> models.F
         game_ops.set_favorite(game_id, payload.favorite))
 
 
+@router.put("/{game_id}/private", summary="Mark a game Private",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_game_private(game_id: str, payload: models.PrivateRequest) -> models.Private:
+    """Private: never sent to a community service, whoever plays it."""
+    return models.Private.model_validate(game_ops.set_private(game_id, payload.private))
+
+
 def _sent(payload: models.OverridesPatch) -> dict:
     """Only the fields the client actually sent. `None` is "leave alone"; `""` and
     `false` are real values that clear an override."""

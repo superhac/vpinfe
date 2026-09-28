@@ -515,8 +515,14 @@ along for core's own subscribers and are not part of this contract.
 
 | event | carries |
 |---|---|
-| `table.launched` | `game_id`, `table_id`, `source`, and `up`: who the game counts for, taken once as it starts, each `{id, name, initials, owner, guest}` |
-| `table.play_recorded` | the same, once the game has ended and its play is written, and `seconds` played; `reading`, the machine's high score table as read after the game, or None; `new_entries`, `[{player, entries}]` for each player with an entry new this game |
+| `table.launched` | `game_id`, `table_id`, `source`; `up`, who the game counts for, taken once as it starts, each `{id, name, initials, owner, guest}`; and `private`, whether the game is Private |
+| `table.play_recorded` | the same, once the game has ended and its play is written, with `private` read again then; `seconds` played; `reading`, the machine's high score table as read after the game, or None; `new_entries`, `[{player, entries}]` for each player with an entry new this game |
+
+**A Private game's data is never sent anywhere.** Not its plays, its time, its scores or
+its rating, and not the fact that the library holds it - to no service, for no player,
+whoever was up and whatever their Share says. A game is Private when somebody marks it so;
+the events carry `private`, and a game's rows from `ctx.games` carry it too, for anything
+an extension sends outside a session. An extension reads the flag and cannot set it.
 
 A table's events - `table.launching`, `table.launched`, `table.exited` and
 `table.play_recorded` - carry `source`, who started it: `frontend`, `remote`, `api`, or
@@ -526,6 +532,8 @@ extension counting plays counts on that event or leaves out a `capture` launch.
 
 ```python
 def on_played(**payload):
+    if payload["private"]:
+        return
     for credited in payload["new_entries"]:
         post_score(credited["player"]["id"], credited["entries"])
 

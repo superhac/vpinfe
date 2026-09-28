@@ -24,6 +24,7 @@ from common.games import (
 from common.games.game_metadata import (
     GUIDES_FIELD,
     adopt_vps_details,
+    game_private,
     guide_address,
     guides_on_wire,
     is_catalog_guide,
@@ -33,6 +34,7 @@ from common.games.game_metadata import (
     set_asset_source,
     set_game_favorite,
     set_game_play_record,
+    set_game_private,
     set_game_rating,
     set_game_tags,
     vps_details_differ,
@@ -184,6 +186,26 @@ def set_favorite(game_id: str, favorite: bool) -> dict:
     stored = set_game_favorite(game, favorite)
     reread_game(game)
     return {"favorite": stored}
+
+
+def set_private(game_id: str, private: bool) -> dict:
+    """Set `vpinfe.private` on a game."""
+    game = game_lens.game_or_refuse(game_id)
+    stored = set_game_private(game, private)
+    reread_game(game)
+    return {"private": stored}
+
+
+def set_private_many(game_ids: Iterable[str], private: bool) -> dict:
+    """Set `vpinfe.private` on every game named. An id the library does not hold refuses
+    the lot before anything is written."""
+    games = [game_lens.game_or_refuse(one) for one in dict.fromkeys(game_ids)]
+    wanted = bool(private)
+    changed = [game for game in games if game_private(load_game_meta(game)) != wanted]
+    for game in changed:
+        set_game_private(game, wanted)
+        reread_game(game)
+    return {"private": wanted, "games": len(games), "changed": len(changed)}
 
 
 def set_play_record(game_id: str, play_count: int | None = None,

@@ -13,7 +13,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Response
 
 from common import jobs as job_registry
-from common.games import collection_ops, game_service, library_ops, media_fill, owned
+from common.games import (
+    collection_ops,
+    game_ops,
+    game_service,
+    library_ops,
+    media_fill,
+    owned,
+)
 
 from . import jobs as jobs_api
 from . import models, scopes
@@ -113,6 +120,15 @@ def auto_match(payload: models.AutoMatchRequest) -> models.AutoMatchResult:
     """Done when it answers: it reads the catalog on disk, never the network. A match a
     person made, or a no-match they declared, is left as it is."""
     return models.AutoMatchResult(**library_ops.auto_match(payload.game_ids))
+
+
+@router.put("/private", summary="Mark a selection of games Private, or not",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_private(payload: models.PrivateSelection) -> models.PrivateSweep:
+    """`PUT /games/{id}/private` for each game named. An id the library does not hold is
+    a 404, and nothing is written."""
+    return models.PrivateSweep.model_validate(
+        game_ops.set_private_many(payload.game_ids, payload.private))
 
 
 @router.post("/media/missing", summary="What getting missing art would fetch",

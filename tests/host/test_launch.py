@@ -589,12 +589,73 @@ class SessionTests(LaunchTests):
         plain = {key: value for key, value in recorded.items()
                  if key not in ("game", "ini_config")}
         self.assertEqual(sorted(plain),
-                         ["game_id", "new_entries", "reading", "seconds", "source",
-                          "table_id", "up"])
+                         ["game_id", "new_entries", "private", "reading", "seconds",
+                          "source", "table_id", "up"])
         self.assertEqual(json.loads(json.dumps(plain)), plain)
         self.assertEqual((plain["table_id"], plain["game_id"]), ("t1", "g1"))
         self.assertIsInstance(plain["seconds"], int)
         self.assertEqual(plain["new_entries"][0]["player"]["initials"], "OWN")
+        self.assertIs(launched["private"], False)
+        self.assertIs(plain["private"], False)
+
+
+class PrivateTests(LaunchTests):
+    """Whether the game played is Private, which a community extension reads before it
+    sends anything."""
+
+    def _heard(self, game, **run) -> dict[str, dict]:
+        heard: dict[str, dict] = {}
+        for name in (events.TABLE_LAUNCHED, events.TABLE_PLAY_RECORDED):
+            events.subscribe(name, lambda _n=name, **payload: heard.setdefault(_n, payload))
+        self._run(game=game, popen=lambda cmd, **k: _FakePopen(["Startup done\n"]), **run)
+        return heard
+
+    def _on_disk(self, private: bool):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        game = _game()
+        game.full_path_game = folder.name
+        game.meta_config = {"vpinfe": {"game_id": "g1", "private": False}}
+        info = pathlib.Path(folder.name) / f"{game.game_dir_name}.info"
+        info.write_text(json.dumps({"vpinfe": {"schema": 2, "game_id": "g1",
+                                                "private": private}}), encoding="utf-8")
+        return game, info
+
+    def test_both_events_say_a_private_game_is_private(self) -> None:
+        game = _game()
+        game.meta_config = {"vpinfe": {"game_id": "g1", "private": True}}
+
+        heard = self._heard(game)
+
+        self.assertIs(heard[events.TABLE_LAUNCHED]["private"], True)
+        self.assertIs(heard[events.TABLE_PLAY_RECORDED]["private"], True)
+
+    def test_the_file_answers_over_the_record_held_since_the_launch(self) -> None:
+        game, _info = self._on_disk(private=True)
+
+        heard = self._heard(game)
+
+        self.assertIs(heard[events.TABLE_LAUNCHED]["private"], True)
+        self.assertIs(heard[events.TABLE_PLAY_RECORDED]["private"], True)
+
+    def test_a_game_marked_private_during_play_is_private_when_it_ends(self) -> None:
+        game, info = self._on_disk(private=False)
+        events.subscribe(events.TABLE_LAUNCHED, lambda **_: info.write_text(json.dumps(
+            {"vpinfe": {"schema": 2, "game_id": "g1", "private": True}}), encoding="utf-8"))
+
+        heard = self._heard(game)
+
+        self.assertIs(heard[events.TABLE_LAUNCHED]["private"], False)
+        self.assertIs(heard[events.TABLE_PLAY_RECORDED]["private"], True)
+
+    def test_a_file_that_cannot_be_read_leaves_the_record_held_to_answer(self) -> None:
+        game, info = self._on_disk(private=False)
+        game.meta_config["vpinfe"]["private"] = True
+        info.write_text("{ not json", encoding="utf-8")
+
+        heard = self._heard(game)
+
+        self.assertIs(heard[events.TABLE_PLAY_RECORDED]["private"], True)
 
 
 class RefusalTests(LaunchTests):

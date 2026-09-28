@@ -70,6 +70,8 @@ WRITES: dict[str, Callable[..., Any]] = {
     "rate_table": table_ops.set_rating,
     "set_tags": game_ops.set_tags,
     "set_favorite": game_ops.set_favorite,
+    # Never `set_private`: an extension turning it off would send a game's data without
+    # the person, as setting Share would.
     "set_default_table": table_ops.set_default,
     "set_play_record": game_ops.set_play_record,
     "reset_play_record": game_ops.reset_play_record,

@@ -955,6 +955,8 @@ class GameResource(ApiModel):
     table_count: int = 0
     # Its tables are hidden and none is left to offer, so no frontend lists it.
     hidden: bool = False
+    # Never sent to a community service, whoever plays it.
+    private: bool = False
     rating: int
     collections: list[str]
     # The folder on disk. Reported because it is the one thing a user can act on
@@ -2624,6 +2626,27 @@ class Tags(ApiModel):
 
 class Favorite(ApiModel):
     favorite: bool
+
+
+class PrivateRequest(ApiModel):
+    private: bool
+
+
+class Private(ApiModel):
+    private: bool
+
+
+class PrivateSelection(ApiModel):
+    game_ids: list[str]
+    private: bool
+
+
+class PrivateSweep(ApiModel):
+    """`games` counts the games named, and `changed` those that were not already so."""
+
+    private: bool
+    games: int = 0
+    changed: int = 0
 
 
 class LaunchRequest(ApiModel):

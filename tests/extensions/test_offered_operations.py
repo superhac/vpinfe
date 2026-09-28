@@ -50,6 +50,13 @@ class OfferedTests(unittest.TestCase):
             anyone.delete_the_whole_library("please")
         self.assertIn("list_games", str(caught.exception))
 
+    def test_no_extension_can_mark_a_game_private_or_not(self) -> None:
+        """Turning Private off would send a game's data without the person saying so."""
+        writer = ExtensionGames("writer", ("games:read", "games:write"), None)
+
+        self.assertFalse([name for name in offered() if "private" in name])
+        self.assertIn("set_favorite", writer.reaches())
+
     def test_launching_is_not_granted_by_being_allowed_to_write(self) -> None:
         """It takes over the cabinet rather than editing a record, and the scope
         vocabulary said so before extensions existed. An extension that starts a game

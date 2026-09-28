@@ -40,6 +40,8 @@ from common.games import (
     tables,
 )
 from common.games.game import Game
+from common.games.game_metadata import game_private, load_game_meta
+from common.games.info_file import InvalidMetaConfigError
 from common.games.tables import (
     entry_for_filename,
     table_entries,
@@ -237,6 +239,15 @@ def _capture_folder() -> Path:
     return CAPTURE_LAUNCH_DIR
 
 
+def _is_private(game: Game) -> bool:
+    """Off the file, not `game.meta_config`: that record can predate a Private switch
+    thrown during the game."""
+    try:
+        return game_private(load_game_meta(game))
+    except (OSError, InvalidMetaConfigError):
+        return game_private(getattr(game, "meta_config", {}))
+
+
 def _counts_in_the_library(up: list[players.Player]) -> bool:
     return not up or any(player.owner for player in up)
 
@@ -422,7 +433,8 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
                 before, _ = game_play_service.parse_score_from_nvram(game, rom, initials="")
             launched = {"game": game, "ini_config": ini_config, "table_id": table_id,
                         "game_id": game_identity.game_id(game), "source": source,
-                        "up": [player.as_payload() for player in up]}
+                        "up": [player.as_payload() for player in up],
+                        "private": _is_private(game)}
             logger.info("Launching: %s", cmd)
             process = popen(
                 cmd,
@@ -477,7 +489,7 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
                                 tables.entry_native_key(entry), rom, up, before)
         events.emit(events.TABLE_PLAY_RECORDED, game=game, ini_config=ini_config,
                     table_id=table_id, game_id=game_identity.game_id(game),
-                    source=source, **recorded)
+                    source=source, private=_is_private(game), **recorded)
     game_play_service.delete_nvram_if_configured(game, entry)
 
 

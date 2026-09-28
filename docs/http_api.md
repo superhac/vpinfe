@@ -90,6 +90,7 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/library/info/upgrade` | Bring every `.info` onto the current schema. Returns `202` and a job |
 | POST | `/api/v1/library/info/restore` | Put back the copy each `.info` was saved as before it was brought forward. Returns `202` and a job |
 | POST | `/api/v1/library/auto_match` | Match `{"game_ids": [...]}` again from their folder names, off the catalog on disk. A match a person made or cleared stays. Answers `games`, `changed`, `unmatched` and `yours`; `409` while a scan runs |
+| PUT | `/api/v1/library/private` | Mark a selection Private, or not, `{"game_ids": [...], "private": bool}`. Answers `games`, how many were named, and `changed`, how many were not already so. An id the library does not hold is a `404`, and nothing is written |
 | POST | `/api/v1/library/media/missing` | What getting missing art for `{"game_ids": [...]}` would fetch, fetching nothing; leaving `game_ids` out asks about the whole library. Per kind the library keeps and an enabled source publishes: `missing` games with no file for it, and `available` those of them a source has one for. `unmatched` counts the games with no VPS match. `sources` names the enabled sources, and `unreachable` those of them that could not be reached, which count nothing available |
 | POST | `/api/v1/library/media/fill` | Get missing art. Returns `202` and a job. `{"game_ids": [...], "kinds": [...]}`, either left out meaning all of them, or `{"slots": [{"game_id", "kind"}]}` for exact slots. Fills gaps only, never replaces a file, and never fetches a kind the library does not keep. The job's result counts `games`, `filled`, `unmatched` and `failed`; `409` while another fill or the downloaded-art update runs |
 | GET | `/api/v1/library/patches` | Which script fixes are published for this library's tables. Changes nothing |
@@ -113,7 +114,7 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/actions` | Do one. `{"scope","action","reason"}`. One that takes this process or this device down answers before it goes, so `performed` means the work was handed over |
 | GET | `/api/v1/logs` | Recent records from this install's own log, oldest last (`limit`, `level`, `contains`). A record carries its continuation lines, so a traceback arrives whole |
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library game count. The reference for logo packs and alias maps |
-| GET | `/api/v1/games` | List games (`q`, `limit`, `offset`). `hidden` is true on a game whose tables are hidden with none left to offer, which no frontend lists |
+| GET | `/api/v1/games` | List games (`q`, `limit`, `offset`). `hidden` is true on a game whose tables are hidden with none left to offer, which no frontend lists. `private` is true on a game marked Private |
 | POST | `/api/v1/games` | Create one. A folder with a record in it, in the location new games go to; `location` overrides that for this one. The only way to bring an entry into being without a file arriving |
 | POST | `/api/v1/games/{id}/tables/import` | Copy a game file on this device into the game. A copy, not a move, and refused unless the file is under a browsable root |
 | POST | `/api/v1/games/{id}/tables` | Add a table the game holds with no file, `{"app", "key"}` - a ROM, a Pinball FX table, anything its program finds by name - or with `{"path"}`, a file the game points at without holding. `201` |
@@ -165,6 +166,7 @@ the documented entry point is a plain 200. Both spellings work.
 | PUT | `/api/v1/games/{id}/rating` | Rate a game, `{"rating": 0-5}`. `0` is unrated |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/rating` | Rate one table, same body. Refines the game's rather than replacing it; returns the table |
 | PUT | `/api/v1/games/{id}/favorite` | Mark a game a favorite, or not, `{"favorite": bool}` |
+| PUT | `/api/v1/games/{id}/private` | Mark a game Private, or not, `{"private": bool}`. A Private game is never sent to a community service, whoever plays it - see `docs/extensions.md` |
 | PUT | `/api/v1/games/{id}/tags` | The game's tags, the whole set |
 | PUT | `/api/v1/games/{id}/play_record` | Set a game's play counters, for a library that arrives already played. `play_count`, `play_time_seconds` and `last_played`; one left out is left alone |
 | DELETE | `/api/v1/games/{id}/play_record` | Reset them |
@@ -878,8 +880,8 @@ What's on it, each alongside the `install_id` described below:
 | Event | Payload |
 |-------|---------|
 | `table.launching` / `table.exited` | `{"game": {"id", "name", "links"}, "table": {"id"}, "source"}` — which game, which of its tables launched, and who started it, as `play.state_changed` says. `table` is null when the launch didn't come from the wheel, and the whole payload is `{"game": null}` when there is no game at all |
-| `table.launched` | The same, and `up`: who the game counts for, taken as it starts, each `{"id", "name", "initials", "owner", "guest"}`. Empty for a recording, which counts for nobody |
-| `table.play_recorded` | The same as `table.launched`, once the game has ended and its play is written, and `seconds` played; `reading`, the machine's high score table as read after the game, or null; `new_entries`, `[{"player", "entries"}]` for each player with an entry new this game - see [Players](#players) |
+| `table.launched` | The same, and `up`: who the game counts for, taken as it starts, each `{"id", "name", "initials", "owner", "guest"}`. Empty for a recording, which counts for nobody. `private`: whether the game is Private |
+| `table.play_recorded` | The same as `table.launched`, once the game has ended and its play is written, with `private` read again then, and `seconds` played; `reading`, the machine's high score table as read after the game, or null; `new_entries`, `[{"player", "entries"}]` for each player with an entry new this game - see [Players](#players) |
 | `game.selected` | `{"game": {"id", "name", "links"}, "table": null}` — the wheel stops on a game, so there is no table to name |
 | `game.changed` | `{"game": {"id", "name", "links"}}` — a game's metadata was rewritten, so anything holding it is stale |
 | `collections.changed` | `{}` — the collections were edited, or a read of a Community list moved a ranked order; re-read them |

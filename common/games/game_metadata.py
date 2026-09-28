@@ -30,6 +30,7 @@ from common.games.tables import (
     table_entries,
 )
 from common.i18n import t
+from common.values import is_truthy
 
 # Re-exported so the theme payload and the Manager UI agree with storage. Sourced
 # from the tables module rather than restated, since a second list drifts silently -
@@ -439,6 +440,25 @@ def set_game_favorite(game: Game, favorite: Any) -> bool:
     stored = bool(favorite)
     config = load_game_meta(game)
     get_or_create_user_meta(config)["Favorite"] = stored
+    persist_game_meta(game, config)
+    game.meta_config = config
+    return stored
+
+
+PRIVATE_KEY = "private"
+
+
+def game_private(meta: Any) -> bool:
+    """Whether the game is Private: never sent to a community service, whoever plays it."""
+    return is_truthy(vpinfe_section(meta).get(PRIVATE_KEY))
+
+
+def set_game_private(game: Game, private: Any) -> bool:
+    """Write `vpinfe.private`, returning what was stored. Re-read from disk first, for the
+    reason `set_game_rating` gives."""
+    stored = bool(private)
+    config = load_game_meta(game)
+    get_or_create_vpinfe_meta(config)[PRIVATE_KEY] = stored
     persist_game_meta(game, config)
     game.meta_config = config
     return stored
