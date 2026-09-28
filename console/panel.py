@@ -202,9 +202,14 @@ def _rail_row(key: str, label: str, open_now: bool,
 
 
 def switch(value: bool | None, on_change: Callable[[Any], Any], *,
-           disabled: bool = False, hint: str = "") -> Callable[[], None]:
+           disabled: bool = False, hint: str = "",
+           on_control: Callable[[Any], Any] | None = None) -> Callable[[], None]:
     """Every binary value the user can set, drawn the same way. None draws it neither
-    on nor off, and a click from there turns it on."""
+    on nor off, and a click from there turns it on.
+
+    `on_control` is handed the control once it exists, for a caller that needs it back -
+    the wizard's own first-field focus and per-field refusals among them.
+    """
     def draw() -> None:
         # Green, the same token a present chip takes: on means the same thing whether
         # the panel found it or the user set it, and the shape already says which.
@@ -214,6 +219,8 @@ def switch(value: bool | None, on_change: Callable[[Any], Any], *,
             control.disable()
         if hint:
             control.tooltip(hint)
+        if on_control is not None:
+            on_control(control)
 
     return draw
 
@@ -242,7 +249,8 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
           placeholder: str = "", disabled: bool = False,
           status: Callable[[Any], Any] | None = None,
           refuses: bool = False, left_empty: str = "",
-          browse: Callable[[str], Any] | None = None) -> Callable[[], None]:
+          browse: Callable[[str], Any] | None = None,
+          on_control: Callable[[Any], Any] | None = None) -> Callable[[], None]:
     """Free text the user can set.
 
     Written when you leave it or when you press Enter, and `debounce=0` is what makes
@@ -266,6 +274,9 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
     `browse` draws beside `status` in the same slot. It takes the field's current value
     and answers the path chosen, or nothing where browsing was cancelled; a path it
     answers goes through `leave` exactly as typing and leaving does.
+
+    `on_control` is handed the control once it exists, for a caller that needs it back -
+    the wizard's own first-field focus and per-field refusals among them.
     """
     held = {"was": value or ""}
 
@@ -324,6 +335,8 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
                                 .tooltip(t("console.folder_picker.browse"))
             if disabled:
                 control.disable()
+            if on_control is not None:
+                on_control(control)
 
     return draw
 
@@ -729,13 +742,17 @@ def path_field(placeholder: str = "", *, wants: str, value: str = "",
 def select(options: Any, value: str, on_change: Callable[[Any], Any], *,
            disabled: bool = False,
            describes: dict[str, str] | None = None,
-           status: Callable[[Any], Any] | None = None) -> Callable[[], None]:
+           status: Callable[[Any], Any] | None = None,
+           on_control: Callable[[Any], Any] | None = None) -> Callable[[], None]:
     """A list to pick from, where the reader already knows what the names mean, or
     `describes` says, by label, on each option.
 
     Where the label of each option is itself the thing being decided, the set goes on
     screen whole as radios instead - a closed control makes the reader open it to
     compare.
+
+    `on_control` is handed the control once it exists, for a caller that needs it back -
+    the wizard's own first-field focus and per-field refusals among them.
     """
     def draw() -> None:
         with ui.element("div").classes("console-fact-edit"):
@@ -750,18 +767,24 @@ def select(options: Any, value: str, on_change: Callable[[Any], Any], *,
                     status(control)
             if disabled:
                 control.disable()
+            if on_control is not None:
+                on_control(control)
 
     return draw
 
 
 def multi_select(options: Any, value: Sequence[str], on_change: Callable[[Any], Any], *,
-                 disabled: bool = False) -> Callable[[], None]:
+                 disabled: bool = False,
+                 on_control: Callable[[Any], Any] | None = None) -> Callable[[], None]:
     """Several from a list, where the row is a choice rather than a fact.
 
     Closed rather than a column of checkboxes: the set here is as long as whatever it is
     over - the systems in somebody's old library - and a control that grows down the
     dialog would push what it is for off the screen. Everything selected shows, so what
     is chosen is still readable without opening it.
+
+    `on_control` is handed the control once it exists, for a caller that needs it back -
+    the wizard's own first-field focus and per-field refusals among them.
     """
     def draw() -> None:
         with ui.element("div").classes("console-fact-edit"):
@@ -771,6 +794,8 @@ def multi_select(options: Any, value: Sequence[str], on_change: Callable[[Any], 
                 .classes("console-edit-field console-edit-select")
             if disabled:
                 control.disable()
+            if on_control is not None:
+                on_control(control)
 
     return draw
 

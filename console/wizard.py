@@ -20,11 +20,26 @@ from common.failures import why
 from common.i18n import literal_or, t
 from console import dialog as frame
 from console import panel, verbs
+from console.api import ApiClient
 from console.on_page import on_page
 
 # How often to ask a running job how it is doing. A job here is minutes of copying, so a
 # tighter loop would be a question asked hundreds of times for the same answer.
 POLL_SECONDS = 1.0
+
+# What a field's `type` draws, in the Console's own grammar. Checked against the field
+# table an extension author reads (docs/extensions.md) - the two must agree.
+FIELD_TYPES = {
+    "string": "panel.field",
+    "path": "panel.path_field",
+    "select": "panel.select",
+    "multi": "panel.multi_select",
+    "switch": "panel.switch",
+}
+
+# The forward-verb button's own marker, so a keypress can find whichever step's button is
+# current without rebinding a listener every time the step redraws.
+_FORWARD = "console-wizard-forward"
 
 
 @dataclass
@@ -70,8 +85,15 @@ class Walk:
         return await self.calls.run(self.values)
 
 
-def _controls(fields: list[dict], values: dict[str, Any]) -> None:
-    """Draw what the task asked for, in the Console's own grammar."""
+def _controls(fields: list[dict], values: dict[str, Any], *,
+             client: ApiClient, errors: dict[str, Any]) -> dict[str, tuple[str, Any]]:
+    """Draw what the task asked for, in the Console's own grammar.
+
+    Returns each field's own kind and control, keyed by its key - what the dialog host
+    reads back before Next, Back or Run (a path field only pushes what it holds on its
+    own check, and Next can come sooner than that), and where it sends focus and a
+    refusal from `errors`.
+    """
     # Each control writes its own key, so the key is bound by a call rather than
     # captured off the loop variable.
     def changed(key: str, cast: Callable[[Any], Any]) -> Callable[[Any], None]:
@@ -84,6 +106,17 @@ def _controls(fields: list[dict], values: dict[str, Any]) -> None:
             values[key] = text
         return write
 
+    def refused(control: Any, key: str) -> None:
+        said = errors.get(key)
+        if not said:
+            return
+        text, detail = _worded(said)
+        control.props["error"] = True
+        control.props["error-message"] = text
+        if detail:
+            control.tooltip(detail)
+
+    held: dict[str, tuple[str, Any]] = {}
     entries: list[tuple[Any, Any]] = []
     for field in fields:
         key = str(field.get("key") or "")
@@ -94,23 +127,90 @@ def _controls(fields: list[dict], values: dict[str, Any]) -> None:
         label = str(field.get("label") or key)
         if kind == "multi":
             choices = {str(one[0]): str(one[1]) for one in field.get("choices") or []}
+
+            def caught(control: Any, key: str = key) -> None:
+                held[key] = ("multi", control)
+                refused(control, key)
+
             entries.append((label, panel.multi_select(
                 choices, list(values.get(key) or []),
-                changed(key, lambda value: list(value or [])))))
+                changed(key, lambda value: list(value or [])), on_control=caught)))
         elif kind == "select":
             choices = {str(one[0]): str(one[1]) for one in field.get("choices") or []}
+
+            def caught(control: Any, key: str = key) -> None:
+                held[key] = ("select", control)
+                refused(control, key)
+
             entries.append((label, panel.select(
                 choices, str(values.get(key) or ""),
-                changed(key, lambda value: str(value or "")))))
+                changed(key, lambda value: str(value or "")), on_control=caught)))
         elif kind == "switch":
+            def caught(control: Any, key: str = key) -> None:
+                held[key] = ("switch", control)
+                refused(control, key)
+
             entries.append((label, panel.switch(
-                bool(values.get(key)), changed(key, bool))))
+                bool(values.get(key)), changed(key, bool), on_control=caught)))
+        elif kind == "path":
+            def draw_path(field: dict = field, key: str = key) -> None:
+                def synced(_state: str, said: str) -> str:
+                    # The 0.3s check is a poll, not a push on every keystroke; Next
+                    # reads the control directly instead of waiting on it.
+                    values[key] = said
+                    return ""
+
+                control = panel.path_field(
+                    str(field.get("placeholder") or ""),
+                    wants=str(field.get("wants") or "dir"),
+                    value=str(values.get(key) or ""), width="w-full",
+                    on_checked=synced, browse=client.folders)
+                held[key] = ("path", control)
+                refused(control, key)
+
+            entries.append((label, draw_path))
         else:
+            def caught(control: Any, key: str = key) -> None:
+                held[key] = ("string", control)
+                refused(control, key)
+
             entries.append((label, panel.field(
-                str(values.get(key) or ""), typed(key))))
+                str(values.get(key) or ""), typed(key), on_control=caught)))
         if field.get("help"):
             entries.append((panel.ASIDE, _aside(str(field["help"]))))
     panel.facts(ui, entries)
+    return held
+
+
+def _sync(values: dict[str, Any], held: dict[str, tuple[str, Any]]) -> None:
+    """What is on screen now, back into the walk's values."""
+    for key, (kind, control) in held.items():
+        if kind == "multi":
+            values[key] = list(control.value or [])
+        elif kind == "switch":
+            values[key] = bool(control.value)
+        else:
+            values[key] = str(control.value or "")
+
+
+def _focus_now(control: Any) -> None:
+    """A later step's own first field - the dialog's `show` already ran once, for the
+    first step, so `frame.focus`'s own binding never fires again. Steps down to a nested
+    `input`/`textarea` the same way `frame.focus` does.
+    """
+    ui.run_javascript(f"""
+        (() => {{
+          let tries = 0;
+          const go = () => {{
+            const field = document.getElementById('c{control.id}');
+            if (!field) {{ if (++tries < 40) setTimeout(go, 25); return; }}
+            const target = field.matches('input,textarea') ? field
+              : (field.querySelector('input,textarea') || field);
+            target.focus();
+          }};
+          go();
+        }})()
+    """)
 
 
 def _aside(text: str) -> Any:
@@ -134,6 +234,9 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
     a run's report belongs in the flow's own catalog.
     """
     walk = Walk(calls, await calls.first())
+    client = ApiClient()
+    held: dict[str, tuple[str, Any]] = {}
+    opened = False
 
     with frame.opened("", wide=True, persistent=True,
                       classes="console-import-card") as dialog:
@@ -142,6 +245,7 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
         buttons = frame.footer()
 
         def draw(found: dict) -> None:
+            nonlocal held, opened
             heading.text = str(found.get("title") or label)
             body.clear()
             buttons.clear()
@@ -151,7 +255,8 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
                     ui.label(str(found["help"])).classes("console-help px-3 mb-2")
                 if summary:
                     _summary(summary)
-                _controls(list(found.get("fields") or []), walk.values)
+                held = _controls(list(found.get("fields") or []), walk.values,
+                                 client=client, errors=dict(found.get("errors") or {}))
                 _lines(list(found.get("notes") or []),
                        t("console.ext_action.worth_knowing") if summary else "")
                 if summary and not found.get("ready"):
@@ -167,10 +272,36 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
                     if not found.get("ready"):
                         go.disable()
                 else:
-                    frame.answer(t("word.next"), _next, icon=verbs.NEXT)
+                    go = frame.answer(t("word.next"), _next, icon=verbs.NEXT)
+            go.classes(_FORWARD)
+            # held keeps insertion order, so its first entry is the step's first field.
+            first = next(iter(held.values()), None)
+            control = first[1] if first else None
+            if not opened:
+                opened = True
+                if control is not None:
+                    frame.focus(dialog, control)
+                # Bound once: a listener added on every redraw would pile up on the
+                # same persistent dialog element, one more for every step visited.
+                dialog.on("show", lambda: ui.run_javascript(f"""
+                    (() => {{
+                      const root = document.getElementById('c{dialog.id}');
+                      if (!root) return;
+                      root.addEventListener('keyup', (event) => {{
+                        if (event.key !== 'Enter' || event.target.tagName === 'TEXTAREA') {{
+                          return;
+                        }}
+                        const btn = root.querySelector('.{_FORWARD}');
+                        if (btn && !btn.disabled) btn.click();
+                      }});
+                    }})()
+                """))
+            elif control is not None:
+                _focus_now(control)
 
         @on_page
         async def _next() -> None:
+            _sync(walk.values, held)
             try:
                 found = await walk.next()
             except Exception as exc:  # noqa: BLE001
@@ -180,10 +311,12 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
             draw(found)
 
         def _back() -> None:
+            _sync(walk.values, held)
             draw(walk.back())
 
         @on_page
         async def _start() -> None:
+            _sync(walk.values, held)
             try:
                 started = await walk.run()
             except Exception as exc:  # noqa: BLE001

@@ -93,10 +93,16 @@ def answer(label: str, on_click: Callable[[], Any], *, icon: str,
 def focus(box: ui.dialog, control: Any, *, select: bool = False) -> None:
     """The caret in `control` once the dialog is up, or with `select` its text selected
     so typing replaces it. Quasar's autofocus does not land in a dialog, and anything
-    earlier than `show` is overridden by its own focus."""
-    then = ";requestAnimationFrame(() => field.select())" if select else ""
+    earlier than `show` is overridden by its own focus.
+
+    Steps down to the first `input` or `textarea` inside `control`, or focuses `control`
+    itself where there is none.
+    """
+    then = ";requestAnimationFrame(() => target.select())" if select else ""
     box.on("show", lambda: ui.run_javascript(
-        f"(field => {{field.focus(){then}}})(document.getElementById('c{control.id}'))"))
+        "((field) => { const target = field.matches('input,textarea') ? field"
+        f" : (field.querySelector('input,textarea') || field); target.focus(){then}; }})"
+        f"(document.getElementById('c{control.id}'))"))
 
 
 def enter_presses(button: ui.button) -> None:

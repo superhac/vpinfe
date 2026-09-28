@@ -349,7 +349,7 @@ Two calls on the extension's own router, under `base`:
 | call | answers |
 |---|---|
 | `GET {base}` | `title`, `help`, `fields`, `confirm` — what to ask, if anything |
-| `POST {base}/check` | `ready`, `summary`, `notes`, more `fields`, `confirm` — what would happen |
+| `POST {base}/check` | `ready`, `summary`, `notes`, `errors`, more `fields`, `confirm` — what would happen |
 | `POST {base}/run` | `{"job_id": …}`, or the outcome directly |
 
 **How many steps an action has is read off what it answers, never declared.** No `fields`
@@ -361,9 +361,16 @@ A run returns a `job_id` where the work is slow — core watches it on `/api/v1/
 the outcome where it is not, with an optional `message` and `summary`. An action that is
 one call and a sentence should not have to wear a progress bar.
 
-`fields` are `{key, type, label, value, help}`, where type is `path`, `string` or `multi`
-(with `choices`). Both `check` and `run` receive `{"values": {…}}`. The words in these
-answers are the extension's to look up, with `ctx.t`.
+`fields` are `{key, type, label, value, help}`. Both `check` and `run` receive
+`{"values": {…}}`. The words in these answers are the extension's to look up, with `ctx.t`.
+
+| type | asks for |
+|---|---|
+| `string` | a line of text |
+| `path` | a file or folder on the machine core runs on, with `wants`: `dir`, `file` or `exe` |
+| `select` | one of `choices` |
+| `multi` | several of `choices` |
+| `switch` | on or off |
 
 `confirm` is the verb at the point of no return, and it is the action's own: a generic
 "Confirm" makes every action look like every other one. `notes` travel with the summary,
@@ -377,6 +384,9 @@ failures:
 ```json
 {"text": "Settings.xml could not be read", "detail": "Nothing is at /pbx/Config/Settings.xml"}
 ```
+
+`errors` refuses one field by name instead: `{field_key: …}`, drawn under that field rather
+than under the whole step. Each value takes the same two forms a note does.
 
 A job's `result` may list `rows`, and every row with an `error` is shown under what did not
 come across, by its `name`. That `error` takes the same two forms.

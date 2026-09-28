@@ -164,7 +164,7 @@ class CheckTests(WizardCase):
         found = self._step(empty)
 
         self.assertEqual(found["step"], "source")
-        self.assertTrue(found["notes"])
+        self.assertTrue(found["errors"]["path"])
 
     def test_choosing_the_folder_here_is_what_lets_core_read_it(self) -> None:
         """It is set at the check rather than at the end, because there is nothing to

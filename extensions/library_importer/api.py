@@ -167,7 +167,8 @@ def build(ctx: Any) -> None:
                  "choices": [["auto", ctx.t("wizard.source.auto")]]
                             + [[one.SOURCE_ID, one.SOURCE_NAME] for one in READERS],
                  "help": ctx.t("wizard.source.source_type.help")},
-                {"key": "path", "type": "path", "label": ctx.t("wizard.source.path.label"),
+                {"key": "path", "type": "path", "wants": "dir",
+                 "label": ctx.t("wizard.source.path.label"),
                  "value": state["path"],
                  "help": ctx.t("wizard.source.path.help")},
             ],
@@ -226,8 +227,10 @@ def build(ctx: Any) -> None:
         return _summary_step(reader, library, made)
 
     def _again(reason: str, values: dict) -> dict:
+        """The source step again - every refusal here is about the folder, so it lands
+        under that field rather than under the whole form."""
         found = wizard_form()
-        found["notes"] = [reason]
+        found["errors"] = {"path": reason}
         for field in found["fields"]:
             if field["key"] in values:
                 field["value"] = values[field["key"]]
