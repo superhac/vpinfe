@@ -1,7 +1,5 @@
-"""The walk's own rules: what Back, Next and Run each do, without a browser.
-
-`errors`, `acts` and `steps` are not built yet; these are the rules a plain `Walk`
-already has to hold on its own, with a fake `Calls` standing in for HTTP.
+"""The walk's own rules: what Back, Next, an act, a jump back to a done step, and Run
+each do, without a browser.
 """
 
 from __future__ import annotations
@@ -14,16 +12,25 @@ from console import wizard
 
 def _calls(steps: dict[str, dict[str, Any]], *,
           checked: list[str] | None = None,
+          acted: list[tuple[str, str]] | None = None,
+          reopened: list[str] | None = None,
           ran: list[dict[str, Any]] | None = None) -> wizard.Calls:
-    """A flow with a canned next step for each one `Walk` might leave. `Walk` never
-    calls `first` itself - its caller already holds the answer - so it is left to fail
-    loudly if that ever changes."""
-    async def first() -> dict:
-        raise AssertionError("Walk does not ask for its own first step")
+    """A flow with a canned next step for each one `Walk` might leave."""
+    async def first(step: str | None = None) -> dict:
+        if step is None:
+            raise AssertionError("Walk does not ask for its own first step")
+        if reopened is not None:
+            reopened.append(step)
+        return steps[step]
 
     async def check(values: dict[str, Any], step: str) -> dict:
         if checked is not None:
             checked.append(step)
+        return steps[step]
+
+    async def act(key: str, values: dict[str, Any], step: str) -> dict:
+        if acted is not None:
+            acted.append((key, step))
         return steps[step]
 
     async def run(values: dict[str, Any]) -> dict:
@@ -34,7 +41,7 @@ def _calls(steps: dict[str, dict[str, Any]], *,
     async def job(job_id: str) -> dict:
         raise AssertionError("no run in these tests answers with a job")
 
-    return wizard.Calls(first, check, run, job)
+    return wizard.Calls(first, check, act, run, job)
 
 
 class BackTests(unittest.IsolatedAsyncioTestCase):
@@ -110,6 +117,63 @@ class ReadyTests(unittest.IsolatedAsyncioTestCase):
         await walk.next()
 
         self.assertEqual(checked, ["one"])
+
+
+class ActTests(unittest.IsolatedAsyncioTestCase):
+    async def test_an_act_asks_for_the_step_being_left_by_key(self) -> None:
+        acted: list[tuple[str, str]] = []
+        first = {"step": "one"}
+        redrawn = {"step": "one", "notes": ["Connected"], "ready": True}
+        walk = wizard.Walk(_calls({"one": redrawn}, acted=acted), first)
+
+        found = await walk.act("connect")
+
+        self.assertEqual(acted, [("connect", "one")])
+        self.assertIs(found, redrawn)
+
+    async def test_an_act_does_not_push_the_step_it_leaves(self) -> None:
+        first = {"step": "one"}
+        walk = wizard.Walk(_calls({"one": {"step": "one"}}), first)
+
+        await walk.act("connect")
+
+        self.assertEqual(walk.history, [])
+
+    async def test_an_act_runs_even_while_the_step_is_not_ready(self) -> None:
+        """An act is often what a step needs pressed to become ready - holding it on
+        the same gate as Next would make it unreachable."""
+        acted: list[tuple[str, str]] = []
+        first = {"step": "one", "ready": False}
+        walk = wizard.Walk(_calls({"one": {"step": "one", "ready": True}}, acted=acted), first)
+
+        found = await walk.act("connect")
+
+        self.assertEqual(acted, [("connect", "one")])
+        self.assertTrue(found["ready"])
+
+
+class GotoTests(unittest.IsolatedAsyncioTestCase):
+    async def test_goto_reopens_by_key_through_first_not_check(self) -> None:
+        checked: list[str] = []
+        reopened: list[str] = []
+        first = {"step": "two"}
+        done = {"step": "one", "steps": [{"key": "one", "label": "One", "done": True}]}
+        walk = wizard.Walk(_calls({"one": done}, checked=checked, reopened=reopened), first)
+
+        found = await walk.goto("one")
+
+        self.assertEqual(reopened, ["one"])
+        self.assertEqual(checked, [])
+        self.assertIs(found, done)
+
+    async def test_goto_does_not_touch_the_history(self) -> None:
+        first = {"step": "two"}
+        walk = wizard.Walk(_calls({"one": {"step": "one"}}, reopened=[]), first)
+        walk.history.append({"step": "one"})
+
+        await walk.goto("one")
+
+        self.assertEqual(walk.history, [{"step": "one"}])
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ its questions in stages rather than all at once.
 A flow answers every call with a step, and how many there are is read off that, never
 declared: no fields means press it and it happens, fields mean fill them in first, and a
 `summary` means the last step before Run. A flow reaches this through `Calls`, its own
-three calls already bound to wherever it answers from - HTTP for an extension
+four calls already bound to wherever it answers from - HTTP for an extension
 (`console/ext_action.py`), or nothing at all for a flow with no boundary to cross.
 """
 
@@ -44,18 +44,20 @@ _FORWARD = "console-wizard-forward"
 
 @dataclass
 class Calls:
-    """A flow's own three calls: the first step, the check that answers the next one,
-    and the run. `job` polls a run that answered with a `job_id` instead of finishing."""
-    first: Callable[[], Awaitable[dict]]
+    """A flow's own four calls: the first step (or, given a key, a done step reopened),
+    the check that answers the next one, an act that answers the same one, and the run.
+    `job` polls a run that answered with a `job_id` instead of finishing."""
+    first: Callable[[str | None], Awaitable[dict]]
     check: Callable[[dict[str, Any], str], Awaitable[dict]]
+    act: Callable[[str, dict[str, Any], str], Awaitable[dict]]
     run: Callable[[dict[str, Any]], Awaitable[dict]]
     job: Callable[[str], Awaitable[dict]]
 
 
 class Walk:
     """The stepping loop: the current answer, its history, and the values gathered so
-    far. Back, Next and Run are decided here, never drawn, so the rules hold without a
-    browser.
+    far. Back, Next, an act, reopening a done step, and Run are decided here, never
+    drawn, so the rules hold without a browser.
     """
 
     def __init__(self, calls: Calls, first: dict) -> None:
@@ -77,6 +79,19 @@ class Walk:
 
     def back(self) -> dict:
         self.step = self.history.pop()
+        return self.step
+
+    async def act(self, key: str) -> dict:
+        # No `ready` gate: an act is often what a step needs pressed to become ready
+        # (Connect) rather than something it is withheld until.
+        self.step = await self.calls.act(key, self.values, str(self.step.get("step") or ""))
+        return self.step
+
+    async def goto(self, step_key: str) -> dict:
+        # Through `first`, not `check` - reopening a done step asks nothing new of it,
+        # the way a page reload does. History is untouched; Back still goes where it
+        # pointed before the jump.
+        self.step = await self.calls.first(step_key)
         return self.step
 
     async def run(self) -> dict:
@@ -213,6 +228,44 @@ def _focus_now(control: Any) -> None:
     """)
 
 
+def _focus_title(control: Any) -> None:
+    """Steps to the label itself, which needs `tabindex=-1` to take focus at all - a
+    plain label is not in the tab order by default."""
+    ui.run_javascript(f"""
+        (() => {{
+          const el = document.getElementById('c{control.id}');
+          if (el) el.focus();
+        }})()
+    """)
+
+
+def _step_list(steps: list[dict[str, Any]], current: str, go: Callable[[str], Any]) -> None:
+    """The path as it stands, named steps only. Only a `done` step answers a click - a
+    step still ahead has nothing to reopen, and clicking it would say otherwise."""
+    with ui.row().classes("console-wizard-steps gap-3 px-3 mb-2"):
+        for entry in steps:
+            key = str(entry.get("key") or "")
+            text = str(entry.get("label") or key)
+            if key == current:
+                ui.label(text).classes("console-wizard-step--here")
+            elif entry.get("done"):
+                ui.label(text).classes("console-link").on("click", lambda key=key: go(key))
+            else:
+                ui.label(text).classes("console-help")
+
+
+def _acts(acts: list[dict[str, Any]], go: Callable[[str], Any]) -> None:
+    """An act is `{key, label}`; the flow draws no icon of its own, so this carries the
+    same one the wizard's own confirm does for the same reason.
+    """
+    with ui.row().classes("gap-2 px-3 mb-2"):
+        for act in acts:
+            key = str(act.get("key") or "")
+            label = str(act.get("label") or key)
+            panel.action(label, lambda key=key: go(key), icon=verbs.RUN,
+                        hint=str(act.get("hint") or label))()
+
+
 def _aside(text: str) -> Any:
     def draw() -> None:
         ui.label(text).classes("console-help")
@@ -233,33 +286,40 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
     It stops asking when it answers with a summary instead of fields. `under` is where
     a run's report belongs in the flow's own catalog.
     """
-    walk = Walk(calls, await calls.first())
+    walk = Walk(calls, await calls.first(None))
     client = ApiClient()
     held: dict[str, tuple[str, Any]] = {}
     opened = False
+    current_key = ""
 
     with frame.opened("", wide=True, persistent=True,
                       classes="console-import-card") as dialog:
-        heading = ui.label("").classes("console-dialog-title")
+        heading = ui.label("").classes("console-dialog-title").props("tabindex=-1")
         body = ui.column().classes("w-full gap-0 console-import-body")
         buttons = frame.footer()
 
         def draw(found: dict) -> None:
-            nonlocal held, opened
+            nonlocal held, opened, current_key
+            fresh = current_key != str(found.get("step") or "")
+            current_key = str(found.get("step") or "")
             heading.text = str(found.get("title") or label)
             body.clear()
             buttons.clear()
             summary = found.get("summary")
             with body:
+                if found.get("steps"):
+                    _step_list(list(found["steps"]), current_key, _goto)
                 if found.get("help"):
                     ui.label(str(found["help"])).classes("console-help px-3 mb-2")
                 if summary:
                     _summary(summary)
                 held = _controls(list(found.get("fields") or []), walk.values,
                                  client=client, errors=dict(found.get("errors") or {}))
+                if found.get("acts"):
+                    _acts(list(found["acts"]), _act)
                 _lines(list(found.get("notes") or []),
                        t("console.ext_action.worth_knowing") if summary else "")
-                if summary and not found.get("ready"):
+                if not found.get("ready", True):
                     ui.label(str(found.get("reason") or "")).classes("console-help px-3")
             with buttons:
                 if walk.history:
@@ -269,10 +329,10 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
                 if summary:
                     go = frame.answer(str(found.get("confirm") or label or t("word.run")),
                                        _start, icon=verbs.RUN)
-                    if not found.get("ready"):
-                        go.disable()
                 else:
                     go = frame.answer(t("word.next"), _next, icon=verbs.NEXT)
+                if not found.get("ready", True):
+                    go.disable()
             go.classes(_FORWARD)
             # held keeps insertion order, so its first entry is the step's first field.
             first = next(iter(held.values()), None)
@@ -296,6 +356,8 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
                       }});
                     }})()
                 """))
+            elif fresh:
+                _focus_title(heading)
             elif control is not None:
                 _focus_now(control)
 
@@ -313,6 +375,28 @@ async def open_dialog(*, label: str, calls: Calls, under: str) -> None:
         def _back() -> None:
             _sync(walk.values, held)
             draw(walk.back())
+
+        @on_page
+        async def _act(key: str) -> None:
+            _sync(walk.values, held)
+            try:
+                found = await walk.act(key)
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(t("console.ext_action.could_not_go_on"), caption=why(exc),
+                          type="negative")
+                return
+            draw(found)
+
+        @on_page
+        async def _goto(step_key: str) -> None:
+            _sync(walk.values, held)
+            try:
+                found = await walk.goto(step_key)
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(t("console.ext_action.could_not_go_on"), caption=why(exc),
+                          type="negative")
+                return
+            draw(found)
 
         @on_page
         async def _start() -> None:

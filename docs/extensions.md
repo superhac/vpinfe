@@ -344,12 +344,13 @@ ctx.ui.action("import", "/wizard")
 }
 ```
 
-Two calls on the extension's own router, under `base`:
+Four calls on the extension's own router, under `base`:
 
 | call | answers |
 |---|---|
-| `GET {base}` | `title`, `help`, `fields`, `confirm` — what to ask, if anything |
-| `POST {base}/check` | `ready`, `summary`, `notes`, `errors`, more `fields`, `confirm` — what would happen |
+| `GET {base}` | `title`, `help`, `fields`, `confirm`, `steps` — what to ask, if anything. `?step=<key>` reopens a done step instead of starting over |
+| `POST {base}/check` | `ready`, `reason`, `summary`, `notes`, `errors`, `acts`, more `fields`, `confirm` — what would happen |
+| `POST {base}/act` | the same step again, redrawn — for something a step needs done before it can go on |
 | `POST {base}/run` | `{"job_id": …}`, or the outcome directly |
 
 **How many steps an action has is read off what it answers, never declared.** No `fields`
@@ -361,8 +362,9 @@ A run returns a `job_id` where the work is slow — core watches it on `/api/v1/
 the outcome where it is not, with an optional `message` and `summary`. An action that is
 one call and a sentence should not have to wear a progress bar.
 
-`fields` are `{key, type, label, value, help}`. Both `check` and `run` receive
-`{"values": {…}}`. The words in these answers are the extension's to look up, with `ctx.t`.
+`fields` are `{key, type, label, value, help}`. `check` and `run` receive
+`{"values": {…}}`; `act` receives that and the step's own key, as `{"values": …, "step": …}`.
+The words in these answers are the extension's to look up, with `ctx.t`.
 
 | type | asks for |
 |---|---|
@@ -387,6 +389,24 @@ failures:
 
 `errors` refuses one field by name instead: `{field_key: …}`, drawn under that field rather
 than under the whole step. Each value takes the same two forms a note does.
+
+`ready: false` holds Next or the last step's `confirm` until it is true again, with
+`reason` said beside the held button. It is not only for the last step - a step that
+cannot go on until something else is true sends it too.
+
+`acts` are `[{key, label}]`, drawn as quiet buttons inside the step's own body rather
+than the footer, which stays the step's one answer. Pressing one calls `POST {base}/act`
+and gets the same step back, redrawn - an act never moves the step on, so it is for
+something the step needs done before `ready` is true, such as testing a connection
+before the fields above it can be trusted. This is a different `acts` from a Community
+list's `about` page, further down: that one is a menu at the end of a title; this one is
+a button inside a step, answered by a different call.
+
+`steps` is `[{key, label, done}]`, the path as it stands. The Console shows it only
+where an answer carries it - an action that cannot say how many steps it has, such as
+the Library Importer reading another frontend's own library, sends none of this and
+loses nothing by it. A `done` step reopens with `GET {base}?step=<key>`, asked the way
+the first step is, rather than walked back to through every step between.
 
 A job's `result` may list `rows`, and every row with an `error` is shown under what did not
 come across, by its `name`. That `error` takes the same two forms.

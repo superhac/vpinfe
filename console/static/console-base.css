@@ -1710,6 +1710,11 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .console-link-out--mark > :first-child { overflow: visible; min-width: auto; }
 .console-link-out--mark .q-icon { font-size: var(--icon-row); }
 
+/* The wizard's own step, named rather than numbered: the one open reads as chosen the
+   same way a picked member does, done ones are `console-link`, and the rest stay quiet
+   in `console-help` until they are reachable. */
+.console-wizard-step--here { color: var(--ink); font-weight: 600; }
+
 /* A destructive action is still an action - it takes the same shape and says what it
    is with color on top, not instead. */
 .console-action.console-action--danger.q-btn { border-color: var(--danger-edge); }
