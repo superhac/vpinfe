@@ -157,7 +157,7 @@ def _all_tables_only(qualified: str) -> bool:
             or qualified.startswith(ALL_TABLES_ONLY_PREFIXES))
 
 
-def _read_at_table(qualified: str) -> bool:
+def read_at_table(qualified: str) -> bool:
     return not _all_tables_only(qualified) or qualified in READ_AT_TABLE_START
 
 
@@ -473,7 +473,7 @@ class VPXConfig:
         for qualified in sorted(set(app.settings) | set(table.settings) | set(mine.settings)):
             if not _offered(qualified):
                 continue
-            read_by_vpx = table if _read_at_table(qualified) else vini.Ini()
+            read_by_vpx = table if read_at_table(qualified) else vini.Ini()
             from_table = read_by_vpx.value(qualified)
             from_app = app.value(qualified)
             if from_table is not None:
@@ -642,7 +642,7 @@ class VPXConfig:
         winning = table_layer(target)
         held = read_file(winning)
         setting = [q for q in held.settings if held.value(q) is not None]
-        keys = sorted(q for q in setting if _offered(q) and _read_at_table(q)
+        keys = sorted(q for q in setting if _offered(q) and read_at_table(q)
                       and not q.startswith(POINT_OF_VIEW))
         return {
             "scope": _scope_of(winning, target, {}),

@@ -10,7 +10,7 @@ from common.host import display_service, tools
 from common.i18n import t
 from common.timestamps import utc_now_iso
 
-from . import adapters, settings
+from . import adapters, placing, settings
 
 NEEDS_TOOL = "capture.tool.needed"
 NO_ENCODER = "capture.encoder.missing"
@@ -23,6 +23,7 @@ NO_MP3 = "capture.sound.no_mp3"
 REASONS = {
     adapters.NO_SCREEN: tools.FIX_NONE,
     adapters.NOT_FOUND: tools.FIX_NONE,
+    placing.NOT_SHOWN: tools.FIX_NONE,
     adapters.NOT_YET: tools.FIX_NONE,
     adapters.NO_WAY: tools.FIX_NONE,
     adapters.NO_SESSION: tools.FIX_NONE,
@@ -100,7 +101,7 @@ def _screen(screen: adapters.Screen, found: Mapping[str, tools.Found],
     if output is None:
         key = UNREADABLE if unreadable and screen.reason == adapters.NOT_FOUND \
             else screen.reason
-        where = reason(key, {"window": screen.window})
+        where = reason(key, {"window": screen.window, **screen.params})
     picture = where or _needs(found, tools.GRIM) or _needs(found, tools.FFMPEG, "png", "PNG")
     video = where or _needs(found, tools.WF_RECORDER) \
         or _needs(found, tools.FFMPEG, ENCODERS[codec], _FORMAT_NAMES[codec])
@@ -115,9 +116,11 @@ def report(*, adapter: adapters.Adapter | adapters.Unsupported | None = None,
            config: Any = None, monitors: Sequence[Any] | None = None,
            found: Mapping[str, tools.Found] | None = None,
            env: Mapping[str, str] | None = None, browser_state: str | None = None,
-           probe_hardware: bool = True) -> dict[str, Any]:
+           probe_hardware: bool = True, shown: placing.Shown | None = None
+           ) -> dict[str, Any]:
     """The report `GET /capture` serves. `probe_hardware` false skips encoding a frame to
-    find out whether every screen records at once, and says they do not."""
+    find out whether every screen records at once, and says they do not. `shown` is what
+    the default launcher's app says of its windows, asked where it is None."""
     env = os.environ if env is None else env
     adapter = adapters.resolve(env) if adapter is None else adapter
     if config is None:
@@ -138,8 +141,10 @@ def report(*, adapter: adapters.Adapter | adapters.Unsupported | None = None,
     except (OSError, ValueError):
         outputs, unreadable = [], True
     monitors = display_service.get_display_monitors() if monitors is None else monitors
-    screens = [_screen(adapters.screen_of(window, outputs, config, monitors), found, codec,
-                       unreadable) for window in adapters.WINDOWS]
+    placed = placing.Placing(outputs, config, monitors,
+                             placing.shown() if shown is None else shown)
+    screens = [_screen(screen, found, codec, unreadable)
+               for screen in placed.screens().values()]
     able = [one for one in screens if one["picture"]["available"]
             or one["video"]["available"]]
     first = next((one[kind]["reason"] for one in screens

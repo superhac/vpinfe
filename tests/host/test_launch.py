@@ -845,6 +845,47 @@ class FallbackTests(LaunchTests):
                       "launching with Visual Pinball X instead", logged.output[0])
 
 
+class LaunchedByTests(unittest.TestCase):
+    """What a launch of a table would run, asked without launching it."""
+
+    def setUp(self) -> None:
+        from common.games.launchers import LauncherStore
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.store = LauncherStore(os.path.join(tmp.name, "launchers.json"))
+        patcher = mock.patch.object(launch.launchers, "get_launcher_store",
+                                    return_value=self.store)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_a_table_is_asked_of_its_own_launcher_with_its_own_file(self) -> None:
+        mapped = _launcher().__class__(launcher_id="l2", app="vpx", display_name="Other",
+                                       settings={"bin_path": "/opt/other",
+                                                 "ini_path": "/opt/other.ini"})
+        self.store.save([_launcher(), mapped], {"t1": "l2"})
+        game = _game()
+        game.meta_config = {"tables": {"t1": {"id": "t1", "filename": "Example.vpx"}}}
+
+        app, entry, settings = launch.launched_by(game)
+
+        self.assertEqual(app.id, "vpx")
+        self.assertEqual((entry.entry_id, entry.table), ("t1", "/games/Example/Example.vpx"))
+        self.assertEqual((settings["bin_path"], settings["ini_path"]),
+                         ("/opt/other", "/opt/other.ini"))
+
+    def test_with_no_game_it_is_the_default_launcher_and_no_entry(self) -> None:
+        self.store.save([_launcher()], {})
+
+        app, entry, settings = launch.launched_by()
+
+        self.assertEqual((app.id, entry, settings["bin_path"]),
+                         ("vpx", launch.apps.Entry(), "/opt/vpx"))
+
+    def test_nothing_to_launch_with_is_none(self) -> None:
+        self.assertIsNone(launch.launched_by())
+
+
 def _keyed_game(app="generic", key="mm"):
     """A game whose only entry has no file at all - a ROM its emulator looks up, a
     Pinball FX table id. The folder holds the record and the media and nothing else."""

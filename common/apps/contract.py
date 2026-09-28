@@ -318,13 +318,23 @@ class Capability(Protocol):
 class Capture(Protocol):
     """How an entry is launched to have its screens recorded rather than to be played.
 
-    Answers in place of `Launch.command`; `Launch.session` still says when it is up.
-    `folder` is empty, the app's to write into, and removed with everything in it once
-    the entry closes. `sound` is whether the entry's sound is being recorded.
+    `command` answers in place of `Launch.command`; `Launch.session` still says when it
+    is up. `folder` is empty, the app's to write into, and removed with everything in it
+    once the entry closes. `sound` is whether the entry's sound is being recorded.
+
+    Windows are named as core names them: `playfield`, `backglass`, `scoreview` and
+    `topper`. `outputs` answers, per window, the output the app's own settings show it on,
+    by the name the desktop gives the output (`DP-1`), or "" where the app shows that
+    window on no screen of its own; a window it cannot say is left out. `window` answers
+    which window a desktop window is, from its app id and its title, or "".
     """
 
     def command(self, entry: Entry, settings: Mapping[str, Any], *, sound: bool,
                 folder: str) -> list[str]: ...
+
+    def outputs(self, entry: Entry, settings: Mapping[str, Any]) -> Mapping[str, str]: ...
+
+    def window(self, app_id: str, title: str) -> str: ...
 
 
 # --- the app ----------------------------------------------------------------------

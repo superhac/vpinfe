@@ -73,6 +73,7 @@
   "capture.reason.with_remedy": "{reason}. {remedy}",
   "capture.screen.none": "Ñö šçřèèñ îš šèţ àš {window}",
   "capture.screen.not_found": "Çàñ'ţ ţèŀŀ ŵĥîçĥ šçřèèñ îš ţĥè {window}",
+  "capture.screen.not_shown": "{app} đöèšñ'ţ šĥöŵ ţĥè {window} öñ à šçřèèñ öƒ îţš öŵñ",
   "capture.screen.unreadable": "Ţĥè đèšķţöþ đîđñ'ţ šàý ŵĥîçĥ šçřèèñš îţ ĥàš",
   "capture.sound.no_input": "ƑƑɱþèĝ ĥèřè çàñ'ţ řèàđ šöûñđ",
   "capture.sound.no_mp3": "ƑƑɱþèĝ ĥèřè çàñ'ţ ŵřîţè ḾÞ3",

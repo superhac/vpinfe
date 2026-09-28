@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
-from common.capture import adapters, preflight, settings
+from common.capture import adapters, placing, preflight, settings
 from common.capture.adapters import wlr
 from common.host import frontend_browser, tools
 from common.i18n import t
@@ -77,6 +77,8 @@ def report(adapter: Any = None, held: Any = None, **kwargs: Any) -> dict[str, An
     kwargs.setdefault("found", found())
     kwargs.setdefault("env", SOUND_ENV)
     kwargs.setdefault("browser_state", frontend_browser.PLAYS)
+    # An app that says nothing, so no test reads this machine's own settings.
+    kwargs.setdefault("shown", placing.Shown(""))
     with patch("common.host.vpinos.detected", return_value=False), \
             patch("common.host.tools.here", return_value=tools.LINUX):
         return preflight.report(adapter=FakeAdapter() if adapter is None else adapter,
@@ -112,6 +114,22 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(topper["picture"]["reason"]["key"], adapters.NO_SCREEN)
         self.assertEqual(topper["picture"]["reason"]["params"], {"window": "topper"})
         self.assertIsNone(topper["output"])
+
+    def test_each_window_is_where_the_app_shows_it_and_one_it_shows_nowhere_says_so(
+            self) -> None:
+        said = report(shown=placing.Shown("Visual Pinball X", {
+            "playfield": "HDMI-A-1", "backglass": "DP-1", "topper": ""}))
+        screens = _by_window(said)
+
+        self.assertEqual([screens[window]["output"] for window in adapters.WINDOWS],
+                         ["HDMI-A-1", "DP-1", "HDMI-A-1", None])
+        topper = screens["topper"]["video"]["reason"]
+        self.assertEqual((topper["key"], topper["params"], topper["fix"]),
+                         (placing.NOT_SHOWN, {"window": "topper", "app": "Visual Pinball X"},
+                          tools.FIX_NONE))
+        self.assertEqual(preflight.words(topper),
+                         t(placing.NOT_SHOWN, app="Visual Pinball X",
+                           window=t("media.kind.topper.label")))
 
     def test_without_wf_recorder_pictures_are_still_taken(self) -> None:
         playfield = _by_window(report(found=found(missing=("wf_recorder",))))["playfield"]
@@ -210,7 +228,8 @@ def _blocked_reports() -> list[dict[str, Any]]:
     ways += [{"held": config(video_codec="vp9"),
               "found": found(encoders=ENCODERS - {"libvpx-vp9"})},
              {"found": found(inputs=frozenset())}, {"env": {}},
-             {"adapter": FakeAdapter(OSError())}, {"adapter": FakeAdapter([])}]
+             {"adapter": FakeAdapter(OSError())}, {"adapter": FakeAdapter([])},
+             {"shown": placing.Shown("Visual Pinball X", {"backglass": "", "topper": ""})}]
     ways += [{"adapter": adapters.resolve(env, tools.LINUX)}
              for env in ({"WAYLAND_DISPLAY": "w", "XDG_CURRENT_DESKTOP": "KDE"},
                          {"WAYLAND_DISPLAY": "w"}, {"DISPLAY": ":0"}, {})]

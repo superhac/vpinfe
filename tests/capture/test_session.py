@@ -11,9 +11,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from apps.vpx.capture import VPXCapture
 from common import events
-from common.capture import geometry, session, settings
-from common.capture.adapters import wlr
+from common.capture import geometry, placing, session, settings
+from common.capture.adapters import Window, wlr
 from common.capture.settings import Settings
 from common.games import asset_origin
 from common.host import launch, launch_state
@@ -118,7 +119,7 @@ def _config(rotation: str = "0") -> configparser.ConfigParser:
     return held
 
 
-class SessionTests(unittest.TestCase):
+class _Sessions(unittest.TestCase):
     def setUp(self) -> None:
         held = tempfile.TemporaryDirectory()
         self.addCleanup(held.cleanup)
@@ -127,16 +128,34 @@ class SessionTests(unittest.TestCase):
         self.addCleanup(launch_state.clear)
 
     def record(self, cabinet: Cabinet, kinds: tuple[str, ...], *, at_once: bool = True,
-               chosen: Settings = QUICK, rotation: str = "0") -> session.Result:
+               chosen: Settings = QUICK, rotation: str = "0",
+               shown: placing.Shown | None = None,
+               desktop: list[Window] | None = None) -> session.Result:
+        """With `shown`, where the app's settings put its windows; with `desktop`, what the
+        desktop says once the table is up."""
         wlr.reset_for_tests()
         adapter = wlr.WlrAdapter({})
         adapter.hardware = lambda ffmpeg: "/dev/dri/renderD128" if at_once else ""  # type: ignore[method-assign]
+        if desktop is not None:
+            adapter.windows = lambda: desktop  # type: ignore[method-assign]
         target = session.Target("game1", SimpleNamespace(full_path_game=""), "", None, kinds)
-        return session.Session(target, chosen, adapter=adapter, screens=SCREENS,
+        placed = None if shown is None else placing.Placing(
+            list(OUTPUTS.values()), _config(rotation), [], shown)
+        screens = SCREENS if placed is None else {
+            window: screen.output for window, screen in placed.screens().items()
+            if screen.output}
+        return session.Session(target, chosen, adapter=adapter, screens=screens,
                                found=found(), at_once=at_once, codec=settings.H264,
                                work=self.work, config=_config(rotation),
-                               kit=cabinet.kit()).run()
+                               kit=cabinet.kit(), placed=placed).run()
 
+    def spawned(self, cabinet: Cabinet) -> list[str]:
+        """The output each recorder was started on."""
+        return [argv[argv.index("-o") + 1] for kind, argv, *_ in cabinet.log
+                if kind == "spawn" and "-o" in argv]
+
+
+class SessionTests(_Sessions):
     def test_every_screen_records_at_once_and_lands_as_recorded(self) -> None:
         cabinet = Cabinet()
 
@@ -294,6 +313,62 @@ class SessionTests(unittest.TestCase):
         result = self.record(cabinet, ())
 
         self.assertEqual(result.state, session.SKIPPED)
+        self.assertEqual(cabinet.launched_with, {})
+
+
+# What VPX's settings name, and where its windows were once it was up: nothing on the
+# output its settings name for the DMD.
+FROM_VPX = placing.Shown("Visual Pinball X",
+                         {"playfield": "DP-1", "backglass": "DP-2", "scoreview": "HDMI-A-1",
+                          "topper": ""}, VPXCapture().window)
+UP = [Window("chromium", "VPinFE Table", "DP-1"),
+      Window("VPinballX_BGFX", "Visual Pinball Player", "DP-1"),
+      Window("VPinballX_BGFX", "Visual Pinball Backglass", "DP-2")]
+
+
+class DesktopTests(_Sessions):
+    """Once the table is up, the desktop says where the app's windows are."""
+
+    def test_a_screen_holding_none_of_the_apps_windows_is_not_recorded(self) -> None:
+        cabinet = Cabinet()
+
+        result = self.record(cabinet, VIDEOS, shown=FROM_VPX, desktop=UP)
+
+        self.assertEqual(self.spawned(cabinet), ["DP-1", "DP-2"])
+        self.assertEqual(result.failed, [{"kind": "scoreview_video", "reason": {
+            "key": placing.NOT_SHOWN,
+            "params": {"window": "scoreview", "app": "Visual Pinball X"}}}])
+        self.assertEqual({one["kind"] for one in result.placed},
+                         {"playfield_video", "backglass_video"})
+
+    def test_a_window_the_desktop_shows_elsewhere_is_recorded_there(self) -> None:
+        cabinet = Cabinet()
+        moved = [*UP[:2], Window("VPinballX_BGFX", "Visual Pinball Backglass", "HDMI-A-1")]
+
+        with self.assertLogs("vpinfe.common.capture.session", "WARNING") as logged:
+            self.record(cabinet, ("playfield_video", "backglass_video"), shown=FROM_VPX,
+                        desktop=moved)
+
+        self.assertEqual(self.spawned(cabinet), ["DP-1", "HDMI-A-1"])
+        self.assertIn("the backglass is on HDMI-A-1, not DP-2", logged.output[0])
+
+    def test_a_desktop_that_shows_no_playfield_window_leaves_the_plan(self) -> None:
+        for desktop in ([UP[2]], []):
+            with self.subTest(desktop=desktop):
+                cabinet = Cabinet()
+
+                result = self.record(cabinet, VIDEOS, shown=FROM_VPX, desktop=desktop)
+
+                self.assertEqual(self.spawned(cabinet), ["DP-1", "DP-2", "HDMI-A-1"])
+                self.assertEqual(result.failed, [])
+
+    def test_a_window_the_app_shows_nowhere_fails_before_the_launch(self) -> None:
+        cabinet = Cabinet()
+
+        result = self.record(cabinet, ("topper_video",), shown=FROM_VPX, desktop=UP)
+
+        self.assertEqual(result.state, session.FAILED)
+        self.assertEqual(result.failed[0]["reason"]["key"], placing.NOT_SHOWN)
         self.assertEqual(cabinet.launched_with, {})
 
 

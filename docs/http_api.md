@@ -849,8 +849,12 @@ is asked of that device.
   (`ddagrab`) and macOS (`avfoundation`) answer unavailable, not supported yet, with no
   screens.
 - `screens` has a row per window - `playfield`, `backglass`, `scoreview`, `topper` - and
-  the output it is on, found through the window's `screen_id` by the output's name, then by
-  where it is and its size. `size` is the output as the desktop lays it out.
+  the output it is on: the one the default launcher's app names for that window in its own
+  settings, matched by the output's name; where the app does not say, the window's
+  `screen_id`, by the output's name, then by where it is and its size. `size` is the output
+  as the desktop lays it out. A window the app shows on no screen of its own - Visual
+  Pinball's with its Output set to Disabled, or embedded in the playfield - is
+  `capture.screen.not_shown`, with the app's name in `app`.
 - Every `reason` is a catalog key and its values, rendered where it is read. `fix` is
   `user` where a person must act, and then `remedy` says how, in the shape of the Tools'
   remedy; `none` where nobody can. A `window` value is a window's id, said with its media
@@ -900,6 +904,12 @@ table was closed at the cabinet before its recording finished, and nothing was p
 `skipped` (nothing asked for needed recording), with the kinds `placed`, those `failed` with
 a `reason`, and `at_once`, false where the screens could not keep up together and were
 recorded again one at a time.
+
+A run places each window by the table's own launcher's app. Once the table is up, at the end
+of Wait, it asks the desktop where that app's windows are, where the desktop can say (sway
+and Hyprland can) and shows the app's playfield window, and records the outputs it names. A
+window the desktop shows on none of them is not recorded, and its kinds fail with
+`capture.screen.not_shown`.
 
 A recording launches the table with `source: "capture"`, which counts no play (see
 `docs/extensions.md`), and each file it places is recorded in the `.info` ledger with the

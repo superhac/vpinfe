@@ -13,7 +13,7 @@ from common.host import launch, launch_state, tools
 from common.i18n import t
 from common.paths import CONFIG_DIR
 
-from . import adapters, preflight, session, settings
+from . import adapters, placing, preflight, session, settings
 
 FILL = "fill"
 REPLACE_DOWNLOADED = "replace_downloaded"
@@ -198,12 +198,12 @@ def start(request: Request, kit: session.Kit | None = None) -> jobs.Job:
     from common.paths import get_ini_config
 
     config = get_ini_config()
-    outputs = adapter.outputs()
-    monitors = display_service.get_display_monitors()
-    screens = {window: screen.output for window in adapters.WINDOWS
-               if (screen := adapters.screen_of(window, outputs, config, monitors)).output}
-    target = session.Target(planned["game_id"], game, planned["table_id"],
-                            _launch_key(game, planned["table_id"]),
+    key = _launch_key(game, planned["table_id"])
+    placed = placing.Placing(adapter.outputs(), config, display_service.get_display_monitors(),
+                             placing.shown(game, key))
+    screens = {window: screen.output for window, screen in placed.screens().items()
+               if screen.output}
+    target = session.Target(planned["game_id"], game, planned["table_id"], key,
                             tuple(planned["recording"]))
     codec = settings.video_codec(chosen.video_codec)
 
@@ -212,7 +212,7 @@ def start(request: Request, kit: session.Kit | None = None) -> jobs.Job:
         result = session.Session(
             target, chosen, adapter=adapter, screens=screens, found=found,
             at_once=planned["at_once"], codec=codec, work=WORK, config=config,
-            kit=kit).run()
+            kit=kit, placed=placed).run()
         return {"tables": [{"game_id": target.game_id, "table_id": target.table_id,
                             **result.as_dict()}],
                 "at_once": result.at_once}

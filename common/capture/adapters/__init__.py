@@ -56,8 +56,19 @@ class Output:
 class Screen:
     window: str
     output: Output | None = None
-    # A catalog key, where there is no output.
+    # A catalog key and its values beside the window's, where there is no output.
     reason: str = ""
+    params: Mapping[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Window:
+    """A window the desktop has, and the output it is on. `app_id` is Wayland's, or
+    X11's class."""
+
+    app_id: str
+    title: str
+    output: str
 
 
 @dataclass(frozen=True)
@@ -96,6 +107,8 @@ class Adapter(Protocol):
     def requirements(self) -> tuple[tools.Tool, ...]: ...
 
     def outputs(self) -> list[Output]: ...
+
+    def windows(self) -> list[Window]: ...
 
     def at_once(self, ffmpeg: tools.Found) -> bool: ...
 

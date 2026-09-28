@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from apps.vpx import ini as vini
-from apps.vpx.capture import VPXCapture
+from apps.vpx.capture import VPXCapture, connector
 from common.apps.contract import Entry
 
 SETTINGS = """[Player]
@@ -126,6 +126,102 @@ class CaptureTests(unittest.TestCase):
 
         self.assertNotIn("-tableini", cmd)
         self.assertIn("-ini", cmd)
+
+
+# As VPX 10.8.1 BGFX wrote them under sway, three outputs and no topper.
+SHOWN_ON_THREE = """[Player]
+PlayfieldDisplay = Samsung Electric Company SAMSUNG 0x00000001 (DP-1 via HDMI)
+
+[Backglass]
+BackglassOutput = 1
+BackglassDisplay = Samsung Electric Company SAMSUNG (HDMI-A-1)
+
+[ScoreView]
+ScoreViewOutput = 1
+ScoreViewDisplay = CVT DVI 0x00000001 (DVI-D-1)
+
+[Topper]
+TopperOutput =
+TopperDisplay =
+"""
+
+
+class OutputTests(unittest.TestCase):
+    """Which output VPX's own settings show each window on."""
+
+    def setUp(self) -> None:
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        self.settings_file = root / "VPinballX.ini"
+        self.game = root / "Example"
+        self.game.mkdir()
+        self.table = self.game / "Example.vpx"
+
+    def _outputs(self, settings: str, table: str | None = None) -> dict[str, str]:
+        self.settings_file.write_text(settings, encoding="utf-8")
+        if table is not None:
+            (self.game / "Example.ini").write_text(table, encoding="utf-8")
+        return VPXCapture().outputs(Entry(table=str(self.table)),
+                                    {"ini_path": str(self.settings_file)})
+
+    def test_each_display_names_its_output_in_the_parentheses_it_ends_with(self) -> None:
+        for display, expected in (
+                ("Samsung Electric Company SAMSUNG 0x00000001 (DP-1 via HDMI)", "DP-1"),
+                ("Samsung Electric Company SAMSUNG (HDMI-A-1)", "HDMI-A-1"),
+                ("CVT DVI 0x00000001 (DVI-D-1)", "DVI-D-1"),
+                ("Monitor (Rev 2) (HDMI-A-2)", "HDMI-A-2"),
+                ("CVT DVI", ""),
+                ("Samsung Electric Company HDMI-A-1-SAMSUNG", ""),
+                ("Monitor (HDMI-A-1) left", ""),
+                ("()", ""),
+                ("", "")):
+            with self.subTest(display):
+                self.assertEqual(connector(display), expected)
+
+    def test_three_screens_and_no_topper(self) -> None:
+        self.assertEqual(self._outputs(SHOWN_ON_THREE),
+                         {"playfield": "DP-1", "backglass": "HDMI-A-1",
+                          "scoreview": "DVI-D-1", "topper": ""})
+
+    def test_only_a_floating_output_is_a_screen_of_its_own(self) -> None:
+        """0 is Disabled, and unset is its default; 2 draws it inside the playfield."""
+        for mode, expected in (("0", ""), ("2", ""), ("", ""), ("1", "HDMI-A-1")):
+            with self.subTest(mode=mode):
+                said = self._outputs("[Backglass]\nBackglassOutput = " + mode
+                                     + "\nBackglassDisplay = Samsung (HDMI-A-1)\n")
+
+                self.assertEqual(said["backglass"], expected)
+
+    def test_a_display_naming_no_output_says_nothing(self) -> None:
+        said = self._outputs("[Player]\nPlayfieldDisplay = CVT DVI\n\n"
+                             "[ScoreView]\nScoreViewOutput = 1\nScoreViewDisplay =\n")
+
+        self.assertNotIn("playfield", said)
+        self.assertNotIn("scoreview", said)
+
+    def test_with_no_settings_file_only_the_playfield_is_shown(self) -> None:
+        said = VPXCapture().outputs(Entry(), {"ini_path": str(self.settings_file)})
+
+        self.assertEqual(said, {"backglass": "", "scoreview": "", "topper": ""})
+
+    def test_the_table_s_own_file_is_read_where_vpx_reads_it(self) -> None:
+        """VPX builds the playfield window from the Settings File alone."""
+        said = self._outputs(SHOWN_ON_THREE,
+                             "[Player]\nPlayfieldDisplay = Other (HDMI-A-2)\n\n"
+                             "[ScoreView]\nScoreViewOutput = 0\n")
+
+        self.assertEqual((said["playfield"], said["scoreview"]), ("DP-1", ""))
+
+    def test_each_window_is_known_by_the_title_vpx_gives_it(self) -> None:
+        capture = VPXCapture()
+        for title, expected in (("Visual Pinball Player", "playfield"),
+                                ("Visual Pinball Backglass", "backglass"),
+                                ("Visual Pinball Score View", "scoreview"),
+                                ("Visual Pinball Topper", "topper"),
+                                ("VPinFE Table", ""), ("", "")):
+            with self.subTest(title):
+                self.assertEqual(capture.window("VPinballX_BGFX", title), expected)
 
 
 if __name__ == "__main__":

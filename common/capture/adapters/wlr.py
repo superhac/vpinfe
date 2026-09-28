@@ -16,11 +16,14 @@ from typing import Any
 from common.host import tools
 
 from .. import geometry
-from . import Output
+from . import Output, Window
 
 # sway's IPC: this magic, then the payload's length and the message type, little-endian.
 _MAGIC = b"i3-ipc"
 _GET_OUTPUTS = 3
+_GET_TREE = 4
+# The output sway keeps its scratchpad under, which shows nothing.
+_SCRATCHPAD = "__i3"
 
 Connect = Callable[[str], socket.socket]
 
@@ -46,9 +49,9 @@ def _read(sock: socket.socket, count: int) -> bytes:
     return held
 
 
-def ask_sway(sock: socket.socket) -> Any:
+def ask_sway(sock: socket.socket, message: int = _GET_OUTPUTS) -> Any:
     with sock:
-        sock.sendall(_MAGIC + struct.pack("<II", 0, _GET_OUTPUTS))
+        sock.sendall(_MAGIC + struct.pack("<II", 0, message))
         header = _read(sock, len(_MAGIC) + 8)
         if header[:len(_MAGIC)] != _MAGIC:
             raise ConnectionRefusedError
@@ -56,10 +59,10 @@ def ask_sway(sock: socket.socket) -> Any:
         return json.loads(_read(sock, length))
 
 
-def ask_hyprland(sock: socket.socket) -> Any:
+def ask_hyprland(sock: socket.socket, request: bytes = b"j/monitors") -> Any:
     """Hyprland answers one request per connection and closes it."""
     with sock:
-        sock.sendall(b"j/monitors")
+        sock.sendall(request)
         held = b""
         while got := sock.recv(65536):
             held += got
@@ -108,6 +111,45 @@ def hyprland_outputs(said: Any) -> list[Output]:
             width=round(width / scale), height=round(height / scale),
             mode=mode, refresh=float(one.get("refreshRate") or 0),
             transform=transform))
+    return found
+
+
+def sway_windows(tree: Any) -> list[Window]:
+    """Every view in sway's tree - a container with nothing inside it - under the output
+    that holds it."""
+    found: list[Window] = []
+
+    def walk(node: Any, output: str) -> None:
+        if not isinstance(node, dict):
+            return
+        if node.get("type") == "output":
+            output = str(node.get("name") or "")
+        inside = [*(node.get("nodes") or []), *(node.get("floating_nodes") or [])]
+        if node.get("type") in ("con", "floating_con") and not inside \
+                and output and output != _SCRATCHPAD:
+            properties = node.get("window_properties") or {}
+            found.append(Window(str(node.get("app_id") or properties.get("class") or ""),
+                                str(node.get("name") or ""), output))
+        for child in inside:
+            walk(child, output)
+
+    walk(tree, "")
+    return found
+
+
+def hyprland_windows(clients: Any, monitors: Any) -> list[Window]:
+    """A client's `monitor` is a monitor's id."""
+    names = {one.get("id"): str(one.get("name") or "")
+             for one in (monitors if isinstance(monitors, list) else [])
+             if isinstance(one, dict)}
+    found = []
+    for one in clients if isinstance(clients, list) else []:
+        if not isinstance(one, dict) or one.get("mapped") is False or one.get("hidden"):
+            continue
+        output = names.get(one.get("monitor"), "")
+        if output:
+            found.append(Window(str(one.get("class") or ""), str(one.get("title") or ""),
+                                output))
     return found
 
 
@@ -168,6 +210,14 @@ class WlrAdapter:
         if self.env.get("SWAYSOCK"):
             return sway_outputs(ask_sway(self._connect(str(self.env["SWAYSOCK"]))))
         return hyprland_outputs(ask_hyprland(self._connect(hyprland_socket(self.env))))
+
+    def windows(self) -> list[Window]:
+        """Raises OSError or ValueError where the compositor does not answer."""
+        if self.env.get("SWAYSOCK"):
+            return sway_windows(ask_sway(self._connect(str(self.env["SWAYSOCK"])), _GET_TREE))
+        path = hyprland_socket(self.env)
+        return hyprland_windows(ask_hyprland(self._connect(path), b"j/clients"),
+                                ask_hyprland(self._connect(path)))
 
     def at_once(self, ffmpeg: tools.Found) -> bool:
         return bool(self.hardware(ffmpeg))

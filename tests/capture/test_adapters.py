@@ -107,6 +107,66 @@ class OutputTests(unittest.TestCase):
         self.assertEqual(wlr.hyprland_outputs("ok"), [])
 
 
+def _view(title: str, app_id: str | None = "VPinballX_BGFX", **more) -> dict:
+    return {"type": "con", "name": title, "app_id": app_id, "nodes": [],
+            "floating_nodes": [], **more}
+
+
+def _workspace(*views: dict, floating: tuple = ()) -> dict:
+    return {"type": "workspace", "name": "1", "nodes": list(views),
+            "floating_nodes": list(floating)}
+
+
+# sway's tree as VPX's windows sat in it: the playfield and the backglass each on an
+# output of their own, nothing on the third, and a split holding two of VPinFE's windows.
+SWAY_TREE = {"type": "root", "nodes": [
+    {"type": "output", "name": "__i3", "nodes": [_workspace(_view("Scratch"))]},
+    {"type": "output", "name": "DP-1", "nodes": [_workspace(
+        {"type": "con", "name": None, "nodes": [
+            _view("VPinFE Table", "chromium"), _view("Visual Pinball Player")]})]},
+    {"type": "output", "name": "HDMI-A-1", "nodes": [_workspace(
+        _view("VPinFE BG", None, window_properties={"class": "Chromium"}),
+        floating=(_view("Visual Pinball Backglass", type="floating_con"),))]},
+    {"type": "output", "name": "DVI-D-1", "nodes": [_workspace()]},
+]}
+
+HYPRLAND_CLIENTS = [
+    {"class": "VPinballX_BGFX", "title": "Visual Pinball Player", "monitor": 0,
+     "mapped": True, "hidden": False},
+    {"class": "VPinballX_BGFX", "title": "Visual Pinball Backglass", "monitor": 1,
+     "mapped": True, "hidden": False},
+    {"class": "VPinballX_BGFX", "title": "Visual Pinball Score View", "monitor": 1,
+     "mapped": False, "hidden": False},
+    {"class": "chromium", "title": "VPinFE DMD", "monitor": 1, "mapped": True,
+     "hidden": True},
+    {"class": "foot", "title": "somewhere", "monitor": 7, "mapped": True},
+]
+
+
+class WindowTests(unittest.TestCase):
+    def test_sway_says_each_view_and_the_output_holding_it(self) -> None:
+        found = wlr.sway_windows(SWAY_TREE)
+
+        self.assertEqual(found, [
+            adapters.Window("chromium", "VPinFE Table", "DP-1"),
+            adapters.Window("VPinballX_BGFX", "Visual Pinball Player", "DP-1"),
+            adapters.Window("Chromium", "VPinFE BG", "HDMI-A-1"),
+            adapters.Window("VPinballX_BGFX", "Visual Pinball Backglass", "HDMI-A-1")])
+
+    def test_hyprland_names_each_clients_monitor_and_skips_what_is_not_shown(self) -> None:
+        monitors = [{"id": 0, "name": "DP-1"}, {"id": 1, "name": "HDMI-A-1"}]
+
+        found = wlr.hyprland_windows(HYPRLAND_CLIENTS, monitors)
+
+        self.assertEqual(found, [
+            adapters.Window("VPinballX_BGFX", "Visual Pinball Player", "DP-1"),
+            adapters.Window("VPinballX_BGFX", "Visual Pinball Backglass", "HDMI-A-1")])
+
+    def test_anything_else_the_compositor_says_is_no_windows(self) -> None:
+        self.assertEqual(wlr.sway_windows([]), [])
+        self.assertEqual(wlr.hyprland_windows({"error": "no"}, []), [])
+
+
 def _serve(answer):
     """One end of a socket pair, with `answer(conversation)` on the other end."""
     ours, theirs = socket.socketpair()
@@ -146,6 +206,39 @@ class IpcTests(unittest.TestCase):
                          Path("/run/user/1000/hypr/abc123/.socket.sock"))
         self.assertEqual(heard, [b"j/monitors"])
         self.assertEqual(len(found), 2)
+
+    def test_sway_is_asked_for_its_tree_for_the_windows(self) -> None:
+        heard = []
+
+        def sway(sock):
+            with sock:
+                heard.append(sock.recv(14))
+                payload = json.dumps(SWAY_TREE).encode()
+                sock.sendall(b"i3-ipc" + struct.pack("<II", len(payload), 4) + payload)
+
+        found = wlr.WlrAdapter(SWAY, lambda path: _serve(sway)).windows()
+
+        self.assertEqual(heard, [b"i3-ipc" + struct.pack("<II", 0, 4)])
+        self.assertEqual(len(found), 4)
+
+    def test_hyprland_is_asked_for_its_clients_and_monitors_one_to_a_connection(self) -> None:
+        heard = []
+        answers = {b"j/clients": HYPRLAND_CLIENTS,
+                   b"j/monitors": [{**one, "id": index}
+                                   for index, one in enumerate(HYPRLAND_MONITORS)]}
+
+        def hyprland(sock):
+            with sock:
+                asked = sock.recv(64)
+                heard.append(asked)
+                sock.sendall(json.dumps(answers[asked]).encode())
+
+        found = wlr.WlrAdapter(HYPRLAND, lambda path: _serve(hyprland)).windows()
+
+        self.assertEqual(heard, [b"j/clients", b"j/monitors"])
+        self.assertEqual([(one.title, one.output) for one in found],
+                         [("Visual Pinball Player", "DP-1"),
+                          ("Visual Pinball Backglass", "DP-2")])
 
     def test_a_reply_cut_short_is_an_error_not_a_partial_list(self) -> None:
         def sway(sock):

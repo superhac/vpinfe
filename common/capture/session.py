@@ -18,8 +18,9 @@ from common.failures import why
 from common.games import asset_origin
 from common.host import launch, launch_state, tools
 
-from . import adapters, geometry, pipeline
+from . import adapters, geometry, pipeline, placing
 from .adapters import Output, Recording
+from .placing import Placing
 from .settings import Settings
 
 logger = logging.getLogger("vpinfe.common.capture.session")
@@ -103,7 +104,7 @@ class Session:
     def __init__(self, target: Target, chosen: Settings, *, adapter: adapters.Adapter,
                  screens: Mapping[str, Output], found: Mapping[str, tools.Found],
                  at_once: bool, codec: str, work: Path, config: Any,
-                 kit: Kit | None = None) -> None:
+                 kit: Kit | None = None, placed: Placing | None = None) -> None:
         self.target = target
         self.chosen = chosen
         self.adapter = adapter
@@ -113,20 +114,62 @@ class Session:
         self.work = work
         self.config = config
         self.kit = kit or Kit()
+        self.placed = placed
         self.hardware = adapter.hardware(found[tools.FFMPEG.id]) if at_once else ""
-        wanted = set(target.kinds)
-        self.video = [window for window, (_, video) in KINDS.items()
-                      if video in wanted and window in screens]
-        self.stills = [window for window, (picture, video) in KINDS.items()
-                       if picture in wanted and video not in wanted and window in screens]
+        self.wanted = set(target.kinds)
         self.screens = dict(screens)
-        self.sound = AUDIO in wanted
+        self.dropped: set[str] = set()
+        self.sound = AUDIO in self.wanted
         self.launched = threading.Event()
         self.exited = threading.Event()
         self.either = threading.Event()
         self.failure: list[BaseException] = []
         self.counted: dict[Path, int] = {}
         self.result = Result(RECORDED, at_once=at_once)
+        if placed is not None:
+            self._place(placed.screens())
+        self._choose()
+
+    # --- which output each window is on ---------------------------------------------
+
+    def _choose(self) -> None:
+        self.video = [window for window, (_, video) in KINDS.items()
+                      if video in self.wanted and window in self.screens]
+        self.stills = [window for window, (picture, video) in KINDS.items()
+                       if picture in self.wanted and video not in self.wanted
+                       and window in self.screens]
+
+    def _place(self, screens: Mapping[str, adapters.Screen]) -> None:
+        """Each window asked for goes where `screens` says, or fails with its reason."""
+        for window, screen in screens.items():
+            kinds = [kind for kind in KINDS[window] if kind in self.wanted]
+            if not kinds or window in self.dropped:
+                continue
+            before = self.screens.get(window)
+            if screen.output is None:
+                if before is not None:
+                    logger.warning("Recording %s: nothing to record on %s for the %s (%s)",
+                                   self.target.game_id, before.name, window, screen.reason)
+                self.screens.pop(window, None)
+                self.dropped.add(window)
+                for kind in kinds:
+                    self._fail(kind, said(screen.reason, window=window, **screen.params))
+                continue
+            if before is not None and before.name != screen.output.name:
+                logger.warning("Recording %s: the %s is on %s, not %s", self.target.game_id,
+                               window, screen.output.name, before.name)
+            self.screens[window] = screen.output
+
+    def _confirm(self) -> None:
+        """Where the desktop can say which output holds each of the app's windows, that is
+        where this recording looks."""
+        if self.placed is None or self.placed.shown is None:
+            return
+        seen = placing.seen(self.adapter, self.placed.shown)
+        if seen is None:
+            return
+        self._place(self.placed.screens(seen))
+        self._choose()
 
     # --- the launch -----------------------------------------------------------------
 
@@ -360,7 +403,10 @@ class Session:
 
     def run(self) -> Result:
         if not self.video and not self.stills and not self.sound:
-            self.result.state, self.result.reason = SKIPPED, said(NOTHING_TO_RECORD)
+            if self.result.failed:
+                self.result.state = FAILED
+            else:
+                self.result.state, self.result.reason = SKIPPED, said(NOTHING_TO_RECORD)
             return self.result
         shutil.rmtree(self.work, ignore_errors=True)
         self.work.mkdir(parents=True)
@@ -387,6 +433,7 @@ class Session:
             return self.result
         if self.exited.wait(self.chosen.wait):
             return self._closed(thread)
+        self._confirm()
         recordings, sound, closed = self._record()
         if closed:
             return self._closed(thread)

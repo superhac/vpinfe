@@ -10,7 +10,7 @@ from starlette.testclient import TestClient
 
 import httpapi
 from common import events, jobs, service_errors
-from common.capture import run, session
+from common.capture import placing, run, session
 from common.capture.run import Request
 from common.games import asset_origin
 from common.host import launch_state
@@ -147,8 +147,10 @@ class _Started(_Library):
             return session.Result(session.RECORDED, placed=[{"kind": "playfield"}])
 
         held = found()
+        self.shown = placing.Shown("Visual Pinball X", {"playfield": "DP-2"})
         for target, value in (
                 ("common.capture.preflight.report", self.report),
+                ("common.capture.placing.shown", self.shown),
                 ("common.capture.adapters.resolve", FakeAdapter()),
                 ("common.host.display_service.get_display_monitors", MONITORS),
                 ("common.host.launch.this_devices_copy", None)):
@@ -192,6 +194,15 @@ class StartTests(_Started):
 
         self.assertEqual((self.sessions[0].target.table_id, self.sessions[0].target.table),
                          (MOD, "Mod.vpx"))
+
+    def test_the_session_places_windows_as_the_tables_own_app_says(self) -> None:
+        with patch("common.capture.placing.shown", return_value=self.shown) as asked:
+            self.finished(run.start(Request(tables=[(GAME_ID, MOD)], kinds=["playfield"])))
+
+        self.assertEqual(asked.call_args.args[1], "Mod.vpx")
+        started = self.sessions[0]
+        self.assertIs(started.placed.shown, self.shown)
+        self.assertEqual(started.screens["playfield"].name, "DP-2")
 
     def test_a_replacing_run_needs_the_plans_count(self) -> None:
         asked = Request(games=[GAME_ID], kinds=["playfield_video", "backglass"],

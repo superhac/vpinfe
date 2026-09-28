@@ -120,6 +120,30 @@ def binary_for(table_id: str, filename: str) -> str:
     return _binary_of(launcher)
 
 
+def launched_by(game: Game | None = None, table: str | None = None
+                ) -> tuple[apps.App, apps.Entry, dict[str, Any]] | None:
+    """The app a launch of this table would run, the entry it would hand it and the
+    launcher's settings, for asking the app about a table without launching it. With no
+    game, this install's default launcher's and no entry. None where no launcher would
+    play it. Raises LaunchUnavailableError where the table cannot be found."""
+    if game is None:
+        launcher = launchers.default_launcher(apps.default_app().id)
+        entry = apps.Entry()
+    else:
+        table_id, found = _resolve_entry(game, table)
+        launcher, _ = _launcher_for(table_id, found)
+        entry = apps.Entry(entry_id=table_id, table=_path_of(game, found),
+                           game_dir=str(game.full_path_game or ""),
+                           key=tables.entry_key(found))
+    if launcher is None:
+        return None
+    settings = {declared.key: launcher.value(declared.key) for declared in launcher.fields()}
+    configured = str(settings.get("bin_path") or "").strip()
+    if configured:
+        settings["bin_path"] = str(resolve_launcher_path(configured))
+    return (apps.get(launcher.app) or apps.default_app()), entry, settings
+
+
 def _binary_of(launcher: launchers.Launcher | None) -> str:
     """The program a launcher runs, checked before anything is announced."""
     if launcher is None:
