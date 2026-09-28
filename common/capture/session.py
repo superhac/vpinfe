@@ -18,7 +18,7 @@ from common.failures import why
 from common.games import asset_origin
 from common.host import launch, launch_state, tools
 
-from . import adapters, commands, geometry, pipeline, placing
+from . import adapters, commands, geometry, pipeline, placing, proposals, slots
 from .adapters import Output, Recording
 from .placing import Placing
 from .settings import Settings
@@ -66,6 +66,7 @@ class Kit:
     runner: Callable[..., Any] = subprocess.run
     place: Callable[..., Any] | None = None
     clock: Callable[[], float] = time.monotonic
+    propose: Callable[..., Any] | None = None
 
 
 @dataclass
@@ -76,10 +77,11 @@ class Result:
     reason: dict[str, Any] | None = None
     # Whether screens still record at once, for the rest of a run.
     at_once: bool = True
+    proposed: list[dict[str, str]] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         return {"state": self.state, "placed": self.placed, "failed": self.failed,
-                "reason": self.reason, "at_once": self.at_once}
+                "proposed": self.proposed, "reason": self.reason, "at_once": self.at_once}
 
 
 @dataclass(frozen=True)
@@ -92,6 +94,10 @@ class Target:
     # game's default.
     table: str | None
     kinds: tuple[str, ...]
+    # Kept as proposals rather than placed.
+    propose: frozenset[str] = frozenset()
+    # Placed over a file, which goes where nothing else uses it.
+    replace: frozenset[str] = frozenset()
 
 
 def playfield_turn(config: Any, base: geometry.Turn, orientation: str) -> geometry.Turn:
@@ -343,13 +349,6 @@ class Session:
         else:
             self._fail(kind, said(NOT_WRITTEN))
 
-    def _quietly(self, argv: list[str]) -> None:
-        """A step whose file the next one reads, and which fails through it."""
-        try:
-            pipeline.run(argv, self.kit.runner)
-        except (OSError, subprocess.SubprocessError):
-            logger.warning("Recording: %s did not finish", argv[0], exc_info=True)
-
     def _fail(self, kind: str, reason: dict[str, Any]) -> None:
         self.result.failed.append({"kind": kind, "reason": reason})
 
@@ -375,21 +374,17 @@ class Session:
                         self._fail(kind, said(ONE_COLOR, window=window))
                 continue
             turn = self._turn(window, self.adapter.recording_turn(self.screens[window]))
-            theirs = bool(self.chosen.encode_command)
             encoded = self.work / f"{video}.mp4"
-            if video in wanted or (picture in wanted and theirs):
-                job = pipeline.Encode(one.path, skip, self.chosen.length, turn,
-                                      self.chosen.fps, cap, self.codec, self.chosen.quality)
-                argv = commands.encode(self.chosen.encode_command, ffmpeg, job, encoded,
-                                       window=window, output=self.screens[window])
-                if video in wanted:
-                    self._made(video, argv, encoded, made)
-                else:
-                    self._quietly(argv)
+            job = pipeline.Encode(one.path, skip, self.chosen.length, turn,
+                                  self.chosen.fps, cap, self.codec, self.chosen.quality)
+            self._made(video, commands.encode(self.chosen.encode_command, ffmpeg, job, encoded,
+                                              window=window, output=self.screens[window]),
+                       encoded, made)
             if picture in wanted:
                 dest = self.work / f"{picture}.png"
                 cut = (pipeline.picture(ffmpeg, encoded, geometry.NONE, None, dest,
-                                        at=self.chosen.picture_at) if theirs
+                                        at=self.chosen.picture_at)
+                       if self.chosen.encode_command
                        else pipeline.picture(ffmpeg, one.path, turn, cap, dest,
                                              at=skip + self.chosen.picture_at))
                 self._made(picture, cut, dest, made)
@@ -426,10 +421,19 @@ class Session:
 
     def _land(self, made: dict[str, Path]) -> None:
         place = self.kit.place or _place
+        propose = self.kit.propose or proposals.keep
+        game_id, table_id = self.target.game_id, self.target.table_id
         for kind, path in made.items():
             try:
-                place(self.target.game_id, kind, self.target.table_id, path,
-                      asset_origin.RECORDED, "")
+                if kind in self.target.propose:
+                    kept = propose(game_id, table_id, kind, path)
+                    self.result.proposed.append({"kind": kind, "id": str(kept["id"])})
+                    continue
+                row = slots.serving(game_id, table_id, kind) \
+                    if kind in self.target.replace else None
+                written = place(game_id, kind, table_id, path, asset_origin.RECORDED, "")
+                slots.remove(game_id, row, table_id,
+                             str((written or {}).get("written") or ""))
             except (OSError, service_errors.ServiceError) as exc:
                 self._fail(kind, {"key": NOT_WRITTEN, "params": {}, "detail": why(exc)})
                 continue
@@ -477,9 +481,9 @@ class Session:
         thread.join(CLOSE_TIMEOUT)
         made = self._encode(recordings, sound)
         self._land(made)
-        if made:
+        if self.result.placed:
             self._refresh()
-        if not self.result.placed:
+        if not self.result.placed and not self.result.proposed:
             self.result.state = FAILED
         return self.result
 

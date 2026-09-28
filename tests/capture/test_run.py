@@ -232,10 +232,20 @@ class StartTests(_Started):
         with self.assertRaises(service_errors.BlockedError):
             run.start(Request(games=[GAME_ID]))
 
-    def test_choose_after_recording_waits_for_proposals(self) -> None:
-        with self.assertRaises(service_errors.RefusedError) as refused:
-            run.start(Request(games=[GAME_ID], existing=run.CHOOSE))
-        self.assertEqual(str(refused.exception), t("error.capture.choose_not_yet"))
+    def test_choose_after_recording_proposes_what_would_replace_a_file(self) -> None:
+        self.finished(run.start(Request(games=[GAME_ID], existing=run.CHOOSE,
+                                        kinds=["playfield", "playfield_video"])))
+
+        target = self.sessions[0].target
+        self.assertEqual((target.kinds, target.propose, target.replace),
+                         (("playfield", "playfield_video"), frozenset({"playfield_video"}),
+                          frozenset()))
+
+    def test_a_replacing_run_tells_the_session_what_it_replaces(self) -> None:
+        self.finished(run.start(Request(games=[GAME_ID], existing=run.REPLACE_ALL,
+                                        kinds=["playfield_video"], confirmed=1)))
+
+        self.assertEqual(self.sessions[0].target.replace, frozenset({"playfield_video"}))
 
     def test_a_device_that_records_nothing_says_why(self) -> None:
         with patch("common.capture.preflight.report", return_value=self.blocked), \

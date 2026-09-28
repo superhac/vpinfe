@@ -48,6 +48,10 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/frontend/browser` | What this device's frontend browser can play, and how to fix what it cannot. `state` is `unknown` until the frontend has reported since this browser was chosen |
 | GET | `/api/v1/capture` | What this device can record of its own screens, and exactly why not. See [Recording](#recording) |
 | POST | `/api/v1/capture/plan` | What recording one game or table would fill and replace, by whose file, and about how long it takes. Nothing happens |
+| GET | `/api/v1/capture/proposals` | Recordings waiting for a decision: how many, their size, and each with the file it would replace |
+| GET | `/api/v1/capture/proposals/{id}/file` | Play a recording waiting for a decision |
+| POST | `/api/v1/capture/proposals/{id}` | `{"use": true}` places the recording and deletes the file it replaces; `false` throws it away |
+| DELETE | `/api/v1/capture/proposals` | Throw away every recording waiting |
 | POST | `/api/v1/capture/test` | Record 3 s of the playfield with the Record and Encode Commands, launching nothing, and say what came out: size, rate, frames and a small picture, or which command failed and what it said |
 | POST | `/api/v1/capture/runs` | Record one game or table. 202 with the job; 409 while a table runs or a recording or art fill is under way, 501 where this device records nothing |
 | PUT | `/api/v1/frontend/collection` | Show a collection on the frontend, `""` being the whole library. 202, and the switch arrives as the next `frontend.state_changed`. 409 when the frontend is not running, or when this install reads its library from another that cannot be reached; 404 when there is no collection by that name |
@@ -943,9 +947,14 @@ nothing:
   the Sound setting - says so.
 - `existing` is what happens to a slot that already has a file: `fill` (the default)
   records only what nothing serves; `replace_downloaded` also replaces a catalog's files;
-  `replace_all` replaces whatever is there. `choose`, which keeps a recording for a person
-  to decide on, is refused until that exists.
-- A run that replaces anything carries `confirmed.count` equal to the plan's `replacing`,
+  `replace_all` replaces whatever is there; `choose` records it and keeps the recording as
+  a proposal for a person to decide on. An empty slot is filled whichever is asked.
+  `review: true` proposes every recording, an empty slot's too.
+- A replaced file is deleted once its recording is placed: the file that served the slot,
+  a catalog's fixed name such as `medias/table.mp4` under a game's recording included. At a
+  table's tier the file the game's tables share goes only where this table is the one it
+  serves; one that other tables use stays.
+- A run that deletes anything carries `confirmed.count` equal to the plan's `replacing`,
   and is refused with `details.replacing` otherwise - the confirm a person sees, by count.
 - `settings` are Recording settings for this run only: `length`, `wait`, `picture_at`,
   `fps`, `size`, `video_codec`, `playfield_orientation`, `quality`, `sound_source`,
@@ -955,17 +964,43 @@ nothing:
   as the table's own.
 - One game or table at a time. More than one is refused until runs of several exist.
 
-The plan answers per kind what it `does` (`fill`, `replace` or `leave`), the `source` of a
-file it replaces (`vpinmediadb`, `user`, `capture`, `unknown`), and a `reason` where this
+The plan answers per kind what it `does` (`fill`, `replace`, `propose` or `leave`), the
+`source` of the file serving the slot (`vpinmediadb`, `user`, `capture`, `unknown`) and its
+`file`, whether that file `goes` once a recording is placed, and a `reason` where this
 device cannot record the kind - on a device that records nothing, the report's own reason
-for every kind named; then `recording`, `replacing`, `replacing_by_source`,
-`launches` and an `estimate_seconds` that is always approximate.
+for every kind named; then `recording`, `replacing` (the files a run deletes),
+`replacing_by_source`, `launches` and an `estimate_seconds` that is always approximate.
 
 The job's `result` has one entry in `tables`: `state` is `recorded`, `failed`, `closed` (the
 table was closed at the cabinet before its recording finished, and nothing was placed) or
-`skipped` (nothing asked for needed recording), with the kinds `placed`, those `failed` with
-a `reason`, and `at_once`, false where the screens could not keep up together and were
-recorded again one at a time.
+`skipped` (nothing asked for needed recording), with the kinds `placed`, those `proposed`
+with their proposal's `id`, those `failed` with a `reason`, and `at_once`, false where the
+screens could not keep up together and were recorded again one at a time.
+
+### Proposals
+
+A proposal is a recording kept on the device, with the slot it is for, until a person uses it
+or throws it away. Nothing in the library changes until it is used.
+
+`GET /api/v1/capture/proposals` answers every one waiting, oldest first:
+
+```
+{"count": 1, "bytes": 1843200,
+ "proposals": [{"id": "3f9c0a1b2c4d", "game_id": "6f1c9a4e...", "table_id": "",
+                "kind": "playfield_video", "name": "Attack from Mars",
+                "file": "playfield_video.mp4", "created": "2026-09-28T02:10:44Z",
+                "size": 1843200,
+                "replaces": {"path": "medias/table.mp4", "source": "vpinmediadb",
+                             "goes": true},
+                "url": "/api/v1/capture/proposals/3f9c0a1b2c4d/file"}]}
+```
+
+`replaces` is the file serving the slot now, read when asked, and null where the slot is
+empty; `url` plays the recording. `POST /api/v1/capture/proposals/{id}` with
+`{"use": true}` places it at its tier with the origin `capture` and deletes the file it
+replaces where `goes` says so, answering `{"placed": kind, "removed": [path]}`;
+`{"use": false}` throws it away. `DELETE /api/v1/capture/proposals` throws every one away,
+answering `{"discarded": count}`.
 
 A run places each window by the table's own launcher's app. Once the table is up, at the end
 of Wait, it asks the desktop where that app's windows are, where the desktop can say (sway

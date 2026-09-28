@@ -7,9 +7,11 @@ import signal
 import tempfile
 import threading
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 from apps.vpx.capture import VPXCapture
 from common import events
@@ -51,6 +53,7 @@ class Cabinet:
         self.log: list[tuple[str, list[str], bool, int]] = []
         self.launched_with: dict[str, Any] = {}
         self.placed: list[tuple] = []
+        self.proposed: list[tuple] = []
 
     def launch(self, game: Any, config: Any, **kwargs: Any) -> None:
         self.launched_with = kwargs
@@ -111,12 +114,17 @@ class Cabinet:
         Path(argv[-1]).write_bytes(b"made")
         return SimpleNamespace(stdout="", stderr="", returncode=0)
 
-    def place(self, *args: Any) -> None:
+    def place(self, *args: Any) -> dict[str, str]:
         self.placed.append(args)
+        return {"written": f"{args[1]}{Path(args[3]).suffix}"}
+
+    def propose(self, *args: Any) -> dict[str, str]:
+        self.proposed.append(args)
+        return {"id": f"p{len(self.proposed)}"}
 
     def kit(self) -> session.Kit:
         return session.Kit(launch=self.launch, stop=self.stop, popen=self.popen,
-                           runner=self.runner, place=self.place)
+                           runner=self.runner, place=self.place, propose=self.propose)
 
     def encodes(self) -> list[tuple[str, list[str], bool, int]]:
         """Every FFmpeg run that makes a file, as against counting frames or loudness."""
@@ -146,7 +154,9 @@ class _Sessions(unittest.TestCase):
     def record(self, cabinet: Cabinet, kinds: tuple[str, ...], *, at_once: bool = True,
                chosen: Settings = QUICK, rotation: str = "0",
                shown: placing.Shown | None = None,
-               desktop: list[Window] | None = None) -> session.Result:
+               desktop: list[Window] | None = None,
+               propose: frozenset[str] = frozenset(),
+               replace: frozenset[str] = frozenset()) -> session.Result:
         """With `shown`, where the app's settings put its windows; with `desktop`, what the
         desktop says once the table is up."""
         wlr.reset_for_tests()
@@ -154,7 +164,8 @@ class _Sessions(unittest.TestCase):
         adapter.hardware = lambda ffmpeg: "/dev/dri/renderD128" if at_once else ""  # type: ignore[method-assign]
         if desktop is not None:
             adapter.windows = lambda: desktop  # type: ignore[method-assign]
-        target = session.Target("game1", SimpleNamespace(full_path_game=""), "", None, kinds)
+        target = session.Target("game1", SimpleNamespace(full_path_game=""), "", None, kinds,
+                                propose=propose, replace=replace)
         placed = None if shown is None else placing.Placing(
             list(OUTPUTS.values()), _config(rotation), [], shown)
         screens = SCREENS if placed is None else {
@@ -334,6 +345,44 @@ class SessionTests(_Sessions):
                                               orientation)
                 vf = argv[argv.index("-vf") + 1]
                 self.assertTrue(vf.startswith(",".join([*expected.filters, "fps=30"])))
+
+    def test_a_proposed_kind_is_kept_for_a_person_and_nothing_is_placed(self) -> None:
+        cabinet = Cabinet()
+
+        result = self.record(cabinet, ("playfield_video", "backglass_video"),
+                             propose=frozenset({"playfield_video"}))
+
+        self.assertEqual(result.state, session.RECORDED)
+        self.assertEqual(result.proposed, [{"kind": "playfield_video", "id": "p1"}])
+        self.assertEqual([one[1] for one in cabinet.placed], ["backglass_video"])
+        self.assertEqual(cabinet.proposed[0][:3], ("game1", "", "playfield_video"))
+
+    def test_a_replaced_kind_deletes_the_file_that_served_its_slot(self) -> None:
+        cabinet = Cabinet()
+        held = {"path": "medias/table.mp4", "table": ""}
+        with patch("common.capture.slots.serving", return_value=held) as serving, \
+                patch("common.capture.slots.remove", return_value=[]) as remove:
+            self.record(cabinet, ("playfield_video", "backglass_video"),
+                        replace=frozenset({"playfield_video"}))
+
+        self.assertEqual(serving.call_args.args, ("game1", "", "playfield_video"))
+        self.assertEqual([call.args for call in remove.call_args_list],
+                         [("game1", held, "", "playfield_video.mp4"),
+                          ("game1", None, "", "backglass_video.mp4")])
+
+    def test_with_a_persons_encode_command_the_picture_is_cut_from_what_it_wrote(
+            self) -> None:
+        cabinet = Cabinet()
+        chosen = replace(QUICK, encode_command="[ffmpeg] [input] -vf hflip [output]")
+
+        self.record(cabinet, ("playfield", "playfield_video"), chosen=chosen)
+
+        encode, picture = [one[1] for one in cabinet.encodes()]
+        self.assertEqual(encode[1:3], ["-ss", "0.000"])
+        self.assertEqual(encode[-3:], ["-vf", "hflip", str(self.work / "playfield_video.mp4")])
+        self.assertEqual(picture[picture.index("-i") + 1],
+                         str(self.work / "playfield_video.mp4"))
+        self.assertNotIn("transpose", " ".join(picture))
 
     def test_a_table_closed_at_the_cabinet_places_nothing(self) -> None:
         cabinet = Cabinet(closes_itself=0.05)

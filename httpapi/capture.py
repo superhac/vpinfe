@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Response
+from fastapi.responses import FileResponse
 
-from common.capture import preflight, run, trial
+from common.capture import preflight, proposals, run, trial
 
 from . import jobs as jobs_api
 from . import models, scopes
@@ -24,7 +25,8 @@ def _request(body: models.CaptureRequest) -> run.Request:
                        tables=[(one.game, one.table) for one in body.tables],
                        kinds=body.kinds, existing=body.existing, settings=body.settings,
                        sound=body.sound,
-                       confirmed=body.confirmed.count if body.confirmed else None)
+                       confirmed=body.confirmed.count if body.confirmed else None,
+                       review=body.review)
 
 
 @router.post("/plan", summary="What a recording would fill and replace, doing nothing",
@@ -45,3 +47,28 @@ def start_capture(body: models.CaptureRequest, response: Response) -> models.Job
              dependencies=[requires(scopes.CAPTURE_RUN)])
 def test_capture(body: models.CaptureTestRequest) -> models.CaptureTest:
     return models.CaptureTest.model_validate(trial.test(body.settings))
+
+
+@router.get("/proposals", summary="Recordings waiting for a decision",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_proposals() -> models.CaptureProposals:
+    return models.CaptureProposals.model_validate(proposals.listing())
+
+
+@router.get("/proposals/{proposal_id}/file", summary="Play a recording waiting for a decision",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_proposal_file(proposal_id: str) -> FileResponse:
+    return FileResponse(proposals.file_of(proposal_id))
+
+
+@router.post("/proposals/{proposal_id}", summary="Place a recording, or throw it away",
+             dependencies=[requires(scopes.CAPTURE_RUN)])
+def decide_proposal(proposal_id: str,
+                    body: models.CaptureProposalUse) -> models.CaptureProposalUsed:
+    return models.CaptureProposalUsed.model_validate(proposals.decide(proposal_id, body.use))
+
+
+@router.delete("/proposals", summary="Throw away every recording waiting",
+               dependencies=[requires(scopes.CAPTURE_RUN)])
+def discard_proposals() -> models.CaptureProposalsDiscarded:
+    return models.CaptureProposalsDiscarded.model_validate(proposals.discard_all())

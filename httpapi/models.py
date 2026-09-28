@@ -852,6 +852,51 @@ class CaptureTest(ApiModel):
     encode: str
 
 
+class CaptureReplaces(ApiModel):
+    """The file a proposal would take the place of, whose it is, and whether it goes."""
+
+    path: str
+    source: str
+    goes: bool
+
+
+class CaptureProposal(ApiModel):
+    """A recording waiting for a decision. `url` is where it plays; `size` is in bytes;
+    `replaces` is null where its slot is empty."""
+
+    id: str
+    game_id: str
+    table_id: str
+    kind: str
+    name: str
+    file: str
+    created: str
+    size: int
+    replaces: CaptureReplaces | None = None
+    url: str
+
+
+class CaptureProposals(ApiModel):
+    count: int
+    bytes: int
+    proposals: list[CaptureProposal]
+
+
+class CaptureProposalUse(ApiModel):
+    use: bool
+
+
+class CaptureProposalUsed(ApiModel):
+    """The kind placed, null where it was thrown away, and the files that went with it."""
+
+    placed: str | None = None
+    removed: list[str] = []
+
+
+class CaptureProposalsDiscarded(ApiModel):
+    discarded: int
+
+
 class CaptureTable(ApiModel):
     game: str
     table: str
@@ -866,8 +911,9 @@ class CaptureRequest(ApiModel):
     `kinds` are media kinds; empty is every kind this device can record, with `audio`
     where `sound` - or, where that is left out, the Sound setting - says so. `settings`
     holds Recording settings for this run only. `existing` is `fill`,
-    `replace_downloaded` or `replace_all`; `confirmed.count` must equal the plan's
-    `replacing` where that is more than none."""
+    `replace_downloaded`, `replace_all` or `choose`; `review` proposes every recording,
+    an empty slot's too. `confirmed.count` must equal the plan's `replacing` where that
+    is more than none."""
 
     games: list[str] = []
     tables: list[CaptureTable] = []
@@ -876,16 +922,20 @@ class CaptureRequest(ApiModel):
     settings: dict[str, Any] = {}
     sound: bool | None = None
     confirmed: CaptureConfirmed | None = None
+    review: bool = False
 
 
 class CapturePlanKind(ApiModel):
-    """`does` is `fill`, `replace` or `leave`. `source` is whose file a replace takes;
-    `reason` says why this device cannot record the kind at all."""
+    """`does` is `fill`, `replace`, `propose` or `leave`. `source` is whose file serves the
+    slot and `file` its path in the game's folder; `goes` says that file is deleted once a
+    recording is placed. `reason` says why this device cannot record the kind at all."""
 
     kind: str
     does: str
     source: str | None = None
     reason: CaptureReason | None = None
+    file: str | None = None
+    goes: bool = False
 
 
 class CapturePlan(ApiModel):
