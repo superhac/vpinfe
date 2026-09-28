@@ -1,4 +1,5 @@
-"""VPinPlay's tables, listed under Community."""
+"""VPinPlay's tables, listed under Community, and what the list's page says about who
+shares with VPinPlay."""
 
 from __future__ import annotations
 
@@ -7,14 +8,23 @@ import logging
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException
 
 from common.extensions.contract import why, words
 
+from .accounts import SEND_NOW, USER_ID, YOUR_PAGE, page_for
+
+if TYPE_CHECKING:
+    from .sending import Sender
+
 logger = logging.getLogger(__name__)
 t = words("vpinplay")
+
+OPEN_SITE = "open_site"
+# Core's name for Frontend › Players, where a line may send somebody.
+PLAYERS = "players"
 
 PAGE = 100
 AT_ONCE = 8
@@ -132,3 +142,57 @@ def router(endpoint_of: Any, on_read: Any = None) -> APIRouter:
         return {"rows": rows}
 
     return reading
+
+
+def status(ctx: Any, sender: Sender) -> dict[str, str]:
+    """Who shares, by initials. Otherwise why nobody does, linking to where it is fixed."""
+    roster = ctx.players.roster()
+    holding = [one for one in roster if ctx.players.account(one["id"]).get(USER_ID)]
+    if not holding:
+        return {"text": ctx.t("community.status.no_account"), "to": PLAYERS}
+    if not any(ctx.players.sharing(one["id"]) for one in holding):
+        return {"text": ctx.t("community.status.share_off"), "to": PLAYERS}
+    sending = sender.sharing()
+    if not sending:
+        return {"text": ctx.t("community.status.needs_initials"), "to": PLAYERS}
+    return {"text": ctx.t("community.status.sharing", players=ctx.t(
+        "community.status.list_join").join(one.initials for one in sending))}
+
+
+def acts(ctx: Any, site: str, sender: Sender) -> list[dict[str, str]]:
+    """Send Now while a sharing account has games waiting; the site; the owner's page
+    while the owner holds a user id."""
+    offered = []
+    if any(sender.waiting(one.player_id) for one in sender.sharing()):
+        offered.append({"key": SEND_NOW, "label": ctx.t("account.act.send_now.label")})
+    offered.append({"key": OPEN_SITE, "label": ctx.t("community.act.open_site.label"),
+                    "url": site})
+    owner = next((one for one in ctx.players.roster() if one.get("owner")), None)
+    user_id = ctx.players.account(owner["id"]).get(USER_ID, "") if owner else ""
+    if user_id:
+        offered.append({"key": YOUR_PAGE, "label": ctx.t("account.act.your_page.label"),
+                        "url": page_for(site, user_id)})
+    return offered
+
+
+def about_routers(ctx: Any, site: str, sender: Sender) -> tuple[APIRouter, APIRouter]:
+    """The list's line and menu, and Send Now from it."""
+    reading = APIRouter()
+    writing = APIRouter()
+
+    @reading.get("/community/tables/about")
+    def about() -> dict:
+        return {"status": status(ctx, sender), "acts": acts(ctx, site, sender)}
+
+    @writing.post("/community/tables/about/acts/{act}")
+    def run_act(act: str) -> dict:
+        if act != SEND_NOW:
+            raise HTTPException(404, detail=ctx.t("error.no_act", act=act))
+        went, waiting = sender.send_all()
+        if waiting:
+            return {"message": ctx.t("account.status.waiting", count=waiting)}
+        if not went:
+            return {"message": ctx.t("account.nothing_waiting")}
+        return {"message": ctx.t("account.sent", count=went)}
+
+    return reading, writing

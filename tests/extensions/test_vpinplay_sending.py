@@ -492,5 +492,89 @@ def listed_values(held: dict[str, str]) -> dict[str, list[str]]:
             for book in ("sent", "waiting")}
 
 
+class WhatCommunitySays(SendingCase):
+    """The Community list's line and menu, from `GET /community/tables/about`."""
+
+    def about(self) -> dict:
+        return self.ok(self.client.get(f"/ext/{NAME}/community/tables/about"))
+
+    def line(self) -> dict:
+        return self.about()["status"]
+
+    def menu(self) -> list[tuple[str, str]]:
+        return [(one["label"], one.get("url", "")) for one in self.about()["acts"]]
+
+    def test_the_list_names_the_route(self) -> None:
+        (listed,) = [one for one in self.ok(self.client.get("/extensions"))["extensions"]
+                     if one["name"] == NAME]
+
+        self.assertEqual([one["about"] for one in listed["community"]],
+                         ["/community/tables/about"])
+
+    def test_with_no_account_anywhere_it_says_so_and_links_to_players(self) -> None:
+        self.assertEqual(self.line(), {"text": "Not sharing - no player has a VPinPlay "
+                                               "account", "to": "players"})
+        self.assertEqual(self.menu(), [("Open VPinPlay", "https://www.vpinplay.com")])
+
+    def test_an_account_with_share_off_says_share_is_off(self) -> None:
+        self.fill(self.owner, user_id="owner-id")
+
+        self.assertEqual(self.line(), {"text": "Not sharing - Share is off",
+                                       "to": "players"})
+        self.assertEqual(self.menu(), [
+            ("Open VPinPlay", "https://www.vpinplay.com"),
+            ("Your Page", "https://www.vpinplay.com/players.html?userid=owner-id")])
+
+    def test_sharing_says_as_whom_in_roster_order(self) -> None:
+        kept = self.kept("ABC")
+        self.sharing(kept.player_id, "jordan")
+        self.sharing(self.owner, "owner-id")
+        self.fill(self.kept("XYZ").player_id, user_id="not-sharing")
+
+        self.assertEqual(self.line(), {"text": "Sharing as OWN, ABC"})
+
+    def test_sharing_with_no_initials_to_send_under_says_so(self) -> None:
+        kept = players.get_roster().add_player("Jordan", "")
+        self.sharing(kept.player_id, "jordan")
+
+        self.assertEqual(self.line(), {"text": "Not sharing - needs initials",
+                                       "to": "players"})
+
+    def test_your_page_is_the_owner_s_only(self) -> None:
+        self.sharing(self.kept().player_id, "jordan")
+
+        self.assertEqual([label for label, _url in self.menu()], ["Open VPinPlay"])
+
+    def test_send_now_is_offered_while_something_waits_and_sends_everyone_s(self) -> None:
+        kept = self.sharing(self.kept().player_id, "jordan")
+        self.sharing(self.owner, "owner-id")
+        self.assertNotIn("Send Now", [label for label, _url in self.menu()])
+        self.send.return_value = {"ok": False, "status_code": 503, "response_body": "down"}
+        self.play(self.owner, kept)
+        self.assertEqual(self.menu()[0], ("Send Now", ""))
+
+        self.send.return_value = {"ok": True, "status_code": 200, "response_body": ""}
+        said = self.ok(self.client.post(f"/ext/{NAME}/community/tables/about/acts/send_now"))
+
+        self.assertEqual(said, {"message": "Sent 2 games"})
+        self.assertEqual(sorted(self.games_sent()[2:]),
+                         [("jordan", f"vps-{GAME}"), ("owner-id", f"vps-{GAME}")])
+        self.assertNotIn("Send Now", [label for label, _url in self.menu()])
+
+    def test_send_now_that_fails_again_says_how_many_wait(self) -> None:
+        self.sharing(self.owner, "owner-id")
+        self.send.return_value = {"ok": False, "status_code": 503, "response_body": "down"}
+        self.play(self.owner)
+
+        said = self.ok(self.client.post(f"/ext/{NAME}/community/tables/about/acts/send_now"))
+
+        self.assertEqual(said, {"message": "1 game waiting to send"})
+
+    def test_an_act_it_does_not_offer_is_refused(self) -> None:
+        said = self.client.post(f"/ext/{NAME}/community/tables/about/acts/dance")
+
+        self.assertEqual(said.status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()

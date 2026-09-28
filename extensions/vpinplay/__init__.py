@@ -73,8 +73,11 @@ def register(ctx: Any) -> None:
     ctx.ui.account("/accounts", cards=(accounts.CARD_TYPE,))
 
     ctx.add_router(community.router(endpoint, read), scope=ctx.scope("read"))
+    reading, writing = community.about_routers(ctx, SITE, sender)
+    ctx.add_router(reading, scope=ctx.scope("read"))
+    ctx.add_router(writing, scope=ctx.scope("write"))
     ctx.ui.community(LIST_KEY, "/community/tables", title="VPinPlay",
                      columns=community.COLUMNS, views=community.VIEWS,
-                     relation=community.RELATION)
+                     relation=community.RELATION, about="/community/tables/about")
 
     ctx.logger.info("Contributing ratings from %s", endpoint())

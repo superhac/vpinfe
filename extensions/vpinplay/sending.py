@@ -121,6 +121,24 @@ class Sender:
     def waiting(self, player_id: str) -> list[str]:
         return listed(self._ctx.players.account(player_id).get(WAITING))
 
+    def sharing(self) -> list[Holder]:
+        """Every account that sends what is played, in roster order: sharing, with a user
+        id, a key and initials."""
+        found = [self._holder(str(one.get("id") or ""))
+                 for one in self._ctx.players.roster()
+                 if self._ctx.players.sharing(str(one.get("id") or ""))]
+        return [one for one in found if one is not None]
+
+    def send_all(self) -> tuple[int, int]:
+        """Send Now for every sharing account with games waiting. Answers how many went
+        and how many are still waiting, across all of them."""
+        went = left = 0
+        for holder in self.sharing():
+            if self.waiting(holder.player_id):
+                sent, waiting = self._run(holder, None)
+                went, left = went + sent, left + waiting
+        return went, left
+
     # -- a run -----------------------------------------------------------------
 
     def _run(self, holder: Holder, played: Played | None) -> tuple[int, int]:
