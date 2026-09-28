@@ -97,6 +97,21 @@ Runtime state written by VPinFE, not shown as a setting.
 | `grim_path` | string |  | Needed to record pictures of the screens. Blank finds it on this device. |
 | `wf_recorder_path` | string |  | Needed to record video of the screens. Blank finds it on this device. |
 
+### `capture`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `length` | int | `20` | Seconds of each screen to record |
+| `wait` | int | `15` | Seconds after the table has started before recording begins |
+| `picture_at` | int | `5` | Seconds into the recording that each picture is taken |
+| `fps` | choice (30, 60) | `30` | Frames per second of the stored video |
+| `size` | choice (1920, screen) | `1920` | The stored video's size |
+| `video_codec` | choice (auto, h264, vp9) | `auto` | Automatic records a format this device's frontend can play |
+| `playfield_orientation` | choice (bottom_right, bottom_left, upright) | `bottom_right` | Which way round the playfield is stored |
+| `quality` | choice (standard, high) | `standard` | High is sharper, in larger files |
+| `sound` | bool | `false` | Record the table's sound as a file of its own |
+| `sound_source` | string | `auto` | Where sound is recorded from. Automatic is what this device plays |
+
 ### `assets`
 
 | Key | Type | Default | Description |

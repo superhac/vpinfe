@@ -91,6 +91,15 @@ to 2.x still finds them.
 - `vpinos.py`: whether this device runs VPinOS, for what is VPinOS's alone.
 - `display_service.py`, `system_actions.py`, `vpx_log.py`.
 
+**`common/capture/`** - recording this machine's own screens into its tables' media.
+
+- `adapters/`: how this session's screens are reached, chosen from the session's variables, and which output each window is on. `wlr.py` is sway and Hyprland.
+- `geometry.py`: the turns a recorded frame takes to its stored orientation, as one set of FFmpeg filters.
+- `settings.py`: the `capture` settings, with a run's own values in place.
+- `preflight.py`: what this device can record and why not, the report `GET /capture` serves.
+
+Depends on `common/host/`, whose Tools it runs.
+
 Three cross-package edges are deliberate: `games` reads VPSdb through `online`
 when building metadata, and `online`'s VPinPlay client reaches into `games` to
 enumerate the library. That last one is the wrong direction; VPinPlay predates the

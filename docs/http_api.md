@@ -46,6 +46,7 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/play/stop` | Close the table this play host is running. `stopped` is false when there was nothing to close, which is an answer rather than a failure |
 | GET | `/api/v1/frontend/state` | What the frontend is showing: whether it is up, its collection and the game on the wheel. `frontend.state_changed` on the stream carries the same after every change |
 | GET | `/api/v1/frontend/browser` | What this device's frontend browser can play, and how to fix what it cannot. `state` is `unknown` until the frontend has reported since this browser was chosen |
+| GET | `/api/v1/capture` | What this device can record of its own screens, and exactly why not. See [Recording](#recording) |
 | PUT | `/api/v1/frontend/collection` | Show a collection on the frontend, `""` being the whole library. 202, and the switch arrives as the next `frontend.state_changed`. 409 when the frontend is not running, or when this install reads its library from another that cannot be reached; 404 when there is no collection by that name |
 | PUT | `/api/v1/frontend/game` | Move the frontend's wheel to a game. 202; 409 when the frontend is not running, 404 when the collection on screen does not hold that game |
 | POST | `/api/v1/input/actions` | Press, hold or release an input action on this install — the door a remote drives the frontend through |
@@ -804,6 +805,56 @@ frontend's controller window found when it last opened with that browser:
   Otherwise the fix is something a person does, and `fix_text` says what.
 - The `media_playback` capability is unavailable only where nothing plays or there is no
   browser, with `finding` as its reason.
+
+## Recording
+
+A device records its own screens into its tables' media: a picture and a video of each
+window, and the table's sound. Only the device with the screens does it, so everything here
+is asked of that device.
+
+`GET /api/v1/capture` is what it can record, worked out when asked:
+
+```
+{"observed_at": "2026-09-27T20:14:02Z", "adapter": "wlr",
+ "available": true, "reason": null,
+ "screens": [
+   {"window": "playfield", "output": "DP-1", "size": [1080, 1920], "surface": "portrait",
+    "picture": {"available": true, "reason": null},
+    "video": {"available": false,
+              "reason": {"key": "capture.tool.needed", "params": {"tool": "wf-recorder"},
+                         "fix": "user",
+                         "remedy": {"key": "tools.hint.linux",
+                                    "params": {"tool": "wf-recorder"},
+                                    "setting": "tools.wf_recorder_path"}}}},
+   {"window": "topper", "output": null, "size": null, "surface": null,
+    "picture": {"available": false,
+                "reason": {"key": "capture.screen.none", "params": {"window": "topper"},
+                           "fix": "none", "remedy": null}},
+    "video": {"available": false, "reason": {"key": "capture.screen.none", ...}}}],
+ "sound": {"available": false,
+           "reason": {"key": "capture.sound.no_server", "params": {}, "fix": "none",
+                      "remedy": null}},
+ "video_codec": "h264", "at_once": true,
+ "tools": [{"id": "ffmpeg", "state": "found", ...}]}
+```
+
+- `adapter` is how this session's screens are reached, read off its variables: `wlr` for
+  sway and Hyprland. KDE Plasma and GNOME on Wayland (`portal`), X11 (`x11grab`), Windows
+  (`ddagrab`) and macOS (`avfoundation`) answer unavailable, not supported yet, with no
+  screens.
+- `screens` has a row per window - `playfield`, `backglass`, `scoreview`, `topper` - and
+  the output it is on, found through the window's `screen_id` by the output's name, then by
+  where it is and its size. `size` is the output as the desktop lays it out.
+- Every `reason` is a catalog key and its values, rendered where it is read. `fix` is
+  `user` where a person must act, and then `remedy` says how, in the shape of the Tools'
+  remedy; `none` where nobody can. A `window` value is a window's id, said with its media
+  kind's word.
+- `video_codec` is what Automatic records here: `h264`, unless this device's frontend
+  browser reports it plays no H.264, then `vp9` in `.mp4`.
+- `at_once` is whether every screen records in the same moment, which takes a hardware
+  encoder; without one they record one after another in the same launch.
+- The `capture` capability is this report reduced to one answer, whether anything can be
+  recorded, with the first reason nothing can, remedy included.
 
 ## Event stream
 

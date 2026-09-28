@@ -734,6 +734,50 @@ class ConfigTools(ApiModel):
     tools: list[ConfigTool]
 
 
+# --- Recording ---------------------------------------------------------------
+
+class CaptureReason(Said):
+    """Why something cannot be recorded. `fix` is `user` where a person has to act, and
+    then `remedy` says how; `none` where nobody can."""
+
+    fix: str
+    remedy: ToolRemedy | None = None
+
+
+class CaptureAbility(ApiModel):
+    available: bool
+    reason: CaptureReason | None = None
+
+
+class CaptureScreen(ApiModel):
+    """One window and the output it is on. `size` is the output as the desktop lays it
+    out, and `surface` its shape; all three are null where no output is found."""
+
+    window: str
+    output: str | None = None
+    size: list[int] | None = None
+    surface: str | None = None
+    picture: CaptureAbility
+    video: CaptureAbility
+
+
+class CaptureReport(ApiModel):
+    """What this device can record, computed when asked. `adapter` is how it reaches its
+    screens; `reason` is the first thing stopping it where nothing can be recorded;
+    `video_codec` is what Automatic records here; `at_once` says every screen records in
+    the same moment rather than one after another."""
+
+    observed_at: str
+    adapter: str
+    available: bool
+    reason: CaptureReason | None = None
+    screens: list[CaptureScreen]
+    sound: CaptureAbility
+    video_codec: str
+    at_once: bool
+    tools: list[ConfigTool]
+
+
 class ConfigValues(ApiModel):
     """Values keyed section then key, typed as the store types them. A setting the file
     omits answers its default, which is what the install is running on."""

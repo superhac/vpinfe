@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from common.capture import preflight
 from common.host import frontend_browser, metrics
 from common.i18n import t
 
@@ -119,6 +120,12 @@ def declare_core() -> None:
         feature=capabilities.install_identity.FRONTEND,
         description="Which video and audio formats this device's frontend browser plays",
         is_available=frontend_browser.available,
+    ))
+    capabilities.declare(capabilities.Capability(
+        name="capture",
+        feature=capabilities.install_identity.FRONTEND,
+        description="Recording this device's own screens into its tables' media",
+        is_available=lambda: preflight.available(),
     ))
     capabilities.declare(capabilities.Capability(
         name="launchers",

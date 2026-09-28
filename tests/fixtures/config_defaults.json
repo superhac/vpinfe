@@ -12,6 +12,18 @@
     "splashscreen": "false",
     "startup_collection": ""
   },
+  "capture": {
+    "fps": "30",
+    "length": "20",
+    "picture_at": "5",
+    "playfield_orientation": "bottom_right",
+    "quality": "standard",
+    "size": "1920",
+    "sound": "false",
+    "sound_source": "auto",
+    "video_codec": "auto",
+    "wait": "15"
+  },
   "chromium": {
     "disable_defaults": "false",
     "options": "",

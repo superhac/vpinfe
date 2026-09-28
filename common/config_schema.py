@@ -492,6 +492,24 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             legacy=(),
         ),
     ),
+    # Recording this cabinet's own screens into its tables' media.
+    *in_section(
+        "capture",
+        ConfigOption("length", type="int", default="20", legacy=()),
+        ConfigOption("wait", type="int", default="15", legacy=()),
+        ConfigOption("picture_at", type="int", default="5", legacy=()),
+        ConfigOption("fps", type="choice", default="30", choices=("30", "60"), legacy=()),
+        ConfigOption("size", type="choice", default="1920", choices=("1920", "screen"),
+                     legacy=()),
+        ConfigOption("video_codec", type="choice", default="auto",
+                     choices=("auto", "h264", "vp9"), legacy=()),
+        ConfigOption("playfield_orientation", type="choice", default="bottom_right",
+                     choices=("bottom_right", "bottom_left", "upright"), legacy=()),
+        ConfigOption("quality", type="choice", default="standard",
+                     choices=("standard", "high"), legacy=()),
+        ConfigOption("sound", type="bool", default="false", legacy=()),
+        ConfigOption("sound_source", type="string", default="auto", legacy=()),
+    ),
     # Art a theme or the frontend draws that is not a game's own.
     *in_section(
         "assets",

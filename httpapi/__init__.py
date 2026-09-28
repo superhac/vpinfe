@@ -17,6 +17,7 @@ from . import (
     assets,
     auth,
     capabilities,
+    capture,
     collections,
     config,
     core_capabilities,
@@ -130,6 +131,7 @@ def create_api_app() -> FastAPI:
     api.include_router(manufacturers.router)
     api.include_router(play.router)
     api.include_router(frontend.router)
+    api.include_router(capture.router)
     api.include_router(input.router)
     api.include_router(games.router)
     api.include_router(tables.router)
