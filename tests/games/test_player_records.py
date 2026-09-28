@@ -13,7 +13,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common import extensions, players, service_errors
+from common import events, extensions, players, service_errors
 from common.extensions import accounts, host
 from common.extensions.store import ExtensionStore
 from common.games import player_records
@@ -211,6 +211,24 @@ class OwnerTests(_RecordsCase):
 
 
 class RatingTests(_RecordsCase):
+    def test_a_rating_is_announced_as_theirs(self) -> None:
+        heard: list[dict] = []
+        hear = events.subscribe(events.GAME_RATED, lambda **payload: heard.append(payload))
+        self.addCleanup(events.unsubscribe, events.GAME_RATED, hear)
+
+        self.records.set_rating(self.kept, "g1", 9)
+
+        self.assertEqual(heard, [{"game_id": "g1", "player": self.kept.as_payload(),
+                                  "rating": 5}])
+
+    def test_one_game_reads_as_their_record_lists_it(self) -> None:
+        self.records.offer_scores(self.kept, "g1", "rom1", [_entry("ABC", 1234)], AT)
+
+        self.assertEqual(self.records.shown(self.kept, "g1"),
+                         {k: v for k, v in self.records.view(self.kept)["games"][0].items()
+                          if k != "game_id"})
+        self.assertEqual(self.records.shown(self.kept, "never")["play_count"], 0)
+
     def test_a_rating_is_held_to_the_library_s_scale(self) -> None:
         self.assertEqual(self.records.set_rating(self.kept, "g1", 9), 5)
         self.assertEqual(self.records.set_rating(self.kept, "g1", "x"), 0)

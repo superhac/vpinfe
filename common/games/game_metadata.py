@@ -12,10 +12,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from common import events, players
 from common.games import high_scores, unwritten
 from common.games.game import Game, GameRecord
 from common.games.ids import new_id
-from common.games.info_file import VPINFE_SECTION, MetaConfig
+from common.games.info_file import GAME_ID_KEY, VPINFE_SECTION, MetaConfig
 from common.games.tables import (
     DETECT_KEYS,
     TABLE_FILENAME_KEY,
@@ -381,10 +382,15 @@ def set_game_rating(game: Game, rating: Any) -> int:
     whatever another wrote to the same `.info` while this copy was held.
     """
     config = load_game_meta(game)
-    get_or_create_user_meta(config)["Rating"] = normalize_rating(rating)
+    stored = normalize_rating(rating)
+    get_or_create_user_meta(config)["Rating"] = stored
     persist_game_meta(game, config)
     game.meta_config = config
-    return normalize_rating(rating)
+    owner = players.get_roster().owner()
+    events.emit(events.GAME_RATED,
+                game_id=str(vpinfe_section(config).get(GAME_ID_KEY, "") or "").strip(),
+                player=owner.as_payload() if owner else None, rating=stored)
+    return stored
 
 
 

@@ -441,14 +441,16 @@ any of them it can: a user id and key at a scores site, a name a leaderboard pos
 | `roster()` | Every player: the owner, the kept players, then the guests as they joined |
 | `get(player_id)` | One row, or None |
 | `up()` | The rows of who the next game counts for |
+| `record(player_id, game_id)` | What a player other than the owner has done with one game, as `GET /api/v1/players/{id}/record` lists it: `play_count`, `play_time_seconds`, `last_played`, `best_score`, `rating`. None for the owner, whose record is the library's and read through `ctx.games`. Read only |
 | `sharing(player_id)` | Whether this player's account here is sharing |
 | `account(player_id)` | Its values for this player, secrets included. Empty when they hold none |
 | `set_account(player_id, values)` | Replace them. Empty values remove the account |
 | `holders()` | The ids of every player holding an account here |
 
-The last four are the extension's own and need nothing declared. Values are strings, kept
-in the extension's own settings file under `accounts`, keyed by player id - which is why
-`accounts` is not a name a setting can take. **A guest's are held in memory and never
+The first four need `players:read`; the last four are the extension's own and need
+nothing declared. Values are strings, kept in the extension's own settings file under
+`accounts`, keyed by player id - which is why `accounts` is not a name a setting can
+take. **A guest's are held in memory and never
 written**, so a visitor leaves nothing on the disk, and they go when the guest does.
 Removing a player forgets their account with every extension.
 
@@ -510,13 +512,14 @@ from either version joins on the other, for good.
 
 ## What a game tells you
 
-Two core events say who played, as plain lists and dicts. `game` and `ini_config` ride
-along for core's own subscribers and are not part of this contract.
+Core events say who played and who rated what, as plain lists and dicts. `game` and
+`ini_config` ride along for core's own subscribers and are not part of this contract.
 
 | event | carries |
 |---|---|
 | `table.launched` | `game_id`, `table_id`, `source`; `up`, who the game counts for, taken once as it starts, each `{id, name, initials, owner, guest}`; and `private`, whether the game is Private |
 | `table.play_recorded` | the same, once the game has ended and its play is written, with `private` read again then; `seconds` played; `reading`, the machine's high score table as read after the game, or None; `new_entries`, `[{player, entries}]` for each player with an entry new this game |
+| `game.rated` | `game_id`; `player`, whose rating it is, `{id, name, initials, owner, guest}`, or None on an install with no owner yet; and `rating`, 0 to 5, 0 meaning unrated. The owner's rating is the library's, anyone else's is in their own record |
 
 **A Private game's data is never sent anywhere.** Not its plays, its time, its scores or
 its rating, and not the fact that the library holds it - to no service, for no player,

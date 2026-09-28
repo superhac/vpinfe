@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import json
 import unittest
+from configparser import ConfigParser
 from unittest.mock import patch
 
 from starlette.testclient import TestClient
 
 import httpapi
+from common import events, players
 from tests.support.library import TempTree, fake_game, write_game
 
 GAME_ID = "RateMe0001"
@@ -22,7 +24,7 @@ GAME_ID = "RateMe0001"
 
 def _info(rating=None) -> dict:
     user = {} if rating is None else {"Rating": rating}
-    return {"Info": {"Name": "Attack from Mars"}, "VPinFE": {"game_id": GAME_ID},
+    return {"Info": {"Name": "Attack from Mars"}, "vpinfe": {"game_id": GAME_ID},
             "User": user}
 
 
@@ -89,6 +91,20 @@ class GameRatingTests(TempTree):
         response = self.client.put("/games/nosuchgame/rating", json={"rating": 3})
 
         self.assertEqual(response.status_code, 404)
+
+    def test_the_rating_is_announced_as_the_owner_s(self) -> None:
+        players.reset_for_tests(self.root / "players.json")
+        self.addCleanup(players.reset_for_tests)
+        owner = players.get_roster().ensure_owner(ConfigParser())
+        assert owner is not None
+        heard: list[dict] = []
+        hear = events.subscribe(events.GAME_RATED, lambda **payload: heard.append(payload))
+        self.addCleanup(events.unsubscribe, events.GAME_RATED, hear)
+
+        self._put(4)
+
+        self.assertEqual(heard, [{"game_id": GAME_ID, "player": owner.as_payload(),
+                                  "rating": 4}])
 
     def test_the_game_resource_links_to_its_rating(self) -> None:
         """Discoverable rather than only documented."""

@@ -15,7 +15,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from common import service_errors
+from common import events, service_errors
 from common.atomic_write import write_atomic
 from common.games import high_scores
 from common.games.game_metadata import normalize_rating
@@ -91,10 +91,14 @@ class PlayerRecords:
         """Their record of one game; a game they have never touched reads as unplayed."""
         return self.games(player).get(game_id) or _unplayed()
 
+    def shown(self, player: Player, game_id: str) -> dict[str, Any]:
+        """Their record of one game as `view` lists it."""
+        return _as_shown(self.game(player, game_id))
+
     def view(self, player: Player) -> dict[str, Any]:
         """The record as `GET /players/{id}/record` answers it: most recently played
         first, then the games only rated."""
-        games = [{"game_id": game_id, **entry, BEST_SCORE: _shown(entry[BEST_SCORE])}
+        games = [{"game_id": game_id, **_as_shown(entry)}
                  for game_id, entry in self.games(player).items()]
         games.sort(key=lambda one: one["game_id"])
         games.sort(key=lambda one: one[LAST_PLAYED] or "", reverse=True)
@@ -132,6 +136,8 @@ class PlayerRecords:
         def rated(entry: dict[str, Any]) -> None:
             entry[RATING] = stored
         self._change(player, game_id, rated)
+        events.emit(events.GAME_RATED, game_id=str(game_id or "").strip(),
+                    player=player.as_payload(), rating=stored)
         return stored
 
     def forget(self, player_id: str) -> None:
@@ -210,6 +216,10 @@ def _whole(value: Any) -> int:
         return max(0, int(value))
     except (TypeError, ValueError):
         return 0
+
+
+def _as_shown(entry: dict[str, Any]) -> dict[str, Any]:
+    return {**entry, BEST_SCORE: _shown(entry[BEST_SCORE])}
 
 
 def _shown(best: Any) -> dict[str, Any] | None:

@@ -16,6 +16,7 @@ import httpapi
 from common import extensions, players, service_errors
 from common.extensions import accounts, cards, host, store
 from common.extensions.context import ContractError, ExtensionPlayers, ExtensionUI
+from common.games import player_records
 from common.i18n import t
 from httpapi import events as event_stream
 
@@ -385,6 +386,34 @@ class WhatAnExtensionSees(AccountsCase):
         self.assertEqual(seen.roster(), players.get_roster().state()["players"])
         self.assertEqual([one["id"] for one in seen.up()], [guest])
         self.assertEqual(seen.get(guest)["initials"], "ABC")
+
+    def test_a_player_s_record_of_a_game_needs_players_read(self) -> None:
+        with self.assertRaises(ContractError):
+            self.players_of().record(self.owner, "g1")
+
+    def test_a_player_s_record_of_a_game_is_their_own(self) -> None:
+        records = self.records()
+        kept = players.get_roster().add_player("Jordan", "ABC")
+        records.count_start(kept, "g1", "2026-09-28T20:00:00Z")
+        records.set_rating(kept, "g1", 4)
+
+        found = self.players_of("players:read").record(kept.player_id, "g1")
+
+        self.assertEqual((found["play_count"], found["rating"], found["last_played"]),
+                         (1, 4, "2026-09-28T20:00:00Z"))
+        self.assertEqual(found, records.shown(kept, "g1"))
+
+    def test_the_owner_s_record_is_the_library_s_and_nobody_s_is_nothing(self) -> None:
+        self.records()
+        seen = self.players_of("players:read")
+
+        self.assertIsNone(seen.record(self.owner, "g1"))
+        self.assertIsNone(seen.record("Nobody0000", "g1"))
+
+    def records(self) -> player_records.PlayerRecords:
+        player_records.reset_for_tests(self.root / "player_records")
+        self.addCleanup(player_records.reset_for_tests)
+        return player_records.get_records()
 
     def test_its_own_accounts_need_nothing_declared(self) -> None:
         seen = self.players_of()

@@ -45,6 +45,10 @@ FRONTEND_STATE_CHANGED = "frontend.state_changed"
 # play.state_changed.
 PLAYERS_CHANGED = "players.changed"
 
+# A player rated a game. Plain data, for an extension to read.
+#   game.rated  {game_id, player: {id, name, initials, owner, guest} | None, rating}
+GAME_RATED = "game.rated"
+
 # Something is starting, stopping or restarting. Announced after it is confirmed, so a
 # surface that did not ask can say what is about to happen. Subscribers only - a
 # confirmation is asked for on the surface that asked, not on this.

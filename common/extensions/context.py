@@ -441,6 +441,18 @@ class ExtensionPlayers:
         """Who the next game counts for."""
         return [one for one in self.roster() if one["up"]]
 
+    def record(self, player_id: str, game_id: str) -> dict | None:
+        """A player's record of one game, as `GET /api/v1/players/{id}/record` lists it.
+        None for the owner and for a player nobody has."""
+        self._needs_read()
+        from common import players
+        from common.games import player_records
+
+        player = players.get_roster().get(player_id)
+        if player is None or player.owner:
+            return None
+        return player_records.get_records().shown(player, str(game_id or "").strip())
+
     def sharing(self, player_id: str) -> bool:
         """Whether this player's account here is sharing. Off until someone turns it on."""
         from common import players
