@@ -971,7 +971,9 @@ A run places each window by the table's own launcher's app. Once the table is up
 of Wait, it asks the desktop where that app's windows are, where the desktop can say (sway
 and Hyprland can) and shows the app's playfield window, and records the outputs it names. A
 window the desktop shows on none of them is not recorded, and its kinds fail with
-`capture.screen.not_shown`.
+`capture.screen.not_shown`. A screen whose recording or picture is one flat color throughout,
+as a desktop's background is where nothing was drawn, is not placed either, and its kinds
+fail with `capture.outcome.one_color`: the net where the desktop cannot say.
 
 A recording launches the table with `source: "capture"`, which counts no play (see
 `docs/extensions.md`), and each file it places is recorded in the `.info` ledger with the

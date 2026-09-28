@@ -49,6 +49,7 @@ NO_FRAMES = "capture.outcome.no_frames"
 SILENT = "capture.outcome.silent"
 NOT_WRITTEN = "capture.outcome.not_written"
 NOTHING_TO_RECORD = "capture.outcome.nothing_to_record"
+ONE_COLOR = "capture.outcome.one_color"
 
 
 def said(key: str, **params: str) -> dict[str, Any]:
@@ -254,6 +255,15 @@ class Session:
                 self.counted[recording.path] = 0
         return self.counted[recording.path]
 
+    def _one_color(self, source: Path, per_second: int = 0) -> bool:
+        """False where the levels cannot be read."""
+        try:
+            done = pipeline.run(pipeline.levels(self._ffmpeg(), source, per_second),
+                                self.kit.runner)
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return pipeline.flat_in(done.stderr)
+
     def _kept_up(self, recording: Recording) -> bool:
         refresh = self.screens[recording.window].refresh or 60.0
         return self._frames(recording) >= ENOUGH_FRAMES * self.chosen.length * refresh
@@ -358,6 +368,12 @@ class Session:
                     if kind in wanted:
                         self._fail(kind, said(NO_FRAMES, window=window))
                 continue
+            if self._one_color(one.path) \
+                    and self._one_color(one.path, pipeline.CONFIRM_PER_SECOND):
+                for kind in (picture, video):
+                    if kind in wanted:
+                        self._fail(kind, said(ONE_COLOR, window=window))
+                continue
             turn = self._turn(window, self.adapter.recording_turn(self.screens[window]))
             theirs = bool(self.chosen.encode_command)
             encoded = self.work / f"{video}.mp4"
@@ -382,6 +398,9 @@ class Session:
             still = self.work / f"{window}.png"
             if not still.is_file():
                 self._fail(picture, said(NO_FRAMES, window=window))
+                continue
+            if self._one_color(still):
+                self._fail(picture, said(ONE_COLOR, window=window))
                 continue
             dest = self.work / f"{picture}.stored.png"
             turn = self._turn(window, self.adapter.still_turn(self.screens[window]))

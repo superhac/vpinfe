@@ -22,6 +22,10 @@ CRF = {(settings.H264, settings.STANDARD): 34, (settings.H264, settings.HIGH): 2
 
 # Peak loudness below which a recording has nothing to hear.
 SILENT_DB = -60.0
+# The most a frame's levels may spread in any plane, of 255, and it still be one color.
+FLAT_SPREAD = 4
+# Frames a second read of the whole recording, once its key frames were all one color.
+CONFIRM_PER_SECOND = 2
 
 # PulseAudio's name, which PipeWire's stand-in keeps, for the default output's monitor.
 DEFAULT_MONITOR = "@DEFAULT_MONITOR@"
@@ -119,11 +123,34 @@ def describe(ffmpeg: Path, source: Path) -> list[str]:
     return [str(ffmpeg), "-hide_banner", "-nostdin", "-i", str(source)]
 
 
+def levels(ffmpeg: Path, source: Path, per_second: int = 0) -> list[str]:
+    """Each frame's levels, printed to the log: the key frames alone, which decodes a
+    handful, or with `per_second`, that many frames a second of the whole."""
+    only = [] if per_second else ["-skip_frame", "nokey"]
+    sample = [f"fps={per_second}"] if per_second else []
+    return [str(ffmpeg), "-hide_banner", "-nostdin", "-nostats", *only, "-i", str(source),
+            "-map", "0:v:0", "-vf", ",".join([*sample, "signalstats", "metadata=mode=print"]),
+            "-f", "null", "-"]
+
+
 _FRAME = re.compile(r"^frame=\s*(\d+)", re.MULTILINE)
 _PEAK = re.compile(r"max_volume:\s*(-?[\d.]+|-inf) dB")
 _VIDEO = re.compile(r"Stream #\S+.*?: Video: (.*)")
 _SIZE = re.compile(r"(?<![\w.])(\d{2,5})x(\d{2,5})(?![\w.])")
 _RATE = re.compile(r"([\d.]+) fps")
+_PRINTED = re.compile(r"\bframe:\d+")
+_LEVEL = re.compile(r"lavfi\.signalstats\.([YUV])(MIN|MAX)=(\d+)")
+
+
+def flat_in(said: str) -> bool:
+    """Whether every frame `levels` printed is one color. False where it printed none."""
+    spreads = []
+    for frame in _PRINTED.split(said or "")[1:]:
+        found = {plane + end: int(value) for plane, end, value in _LEVEL.findall(frame)}
+        if len(found) == 6:
+            spreads.append(max(found[f"{plane}MAX"] - found[f"{plane}MIN"]
+                               for plane in "YUV"))
+    return bool(spreads) and max(spreads) <= FLAT_SPREAD
 
 
 def frames_in(said: str) -> int:

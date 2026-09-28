@@ -37,11 +37,15 @@ class Cabinet:
     when told to stop, and an FFmpeg that writes whatever it is asked to."""
 
     def __init__(self, *, closes_itself: float = 0.0, refuses: str = "",
-                 frames: dict[str, list[int]] | None = None, peak: float = -20.0) -> None:
+                 frames: dict[str, list[int]] | None = None, peak: float = -20.0,
+                 one_color: dict[str, tuple[bool, bool]] | None = None) -> None:
+        """`one_color`, by recording or still, is whether its key frames and then two
+        frames a second of the whole of it are one color."""
         self.closes_itself = closes_itself
         self.refuses = refuses
         self.frames = frames or {}
         self.peak = peak
+        self.one_color = one_color or {}
         self.stopped = threading.Event()
         self.running: list[Any] = []
         self.log: list[tuple[str, list[str], bool, int]] = []
@@ -97,6 +101,13 @@ class Cabinet:
             return SimpleNamespace(stdout=f"frame={count}\nprogress=end\n", stderr="")
         if "volumedetect" in argv:
             return SimpleNamespace(stdout="", stderr=f"max_volume: {self.peak} dB")
+        if _levels(argv):
+            keys, whole = self.one_color.get(Path(argv[argv.index("-i") + 1]).stem,
+                                             (False, False))
+            top = 16 if (keys if "-skip_frame" in argv else whole) else 235
+            said = "".join(f"lavfi.signalstats.{plane}MIN=16\nlavfi.signalstats.{plane}MAX={top}\n"
+                           for plane in "YUV")
+            return SimpleNamespace(stdout="", stderr=f"frame:0 pts:0\n{said}")
         Path(argv[-1]).write_bytes(b"made")
         return SimpleNamespace(stdout="", stderr="", returncode=0)
 
@@ -110,7 +121,12 @@ class Cabinet:
     def encodes(self) -> list[tuple[str, list[str], bool, int]]:
         """Every FFmpeg run that makes a file, as against counting frames or loudness."""
         return [one for one in self.log if one[0] == "run" and "-progress" not in one[1]
-                and "volumedetect" not in one[1] and not one[1][0].endswith("grim")]
+                and "volumedetect" not in one[1] and not one[1][0].endswith("grim")
+                and not _levels(one[1])]
+
+
+def _levels(argv: list[str]) -> bool:
+    return any("signalstats" in one for one in argv)
 
 
 def _config(rotation: str = "0") -> configparser.ConfigParser:
@@ -260,6 +276,39 @@ class SessionTests(_Sessions):
         self.assertIn({"kind": "audio", "reason": {"key": session.SILENT, "params": {}}},
                       result.failed)
         self.assertNotIn({"kind": "audio"}, result.placed)
+
+    def test_a_screen_that_showed_one_color_is_not_placed(self) -> None:
+        cabinet = Cabinet(one_color={"scoreview": (True, True)})
+
+        result = self.record(cabinet, (*VIDEOS, "scoreview"))
+
+        self.assertEqual(result.failed, [
+            {"kind": kind, "reason": {"key": session.ONE_COLOR,
+                                      "params": {"window": "scoreview"}}}
+            for kind in ("scoreview", "scoreview_video")])
+        self.assertEqual({one["kind"] for one in result.placed},
+                         {"playfield_video", "backglass_video"})
+        self.assertFalse([argv for _, argv, *_ in cabinet.encodes()
+                          if "scoreview.mkv" in " ".join(argv)])
+
+    def test_key_frames_of_one_color_are_read_again_before_it_is_refused(self) -> None:
+        cabinet = Cabinet(one_color={"scoreview": (True, False)})
+
+        result = self.record(cabinet, VIDEOS)
+
+        self.assertEqual((result.failed, len(result.placed)), ([], 3))
+        read = [argv for _, argv, *_ in cabinet.log
+                if _levels(argv) and "scoreview.mkv" in " ".join(argv)]
+        self.assertEqual(["-skip_frame" in argv for argv in read], [True, False])
+
+    def test_a_still_of_one_color_is_not_placed(self) -> None:
+        cabinet = Cabinet(one_color={"backglass": (True, False)})
+
+        result = self.record(cabinet, ("playfield", "backglass"))
+
+        self.assertEqual(result.failed, [{"kind": "backglass", "reason": {
+            "key": session.ONE_COLOR, "params": {"window": "backglass"}}}])
+        self.assertEqual(result.placed, [{"kind": "playfield"}])
 
     def test_pictures_alone_are_stills_and_nothing_is_recorded(self) -> None:
         cabinet = Cabinet()

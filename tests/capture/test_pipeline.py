@@ -93,6 +93,49 @@ class CommandTests(unittest.TestCase):
                          -84.0)
         self.assertEqual(pipeline.peak_in("max_volume: -inf dB"), float("-inf"))
 
+    def test_levels_are_read_off_the_key_frames_or_a_few_frames_a_second(self) -> None:
+        keys = pipeline.levels(FFMPEG, Path("raw.mkv"))
+        spread = pipeline.levels(FFMPEG, Path("raw.mkv"), 2)
+
+        self.assertEqual(_value(keys, "-skip_frame"), "nokey")
+        self.assertLess(keys.index("-skip_frame"), keys.index("-i"))
+        self.assertEqual(_value(keys, "-vf"), "signalstats,metadata=mode=print")
+        self.assertNotIn("-skip_frame", spread)
+        self.assertEqual(_value(spread, "-vf"), "fps=2,signalstats,metadata=mode=print")
+
+    def test_one_color_is_every_frame_spreading_no_more_than_four_levels(self) -> None:
+        cases = {
+            "the desktop's background": ([(32, 32, 132, 132, 127, 127)] * 5, True),
+            "a level or four of rounding": ([(30, 34, 130, 134, 127, 131)], True),
+            "five": ([(30, 35, 132, 132, 127, 127)], False),
+            "a dim dot on black": ([(16, 36, 116, 128, 127, 143)], False),
+            "one frame of five drawn": ([(16, 16, 128, 128, 128, 128)] * 4
+                                        + [(16, 235, 16, 240, 16, 240)], False),
+            "nothing read": ([], False),
+        }
+        for name, (frames, expected) in cases.items():
+            with self.subTest(name):
+                self.assertIs(pipeline.flat_in(_printed(frames)), expected)
+
+    def test_a_frame_missing_a_plane_is_not_read(self) -> None:
+        said = _printed([(16, 16, 128, 128, 128, 128)]) \
+            + "\nframe:1 pts:1\nlavfi.signalstats.YMIN=16\nlavfi.signalstats.YMAX=235\n"
+
+        self.assertTrue(pipeline.flat_in(said))
+
+
+def _printed(frames: list[tuple[int, ...]]) -> str:
+    """What `metadata=mode=print` logs after signalstats: a frame line, then its values."""
+    lines = ["Stream mapping:", "  Stream #0:0 -> #0:0 (h264 (native) -> wrapped_avframe)"]
+    for index, levels in enumerate(frames):
+        lines.append(f"[Parsed_metadata_1 @ 0x1] frame:{index}    pts:{index}    "
+                     f"pts_time:{index}")
+        lines.append("[Parsed_metadata_1 @ 0x1] lavfi.signalstats.YAVG=40.2")
+        for (plane, end), value in zip(((p, e) for p in "YUV" for e in ("MIN", "MAX")),
+                                       levels, strict=True):
+            lines.append(f"[Parsed_metadata_1 @ 0x1] lavfi.signalstats.{plane}{end}={value}")
+    return "\n".join(lines)
+
 
 _FFMPEG = shutil.which("ffmpeg")
 _FFPROBE = shutil.which("ffprobe")
@@ -170,6 +213,26 @@ class RealFfmpegTests(unittest.TestCase):
         dest = self.tmp / "audio.mp3"
         pipeline.run(pipeline.mp3(self.ffmpeg, self.tmp / "tone.wav", 0.1, 0.5, dest))
         self.assertEqual(self._probe(dest)[0]["codec_name"], "mp3")
+
+    def test_a_background_is_one_color_and_a_drawn_screen_is_not(self) -> None:
+        sources = {"background": "color=c=0x12121a:size=640x360:rate=60:duration=2",
+                   "dim dot": "color=c=black:size=640x360:rate=60:duration=2,"
+                              "drawbox=x=100:y=100:w=8:h=8:color=0x301000:t=fill"}
+        one_color = {}
+        for name, source in sources.items():
+            raw = self.tmp / f"{name}.mkv"
+            subprocess.run([str(_FFMPEG), "-hide_banner", "-loglevel", "error", "-y", "-f",
+                            "lavfi", "-i", source, "-c:v", "libx264", "-preset", "ultrafast",
+                            "-crf", "18", str(raw)], check=True, timeout=120)
+            one_color[name] = [
+                pipeline.flat_in(pipeline.run(pipeline.levels(self.ffmpeg, raw, every)).stderr)
+                for every in (0, pipeline.CONFIRM_PER_SECOND)]
+        one_color["moving"] = [
+            pipeline.flat_in(pipeline.run(pipeline.levels(self.ffmpeg, self.raw, every)).stderr)
+            for every in (0, pipeline.CONFIRM_PER_SECOND)]
+
+        self.assertEqual(one_color, {"background": [True, True], "dim dot": [False, False],
+                                     "moving": [False, False]})
 
 
 if __name__ == "__main__":

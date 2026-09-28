@@ -73,6 +73,7 @@
   "capture.outcome.no_frames": "Nothing came from the {window} screen",
   "capture.outcome.not_written": "Couldn't be written",
   "capture.outcome.nothing_to_record": "Every slot asked for already has a file",
+  "capture.outcome.one_color": "The {window} screen showed only one color",
   "capture.outcome.silent": "Nothing to hear during attract",
   "capture.outcome.would_not_start": "Would not start",
   "capture.progress.recording": "Recording “{game}”",
