@@ -17,6 +17,7 @@ import json
 import logging
 from datetime import UTC
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
@@ -26,6 +27,7 @@ logger = logging.getLogger("vpinfe.ext.vpinplay.sync")
 # shutdown. Ten seconds there, thirty when somebody asked for it and is watching.
 SHUTDOWN_TIMEOUT = 10
 ASKED_TIMEOUT = 30
+GAME_TIMEOUT = 30
 
 # Their bound, and one game outside it fails the whole request rather than that game.
 RATING_MIN, RATING_MAX = 0, 5
@@ -89,6 +91,64 @@ def payload_for(game: dict, table: dict | None) -> dict | None:
             "altvpsid": _text(overrides.get("alt_vps_id")),
         },
     }
+
+
+def payload_for_guest(game: dict, table: dict | None, played: dict, held: dict,
+                      initials: str) -> dict | None:
+    """One game a guest played here, in the shape `payload_for` builds.
+
+    `played` is what this session recorded for them. Anything it did not produce comes
+    from `held`, the service's own record for them and this table, and never from this
+    library's.
+    """
+    score = played.get("Score")
+    return payload_for({
+        **game,
+        "user": {"rating": held.get("rating"),
+                 "last_played": played.get("LastRun"),
+                 "play_count": played.get("StartCount"),
+                 "play_time_seconds": played.get("run_time_seconds"),
+                 "score": score if _holds_entry_for(score, initials) else held.get("score")},
+        "overrides": {"alt_title": held.get("alttitle"),
+                      "alt_vps_id": held.get("altvpsid")},
+    }, table)
+
+
+def _holds_entry_for(score: Any, initials: str) -> bool:
+    """Whether a reading off the machine has an entry with these initials. A reading
+    that is one number carries nobody's initials, so it is whoever was playing."""
+    if not isinstance(score, dict):
+        return False
+    entries = score.get("entries")
+    if not isinstance(entries, list):
+        return True
+    wanted = str(initials or "").strip().upper()
+    return any(str(one.get("initials") or "").strip().upper() == wanted
+               for one in entries if isinstance(one, dict))
+
+
+def their_record(sync_endpoint: str, user_id: str, vps_id: str,
+                 timeout_seconds: int) -> dict | None:
+    """What the service holds for one user and one table.
+
+    `{}` where it holds nothing, and None where it could not be asked - which a caller
+    must not read as nothing.
+    """
+    root = sync_endpoint.removesuffix("/sync")
+    url = f"{root}/users/{quote(user_id, safe='')}/tables/{quote(vps_id, safe='')}"
+    try:
+        response = requests.get(url, timeout=timeout_seconds)
+    except requests.RequestException:
+        return None
+    if response.status_code == 404:
+        return {}
+    if not response.ok:
+        return None
+    try:
+        found = response.json()
+    except ValueError:
+        return None
+    return found if isinstance(found, dict) else None
 
 
 def envelope(user_id: str, initials: str, machine_id: str,

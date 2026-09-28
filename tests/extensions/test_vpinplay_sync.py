@@ -169,5 +169,76 @@ class SendTests(unittest.TestCase):
         self.assertTrue(found["ok"])
 
 
+PLAYED = {"Rating": 0, "LastRun": 1790422278, "StartCount": 1, "run_time_seconds": 1800,
+          "Score": {"rom": "afm_113b", "entries": [
+              {"initials": "ABC", "score": 5000}, {"initials": "OWN", "score": 9000}]}}
+
+
+class GuestPayloadTests(unittest.TestCase):
+    def test_their_rating_and_titles_are_kept(self) -> None:
+        held = {"rating": 4, "alttitle": "Theirs", "altvpsid": "theirs-id"}
+
+        found = sync.payload_for_guest(GAME, TABLE, PLAYED, held, "ABC")
+
+        self.assertEqual(found["user"]["rating"], 4)
+        self.assertEqual(found["vpinfe"], {"alttitle": "Theirs", "altvpsid": "theirs-id"})
+
+    def test_nothing_of_this_librarys_record_goes_with_it(self) -> None:
+        found = sync.payload_for_guest(GAME, TABLE, PLAYED, {}, "ABC")
+
+        self.assertEqual(found["user"]["startCount"], 1)
+        self.assertEqual(found["user"]["runTime"], 30)
+        self.assertEqual(found["user"]["rating"], 0)
+        self.assertEqual(found["vpinfe"], {"alttitle": "", "altvpsid": ""})
+
+    def test_the_machines_table_goes_when_it_holds_their_entry(self) -> None:
+        found = sync.payload_for_guest(GAME, TABLE, PLAYED, {}, "abc")
+
+        self.assertEqual(found["user"]["score"], PLAYED["Score"])
+
+    def test_their_score_is_kept_when_the_table_holds_none_of_theirs(self) -> None:
+        held = {"score": {"rom": "afm_113b", "entries": [{"initials": "XYZ", "score": 1}]}}
+
+        found = sync.payload_for_guest(GAME, TABLE, PLAYED, held, "XYZ")
+
+        self.assertEqual(found["user"]["score"], held["score"])
+
+    def test_a_reading_that_is_one_number_is_theirs(self) -> None:
+        played = {**PLAYED, "Score": {"rom": "x", "value": 1234}}
+
+        found = sync.payload_for_guest(GAME, TABLE, played, {}, "ABC")
+
+        self.assertEqual(found["user"]["score"], {"rom": "x", "value": 1234})
+
+
+class TheirRecordTests(unittest.TestCase):
+    WHERE = "https://vpinplay.test/api/v1/sync"
+
+    def ask(self, **answer: object) -> tuple[object, MagicMock]:
+        with patch.object(sync.requests, "get", **answer) as get:
+            found = sync.their_record(self.WHERE, "some one", "abcd1234", 1)
+        return found, get
+
+    def test_it_asks_for_that_user_and_table(self) -> None:
+        found, get = self.ask(return_value=MagicMock(status_code=200, ok=True,
+                                                     json=lambda: {"rating": 3}))
+
+        self.assertEqual(found, {"rating": 3})
+        self.assertEqual(get.call_args.args[0],
+                         "https://vpinplay.test/api/v1/users/some%20one/tables/abcd1234")
+
+    def test_a_record_they_do_not_hold_is_empty(self) -> None:
+        found, _get = self.ask(return_value=MagicMock(status_code=404, ok=False))
+
+        self.assertEqual(found, {})
+
+    def test_a_server_that_cannot_answer_is_not_read_as_empty(self) -> None:
+        down, _get = self.ask(side_effect=sync.requests.ConnectionError("down"))
+        failing, _get = self.ask(return_value=MagicMock(status_code=500, ok=False))
+
+        self.assertIsNone(down)
+        self.assertIsNone(failing)
+
+
 if __name__ == "__main__":
     unittest.main()

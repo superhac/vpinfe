@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from common.extensions import host
 from common.games import game_play_service
@@ -56,6 +56,90 @@ class ProfilePlayTimeTests(unittest.TestCase):
 
         self.assertEqual(submitted["User"]["RunTime"], 3)
         self.assertNotIn("run_time_seconds", submitted["User"])
+
+
+class _Inline:
+    """A thread that runs its target when started, so a test sees what it did."""
+
+    def __init__(self, target, args=(), **_kwargs) -> None:
+        self.target, self.args = target, args
+
+    def start(self) -> None:
+        self.target(*self.args)
+
+
+VISITOR = {"type": "vpinplay_identity", "version": 1, "userId": "visitor",
+           "initials": "VIS", "machineId": "v" * 64}
+FOLDER = "/games/Example"
+
+
+class GuestGameSendTests(unittest.TestCase):
+    """A game a guest plays reaches VPinPlay under their identity once it ends."""
+
+    def setUp(self) -> None:
+        import vpinfe_ext_vpinplay as vpinplay
+
+        self.addCleanup(guest.clear_alternate_profile)
+        ctx = MagicMock(host_version="3.0.0")
+        ctx.config.get.side_effect = lambda key, default="": {
+            "endpoint": "https://vpinplay.test"}.get(key, default)
+        ctx.games.list_games.return_value = {"games": [
+            {"id": "g1", "folder": FOLDER, "name": "Example", "vps_id": "abcd1234",
+             "rom": "ex", "user": {"play_count": 33}, "overrides": {}}]}
+        ctx.games.game_tables.return_value = {"tables": [
+            {"default": True, "filename": "Example.vpx", "file_hash": "h"}]}
+        vpinplay.register(ctx)
+        self.answers = {call.args[0]: call.args[1] for call in ctx.serves.answer.call_args_list}
+        threads = patch.object(vpinplay, "threading", types.SimpleNamespace(Thread=_Inline))
+        threads.start()
+        self.addCleanup(threads.stop)
+        self.sent = MagicMock(return_value={"ok": True, "status_code": 200,
+                                            "response_body": ""})
+        self.held = MagicMock(return_value={})
+        for name, value in (("send", self.sent), ("their_record", self.held)):
+            patched = patch.object(vpinplay.sync, name, value)
+            patched.start()
+            self.addCleanup(patched.stop)
+
+    def play(self) -> bool:
+        self.answers["guest.record_start"](FOLDER)
+        return self.answers["guest.record_play"](FOLDER, 1800.0, None)
+
+    def test_it_goes_under_their_identity(self) -> None:
+        guest.activate_alternate_profile(VISITOR)
+
+        self.assertTrue(self.play())
+
+        payload = self.sent.call_args.args[1]
+        self.assertEqual(payload["client"], {"userId": "visitor", "initials": "VIS",
+                                             "machineId": "v" * 64})
+        self.assertEqual(self.sent.call_args.args[0], "https://vpinplay.test/api/v1/sync")
+        self.assertEqual([(one["info"]["vpsId"], one["user"]["startCount"],
+                           one["user"]["runTime"]) for one in payload["tables"]],
+                         [("abcd1234", 1, 30)])
+
+    def test_signing_out_while_it_is_on_its_way_changes_nothing_sent(self) -> None:
+        guest.activate_alternate_profile(VISITOR)
+        self.held.side_effect = lambda *_args: (guest.clear_alternate_profile(), {})[1]
+
+        self.play()
+
+        payload = self.sent.call_args.args[1]
+        self.assertEqual(payload["tables"][0]["user"]["startCount"], 1)
+        self.assertEqual(guest._GAME_USER_STATE_BY_PROFILE, {})
+
+    def test_nothing_goes_when_nobody_is_signed_in(self) -> None:
+        self.assertFalse(self.play())
+
+        self.sent.assert_not_called()
+
+    def test_nothing_goes_when_their_record_cannot_be_read(self) -> None:
+        guest.activate_alternate_profile(VISITOR)
+        self.held.return_value = None
+
+        self.play()
+
+        self.sent.assert_not_called()
 
 
 if __name__ == "__main__":

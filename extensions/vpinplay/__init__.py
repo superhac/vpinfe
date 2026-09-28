@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import secrets
 import string
+import threading
 from typing import Any
 from urllib.parse import urlencode
 
@@ -83,7 +84,48 @@ def register(ctx: Any) -> None:
         guest.add_game_runtime(game_key, elapsed_seconds, profile.profile_key)
         if score_data:
             guest.set_game_score(game_key, score_data, profile.profile_key)
+        played = guest.get_game_user_state(game_key, profile.profile_key)
+        threading.Thread(target=_send_guest_game, args=(game_key, profile, played),
+                         name="vpinplay-guest-game", daemon=True).start()
         return True
+
+    def _send_guest_game(game_key: str, profile: guest.GuestProfile, played: dict) -> None:
+        """Send one game a guest has just played to their own account.
+
+        `game_key` is the game's folder, which is how core names it on this path, and
+        `played` is their record for it as it stood when the game ended.
+        """
+        try:
+            game = next((one for one in ctx.games.list_games(q="", limit=0, offset=0)["games"]
+                         if one.get("folder") == game_key), None)
+            vps_id = str((game or {}).get("vps_id") or "").strip()
+            if game is None or not vps_id:
+                ctx.logger.info("Not sending a guest's game with no catalog id: %s", game_key)
+                return
+            tables = ctx.games.game_tables(game["id"])["tables"]
+            default = next((one for one in tables if one.get("default")),
+                           tables[0] if tables else None)
+            where = sync.endpoint_for(str(ctx.config.get(ENDPOINT_KEY, "") or DEFAULT_ENDPOINT))
+            held = sync.their_record(where, profile.user_id, vps_id, sync.GAME_TIMEOUT)
+            if held is None:
+                ctx.logger.warning("Not sending a guest's game of %s: VPinPlay could not "
+                                   "say what it already holds", game.get("name"))
+                return
+            built = sync.payload_for_guest(game, default, played, held, profile.initials)
+            if built is None:
+                return
+            payload = sync.envelope(profile.user_id, profile.initials, profile.machine_id,
+                                    [built], ctx.host_version, sync.now())
+            result = sync.send(where, payload, sync.GAME_TIMEOUT)
+        except Exception:
+            ctx.logger.exception("Could not send a guest's game to VPinPlay")
+            return
+        if result["ok"]:
+            ctx.logger.info("Sent a guest's game of %s to VPinPlay", game.get("name"))
+        else:
+            ctx.logger.warning("VPinPlay refused a guest's game of %s (%s): %s",
+                               game.get("name"), result["status_code"],
+                               result["response_body"])
 
     def _record_start(game_key: str) -> bool:
         """A session beginning, where a guest is playing. Answers whether it was taken."""
