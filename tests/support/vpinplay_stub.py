@@ -12,9 +12,11 @@ from typing import Any
 
 
 class VPinPlayStub(BaseHTTPRequestHandler):
-    """`taken` names ids nothing may claim; every claim seen is kept in `claimed`."""
+    """`taken` names ids nothing may claim; `unreachable` names ids answered as though
+    the service could not be reached at all; every claim seen is kept in `claimed`."""
 
     taken: set[str] = set()
+    unreachable: set[str] = set()
     claimed: list[dict] = []
 
     def _answer(self, status: int, body: dict) -> None:
@@ -28,6 +30,9 @@ class VPinPlayStub(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if "/available" in self.path:
             user_id = self.path.rsplit("/users/", 1)[-1].split("/", 1)[0]
+            if user_id in type(self).unreachable:
+                self._answer(503, {"detail": "down"})
+                return
             self._answer(200, {"available": user_id not in type(self).taken})
             return
         self._answer(404, {"detail": "none"})
@@ -49,6 +54,7 @@ def start() -> ThreadingHTTPServer:
     """A running stub, on its own thread. `server_address[1]` is its port; `stop()` it
     when the drive is done."""
     VPinPlayStub.taken = set()
+    VPinPlayStub.unreachable = set()
     VPinPlayStub.claimed = []
     server = ThreadingHTTPServer(("127.0.0.1", 0), VPinPlayStub)
     threading.Thread(target=server.serve_forever, daemon=True).start()

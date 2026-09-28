@@ -345,6 +345,20 @@ class IdentityTests(unittest.TestCase):
         self.assertNotEqual(remote._identity_key(_device("a")), remote._identity_key(_device("b")))
 
 
+class HasInitialsTests(unittest.TestCase):
+    """Whether the consent step offers Share: the extension's own `claim` refuses
+    without initials."""
+
+    def test_blank_initials_cannot_share(self) -> None:
+        self.assertFalse(remote._has_initials(_player("vis", guest=True, initials="")))
+
+    def test_whitespace_only_initials_cannot_share(self) -> None:
+        self.assertFalse(remote._has_initials(_player("vis", guest=True, initials="   ")))
+
+    def test_real_initials_can_share(self) -> None:
+        self.assertTrue(remote._has_initials(_player("vis", guest=True, initials="VIS")))
+
+
 class RatingOfTests(unittest.TestCase):
     """The stars shown while browsing: the library's for the owner, a player's own
     record for anyone else - never read from the field the other one writes."""

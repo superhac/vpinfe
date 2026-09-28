@@ -48,7 +48,7 @@ from console import dialog as frame
 from console.api import ApiClient, ApiError, local_base_url
 from console.data import Library
 from console.on_page import on_page
-from console.players import CARD_FILES, CLAIM, kind_of, save_card, share_help, shown_name
+from console.players import CARD_FILES, CLAIM, kind_of, save_card, shown_name
 
 logger = logging.getLogger("vpinfe.console.remote")
 
@@ -140,6 +140,12 @@ def remember_identity(device: dict[str, Any], player_id: str) -> None:
 def is_someone_else(identity: dict[str, Any] | None) -> bool:
     """Whether the phone is answering for anyone other than the owner."""
     return identity is not None and not identity.get("owner")
+
+
+def _has_initials(identity: dict[str, Any]) -> bool:
+    """Whether `identity` can share: the extension's own `claim` refuses without
+    initials, and drawing Share only to have it fail is worse than not drawing it."""
+    return bool(str(identity.get("initials") or "").strip())
 
 
 def last_played(games: list[dict[str, Any]]) -> dict[str, Any]:
@@ -737,41 +743,145 @@ def _guest_accounts(state: dict[str, Any], identity: dict[str, Any],
 async def _share_with(state: dict[str, Any], identity: dict[str, Any],
                       account: dict[str, Any], client_for_target: Callable[[], Any],
                       redraw: Callable[[], None]) -> bool:
-    """A user id, saved then claimed through the same act Players' own dialog uses
-    (`extensions/vpinplay/accounts.py`'s `claim`) - checked, keyed and registered before
-    Share goes on, never assumed free. Answers whether it went through, so the identity
-    sheet behind it knows to close."""
+    """The panel's own flow, drawn for a phone: an id checked live, the panel's consent,
+    then claimed and shared. One dialog, stepped in place from Choose to Consent - never
+    close `box` to move between steps (U8). Answers whether Share ended up on, so the
+    identity sheet behind it knows to close."""
     extension = str(account["extension"])
     service = str(account.get("label") or extension)
-    about: dict[str, Any] = next(
-        (one for one in account.get("fields") or [] if one.get("key") == "user_id"), {})
+    check = str(account.get("check") or "")
+    library = Library(client_for_target())
+    held: dict[str, Any] = {"id": str(account.get("user_id") or ""), "seen": object()}
+    refs: dict[str, Any] = {}
+
+    def _use_card_action() -> None:
+        @on_page
+        async def with_card(event: Any) -> None:
+            text = (await event.file.read()).decode("utf-8", "replace")
+            try:
+                await run.io_bound(library.use_card, identity["id"], extension, text)
+                await run.io_bound(library.put_share, identity["id"], extension, True)
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(t("console.players.could_not_use_card"), caption=why(exc),
+                          type="negative")
+                return
+            box.submit(True)
+
+        uploader = ui.upload(on_upload=with_card, auto_upload=True).classes("hidden")
+        uploader.props(f'accept="{",".join(CARD_FILES)}"')
+        uploader.on("finish",
+                    js_handler=f"() => getElement({uploader.id}).$refs.qRef.reset()")
+        button = panel.remote_action(t("console.remote.use_my_card"), icon=verbs.FROM_FILE,
+                                     hint=t("console.players.use_a_card.help"))
+        button.on("click",
+                 js_handler=f"() => getElement({uploader.id}).$refs.qRef.pickFiles()")
+
+    async def look() -> None:
+        said = str(refs["field"].value or "").strip().lower()
+        if said == held["seen"]:
+            return
+        held["seen"] = said
+        refs["holder"].clear()
+        refs["extra"].clear()
+        if not said:
+            refs["go"].disable()
+            return
+        if not check:
+            with refs["holder"]:
+                panel.state(t("console.players.id_unreachable", service=service),
+                           "unknown", beside=said)()
+            refs["go"].disable()
+            return
+        try:
+            free = await offload.io(library.account_available, extension, check, said)
+        except Exception:  # noqa: BLE001 - shown as "can't reach", whatever the reason
+            with refs["holder"]:
+                panel.state(t("console.players.id_unreachable", service=service),
+                           "unknown", beside=said)()
+            refs["go"].disable()
+            return
+        with refs["holder"]:
+            if free:
+                panel.state(t("console.players.id_available"), "on", beside=said)()
+            else:
+                panel.state(t("console.players.id_taken"), "warn", beside=said)()
+        if free:
+            refs["go"].enable()
+        else:
+            refs["go"].disable()
+            with refs["extra"]:
+                _use_card_action()
 
     @on_page
-    async def go() -> None:
-        typed = str(control.value or "").strip()
-        if not typed:
+    async def to_consent() -> None:
+        said = str(refs["field"].value or "").strip().lower()
+        if not said:
             return
-        library = Library(client_for_target())
         try:
             await run.io_bound(library.put_account, identity["id"], extension,
-                               {"user_id": typed})
-            await run.io_bound(library.account_act, identity["id"], extension, CLAIM)
-            await run.io_bound(library.put_share, identity["id"], extension, True)
-        except Exception as exc:
+                               {"user_id": said})
+        except Exception as exc:  # noqa: BLE001
             ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
+            return
+        held["id"] = said
+        refs["timer"].deactivate()
+        draw_consent()
+
+    @on_page
+    async def do_share() -> None:
+        try:
+            await offload.io(library.account_act, identity["id"], extension, CLAIM)
+            await run.io_bound(library.put_share, identity["id"], extension, True)
+        except Exception as exc:  # noqa: BLE001 - "taken", "can't reach": said, Share off
+            ui.notify(t("said.could_not_turn_on"), caption=why(exc), type="negative")
             return
         box.submit(True)
 
-    with _asked(t("console.remote.share_with_title", service=service)) as box:
-        ui.label(share_help(account)).classes("console-help px-3")
-        if about.get("help"):
-            ui.label(str(about["help"])).classes("console-help px-3")
-        control = frame.field(placeholder=str(about.get("label") or ""))
-        with frame.footer():
+    def draw_choose() -> None:
+        heading.text = t("console.players.choose_user_id_title", service=service)
+        body.clear()
+        buttons.clear()
+        with body:
+            refs["field"] = frame.field(held["id"])
+            refs["holder"] = ui.element("div").classes("console-fact-edit")
+            refs["extra"] = ui.row().classes("w-full")
+        with buttons:
             frame.cancel(lambda: box.submit(False))
-            answered = frame.answer(t("console.remote.share"), go, icon=verbs.SHARE)
-    frame.focus(box, control)
-    frame.enter_presses(answered)
+            refs["go"] = frame.answer(t("console.players.choose"), to_consent,
+                                      icon=verbs.CHOOSE)
+            refs["go"].disable()
+        refs["timer"] = ui.timer(0.4, look)
+        frame.focus(box, refs["field"], select=True)
+        frame.enter_presses(refs["go"])
+
+    def draw_consent() -> None:
+        heading.text = t("console.players.share_consent_title", id=held["id"],
+                         service=service)
+        body.clear()
+        buttons.clear()
+        can_share = _has_initials(identity)
+        with body:
+            if not can_share:
+                ui.label(t("console.remote.share_needs_initials")) \
+                    .classes("console-help px-3")
+            else:
+                ui.label(t("console.players.share_consent_heading")) \
+                    .classes("console-help px-3")
+                with ui.column().classes("gap-1 px-3"):
+                    for line in account.get("consent") or []:
+                        ui.label(f"• {line}").classes("console-help")
+                ui.label(t("console.players.share_consent_no_rename", service=service)) \
+                    .classes("console-help px-3")
+        with buttons:
+            frame.cancel(lambda: box.submit(False))
+            if can_share:
+                frame.answer(t("console.players.share"), do_share, icon=verbs.SHARE)
+
+    with frame.made() as box, ui.card().classes("console-dialog"):
+        heading = ui.label("").classes("console-dialog-title")
+        body = ui.column().classes("w-full gap-1")
+        buttons = frame.footer()
+        draw_choose()
     went = bool(await box)
     if went:
         await state["reread"]()

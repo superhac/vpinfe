@@ -1,9 +1,11 @@
 """The Remote's part in Players, driven at phone width as a visitor's phone would be:
-Join by Just Initials, the identity sheet's Sign Out, Share with VPinPlay and Save Card,
-This Is Me and Not Me changing who a rating and Favorite are for, and Now's up switches.
+Join by Just Initials, the identity sheet's Sign Out, Share with VPinPlay (an id checked
+live through Available, Taken and Can't reach, then the consent, then claimed) and Save
+Card, This Is Me and Not Me changing who a rating and Favorite are for, and Now's up
+switches.
 
 Slow: boots a real instance and a real browser. VPinPlay talks to a stand-in served here,
-which takes any id and any claim.
+which answers `taken` and `unreachable` ids as told and takes any other claim.
 """
 
 from __future__ import annotations
@@ -23,6 +25,8 @@ from tests.support.library import game_info, write_game
 from tests.support.live_instance import LiveInstance
 
 USER_ID = "visitor-one"
+TAKEN_ID = "taken-one"
+UNREACHABLE_ID = "down-one"
 CARD_FILE = f"vpinplay-{USER_ID}.svg"
 KID_NAME = "Kid"
 KID_INITIALS = "KID"
@@ -42,6 +46,11 @@ DIALOG_READY = ("[...document.querySelectorAll('.q-dialog .q-card')].some(card =
                 " !card.classList.contains('remote-sheet') &&"
                 " getComputedStyle(card.closest('.q-dialog__inner')).transform === 'none'"
                 " && card.getBoundingClientRect().width > 0)")
+# The text of that same non-sheet dialog card - the Choose/Consent flow's own, never the
+# identity sheet's, which stays open underneath it the whole time (U8).
+DIALOG_TEXT = ("(() => { const card = [...document.querySelectorAll('.q-dialog .q-card')]"
+              ".find(c => !c.classList.contains('remote-sheet'));"
+              " return card ? card.innerText.trim() : null; })()")
 NO_DIALOG = "!document.querySelector('.q-dialog')"
 
 
@@ -72,6 +81,8 @@ class RemotePlayersDrive(unittest.TestCase):
         if not chromium_path():
             raise unittest.SkipTest("no Chromium on this machine")
         server = vpinplay_stub.start()
+        vpinplay_stub.VPinPlayStub.taken.add(TAKEN_ID)
+        vpinplay_stub.VPinPlayStub.unreachable.add(UNREACHABLE_ID)
         try:
             with TemporaryDirectory() as tmp, TemporaryDirectory() as saved:
                 write_game(Path(tmp), "Alpha",
@@ -117,6 +128,20 @@ class RemotePlayersDrive(unittest.TestCase):
             async def type_into(selector: str, text: str) -> None:
                 await browser.click(selector)
                 await browser.send("Input.insertText", {"text": text})
+
+            async def retype_into(selector: str, text: str) -> None:
+                """Replaces whatever the field already holds, for the Choose step's
+                field: typed more than once as the live check runs on each candidate."""
+                await browser.click(selector)
+                await browser.evaluate(
+                    f"document.querySelector({json.dumps(selector)}).select()")
+                await browser.send("Input.insertText", {"text": text})
+
+            async def dialog_says(*words: str) -> str:
+                every = " && ".join(f"said.includes({json.dumps(w)})" for w in words)
+                said = await browser.wait_for(
+                    f"(said => said && {every} ? said : null)({DIALOG_TEXT})")
+                return str(said)
 
             async def open_identity() -> None:
                 await browser.click(".remote-identity")
@@ -166,8 +191,32 @@ class RemotePlayersDrive(unittest.TestCase):
             await click_text(".remote-action",
                              t("console.remote.share_with", service="VPinPlay"))
             await browser.wait_for(DIALOG_READY)
-            await type_into(".q-dialog input", USER_ID)
-            await click_text(DIALOG_FOOTER, t("console.remote.share"))
+            seen["choose_title"] = await browser.wait_for(DIALOG_TEXT)
+
+            # Taken: offers the Remote's own Use My Card instead of claiming here.
+            await retype_into(".q-dialog input", TAKEN_ID)
+            seen["choose_taken"] = await dialog_says(
+                t("console.players.id_taken"), t("console.remote.use_my_card"))
+
+            # Can't reach VPinPlay: choosing is refused.
+            await retype_into(".q-dialog input", UNREACHABLE_ID)
+            seen["choose_unreachable"] = await dialog_says(
+                t("console.players.id_unreachable", service="VPinPlay"))
+            seen["choose_disabled_while_unreachable"] = await browser.evaluate(
+                f"[...document.querySelectorAll({json.dumps(DIALOG_FOOTER)})]"
+                ".find(b => b.innerText.split('\\n').map(l => l.trim()).includes("
+                f"{json.dumps(t('console.players.choose'))})).disabled")
+
+            # Available, typed upper case and shown lower - then on to consent.
+            await retype_into(".q-dialog input", USER_ID.upper())
+            seen["choose_available"] = await dialog_says(
+                t("console.players.id_available"), USER_ID)
+            await click_text(DIALOG_FOOTER, t("console.players.choose"))
+
+            seen["consent"] = await dialog_says(
+                t("console.players.share_consent_heading"),
+                t("console.players.share_consent_no_rename", service="VPinPlay"))
+            await click_text(DIALOG_FOOTER, t("console.players.share"))
             await browser.wait_for(NO_DIALOG)
             await walk.drawn()
             seen["guest_account_after_share"] = _call(
@@ -259,6 +308,36 @@ class RemotePlayersDrive(unittest.TestCase):
         said = self.seen["guest_sheet"]
         self.assertIn(t("console.players.sign_out"), said)
         self.assertIn(t("console.remote.share_with", service="VPinPlay"), said)
+
+    # -- Choose: an id checked live, on the panel's own flow -----------------------
+
+    def test_choosing_opens_on_the_panels_own_title(self) -> None:
+        self.assertIn(t("console.players.choose_user_id_title", service="VPinPlay"),
+                      self.seen["choose_title"])
+
+    def test_a_taken_id_offers_use_my_card_instead(self) -> None:
+        said = self.seen["choose_taken"]
+        self.assertIn(t("console.players.id_taken"), said)
+        self.assertIn(t("console.remote.use_my_card"), said)
+
+    def test_an_unreachable_id_refuses_to_choose(self) -> None:
+        self.assertIn(t("console.players.id_unreachable", service="VPinPlay"),
+                      self.seen["choose_unreachable"])
+        self.assertEqual(self.seen["choose_disabled_while_unreachable"], True)
+
+    def test_an_available_id_is_shown_lower_cased(self) -> None:
+        said = self.seen["choose_available"]
+        self.assertIn(t("console.players.id_available"), said)
+        self.assertIn(USER_ID, said)
+        self.assertNotIn(USER_ID.upper(), said)
+
+    # -- Consent: the panel's own lines, then claimed and shared -------------------
+
+    def test_consent_names_what_becomes_public(self) -> None:
+        said = self.seen["consent"]
+        self.assertIn(t("console.players.share_consent_heading"), said)
+        self.assertIn(t("console.players.share_consent_no_rename", service="VPinPlay"),
+                      said)
 
     def test_sharing_sets_the_user_id_claims_it_and_turns_share_on(self) -> None:
         account = self.seen["guest_account_after_share"]
