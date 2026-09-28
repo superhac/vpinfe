@@ -142,6 +142,14 @@ class Roster:
                                       and same_initials(other.initials, p.initials)]}
             for p in everyone]}
 
+    def player_state(self, player_id: str) -> dict[str, Any]:
+        """One player as `state()` lists them."""
+        wanted = (player_id or "").strip()
+        found = next((one for one in self.state()["players"] if one["id"] == wanted), None)
+        if found is None:
+            raise _no_player(wanted)
+        return found
+
     # -- writing -------------------------------------------------------------
 
     def ensure_owner(self, config: ConfigSource) -> Player | None:
@@ -218,15 +226,13 @@ class Roster:
                 if found.owner:
                     raise service_errors.RefusedError(t("error.players.owner_not_removable"))
                 self._save([p for p in kept if p.player_id != wanted])
-                self._up = tuple(one for one in self._up if one != wanted)
-                return found
-            guest = next((p for p in self._guests if p.player_id == wanted), None)
-            if guest is not None:
-                self._guests.remove(guest)
-                self._up = (tuple(one for one in self._up if one != wanted)
-                            if self._guests else ())
-                return guest
-        raise _no_player(wanted)
+            else:
+                found = next((p for p in self._guests if p.player_id == wanted), None)
+                if found is None:
+                    raise _no_player(wanted)
+                self._guests.remove(found)
+            self._up = tuple(one for one in self._up if one != wanted)
+            return found
 
     def set_up(self, player_id: str, up: bool = True) -> list[Player]:
         """Put one player up, or take them down. Returns who is up afterwards."""
@@ -240,6 +246,19 @@ class Roster:
                 self._up = tuple(current + ([] if wanted in current else [wanted]))
             else:
                 self._up = tuple(one for one in current if one != wanted)
+            return self._up_among(everyone)
+
+    def set_who_is_up(self, player_ids: list[str]) -> list[Player]:
+        """Put exactly these players up. An id nobody has refuses the whole set; an empty
+        set leaves the owner up. Returns who is up afterwards."""
+        wanted = [(one or "").strip() for one in player_ids]
+        with self._changing():
+            everyone = self.players()
+            known = {p.player_id for p in everyone}
+            missing = next((one for one in wanted if one not in known), None)
+            if missing is not None:
+                raise _no_player(missing)
+            self._up = tuple(dict.fromkeys(wanted))
             return self._up_among(everyone)
 
     # -- internals -----------------------------------------------------------

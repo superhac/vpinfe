@@ -1,0 +1,84 @@
+"""Who plays on this install, and who the next game counts for.
+
+`common/players.py` is what answers. A write that sets who is up answers with the whole
+roster.
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Body, Response
+
+from common import events
+from common.players import get_roster
+
+from . import models, scopes
+from .auth import requires
+from .events import declare_snapshot
+
+router = APIRouter(prefix="/players", tags=["players"])
+
+
+def _roster() -> models.PlayerRoster:
+    return models.PlayerRoster.model_validate(get_roster().state())
+
+
+def _player(player_id: str) -> models.PlayerResource:
+    return models.PlayerResource.model_validate(get_roster().player_state(player_id))
+
+
+@router.get("", summary="Every player, and who is up",
+            dependencies=[requires(scopes.PLAYERS_READ)])
+def list_players() -> models.PlayerRoster:
+    return _roster()
+
+
+@router.post("", summary="Add a player", status_code=201,
+             dependencies=[requires(scopes.PLAYERS_WRITE)])
+def add_player(body: models.PlayerAddRequest = Body(...)) -> models.PlayerResource:
+    return _player(get_roster().add_player(body.name, body.initials).player_id)
+
+
+@router.post("/guests", summary="Add a guest from their initials", status_code=201,
+             dependencies=[requires(scopes.PLAYERS_WRITE)])
+def add_guest(body: models.GuestAddRequest = Body(...)) -> models.PlayerResource:
+    return _player(get_roster().add_guest(body.initials, body.name).player_id)
+
+
+@router.put("/up", summary="Say who is up",
+            dependencies=[requires(scopes.PLAYERS_WRITE)])
+def set_who_is_up(body: models.PlayersUpRequest = Body(...)) -> models.PlayerRoster:
+    get_roster().set_who_is_up(body.ids)
+    return _roster()
+
+
+@router.get("/{player_id}", summary="One player",
+            dependencies=[requires(scopes.PLAYERS_READ)])
+def get_player(player_id: str) -> models.PlayerResource:
+    return _player(player_id)
+
+
+@router.patch("/{player_id}", summary="Rename a player, or change their initials",
+              dependencies=[requires(scopes.PLAYERS_WRITE)])
+def change_player(player_id: str,
+                  body: models.PlayerChangeRequest = Body(...)) -> models.PlayerResource:
+    get_roster().update_player(player_id, name=body.name, initials=body.initials)
+    return _player(player_id)
+
+
+@router.put("/{player_id}/up", summary="Put one player up, or take them down",
+            dependencies=[requires(scopes.PLAYERS_WRITE)])
+def set_up(player_id: str,
+           body: models.PlayerUpRequest = Body(...)) -> models.PlayerRoster:
+    get_roster().set_up(player_id, body.up)
+    return _roster()
+
+
+@router.delete("/{player_id}", summary="Remove a player, or sign a guest out",
+               status_code=204, dependencies=[requires(scopes.PLAYERS_WRITE)])
+def remove_player(player_id: str) -> Response:
+    get_roster().remove(player_id)
+    return Response(status_code=204)
+
+
+def declare_snapshots() -> None:
+    declare_snapshot(events.PLAYERS_CHANGED, lambda: {"state": get_roster().state()})

@@ -140,6 +140,7 @@ STREAMED_EVENTS: dict[str, Callable[..., dict]] = {
     events.COLLECTIONS_CHANGED: _collections_event,
     events.PLAY_STATE_CHANGED: _as_published,
     events.FRONTEND_STATE_CHANGED: frontend_event,
+    events.PLAYERS_CHANGED: _as_published,
     events.LIFECYCLE_ACTING: _lifecycle_event,
     events.JOB_PROGRESS: _job_event,
     events.JOB_DONE: _job_event,

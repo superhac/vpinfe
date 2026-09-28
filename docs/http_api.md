@@ -202,6 +202,14 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/launchers/{id}/config/backups` | Take a copy now. `{"label": "..."}` is optional |
 | POST | `/api/v1/launchers/{id}/config/backups/{name}/restore` | Put a copy back. What is there now is copied first, and comes back as `safety_copy` |
 | PUT | `/api/v1/launchers/mappings/{table_id}` | Point one table at a launcher, `{"launcher_id": "..."}`. An empty `launcher_id` puts it back on the default |
+| GET | `/api/v1/players` | Every player on this install and who is up - see [Players](#players). The same as `players.changed` carries |
+| GET | `/api/v1/players/{id}` | One player, as the list has them |
+| POST | `/api/v1/players` | Add a player, `{"name", "initials"}`. `201`. Not put up |
+| POST | `/api/v1/players/guests` | Add a guest from their initials, `{"initials"}`, and put them up alone. `201` |
+| PATCH | `/api/v1/players/{id}` | Rename a player or change their initials, `{"name", "initials"}`. A field left out is left alone |
+| DELETE | `/api/v1/players/{id}` | Remove a player, or sign a guest out. `204`. The owner cannot be removed |
+| PUT | `/api/v1/players/{id}/up` | Put one player up beside whoever is, `{"up": true}`, or take them down. Answers with the whole list |
+| PUT | `/api/v1/players/up` | Say exactly who is up, `{"ids": [...]}`. An id nobody has is a `404` and changes nothing. Answers with the whole list |
 | GET | `/api/v1/metrics` | What this device is doing now. `history_seconds` adds as much of this session as you ask for; 0 means none |
 | GET | `/api/v1/metrics/gpu` | What the graphics cards are doing. Separate because it shells out to nvtop, and says so where nvtop is missing rather than reporting no cards |
 | GET | `/api/v1/about` | What this install and this device *are* - version, build, OS, browser, and where files live. `text` is the same answer as something to paste into a report |
@@ -814,6 +822,7 @@ What's on it, each alongside the `install_id` described below:
 | `collections.changed` | `{}` — the collections were edited, or a read of a Community list moved a ranked order; re-read them |
 | `play.state_changed` | `{"state": {"launching", "game_name", "source"}}` |
 | `frontend.state_changed` | `{"state": {"running", "collection", "game"}}`, `game` a reference like the others or null. The same as `GET /frontend/state` |
+| `players.changed` | `{"state": {"players": [...]}}` - somebody joined, left, was renamed or went up. The whole list, the same as `GET /players` |
 | `job.progress` | `{"job_id", "pct", "message"}` |
 | `job.done` | `{"job_id"}` |
 | `job.failed` | `{"job_id", "error"}` |
@@ -854,8 +863,8 @@ launch. The frontend uses it to ignore its own; everything else can treat the st
 about the machine regardless of who caused it.
 
 On connect the stream sends a `stream.hello` frame, then the current value of any
-state-carrying event it's declared for — today `play.state_changed` and
-`frontend.state_changed`. So a client that
+state-carrying event it's declared for — today `play.state_changed`,
+`frontend.state_changed` and `players.changed`. So a client that
 connects mid-launch knows it, without a separate call to `/play/state` and without waiting
 for the launch to end. An event whose payload doesn't describe the whole state has no
 snapshot; there's nothing honest to send.
@@ -1109,6 +1118,42 @@ Three outcomes, because they are three different problems: `missing` (the librar
 this device cannot resolve), `differs` (both have it, the bytes are not the same), and
 `unverifiable` (the library has not hashed it, so it says nothing either way). Nothing
 verifiable is not a pass.
+
+## Players
+
+Who plays on this install, and who the next game counts for. Each install has its own,
+and one player on it is the **owner**, made on the first start and never removable. Kept
+players are written to `players.json` in the config directory. A **guest** is held in
+memory and is gone when VPinFE closes.
+
+```json
+{"players": [
+  {"id": "Pq7Lm2Xa9B", "name": "", "initials": "OWN", "owner": true, "guest": false,
+   "up": false, "shares_initials_with": []},
+  {"id": "Hc4Rt8Wv1N", "name": "", "initials": "ABC", "owner": false, "guest": true,
+   "up": true, "shares_initials_with": []}
+]}
+```
+
+**Up is who the next game counts for**, and it is never empty: with nobody else up, the
+owner is. Several can be up at once, for a game two people share. A guest joining is put up
+alone, so a visitor's game is never counted for the owner by default. Whoever leaves is
+taken out of up, and the others up beside them stay up; the owner goes back up only when
+nobody would be left. Who is up is held in memory and starts as the owner.
+
+**Initials are how a score finds its player.** They are three characters, or none on a
+kept player, held upper case and compared ignoring case and the spaces around them. Two
+kept players with the same initials are refused, naming who has them. Initials a player
+already holds stay as they are when left unchanged, even shorter ones brought from 2.x. A
+guest whose initials a kept player has joins anyway, and each lists the other under
+`shares_initials_with`: while they share them, a score carrying those initials goes to
+neither.
+
+A refusal - removing the owner, initials taken or not three characters, a guest with none -
+is `invalid_request` with the reason as its message. An id nobody has is `not_found`.
+
+`players:read` and `players:write` guard them. Every change is announced as
+`players.changed`, carrying the whole list.
 
 ## Jobs
 

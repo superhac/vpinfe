@@ -434,6 +434,53 @@ class MoveWheelRequest(ApiModel):
     id: str
 
 
+# --- Players ---------------------------------------------------------------
+
+class PlayerResource(ApiModel):
+    """One player. `shares_initials_with` names the others holding the same initials,
+    whose scores then go to nobody by initials."""
+
+    id: str
+    name: str = ""
+    initials: str = ""
+    owner: bool = False
+    guest: bool = False
+    up: bool = False
+    shares_initials_with: list[str] = Field(default_factory=list)
+
+
+class PlayerRoster(ApiModel):
+    """Also the `state` of the `players.changed` event. The owner first, then the kept
+    players, then the guests as they joined."""
+
+    players: list[PlayerResource]
+
+
+class PlayerAddRequest(ApiModel):
+    name: str = ""
+    initials: str = ""
+
+
+class GuestAddRequest(ApiModel):
+    initials: str
+    name: str = ""
+
+
+class PlayerChangeRequest(ApiModel):
+    """A patch: a field left out is left alone."""
+
+    name: str | None = None
+    initials: str | None = None
+
+
+class PlayerUpRequest(ApiModel):
+    up: bool
+
+
+class PlayersUpRequest(ApiModel):
+    ids: list[str]
+
+
 # --- Games -----------------------------------------------------------------
 
 class AssetFileBinding(ApiModel):

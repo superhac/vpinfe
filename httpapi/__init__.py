@@ -38,6 +38,7 @@ from . import (
     mediasources,
     metrics,
     play,
+    players,
     preferences,
     scopes,
     tables,
@@ -118,6 +119,7 @@ def create_api_app() -> FastAPI:
     api.include_router(preferences.router)
     api.include_router(config.router)
     api.include_router(launchers.router)
+    api.include_router(players.router)
     api.include_router(locations.router)
     api.include_router(metrics.router)
     api.include_router(themes.router)
@@ -143,6 +145,7 @@ def create_api_app() -> FastAPI:
     core_capabilities.declare_core()
     play.declare_snapshots()
     frontend.declare_snapshots()
+    players.declare_snapshots()
     events.attach()
     auth.assert_every_route_declares_a_scope(api)
     return api

@@ -126,6 +126,11 @@ def declare_core() -> None:
         description="The configured ways this device runs a table",
     ))
     capabilities.declare(capabilities.Capability(
+        name="players",
+        feature=capabilities.install_identity.FRONTEND,
+        description="Who plays on this device, and who the next game counts for",
+    ))
+    capabilities.declare(capabilities.Capability(
         name="peripherals",
         feature=capabilities.install_identity.FRONTEND,
         description="DOF, real-DMD and other attached hardware",

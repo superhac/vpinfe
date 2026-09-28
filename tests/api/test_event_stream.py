@@ -8,13 +8,15 @@ would hang on the first regression instead of failing.
 import asyncio
 import json
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import mock
 
 from starlette.testclient import TestClient
 
 import httpapi
-from common import events
+from common import events, players
 from httpapi import auth
 from httpapi import events as event_stream
 
@@ -257,6 +259,19 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         frame = await self._next(stream)
 
         self.assertEqual(_fields(frame)["event"], events.COLLECTIONS_CHANGED)
+
+    async def test_a_change_of_who_plays_reaches_a_client_whole(self) -> None:
+        """A phone hears a guest join at the cabinet, and redraws from the whole roster."""
+        with TemporaryDirectory() as folder:
+            roster = players.Roster(Path(folder) / "players.json")
+            stream = self._open()
+            await self._hello(stream)
+
+            roster.add_guest("ABC")
+            frame = await self._next(stream)
+
+            self.assertEqual(_fields(frame)["event"], events.PLAYERS_CHANGED)
+            self.assertEqual(_shape(frame), {"state": roster.state()})
 
     async def test_neither_carries_a_path_from_the_machine_it_happened_on(self) -> None:
         """Both events carry a filesystem path on the bus, for handlers in this process.

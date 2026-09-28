@@ -57,7 +57,7 @@ class SameInitialsTests(unittest.TestCase):
 
     def test_different_initials_differ(self) -> None:
         self.assertFalse(same_initials("OWN", "OWM"))
-        self.assertFalse(same_initials("JD", "JDD"))
+        self.assertFalse(same_initials("OW", "OWW"))
 
     def test_blank_matches_nothing_not_even_blank(self) -> None:
         self.assertFalse(same_initials("", ""))
@@ -156,9 +156,9 @@ class OwnerTests(_RosterCase):
         self.assertEqual(self._file()["migrations"], [OWNER_MIGRATION])
 
     def test_shorter_2x_initials_are_kept_as_they_are(self) -> None:
-        owner = self.roster.ensure_owner(_config("JD"))
+        owner = self.roster.ensure_owner(_config("OW"))
 
-        self.assertEqual(owner.initials, "JD")
+        self.assertEqual(owner.initials, "OW")
 
     def test_no_initials_anywhere_makes_an_owner_with_none(self) -> None:
         owner = self.roster.ensure_owner(_config())
@@ -245,11 +245,11 @@ class KeptPlayerTests(_RosterCase):
 
     def test_a_rename_leaves_shorter_held_initials_alone(self) -> None:
         self.path.unlink()
-        owner = self._restart().ensure_owner(_config("JD"))
+        owner = self._restart().ensure_owner(_config("OW"))
 
-        renamed = self.roster.update_player(owner.player_id, name="Jordan", initials="jd")
+        renamed = self.roster.update_player(owner.player_id, name="Jordan", initials="ow")
 
-        self.assertEqual((renamed.name, renamed.initials), ("Jordan", "JD"))
+        self.assertEqual((renamed.name, renamed.initials), ("Jordan", "OW"))
 
     def test_changing_initials_is_checked_like_adding(self) -> None:
         alex = self.roster.add_player("Alex", "ABC")
@@ -314,13 +314,30 @@ class GuestTests(_RosterCase):
         self.assertIsNone(self.roster.one_up(), "with several up, nobody is the one")
 
     def test_when_the_last_guest_leaves_up_returns_to_the_owner(self) -> None:
-        alex = self.roster.add_player("Alex", "ALX")
         guest = self.roster.add_guest("ABC")
-        self.roster.set_up(alex.player_id)
 
         self.roster.remove(guest.player_id)
 
         self.assertEqual(self.roster.up(), [self.owner])
+
+    def test_a_kept_player_up_beside_the_last_guest_stays_up_when_they_leave(self) -> None:
+        """Kid and a visitor are up and the visitor leaves: Kid's next game is Kid's."""
+        kid = self.roster.add_player("Kid", "KID")
+        visitor = self.roster.add_guest("ABC")
+        self.roster.set_up(kid.player_id)
+
+        self.roster.remove(visitor.player_id)
+
+        self.assertEqual(self.roster.up(), [kid])
+
+    def test_a_guest_who_was_not_up_leaving_changes_nobody_up(self) -> None:
+        kid = self.roster.add_player("Kid", "KID")
+        visitor = self.roster.add_guest("ABC")
+        self.roster.set_who_is_up([kid.player_id])
+
+        self.roster.remove(visitor.player_id)
+
+        self.assertEqual(self.roster.up(), [kid])
 
     def test_a_guest_leaving_while_another_stays_keeps_the_other_up(self) -> None:
         first = self.roster.add_guest("ABC")
@@ -379,6 +396,26 @@ class UpTests(_RosterCase):
         self.roster.set_up(self.owner.player_id, False)
 
         self.roster.remove(self.alex.player_id)
+
+        self.assertEqual(self.roster.up(), [self.owner])
+
+    def test_the_whole_set_can_be_named_at_once(self) -> None:
+        guest = self.roster.add_guest("XYZ")
+
+        up = self.roster.set_who_is_up([guest.player_id, self.alex.player_id,
+                                        guest.player_id])
+
+        self.assertEqual(up, [self.alex, guest], "in roster order, each once")
+        self.assertEqual(self.roster.up(), [self.alex, guest])
+
+    def test_naming_nobody_up_leaves_the_owner_up(self) -> None:
+        self.roster.set_who_is_up([self.alex.player_id])
+
+        self.assertEqual(self.roster.set_who_is_up([]), [self.owner])
+
+    def test_a_set_naming_someone_unknown_changes_nothing(self) -> None:
+        with self.assertRaises(service_errors.NotFoundError):
+            self.roster.set_who_is_up([self.alex.player_id, "Nobody0000"])
 
         self.assertEqual(self.roster.up(), [self.owner])
 

@@ -55,6 +55,9 @@ DEVICES_WRITE = "devices:write"
 PREFERENCES_READ = "preferences:read"
 PREFERENCES_WRITE = "preferences:write"
 
+PLAYERS_READ = "players:read"
+PLAYERS_WRITE = "players:write"
+
 EVENTS_SUBSCRIBE = "events:subscribe"
 
 # Asking what slow work is running. Starting it carries the scope of what it does -
@@ -79,6 +82,7 @@ CORE = frozenset({
     EVENTS_SUBSCRIBE, JOBS_READ, INPUT_ACT,
     DEVICES_READ, DEVICES_WRITE,
     PREFERENCES_READ, PREFERENCES_WRITE,
+    PLAYERS_READ, PLAYERS_WRITE,
 })
 
 EXTENSION_PREFIX = "ext:"
