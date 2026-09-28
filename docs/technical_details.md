@@ -177,7 +177,7 @@ Runtime state written by VPinFE, not shown as a setting.
 | `playfield_variant` | choice (table, fss) | `table` | Which playfield artwork this library holds: table.png, or fss.png for art captured in Visual Pinball's Full Single Screen mode |
 | `playfield_resolution` | choice (4k, 1k) | `4k` | Playfield Resolution |
 | `playfield_video_resolution` | choice (4k, 1k) | `1k` | Playfield Video Resolution |
-| `browse_dirs` | list |  | Extra folders you can pick artwork from by hand. Your game library is always available; anywhere else has to be listed here first. |
+| `browse_dirs` | list |  | Extra folders you can add tables, media and assets from by hand. Your library folders are always available; anywhere else has to be listed here first. |
 | `manufacturer_logos_dir` | string |  | Logos a theme can show for a game's manufacturer. Your own go in its user folder and win over a downloaded pack's in default. |
 | `wheelset` | string |  | Which wheel art set to use, as a folder under a game's medias/wheels/. The name logo shows each game's own logo instead. A theme can override this. |
 | `default_missing_image` | string |  | Default Missing Media Image |

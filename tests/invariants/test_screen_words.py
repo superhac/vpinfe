@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import ast
 import functools
+import re
 import unittest
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+from tests.support import trees
 from tests.support.catalogs import served
 
 CATALOG = served()
+REPO = Path(__file__).resolve().parents[2]
 
 CABINET = {
     "app.vpx.field.TableOverride.ViewCabMode.choice.2.help": "the physical cabinet",
@@ -59,10 +64,49 @@ BUILD = {
     "frontend.mainmenu.start_build": "the verb",
 }
 
-WORDS = {"cabinet": CABINET, "machine": MACHINE, "build": BUILD}
+LOADS = "the files a table loads"
+ASSETS_PAGE = "the Assets page, of the files a table loads"
+
+ASSET = {
+    "config.general.hidden_asset_kinds.label": LOADS,
+    "config.media.browse_dirs.description": LOADS,
+    "config.updates.refresh_minutes.description": LOADS,
+    "console.assets.assets": LOADS,
+    "console.assets.assets_missing": LOADS,
+    "console.assets.read_library_disk_pick": LOADS,
+    "console.assets.search_assets": LOADS,
+    "console.media.read_library_disk_pick": LOADS,
+    "console.page.assets": ASSETS_PAGE,
+    "console.section.assets": ASSETS_PAGE,
+    "console.settings.page_assets": ASSETS_PAGE,
+    "console.view.assets": ASSETS_PAGE,
+    "console.workbench.assets": ASSETS_PAGE,
+    "console.workbench.assets_2": ASSETS_PAGE,
+}
+
+WORDS = {"cabinet": CABINET, "machine": MACHINE, "build": BUILD, "asset": ASSET}
 
 MEANT = {"cabinet": "the frontend", "machine": "a game, this device or a computer",
-         "build": "a table"}
+         "build": "a table", "asset": "file"}
+
+# Setting names and served paths, which a person reads in a config file or a URL.
+NAMED_ASSET = {
+    "general.hidden_asset_kinds": LOADS,
+    "network.theme_assets_port": "the theme server, named as vpin.themeAssetsPort, which shipped",
+    "themeassetsport": "the theme server's port in 2.x, which shipped",
+    "network.theme_assets_bind": "the theme server, named with its port",
+    "/assets": LOADS,
+    "/games/{game_id}/asset_source": LOADS,
+    "/games/{game_id}/assets": LOADS,
+    "/games/{game_id}/assets/detail": LOADS,
+    "/games/{game_id}/assets/{kind}": LOADS,
+    "/games/{game_id}/assets/{kind}/displaced": LOADS,
+    "/games/{game_id}/assets/{kind}/import": LOADS,
+    "/games/{game_id}/assets/{kind}/placements": LOADS,
+    "/games/{game_id}/tables/{table_id}/assets/{kind}": LOADS,
+}
+PATH = re.compile(r"^/[A-Za-z_{][\w/{}.-]*$")
+FRONTEND_SERVERS = ("frontend/custom_http_server.py", "frontend/runtime.py")
 
 
 # What /api/v1/docs and discovery show, keyed by where the string sits: in the OpenAPI
@@ -125,6 +169,51 @@ class EveryCatalog(unittest.TestCase):
         self.assertEqual(unexplained(catalog, "cabinet", {"d": "the physical cabinet"}), ["a"])
         self.assertEqual(unexplained(catalog, "build", {}), ["b"])
         self.assertEqual(unexplained(catalog, "cabinet", {"a": "", "d": "x"}), ["a"])
+
+
+def served_paths(tree: ast.AST) -> set[str]:
+    return {node.value for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+            and PATH.match(node.value)}
+
+
+def _names() -> set[str]:
+    import httpapi
+    from common import config_schema
+
+    found = set()
+    for option in config_schema.CONFIG_OPTIONS:
+        found.add(f"{option.section}.{option.key}")
+        found.update(str(alias) for alias in option.aliases or ())
+        found.update(".".join(pair) for pair in option.legacy or ())
+    found.update(httpapi.create_api_app().openapi()["paths"])
+    for path in FRONTEND_SERVERS:
+        found |= served_paths(trees.tree_for(REPO / path))
+    return found
+
+
+class SettingNamesAndServedPaths(unittest.TestCase):
+    def test_each_that_says_asset_is_on_its_list(self) -> None:
+        self.assertEqual(sorted(name for name in _names()
+                                if "asset" in name.lower() and not NAMED_ASSET.get(name)), [],
+                         "say file if that is what it means; if not, add it to NAMED_ASSET "
+                         "with what the word names there")
+
+    def test_every_listed_name_is_still_served(self) -> None:
+        self.assertEqual(sorted(set(NAMED_ASSET) - _names()), [])
+
+    def test_the_sweep_reads_the_frontend_s_routes_and_mounts(self) -> None:
+        found = set()
+        for path in FRONTEND_SERVERS:
+            found |= served_paths(trees.tree_for(REPO / path))
+        self.assertLessEqual({"/media/", "/manufacturers/", "/themes/"}, found)
+
+    def test_it_would_see_a_served_path(self) -> None:
+        planted = served_paths(trees.parse_snippet(
+            'mount_points["/assets/"] = folder\n'
+            'if request_path.startswith("/assets/"): pass\n'))
+
+        self.assertEqual(planted, {"/assets/"})
 
 
 def api_text(document: dict[str, Any]) -> dict[str, str]:
