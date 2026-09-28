@@ -6,9 +6,9 @@ as such in the architecture notes: the online client reached down into games. An
 extension has no such reach, and does not need one - the same records arrive through the
 context.
 
-Every key and every bound below is the service's, read from a value that is ours. Their
-models reject nothing they do not recognize, so a name that drifts is dropped in silence
-rather than refused, and that is why the adapter is one place and not several.
+Every key and every bound below is the service's, read from a value that is ours, and none
+of them is renamed to match our vocabulary. A key their models require that goes missing
+refuses the whole request; one they do not know is dropped in silence.
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ def payload_for(game: dict, table: dict | None) -> dict | None:
             "runTime": _number(user.get("play_time_seconds")) // 60,
             "score": _score(user.get("score")),
         },
-        "vpx_file": {
+        "vpxFile": {
             "filename": _text(table.get("filename")),
             "filehash": _text(table.get("file_hash")),
             "version": _text(table.get("version")),
@@ -98,7 +98,7 @@ def envelope(user_id: str, initials: str, machine_id: str,
         "source": {"program": "VPinFE", "programVersion": program_version},
         "client": {"userId": user_id, "initials": initials, "machineId": machine_id},
         "sentAt": sent_at,
-        "games": games,
+        "tables": games,
     }
 
 
@@ -161,6 +161,7 @@ def send(endpoint: str, payload: dict, timeout_seconds: int) -> dict:
 
     The body is kept whether it parsed or not: a failure is usually explained in text
     their models did not produce, and dropping it leaves somebody with a status code.
+    Not ok when the body says `"status": "error"`, which the service answers with a 200.
     """
     response = requests.post(endpoint, json=payload, timeout=timeout_seconds)
     body = response.text
@@ -169,10 +170,11 @@ def send(endpoint: str, payload: dict, timeout_seconds: int) -> dict:
         body = json.dumps(parsed, indent=2)
     except Exception:
         parsed = None
+    refused = isinstance(parsed, dict) and parsed.get("status") == "error"
     return {
         "endpoint": endpoint,
         "status_code": response.status_code,
-        "ok": response.ok,
+        "ok": response.ok and not refused,
         "response_body": body,
         "response_json": parsed,
         "payload": payload,

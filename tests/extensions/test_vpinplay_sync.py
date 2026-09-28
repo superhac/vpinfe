@@ -5,19 +5,20 @@ down into games, which the architecture notes named as the wrong direction. An e
 has no such reach and does not need one, so what is pinned here is that the same payload
 comes out of the records the context already provides.
 
-Every key below is the service's. Their models reject nothing they do not recognize, so
-a name that drifts is dropped in silence rather than refused - which is why these are
-asserted by name rather than by shape.
+Every key below is the service's, asserted by name: a key they require that goes missing
+refuses the whole request, and one they do not know is dropped in silence.
 """
 
 from __future__ import annotations
 
 import unittest
+from unittest.mock import MagicMock, patch
 
 from common.extensions import host
 
 host.Registry().load(host.BUNDLED_DIR / "vpinplay")
 
+import vpinfe_ext_vpinplay  # noqa: E402
 from vpinfe_ext_vpinplay import sync  # noqa: E402
 
 GAME = {
@@ -66,7 +67,7 @@ class PayloadTests(unittest.TestCase):
 
     def test_the_dates_a_catalog_tells_builds_apart_by(self) -> None:
         """A mod saved today can be a release from years ago."""
-        found = sync.payload_for(GAME, TABLE)["vpx_file"]
+        found = sync.payload_for(GAME, TABLE)["vpxFile"]
 
         self.assertEqual(found["releaseDate"], "2020-01-01")
         self.assertEqual(found["saveDate"], "2021-02-03")
@@ -75,7 +76,7 @@ class PayloadTests(unittest.TestCase):
     def test_their_spelling_of_the_features_is_used(self) -> None:
         """Scorbit is the product; the service spells its field Scorebit. A name that
         drifts is dropped in silence by their models rather than refused."""
-        found = sync.payload_for(GAME, TABLE)["vpx_file"]
+        found = sync.payload_for(GAME, TABLE)["vpxFile"]
 
         self.assertTrue(found["detectScorebit"])
         self.assertTrue(found["detectNfozzy"])
@@ -85,7 +86,7 @@ class PayloadTests(unittest.TestCase):
         """Ours is three-valued; theirs is a boolean. Null has to become something and
         false is the only honest choice - claiming a feature nobody looked for is worse
         than under-reporting it."""
-        found = sync.payload_for(GAME, TABLE)["vpx_file"]
+        found = sync.payload_for(GAME, TABLE)["vpxFile"]
 
         self.assertIs(found["detectLUT"], False)
         self.assertIs(found["detectFlex"], False)
@@ -95,7 +96,7 @@ class PayloadTests(unittest.TestCase):
         found = sync.payload_for(GAME, None)
 
         self.assertEqual(found["info"]["vpsId"], "abcd1234")
-        self.assertEqual(found["vpx_file"]["filename"], "")
+        self.assertEqual(found["vpxFile"]["filename"], "")
 
 
     def test_only_a_reading_off_the_hardware_counts_as_a_score(self) -> None:
@@ -110,11 +111,62 @@ class PayloadTests(unittest.TestCase):
 
 class EnvelopeTests(unittest.TestCase):
     def test_it_says_which_program_is_speaking(self) -> None:
-        found = sync.envelope("u", "CB", "m1", [], "3.0.0", "2026-09-11T00:00:00Z")
+        found = sync.envelope("u", "JD", "m1", [], "3.0.0", "2026-09-11T00:00:00Z")
 
         self.assertEqual(found["source"], {"program": "VPinFE",
                                            "programVersion": "3.0.0"})
-        self.assertEqual(found["client"]["initials"], "CB")
+        self.assertEqual(found["client"]["initials"], "JD")
+
+
+class WireTests(unittest.TestCase):
+    """What VPinPlay's request models require. Every other field in them is optional."""
+
+    def setUp(self) -> None:
+        self.sent = sync.envelope("u", "JD", "m" * 64, [sync.payload_for(GAME, TABLE)],
+                                  "3.0.0", "2026-09-11T00:00:00Z")
+
+    def assert_carries(self, found: dict, required: set[str]) -> None:
+        self.assertLessEqual(required, set(found),
+                             f"missing {sorted(required - set(found))}")
+
+    def test_the_request_carries_what_they_require(self) -> None:
+        self.assert_carries(self.sent, {"source", "client", "sentAt", "tables"})
+        self.assert_carries(self.sent["source"], {"program", "programVersion"})
+        self.assert_carries(self.sent["client"], {"userId", "initials", "machineId"})
+
+    def test_each_game_carries_what_they_require(self) -> None:
+        for game in (sync.payload_for(GAME, TABLE), sync.payload_for(GAME, None)):
+            self.assert_carries(game, {"info", "user", "vpxFile", "vpinfe"})
+            self.assert_carries(game["info"], {"vpsId"})
+            self.assert_carries(game["vpxFile"],
+                                {"filename", "filehash", "version", "vbsHash", "rom"})
+
+    def test_the_machine_id_minted_here_is_the_length_they_take(self) -> None:
+        self.assertEqual(len(vpinfe_ext_vpinplay._new_machine_id()), 64)
+
+
+class SendTests(unittest.TestCase):
+    def answer(self, status_code: int, body: dict) -> MagicMock:
+        response = MagicMock(status_code=status_code, ok=200 <= status_code < 400,
+                             text=str(body))
+        response.json.return_value = body
+        return response
+
+    def test_a_refusal_with_a_200_is_not_ok(self) -> None:
+        refused = self.answer(200, {"status": "error", "summary": {"errors": 1}})
+
+        with patch.object(sync.requests, "post", return_value=refused):
+            found = sync.send("http://vpinplay.test/api/v1/sync", {}, 1)
+
+        self.assertFalse(found["ok"])
+
+    def test_an_accepted_sync_is_ok(self) -> None:
+        accepted = self.answer(200, {"status": "ok", "summary": {"errors": 0}})
+
+        with patch.object(sync.requests, "post", return_value=accepted):
+            found = sync.send("http://vpinplay.test/api/v1/sync", {}, 1)
+
+        self.assertTrue(found["ok"])
 
 
 if __name__ == "__main__":
