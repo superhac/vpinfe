@@ -16,7 +16,7 @@ or worse.
 a dangling flag that the program reads as whatever comes next. Not knowing a name and
 having no value for one are different answers and both are said out loud.
 
-**A name an extension brings carries its id.** `{vpinplay.player}`. The registry builds
+**A name an extension brings carries its id.** `{scores_site.player}`. The registry builds
 the dotted half from the manifest; core's own names stay bare.
 """
 

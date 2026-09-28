@@ -84,10 +84,8 @@ class LaunchTests(unittest.TestCase):
              source=launch_state.SOURCE_API, table=None, **overrides):
         """Launch with every collaborator stubbed, so only the orchestration runs.
 
-        Nobody is signed in as a guest, and that needs no stub: with no extension
-        answering, the seam says so on its own - which is also what an install without
-        that extension looks like. `readings` are the high score table before the launch
-        and after the game, each with where it was read from.
+        `readings` are the high score table before the launch and after the game, each
+        with where it was read from.
         """
         popen = popen or (lambda cmd, **kwargs: _FakePopen())
         patches = {
@@ -346,19 +344,6 @@ class RecordingTests(LaunchTests):
 
         play.delete_nvram_if_configured.assert_called_once()
 
-    def test_a_recording_starts_no_player_session(self) -> None:
-        asked = []
-
-        def ask(name, *args):
-            asked.append(name)
-            return {"guest.active": object(), "guest.record_start": True}.get(name)
-
-        with mock.patch.object(launch.ext_services, "ask", ask):
-            self._run(source=launch_state.SOURCE_CAPTURE)
-
-        self.assertNotIn("guest.record_start", asked)
-        self.assertNotIn("guest.record_play", asked)
-
     def test_nobody_is_up_for_a_recording_and_no_play_is_announced(self) -> None:
         heard = self._heard()
 
@@ -521,24 +506,6 @@ class SessionTests(LaunchTests):
         self.assertEqual(self._library_writes(play), [])
         play.keep_high_scores.assert_called_once()
 
-    def test_a_guest_signed_in_through_an_extension_still_takes_the_session(self) -> None:
-        answers = {"guest.record_start": True, "guest.active": object()}
-        asked = []
-
-        def ask(name, *args):
-            asked.append((name, args))
-            return answers.get(name)
-
-        with mock.patch.object(launch.ext_services, "ask", ask):
-            play = self._run(readings=[(None, None), (_reading(("", 400)), "/nv")])
-
-        self.assertEqual(self._library_writes(play), [])
-        (played,) = [args for name, args in asked if name == "guest.record_play"]
-        self.assertEqual(played[2]["entries"][0]["initials"], "OWN",
-                         "the reading kept, with a blank score given the one player up")
-        self.assertEqual(play.keep_high_scores.call_args.args[2]["entries"][0]["initials"],
-                         "", "the machine's table is kept as it wrote it")
-
     def test_a_new_score_goes_to_whose_initials_it_carries_up_or_not(self) -> None:
         alex = self._alex()
 
@@ -563,6 +530,23 @@ class SessionTests(LaunchTests):
         self.assertEqual([(entry["initials"], entry["score"]) for entry in only["entries"]],
                          [("GST", 200)])
         self.assertEqual(recorded["reading"]["entries"][1]["initials"], "GST")
+
+    def test_question_marks_go_to_the_one_player_up_and_stay_question_marks(self) -> None:
+        """Only a blank takes their initials, as 2.x filled them."""
+        recorded = self._recorded([(_reading(("AAA", 300)), "/nv"),
+                                   (_reading(("AAA", 300), ("???", 200), ("", 100)),
+                                    "/nv")])
+
+        self.assertEqual([entry["initials"] for entry in recorded["reading"]["entries"]],
+                         ["AAA", "???", "OWN"])
+        (only,) = recorded["new_entries"]
+        self.assertEqual(only["player"], self.owner.as_payload())
+
+    def test_the_machine_s_table_is_kept_as_it_wrote_it(self) -> None:
+        play = self._run(readings=[(None, None), (_reading(("", 400)), "/nv")])
+
+        self.assertEqual(play.keep_high_scores.call_args.args[2]["entries"][0]["initials"],
+                         "")
 
     def test_a_blank_score_goes_to_nobody_with_two_up(self) -> None:
         self.roster.set_who_is_up([self.owner.player_id, self._alex().player_id])
@@ -736,15 +720,6 @@ class RecordTests(LaunchTests):
         self.assertFalse(self.records_dir.exists())
         self.assertEqual(len(heard), 1)
 
-    def test_a_guest_signed_in_through_an_extension_takes_the_session(self) -> None:
-        self.roster.set_who_is_up([self.kept.player_id])
-        answers = {"guest.record_start": True, "guest.active": object()}
-
-        with mock.patch.object(launch.ext_services, "ask",
-                               lambda name, *args: answers.get(name)):
-            self._play(readings=[(None, None), (_reading(("ABC", 400)), "/nv")])
-
-        self.assertFalse(self.records_dir.exists())
 
 
 class PrivateTests(LaunchTests):

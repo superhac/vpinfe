@@ -18,7 +18,6 @@ from common import discovery, shutdown
 from common.capture import freeze
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
 from common.config_store import ConfigStore
-from common.extensions import services as ext_services
 from common.games import remote_library
 from common.host import key_reader, system_actions
 from common.host.display_service import get_display_monitors
@@ -273,13 +272,6 @@ def shutdown_services(logger: logging.Logger, *, iniconfig: ConfigStore,
                       nicegui_app: Any, stop_manager_ui: Callable[[], Any]) -> None:
     logger.info("Shutting down services...")
     for label, action in (
-        # Whether anything wants a last word before the machine goes down. Nothing
-        # answering is the ordinary case and costs the shutdown nothing.
-        ("sync_on_shutdown", lambda: ext_services.ask("sync.on_exit")),
-        # A guest is temporary on purpose, so a cabinet never comes back up still
-        # submitting under a visitor's name. Nothing answering means nothing to clear.
-        ("clear_alternate_vpinplay_profile",
-         lambda: ext_services.ask("guest.clear")),
         ("ws_bridge.stop", ws_bridge.stop),
         ("stop_dof_service", stop_dof),
         ("stop_libdmdutil_service", lambda: stop_dmd(clear=False)),

@@ -4,16 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
-import shlex
 from html import escape
 from io import BytesIO
 from urllib.parse import quote
 
-from nicegui import run, ui
+from nicegui import ui
 
-from common.config_access import cfg_get
 from common.config_store import ConfigStore
-from common.extensions import services as ext_services
 from managerui.config_fields import is_checkbox_field
 from managerui.config_options import get_friendly_name
 from managerui.paths import VPINFE_INI_PATH
@@ -109,7 +106,6 @@ def render_panel():
         config.config.add_section(SECTION)
 
     inputs = {SECTION: {}}
-    sync_vpinplay_button = None
     vpinplay_user_link = None
     qr_preview = None
     qr_download_button = None
@@ -125,14 +121,6 @@ def render_panel():
             return
         vpinplay_user_link.text = "Your Stats"
         vpinplay_user_link.props(f"href={_build_vpinplay_user_url(_input_value('user_id'))}")
-
-    def update_vpinplay_sync_button_state():
-        if sync_vpinplay_button is None:
-            return
-        if _input_value("user_id") and _input_value("initials"):
-            sync_vpinplay_button.enable()
-        else:
-            sync_vpinplay_button.disable()
 
     def update_vpinplay_qr():
         if qr_preview is None or qr_download_button is None:
@@ -202,7 +190,6 @@ def render_panel():
                         normalized = str(e.value or "").upper()
                         if inp.value != normalized:
                             inp.value = normalized
-                        update_vpinplay_sync_button_state()
                         update_vpinplay_qr()
 
                     inp.on("input", on_initials_change)
@@ -211,7 +198,7 @@ def render_panel():
             inputs[SECTION][key] = inp
             if key == "user_id":
                 inp.on_value_change(
-                    lambda _: (update_vpinplay_user_link(), update_vpinplay_sync_button_state(), update_vpinplay_qr())
+                    lambda _: (update_vpinplay_user_link(), update_vpinplay_qr())
                 )
 
     def save_config():
@@ -225,88 +212,7 @@ def render_panel():
                     inp.value = value
                 config.config.set(SECTION, key, value)
         config.save()
-        update_vpinplay_sync_button_state()
         ui.notify("VPinPlay settings saved", type="positive")
-
-    def show_live_command_dialog(title: str, command: list[str]):
-        with ui.dialog().props("persistent max-width=1000px") as dlg, ui.card().classes("w-full").style(
-            "background: var(--surface); border: 1px solid var(--line); min-width: min(92vw, 900px);"
-        ):
-            ui.label(title).classes("text-xl font-bold").style("color: var(--ink) !important;")
-            command_label = ui.label(shlex.join(command)).classes("text-xs break-all").style(
-                "color: var(--ink-muted) !important;"
-            )
-            status_label = ui.label("Running...").classes("text-sm").style("color: var(--neon-yellow) !important;")
-            output_area = ui.textarea(value="Starting sync...").props("readonly outlined").classes("w-full").style(
-                "height: 420px; font-family: monospace;"
-            )
-            with ui.row().classes("w-full justify-end mt-2"):
-                close_button = ui.button("Close", on_click=dlg.close).style(
-                    "color: var(--neon-purple) !important; background: var(--surface) !important; "
-                    "border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;"
-                )
-                close_button.disable()
-        dlg.open()
-        return command_label, status_label, output_area, close_button
-
-    async def run_vpinplay_sync():
-        service_ip = _input_value("api_endpoint")
-        user_id = _input_value("user_id")
-        initials = _input_value("initials")
-        machine_id = _input_value("machine_id")
-        games_dir = cfg_get(config, "Settings", "game_root_dir", "").strip()
-
-        if not service_ip:
-            ui.notify("API Endpoint is required.", type="warning")
-            return
-        if not user_id:
-            ui.notify("User ID is required.", type="warning")
-            return
-        if not initials:
-            ui.notify("Initials is required.", type="warning")
-            return
-        if not machine_id:
-            ui.notify("Machine ID is required.", type="warning")
-            return
-        if not games_dir:
-            ui.notify("Tables Directory is required in Configuration > Settings.", type="warning")
-            return
-
-        command_label, status_label, output_area, close_button = show_live_command_dialog(
-            "VPinPlay Sync",
-            ["POST", service_ip],
-        )
-        sync_vpinplay_button.disable()
-        sync_vpinplay_button.text = "Syncing..."
-        try:
-            # Asked of the extension that owns it. It reads the library through the
-            # same records everything else does rather than walking the folder itself,
-            # and it takes its own settings - so nothing is passed in here.
-            result = await run.io_bound(ext_services.ask, "sync.library")
-            if result is None:
-                status_label.text = "Nothing answered."
-                output_area.value = (
-                    "VPinPlay is not installed or is switched off, so nothing was sent.")
-                ui.notify("VPinPlay is not available.", type="warning")
-                return
-            output_area.value = (
-                f"Sent: {result['games_sent']}\n"
-                f"Skipped (missing VPSId): {result['games_skipped']}\n\n"
-                f"HTTP status: {result['status_code']}\n\n"
-                f"{result['response_body']}"
-            )
-            command_label.text = shlex.join(["POST", result["endpoint"]])
-            status_label.text = f"Exit code: {0 if result['ok'] else 1}"
-            ui.notify("Sync completed." if result["ok"] else "Sync failed. See output for details.", type="positive" if result["ok"] else "negative")
-        except Exception as e:
-            logger.exception("Failed to run VPinPlay sync")
-            status_label.text = "Failed to start sync."
-            output_area.value = str(e)
-            ui.notify("Failed to start sync.", type="negative")
-        finally:
-            close_button.enable()
-            sync_vpinplay_button.text = "Sync Installed Tables"
-            update_vpinplay_sync_button_state()
 
     options = config.config.options(SECTION)
     sync_key = "sync_on_exit"
@@ -352,8 +258,6 @@ def render_panel():
                                     build_config_input(initials_key, config.config.get(SECTION, initials_key, fallback=""))
                                 if machine_key in options:
                                     build_config_input(machine_key, config.config.get(SECTION, machine_key, fallback=""))
-                                if sync_key in options:
-                                    build_config_input(sync_key, config.config.get(SECTION, sync_key, fallback="false"))
 
                         for key in options:
                             if key in (sync_key, endpoint_key, user_key, initials_key, machine_key):
@@ -361,23 +265,6 @@ def render_panel():
                             build_config_input(key, config.config.get(SECTION, key, fallback=""))
 
                     with ui.column().classes("w-full gap-3"):
-                        with ui.card().classes("config-side-card w-full p-4"):
-                            ui.label("Table Metadata Sync").classes("text-lg font-semibold").style(
-                                "color: var(--ink) !important;"
-                            )
-                            ui.label(
-                                "Sends installed table metadata to the configured VPinPlay service endpoint."
-                            ).classes("text-sm text-slate-300")
-                            sync_vpinplay_button = ui.button(
-                                "Sync Installed Tables",
-                                icon="sync",
-                                on_click=run_vpinplay_sync,
-                            ).classes("mt-3").style(
-                                "color: var(--neon-purple) !important; background: var(--surface) !important; "
-                                "border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;"
-                            )
-                            update_vpinplay_sync_button_state()
-
                         with ui.card().classes("config-side-card w-full p-4"):
                             ui.label("My QR Code").classes("text-lg font-semibold").style(
                                 "color: var(--ink) !important;"

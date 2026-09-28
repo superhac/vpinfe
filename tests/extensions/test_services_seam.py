@@ -64,22 +64,5 @@ class SeamTests(unittest.TestCase):
         self.assertEqual(services.provided(), ())
 
 
-class ThemeSurfaceTests(unittest.TestCase):
-    """What a theme is told when nothing answers."""
-
-    def setUp(self) -> None:
-        services.forget_all()
-        self.addCleanup(services.forget_all)
-
-    def test_a_theme_is_told_nobody_is_signed_in(self) -> None:
-        """Not an error and not an empty dict: the shape core answered with before any
-        of this moved, so a cabinet with the extension off reads as one with no guest."""
-        from frontend.api import _NOBODY_SIGNED_IN
-
-        self.assertEqual(_NOBODY_SIGNED_IN["active"], False)
-        self.assertIsNone(_NOBODY_SIGNED_IN["profile"])
-        self.assertEqual(_NOBODY_SIGNED_IN["profiles"], [])
-
-
 if __name__ == "__main__":
     unittest.main()

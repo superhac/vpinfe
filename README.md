@@ -391,12 +391,10 @@ Experimental online metadata sync:
 - **User ID**
 - **Initials**: uppercased in the UI and limited to 3 characters
 - **Device ID**: auto-generated if missing and read-only in the UI
-- **Sync on Exit**: sends installed table metadata during shutdown when all required values are present
 
 The page also provides:
 
 - **VPinPlay Home** and **Your Stats** links
-- **Sync Installed Tables** button that posts installed table metadata to the configured VPinPlay endpoint
 
 ### Tables page
 
@@ -918,7 +916,7 @@ External Web Endpoints:
 
 ## VPINPlay (Experimental)
 
-VPinFE includes an experimental VPINPlay integration for syncing your installed table metadata and usage stats to the VPinPlay service.
+VPinFE includes an experimental VPinPlay integration. Each game is sent as it is played - its plays, time, rating and high scores - to the VPinPlay account of each player who has turned Share on. Nothing else in the library is sent, and a game marked Private never is.
 
 - Main site: [vpinplay.com](https://www.vpinplay.com)
 - API default: `https://api.vpinplay.com:8888`

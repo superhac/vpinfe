@@ -1077,7 +1077,8 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     *in_section(
         "vpinplay",
         # The extension owns these. Declared here so a 2.x file converts, and read
-        # once by the handover - `initials` once more, to make the owner a player.
+        # once: by the handover, and `initials` to make the owner a player.
+        # `sync_on_exit` is read by nothing.
         ConfigOption(
             "sync_on_exit",
             type="bool",

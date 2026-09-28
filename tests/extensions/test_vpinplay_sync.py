@@ -1,9 +1,4 @@
-"""What VPinPlay is told about a library, built from what core hands over.
-
-The version this replaces enumerated the library itself - the online client reaching
-down into games, which the architecture notes named as the wrong direction. An extension
-has no such reach and does not need one, so what is pinned here is that the same payload
-comes out of the records the context already provides.
+"""What VPinPlay is told about a game, built from what core hands over.
 
 Every key below is the service's, asserted by name: a key they require that goes missing
 refuses the whole request, and one they do not know is dropped in silence.
@@ -16,7 +11,10 @@ from unittest.mock import MagicMock, patch
 
 from common.extensions import host
 
-host.Registry().load(host.BUNDLED_DIR / "vpinplay")
+# Loaded to import it, then cleared: a loaded VPinPlay listens for games ending.
+_loaded = host.Registry()
+_loaded.load(host.BUNDLED_DIR / "vpinplay")
+_loaded.clear()
 
 import vpinfe_ext_vpinplay  # noqa: E402
 from vpinfe_ext_vpinplay import sync  # noqa: E402
@@ -147,18 +145,18 @@ class LibraryScoreTests(unittest.TestCase):
 
 class EnvelopeTests(unittest.TestCase):
     def test_it_says_which_program_is_speaking(self) -> None:
-        found = sync.envelope("u", "JD", "m1", [], "3.0.0", "2026-09-11T00:00:00Z")
+        found = sync.envelope("u", "ABC", "m1", [], "3.0.0", "2026-09-11T00:00:00Z")
 
         self.assertEqual(found["source"], {"program": "VPinFE",
                                            "programVersion": "3.0.0"})
-        self.assertEqual(found["client"]["initials"], "JD")
+        self.assertEqual(found["client"]["initials"], "ABC")
 
 
 class WireTests(unittest.TestCase):
     """What VPinPlay's request models require. Every other field in them is optional."""
 
     def setUp(self) -> None:
-        self.sent = sync.envelope("u", "JD", "m" * 64, [sync.payload_for(GAME, TABLE)],
+        self.sent = sync.envelope("u", "ABC", "m" * 64, [sync.payload_for(GAME, TABLE)],
                                   "3.0.0", "2026-09-11T00:00:00Z")
 
     def assert_carries(self, found: dict, required: set[str]) -> None:
@@ -205,46 +203,60 @@ class SendTests(unittest.TestCase):
         self.assertTrue(found["ok"])
 
 
-PLAYED = {"Rating": 0, "LastRun": 1790422278, "StartCount": 1, "run_time_seconds": 1800,
-          "Score": {"rom": "afm_113b", "entries": [
-              {"initials": "ABC", "score": 5000}, {"initials": "OWN", "score": 9000}]}}
+READING = {"rom": "afm_113b", "entries": [{"initials": "ABC", "score": 5000},
+                                         {"initials": "OWN", "score": 9000}]}
+MINE = {"rating": 0, "last_played": "2026-09-28T20:00:00Z", "play_count": 1,
+        "play_time_seconds": 1800}
 
 
-class GuestPayloadTests(unittest.TestCase):
+class PlayerPayloadTests(unittest.TestCase):
+    """A player other than the owner: their numbers here, and what VPinPlay holds for the
+    rest, since a send replaces their whole record for the table."""
+
     def test_their_rating_and_titles_are_kept(self) -> None:
         held = {"rating": 4, "alttitle": "Theirs", "altvpsid": "theirs-id"}
 
-        found = sync.payload_for_guest(GAME, TABLE, PLAYED, held, "ABC")
+        found = sync.payload_for_player(GAME, TABLE, MINE, held, READING, "ABC")
 
         self.assertEqual(found["user"]["rating"], 4)
         self.assertEqual(found["vpinfe"], {"alttitle": "Theirs", "altvpsid": "theirs-id"})
 
-    def test_nothing_of_this_librarys_record_goes_with_it(self) -> None:
-        found = sync.payload_for_guest(GAME, TABLE, PLAYED, {}, "ABC")
+    def test_a_rating_they_gave_here_is_theirs(self) -> None:
+        found = sync.payload_for_player(GAME, TABLE, {**MINE, "rating": 2}, {"rating": 4},
+                                        READING, "ABC")
 
-        self.assertEqual(found["user"]["startCount"], 1)
-        self.assertEqual(found["user"]["runTime"], 30)
+        self.assertEqual(found["user"]["rating"], 2)
+
+    def test_nothing_of_this_librarys_record_goes_with_it(self) -> None:
+        found = sync.payload_for_player(GAME, TABLE, MINE, {}, READING, "ABC")
+
+        self.assertEqual((found["user"]["startCount"], found["user"]["runTime"],
+                          found["user"]["lastRun"]), (1, 30, 1790625600))
         self.assertEqual(found["user"]["rating"], 0)
         self.assertEqual(found["vpinfe"], {"alttitle": "", "altvpsid": ""})
 
     def test_the_machines_table_goes_when_it_holds_their_entry(self) -> None:
-        found = sync.payload_for_guest(GAME, TABLE, PLAYED, {}, "abc")
+        found = sync.payload_for_player(GAME, TABLE, MINE, {}, READING, "abc")
 
-        self.assertEqual(found["user"]["score"], PLAYED["Score"])
+        self.assertEqual(found["user"]["score"], READING)
 
     def test_their_score_is_kept_when_the_table_holds_none_of_theirs(self) -> None:
         held = {"score": {"rom": "afm_113b", "entries": [{"initials": "XYZ", "score": 1}]}}
 
-        found = sync.payload_for_guest(GAME, TABLE, PLAYED, held, "XYZ")
+        found = sync.payload_for_player(GAME, TABLE, MINE, held, READING, "XYZ")
 
         self.assertEqual(found["user"]["score"], held["score"])
 
-    def test_a_reading_that_is_one_number_is_theirs(self) -> None:
-        played = {**PLAYED, "Score": {"rom": "x", "value": 1234}}
+    def test_a_reading_of_one_number_is_theirs_only_when_it_was_credited_to_them(self) -> None:
+        one_number = {"rom": "x", "value": 1234}
+        held = {"score": {"rom": "x", "value": 99}}
 
-        found = sync.payload_for_guest(GAME, TABLE, played, {}, "ABC")
+        credited = sync.payload_for_player(GAME, TABLE, MINE, held, one_number, "ABC",
+                                           credited=True)
+        not_theirs = sync.payload_for_player(GAME, TABLE, MINE, held, one_number, "ABC")
 
-        self.assertEqual(found["user"]["score"], {"rom": "x", "value": 1234})
+        self.assertEqual(credited["user"]["score"], one_number)
+        self.assertEqual(not_theirs["user"]["score"], held["score"])
 
 
 class TheirRecordTests(unittest.TestCase):

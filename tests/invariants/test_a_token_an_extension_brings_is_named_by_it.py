@@ -28,7 +28,7 @@ class ABroughtNameCarriesItsId(unittest.TestCase):
         for name in ("one", "two"):
             tokens.forget(name)
 
-    def offer(self, extension: str, name: str = "player", value: str = "CB", **kw) -> str:
+    def offer(self, extension: str, name: str = "player", value: str = "ABC", **kw) -> str:
         return tokens.register(extension, name, frozenset({tokens.TABLE}),
                                lambda _base: value, says="Says something", **kw)
 
@@ -84,7 +84,7 @@ class WhatHappensWhenItGoes(unittest.TestCase):
 
     def test_a_command_still_naming_it_refuses_by_that_name(self) -> None:
         tokens.register("one", "player", frozenset({tokens.TABLE}),
-                        lambda _base: "CB", says="Says")
+                        lambda _base: "ABC", says="Says")
         tokens.forget("one")
 
         with self.assertRaises(tokens.UnknownTokenError) as raised:

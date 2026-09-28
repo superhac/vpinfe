@@ -29,9 +29,7 @@ HANDOVER = {
     "vpinplay": {
         "endpoint": ("vpinplay", "api_endpoint"),
         "user_id": ("vpinplay", "user_id"),
-        "initials": ("vpinplay", "initials"),
         "machine_id": ("vpinplay", "machine_id"),
-        "sync_on_exit": ("vpinplay", "sync_on_exit"),
     },
 }
 

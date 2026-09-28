@@ -1,6 +1,5 @@
 {
   "description": "Çöɱɱûñîţý řàţîñĝš àñđ ţöþ ŀîšţš, àñđ ýöûř þŀàýš šĥàřèđ ŵîţĥ ṼÞîñÞŀàý",
-  "token.player.says": "Ţĥè îñîţîàŀš öƒ ŵĥöèṽèř îš šîĝñèđ îñ ţö þŀàý",
   "settings.endpoint.label": "Šèřṽèř",
   "settings.endpoint.help": "Ŵĥèřè šçöřèš àñđ řàţîñĝš àřè řèàđ ƒřöɱ àñđ šèñţ. Ɓŀàñķ ûšèš {default}, ṼÞîñÞŀàý'š öŵñ šèřṽèř.",
   "account.user_id.label": "Ûšèř ÎĐ",
@@ -8,12 +7,33 @@
   "account.key.label": "Ķèý",
   "account.key.help": "Ḿàđè ŵĥèñ à ûšèř ÎĐ îš ƒîřšţ èñţèřèđ. ṼÞîñÞŀàý ţîèš ţĥè ûšèř ÎĐ ţö îţ.",
   "account.status.no_initials": "Ñèèđš îñîţîàŀš",
+  "account.status.waiting": {
+    "one": "{count} ĝàɱè ŵàîţîñĝ ţö šèñđ",
+    "other": "{count} ĝàɱèš ŵàîţîñĝ ţö šèñđ"
+  },
+  "account.status.sent_just_now": "Šèñţ ĵûšţ ñöŵ",
+  "account.status.sent_minutes_ago": {
+    "one": "Šèñţ {count} ɱîñûţè àĝö",
+    "other": "Šèñţ {count} ɱîñûţèš àĝö"
+  },
+  "account.status.sent_hours_ago": {
+    "one": "Šèñţ {count} ĥöûř àĝö",
+    "other": "Šèñţ {count} ĥöûřš àĝö"
+  },
+  "account.status.sent_days_ago": {
+    "one": "Šèñţ {count} đàý àĝö",
+    "other": "Šèñţ {count} đàýš àĝö"
+  },
   "account.act.show_card.label": "Šĥöŵ Çàřđ",
   "account.act.save_card.label": "Šàṽè Çàřđ",
   "account.act.send_now.label": "Šèñđ Ñöŵ",
   "account.act.your_page.label": "Ýöûř Þàĝè",
   "account.card_warning": "Àñýöñè ŵîţĥ ţĥîš çàřđ çàñ šèñđ þŀàýš ûñđèř ýöûř ñàɱè",
   "account.nothing_waiting": "Ñöţĥîñĝ ŵàîţîñĝ ţö šèñđ",
+  "account.sent": {
+    "one": "Šèñţ {count} ĝàɱè",
+    "other": "Šèñţ {count} ĝàɱèš"
+  },
   "error.no_card": "À çàřđ ñèèđš ţĥîš þŀàýèř'š ûšèř ÎĐ àñđ îñîţîàŀš",
   "error.no_user_id": "Ţĥîš þŀàýèř ĥàš ñö ṼÞîñÞŀàý ûšèř ÎĐ",
   "error.no_act": "ṼÞîñÞŀàý ĥàš ñö àçţ çàŀŀèđ {act}",

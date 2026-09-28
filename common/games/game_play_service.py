@@ -155,29 +155,6 @@ def keep_high_scores(game: Game, rom: str, reading: dict, before: dict | None,
                 score_path)
 
 
-def build_runtime_submission_meta(game: Game, user_state: dict) -> dict:
-    config = clone_game_meta(game)
-    if not config:
-        logger.warning("Could not build runtime submission metadata for %s", game.game_dir_name)
-        return {}
-
-    user = get_or_create_user_meta(config)
-    user.clear()
-    user.update(
-        {
-            "Rating": 0,
-            "Favorite": False,
-            "LastRun": user_state.get("LastRun"),
-            "StartCount": user_state.get("StartCount", 0),
-            "RunTime": user_state.get("RunTime", 0),
-            "Tags": [],
-        }
-    )
-    if user_state.get("Score") is not None:
-        user["Score"] = user_state.get("Score")
-    return config
-
-
 def delete_nvram_if_configured(game: Game, entry: dict) -> None:
     """Delete the NVRAM of `entry`'s ROM where Clear NVRAM on Exit is on for that table."""
     from common.games.table_lens import table_overrides

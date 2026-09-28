@@ -13,6 +13,7 @@ theme.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -22,7 +23,7 @@ from common.capture import preflight as capture_preflight
 from common.capture import run as capture_run
 from common.config_access import cfg_get
 from common.deprecations import announce
-from common.extensions import services as ext_services
+from common.extensions import temporary_profiles
 from common.failures import why
 from common.games import game_identity
 from common.games.collection_store import (
@@ -59,15 +60,8 @@ if TYPE_CHECKING:
     from frontend.chromium_manager import ChromiumManager
     from frontend.device_channel import DeviceChannel
 
-# What a theme is told when nothing answers: the same thing core said when nobody was
-# signed in, so a cabinet with the extension disabled reads as one with no guest rather
-# than as one that is broken.
-_NOBODY_SIGNED_IN: dict[str, Any] = {"active": False, "profile": None,
-                                     "active_games": 0, "profiles": [],
-                                     "activeProfileKey": ""}
 
-
-logger = logging.getLogger("vpinfe.frontend.api")
+logger =logging.getLogger("vpinfe.frontend.api")
 
 _FILTER_OPTION_KEYS = {
     "letters": "letters",
@@ -926,27 +920,27 @@ class API:
         return config_api.get_media_priorities(self._ini_config.config)
 
     def get_temporary_vpinplay_profile(self) -> dict[str, Any]:
-        """Who is playing as somebody else, if anything answers.
-
-        The method stays here because published themes call it; what is behind it moved
-        to the extension that owns the identity. With nothing answering - disabled, or
-        never installed - a theme is told nobody is signed in, which is what core said
-        before there was an extension.
-        """
-        return ext_services.ask("guest.state") or _NOBODY_SIGNED_IN
+        """The guests holding a VPinPlay account, in 2.x's shape."""
+        return temporary_profiles.state()
 
     def set_temporary_vpinplay_profile(self, payload: Any,
                                        source_name: str = "") -> dict[str, Any]:
-        result = (ext_services.ask("guest.activate", payload, source_name=source_name)
-                  or _NOBODY_SIGNED_IN)
-        self.send_event_all_windows_incself({
-            "type": "VPinPlayAlternateProfileChanged",
-            "profile": result,
-        })
-        return result
+        """A guest joins from a VPinPlay card. A card refused leaves the guests as they
+        were."""
+        try:
+            temporary_profiles.join(payload if isinstance(payload, str)
+                                    else json.dumps(payload))
+        except ServiceError as exc:
+            logger.warning("Not joining a guest from a VPinPlay card: %s", exc)
+        return self._vpinplay_profiles_changed()
 
     def clear_temporary_vpinplay_profile(self) -> dict[str, Any]:
-        result = ext_services.ask("guest.clear") or _NOBODY_SIGNED_IN
+        """Every guest signed out."""
+        temporary_profiles.clear()
+        return self._vpinplay_profiles_changed()
+
+    def _vpinplay_profiles_changed(self) -> dict[str, Any]:
+        result = temporary_profiles.state()
         self.send_event_all_windows_incself({
             "type": "VPinPlayAlternateProfileChanged",
             "profile": result,

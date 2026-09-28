@@ -2414,6 +2414,7 @@
   "error.pinmame.library_not_found": "bcdc6e80ed9d",
   "error.pinmame.no_launcher": "e1fde4013c5e",
   "error.players.card_initials": "d4e9d2fb3f85",
+  "error.players.card_not_taken": "a2212e0fec93",
   "error.players.card_unclaimed": "0c59f0076b71",
   "error.players.card_unreadable": "2c605e387f3a",
   "error.players.guest_needs_initials": "1d2ba075071b",

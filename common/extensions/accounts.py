@@ -63,11 +63,17 @@ def holders(extension: str, store: ExtensionStore | None = None) -> list[str]:
 
 
 def guest_holding(extension: str, held: dict[str, str]) -> players.Player | None:
-    """The guest already holding exactly this account, as a card joining twice finds."""
+    """The guest already holding this account, as a card joining twice finds: every value
+    the card gave is theirs. An extension may keep more beside them."""
     with _lock:
         mine = dict(_guests.get(extension, {}))
+
+    def holds(player: players.Player) -> bool:
+        theirs = mine.get(player.player_id) or {}
+        return all(theirs.get(key) == value for key, value in held.items())
+
     return next((player for player in players.get_roster().players()
-                 if player.guest and held and mine.get(player.player_id) == held), None)
+                 if player.guest and held and holds(player)), None)
 
 
 def join(extension: str, read: dict[str, Any],

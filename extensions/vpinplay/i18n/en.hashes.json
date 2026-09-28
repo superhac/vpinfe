@@ -7,7 +7,13 @@
   "account.key.help": "0f1f04c83b36",
   "account.key.label": "54fc8f04aaf3",
   "account.nothing_waiting": "1cb93b6f5681",
+  "account.sent": "bb8f856670e6",
   "account.status.no_initials": "2055e7d5762d",
+  "account.status.sent_days_ago": "9d5ad1502632",
+  "account.status.sent_hours_ago": "a45fd8b88922",
+  "account.status.sent_just_now": "dcbddfde8b6a",
+  "account.status.sent_minutes_ago": "dfe5b77a2288",
+  "account.status.waiting": "5add701c0d07",
   "account.user_id.help": "7f0f7dda642f",
   "account.user_id.label": "7a21efdae1fd",
   "community.tables.column.hours.header": "9fbe64b7a0f1",
@@ -48,6 +54,5 @@
   "error.no_user_id": "fe607eafb4c2",
   "error.unreadable": "ba862f11f830",
   "settings.endpoint.help": "3f54f45549ab",
-  "settings.endpoint.label": "f7c523f9bbdf",
-  "token.player.says": "d5798b0a7587"
+  "settings.endpoint.label": "f7c523f9bbdf"
 }

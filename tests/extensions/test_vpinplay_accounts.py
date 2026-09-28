@@ -167,12 +167,13 @@ class TheAccount(VPinPlayCase):
         self.assertEqual(self.held(guest)["user_id"], "visitor")
         self.assertNotIn("visitor", json.dumps(self.store.accounts(NAME)))
 
-    def test_a_player_with_a_user_id_and_initials_has_every_act(self) -> None:
+    def test_a_player_with_a_user_id_and_initials_has_every_act_but_send_now(self) -> None:
+        """Send Now is offered while something waits to be sent, and nothing does yet."""
         found = self.fill(self.owner, user_id="jordan")
 
         self.assertEqual([(one["key"], one["label"]) for one in found["acts"]],
                          [("show_card", "Show Card"), ("save_card", "Save Card"),
-                          ("send_now", "Send Now"), ("your_page", "Your Page")])
+                          ("your_page", "Your Page")])
         self.assertTrue(found["card"])
 
     def test_a_player_without_initials_is_told_and_has_no_card(self) -> None:
@@ -181,7 +182,7 @@ class TheAccount(VPinPlayCase):
         found = self.fill(kept, user_id="jordan")
 
         self.assertEqual(found["status"], "Needs initials")
-        self.assertEqual([one["key"] for one in found["acts"]], ["send_now", "your_page"])
+        self.assertEqual([one["key"] for one in found["acts"]], ["your_page"])
         self.assertFalse(found["card"])
         self.assertEqual(self.client.get(f"/players/{kept}/accounts/{NAME}/card").status_code,
                          404)

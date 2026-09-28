@@ -1,8 +1,9 @@
 """A player's VPinPlay account, and the card that carries it to another install.
 
-An account is a user id and the key VPinPlay holds that user id to. Core draws the
-account on each player and asks the routes below with the player's id; the values live
-in this extension's own file for a kept player, and in memory for a guest.
+An account is a user id and the key VPinPlay holds that user id to, and what it has been
+sent. Core draws the account on each player and asks the routes below with the player's
+id; the values live in this extension's own file for a kept player, and in memory for a
+guest.
 """
 
 from __future__ import annotations
@@ -10,13 +11,23 @@ from __future__ import annotations
 import secrets
 import string
 import threading
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
 
+if TYPE_CHECKING:
+    from .sending import Sender
+
 USER_ID = "user_id"
 KEY = "key"
+# What the account has been sent and what is waiting to go, as comma-separated game ids,
+# and when a send last went. About the user id they were sent under.
+SENT = "sent"
+WAITING = "waiting"
+LAST_SENT = "last_sent"
+BOOKS = (SENT, WAITING, LAST_SENT)
 
 # The card 2.x's Download QR Code saved. Cards are on people's phones, so this is read for
 # good and never changes shape.
@@ -37,6 +48,11 @@ SETTINGS_MACHINE_ID = "machine_id"
 OWNER_ACCOUNT_MADE = "owner_account_made"
 
 
+def listed(held: Any) -> list[str]:
+    """Game ids as the books keep them."""
+    return [one for one in str(held or "").split(",") if one.strip()]
+
+
 def new_key(length: int = 64) -> str:
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(length))
@@ -46,7 +62,7 @@ def page_for(site: str, user_id: str) -> str:
     return f"{site}/players.html?userid={quote(user_id)}"
 
 
-def routers(ctx: Any, site: str) -> tuple[APIRouter, APIRouter]:
+def routers(ctx: Any, site: str, sender: Sender) -> tuple[APIRouter, APIRouter]:
     """Reading and writing, the way settings are split.
 
     An act answers what came of it: Show Card and Save Card the card, as the card route
@@ -67,15 +83,26 @@ def routers(ctx: Any, site: str) -> tuple[APIRouter, APIRouter]:
                          "initials": initials, "machineId": key},
                 "filename": f"vpinplay-{user_id}"}
 
-    def acts(user_id: str, carded: bool) -> list[dict]:
+    def acts(user_id: str, carded: bool, waiting: int) -> list[dict]:
         offered = []
         if carded:
             offered += [{"key": SHOW_CARD, "label": ctx.t("account.act.show_card.label")},
                         {"key": SAVE_CARD, "label": ctx.t("account.act.save_card.label")}]
+        if user_id and waiting:
+            offered += [{"key": SEND_NOW, "label": ctx.t("account.act.send_now.label")}]
         if user_id:
-            offered += [{"key": SEND_NOW, "label": ctx.t("account.act.send_now.label")},
-                        {"key": YOUR_PAGE, "label": ctx.t("account.act.your_page.label")}]
+            offered += [{"key": YOUR_PAGE, "label": ctx.t("account.act.your_page.label")}]
         return offered
+
+    def status(player_id: str, held: dict[str, str]) -> str:
+        if not held.get(USER_ID):
+            return ""
+        if not initials_of(player_id):
+            return ctx.t("account.status.no_initials")
+        waiting = len(listed(held.get(WAITING)))
+        if waiting:
+            return ctx.t("account.status.waiting", count=waiting)
+        return sent_ago(ctx, held.get(LAST_SENT, ""))
 
     def answer(player_id: str) -> dict:
         held = ctx.players.account(player_id)
@@ -88,9 +115,8 @@ def routers(ctx: Any, site: str) -> tuple[APIRouter, APIRouter]:
                 {"key": KEY, "label": ctx.t("account.key.label"), "type": "secret",
                  "value": held.get(KEY, ""), "help": ctx.t("account.key.help")},
             ],
-            "status": (ctx.t("account.status.no_initials")
-                       if user_id and not initials_of(player_id) else ""),
-            "acts": acts(user_id, carded),
+            "status": status(player_id, held),
+            "acts": acts(user_id, carded, len(listed(held.get(WAITING)))),
             "card": carded,
         }
 
@@ -107,17 +133,20 @@ def routers(ctx: Any, site: str) -> tuple[APIRouter, APIRouter]:
     @writing.put("/accounts/{player_id}")
     def write_account(player_id: str, payload: dict) -> dict:
         offered = dict((payload or {}).get("values") or {})
-        held = dict(ctx.players.account(player_id))
-        if USER_ID in offered:
-            held[USER_ID] = str(offered[USER_ID] or "").strip()
-        # No write clears a key, an empty one included.
-        written_key = str(offered.get(KEY) or "").strip()
-        if written_key:
-            held[KEY] = written_key
-        if held.get(USER_ID) and not held.get(KEY):
-            held[KEY] = new_key()
-        ctx.players.set_account(player_id, {key: value for key, value in held.items()
-                                            if key in (USER_ID, KEY) and value})
+        with sender.books():
+            held = dict(ctx.players.account(player_id))
+            was = held.get(USER_ID, "")
+            if USER_ID in offered:
+                held[USER_ID] = str(offered[USER_ID] or "").strip()
+            # No write clears a key, an empty one included.
+            written_key = str(offered.get(KEY) or "").strip()
+            if written_key:
+                held[KEY] = written_key
+            if held.get(USER_ID) and not held.get(KEY):
+                held[KEY] = new_key()
+            kept = (USER_ID, KEY, *(BOOKS if held.get(USER_ID) == was else ()))
+            ctx.players.set_account(player_id, {key: value for key, value in held.items()
+                                                if key in kept and value})
         return answer(player_id)
 
     @writing.post("/accounts/{player_id}/acts/{act}")
@@ -131,7 +160,12 @@ def routers(ctx: Any, site: str) -> tuple[APIRouter, APIRouter]:
             raise HTTPException(404, detail=ctx.t("error.no_user_id"))
         if act == YOUR_PAGE:
             return {"url": page_for(site, user_id)}
-        return {"message": ctx.t("account.nothing_waiting")}
+        if not sender.waiting(player_id):
+            return {"message": ctx.t("account.nothing_waiting")}
+        went, waiting = sender.send_now(player_id)
+        if waiting:
+            return {"message": ctx.t("account.status.waiting", count=waiting)}
+        return {"message": ctx.t("account.sent", count=went)}
 
     @reading.get("/accounts/{player_id}/card")
     def read_card_of(player_id: str) -> dict:
@@ -144,6 +178,22 @@ def routers(ctx: Any, site: str) -> tuple[APIRouter, APIRouter]:
                 "values": {USER_ID: card["userId"], KEY: card["machineId"]}}
 
     return reading, writing
+
+
+def sent_ago(ctx: Any, when: str) -> str:
+    """When the last send went, in words; nothing where none has."""
+    try:
+        then = datetime.fromisoformat(str(when or "").replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    seconds = max(0, int((datetime.now(UTC) - then).total_seconds()))
+    if seconds < 60:
+        return ctx.t("account.status.sent_just_now")
+    if seconds < 3600:
+        return ctx.t("account.status.sent_minutes_ago", count=seconds // 60)
+    if seconds < 86400:
+        return ctx.t("account.status.sent_hours_ago", count=seconds // 3600)
+    return ctx.t("account.status.sent_days_ago", count=seconds // 86400)
 
 
 def checked(ctx: Any, card: Any) -> dict[str, Any]:

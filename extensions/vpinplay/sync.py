@@ -1,10 +1,6 @@
-"""Telling VPinPlay what this cabinet has and what has been played on it.
+"""A game played here, in the shape VPinPlay files it, and the requests that carry it.
 
-Built from what core hands over rather than read off disk. The version of this that
-lived in core enumerated the library itself, which is the wrong direction and was named
-as such in the architecture notes: the online client reached down into games. An
-extension has no such reach, and does not need one - the same records arrive through the
-context.
+Built from what core hands over rather than read off disk.
 
 Every key and every bound below is the service's, read from a value that is ours, and none
 of them is renamed to match our vocabulary. A key their models require that goes missing
@@ -23,10 +19,6 @@ import requests
 
 logger = logging.getLogger("vpinfe.ext.vpinplay.sync")
 
-# Their endpoint takes the whole library in one request, so a slow one holds up a
-# shutdown. Ten seconds there, thirty when somebody asked for it and is watching.
-SHUTDOWN_TIMEOUT = 10
-ASKED_TIMEOUT = 30
 GAME_TIMEOUT = 30
 
 # Their bound, and one game outside it fails the whole request rather than that game.
@@ -93,22 +85,25 @@ def payload_for(game: dict, table: dict | None) -> dict | None:
     }
 
 
-def payload_for_guest(game: dict, table: dict | None, played: dict, held: dict,
-                      initials: str) -> dict | None:
-    """One game a guest played here, in the shape `payload_for` builds.
+def payload_for_player(game: dict, table: dict | None, mine: dict, held: dict,
+                       reading: Any, initials: str, *, credited: bool = False
+                       ) -> dict | None:
+    """One game, for a player other than the owner, in the shape `payload_for` builds.
 
-    `played` is what this session recorded for them. Anything it did not produce comes
-    from `held`, the service's own record for them and this table, and never from this
-    library's.
+    `mine` is their record of the game here. A send replaces their whole record for the
+    table, so what this install does not hold for them comes from `held`, the service's
+    record for them: the rating, unless they rated it here, the alternate title and id,
+    and the score, unless `reading` carries theirs. `credited` says this game's new
+    entries were theirs, which is the only way a reading of one number is.
     """
-    score = played.get("Score")
     return payload_for({
         **game,
-        "user": {"rating": held.get("rating"),
-                 "last_played": played.get("LastRun"),
-                 "play_count": played.get("StartCount"),
-                 "play_time_seconds": played.get("run_time_seconds"),
-                 "score": score if _holds_entry_for(score, initials) else held.get("score")},
+        "user": {"rating": mine.get("rating") or held.get("rating"),
+                 "last_played": mine.get("last_played"),
+                 "play_count": mine.get("play_count"),
+                 "play_time_seconds": mine.get("play_time_seconds"),
+                 "score": (reading if _carries(reading, initials, credited)
+                           else held.get("score"))},
         "overrides": {"alt_title": held.get("alttitle"),
                       "alt_vps_id": held.get("altvpsid")},
     }, table)
@@ -143,17 +138,17 @@ def reading_of(high_scores: Any) -> dict | None:
     return {"rom": str(high_scores.get("rom") or ""), "entries": entries}
 
 
-def _holds_entry_for(score: Any, initials: str) -> bool:
-    """Whether a reading off the machine has an entry with these initials. A reading
-    that is one number carries nobody's initials, so it is whoever was playing."""
+def _carries(score: Any, initials: str, credited: bool) -> bool:
+    """Whether a reading off the machine is this player's score: an entry with their
+    initials, or one number credited to them."""
     if not isinstance(score, dict):
         return False
     entries = score.get("entries")
     if not isinstance(entries, list):
-        return True
+        return credited
     wanted = str(initials or "").strip().upper()
-    return any(str(one.get("initials") or "").strip().upper() == wanted
-               for one in entries if isinstance(one, dict))
+    return bool(wanted) and any(str(one.get("initials") or "").strip().upper() == wanted
+                                for one in entries if isinstance(one, dict))
 
 
 def their_record(sync_endpoint: str, user_id: str, vps_id: str,
@@ -246,7 +241,7 @@ def _rating(value: Any) -> int:
 
 
 def send(endpoint: str, payload: dict, timeout_seconds: int) -> dict:
-    """Post one library to the service and describe what came back.
+    """Post games to the service and describe what came back.
 
     The body is kept whether it parsed or not: a failure is usually explained in text
     their models did not produce, and dropping it leaves somebody with a status code.

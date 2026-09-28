@@ -90,7 +90,9 @@ class PayloadTests(unittest.TestCase):
         """The connector is where this went wrong, so it is asked directly."""
         from common.extensions import host
 
-        host.Registry().load(host.BUNDLED_DIR / "vpinplay")
+        loaded = host.Registry()
+        self.addCleanup(loaded.clear)
+        loaded.load(host.BUNDLED_DIR / "vpinplay")
         from vpinfe_ext_vpinplay import client
 
         for raw in (1995, 1995.0, "1995", "1995.0", "", None, "unknown", True, []):

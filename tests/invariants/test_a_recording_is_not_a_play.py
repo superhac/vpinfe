@@ -18,7 +18,7 @@ from unittest import mock
 
 from common import events, players
 from common.config_store import ConfigStore
-from common.extensions import services
+from common.games import player_records
 from common.games.launchers import Launcher
 from common.host import launch, launch_state
 from frontend import play_events
@@ -32,8 +32,8 @@ SOURCE_ROOTS = ("apps", "common", "console", "extensions", "frontend", "httpapi"
 PLAY_SERVICE = REPO / "common" / "games" / "game_play_service.py"
 # What writes a game's record. A play-service function calling one writes play data.
 RECORD_WRITERS = frozenset({"persist_game_meta", "keep_game_meta"})
-# Asking one of these starts or ends a signed-in guest's session.
-SESSION_SERVICES = frozenset({"guest.record_start", "guest.record_play"})
+# What writes a session into the record of a player other than the owner.
+SESSION_WRITERS = frozenset({"count_start", "add_time", "offer_scores"})
 LAST_GAME_WRITER = "save_last_launched"
 
 # Every function in the tree that calls a play-data writer. The launches below go
@@ -43,9 +43,6 @@ DRIVEN = {
     ("common/host/launch.py", "_record_play"),
     ("frontend/play_events.py", "on_launching"),
 }
-
-GUEST = "a-recording-is-not-a-play"
-
 
 def _called(node: ast.Call) -> str:
     func = node.func
@@ -64,11 +61,7 @@ def _play_data_writers() -> frozenset[str]:
 
 def _writes_play_data(call: ast.Call, writers: frozenset[str]) -> bool:
     name = _called(call)
-    if name in writers or name == LAST_GAME_WRITER:
-        return True
-    first = call.args[0] if call.args else None
-    return (name == "ask" and isinstance(first, ast.Constant)
-            and first.value in SESSION_SERVICES)
+    return name in writers or name in SESSION_WRITERS or name == LAST_GAME_WRITER
 
 
 def _callers_of(path: Path, writers: frozenset[str]) -> set[tuple[str, str]]:
@@ -126,10 +119,14 @@ class ARecordingIsNotAPlayTests(TempTree):
             self.addCleanup(clean)
         players.reset_for_tests(self.root / "players.json")
         self.addCleanup(players.reset_for_tests)
+        player_records.reset_for_tests(self.root / "player_records")
+        self.addCleanup(player_records.reset_for_tests)
         roster = players.get_roster()
         owner = roster.ensure_owner(ConfigParser())
         assert owner is not None
         roster.update_player(owner.player_id, initials="OWN")
+        kept = roster.add_player("Jordan", "ABC")
+        roster.set_who_is_up([owner.player_id, kept.player_id])
 
         self.ini = ConfigStore(str(self.root / "vpinfe.ini"))
         play_events.register(_Bridge(), None, self.ini)
@@ -140,23 +137,9 @@ class ARecordingIsNotAPlayTests(TempTree):
         self.game = fake_game(folder, meta=json.loads(
             (folder / "Example.info").read_text(encoding="utf-8")))
 
-        # An extension loaded earlier in this process may answer these already.
-        services.forget_all()
-        self.addCleanup(services.forget_all)
-        self.asked: list[str] = []
-        self._answer("guest.active", {"initials": "GST"})
-        self._answer("guest.record_start", False)
-        self._answer("guest.record_play", None)
-
         self.recorded: list[dict] = []
         events.subscribe(events.TABLE_PLAY_RECORDED,
                          lambda **payload: self.recorded.append(payload))
-
-    def _answer(self, name: str, answer: object) -> None:
-        def run(*_args: object) -> object:
-            self.asked.append(name)
-            return answer
-        services.provide(GUEST, name, run)
 
     def _files(self) -> dict[str, bytes]:
         return {path.relative_to(self.root).as_posix(): path.read_bytes()
@@ -185,16 +168,14 @@ class ARecordingIsNotAPlayTests(TempTree):
 
         self.assertIn("tables/Example/Example.info", changed, "the start count")
         self.assertIn(Path(self.ini.json_path).name, changed, "the last game")
-        self.assertIn("guest.record_start", self.asked)
-        self.assertIn("guest.record_play", self.asked)
+        self.assertTrue(any(name.startswith("player_records/") for name in changed),
+                        "the other player's session")
         self.assertEqual(len(self.recorded), 1)
 
     def test_a_recording_writes_none_of_it(self) -> None:
         changed = self._launch(launch_state.SOURCE_CAPTURE)
 
         self.assertEqual(sorted(changed), [])
-        self.assertNotIn("guest.record_start", self.asked)
-        self.assertNotIn("guest.record_play", self.asked)
         self.assertEqual(self.recorded, [])
 
 

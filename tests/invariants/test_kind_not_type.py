@@ -46,7 +46,6 @@ BORROWED = {
     "service_type",      # Zeroconf's browser callback
     # A key in somebody else's document, mirrored while reading it.
     "option_type",       # a theme manifest's option
-    "profile_type",      # the VPinPlay QR payload
     # Hold or filter on a game_type, and renaming either would say it was something else.
     "current_type",
     "filter_by_type",

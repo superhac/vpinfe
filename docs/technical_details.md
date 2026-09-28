@@ -266,7 +266,7 @@ Runtime state written by VPinFE, not shown as a setting.
 
 ### `vpinplay`
 
-Owned by the VPinPlay extension. Declared here so a 2.x file converts, read once by the handover, and written by nothing in core. `api_endpoint` is the extension's Server setting, and `user_id` and `machine_id` become the owner's VPinPlay account.
+Owned by the VPinPlay extension. Declared here so a 2.x file converts, read once, and written by nothing in core. `api_endpoint` is the extension's Server setting, `user_id` and `machine_id` become the owner's VPinPlay account, and `initials` the owner's initials. `sync_on_exit` is not carried over: nothing is shared until each player turns Share on.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |

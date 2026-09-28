@@ -26,7 +26,6 @@ from typing import Any
 
 from common import apps, events, players, service_errors
 from common.config_store import ConfigStore
-from common.extensions import services as ext_services
 from common.failures import why
 from common.games import (
     game_identity,
@@ -331,12 +330,7 @@ def _in_their_records(game: Game, whose: list[players.Player],
 def _record_play(game: Game, elapsed_seconds: float, table: str, rom: str,
                  up: list[players.Player], before: dict | None) -> dict[str, Any]:
     """Play data for a finished session, and what `table.play_recorded` says about it.
-    Runs on every path.
-
-    A guest signed in through an extension takes the session - nothing answering means
-    nobody is, which is also what an install without that extension looks like. The
-    hardware is read once on every path.
-    """
+    Runs on every path, and reads the hardware once."""
     after, score_path = game_play_service.parse_score_from_nvram(game, rom, initials="")
     if after:
         game_play_service.keep_high_scores(game, rom, after, before, score_path)
@@ -344,26 +338,15 @@ def _record_play(game: Game, elapsed_seconds: float, table: str, rom: str,
     reading = _with_initials(after, one.initials if one else "")
     credited = _whose_new_entries(before, after, up)
 
-    if ext_services.ask("guest.active") is not None:
-        game_key = str(game.full_path_game or game.game_dir_name or "")
-        if not game_key:
-            logger.warning("Skipping a guest's session: nothing identifies the table")
-        else:
-            ext_services.ask("guest.record_play", game_key, elapsed_seconds, reading)
-            if reading:
-                logger.info("Captured a guest's score for %s from %s",
-                            game.game_dir_name, score_path)
-    else:
-        if _counts_in_the_library(up):
-            game_play_service.add_play_time(game, elapsed_seconds, table)
-        _in_their_records(game, up, lambda records, player, game_id: records.add_time(
-            player, game_id, elapsed_seconds))
-        scored_at = utc_now_iso()
-        entries_of = {player.player_id: entries for player, entries in credited}
-        _in_their_records(game, [player for player, _ in credited],
-                          lambda records, player, game_id: records.offer_scores(
-                              player, game_id, rom, entries_of[player.player_id],
-                              scored_at))
+    if _counts_in_the_library(up):
+        game_play_service.add_play_time(game, elapsed_seconds, table)
+    _in_their_records(game, up, lambda records, player, game_id: records.add_time(
+        player, game_id, elapsed_seconds))
+    scored_at = utc_now_iso()
+    entries_of = {player.player_id: entries for player, entries in credited}
+    _in_their_records(game, [player for player, _ in credited],
+                      lambda records, player, game_id: records.offer_scores(
+                          player, game_id, rom, entries_of[player.player_id], scored_at))
 
     return {"up": [player.as_payload() for player in up],
             "seconds": int(round(elapsed_seconds)),
@@ -535,16 +518,12 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
             launch_state.attach(process, press)
             started_at = time.time()
             if not capturing:
-                started = ext_services.ask(
-                    "guest.record_start",
-                    str(game.full_path_game or game.game_dir_name or ""))
-                if not started:
-                    if _counts_in_the_library(up):
-                        game_play_service.increment_start_count(
-                            game, tables.entry_native_key(entry))
-                    begun = utc_now_iso()
-                    _in_their_records(game, up, lambda records, player, game_id:
-                                      records.count_start(player, game_id, begun))
+                if _counts_in_the_library(up):
+                    game_play_service.increment_start_count(
+                        game, tables.entry_native_key(entry))
+                begun = utc_now_iso()
+                _in_their_records(game, up, lambda records, player, game_id:
+                                  records.count_start(player, game_id, begun))
 
             # An app that cannot say when it is up is up as soon as it is spawned.
             # Waiting for a marker that will never come would leave the table launched

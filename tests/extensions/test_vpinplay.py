@@ -22,6 +22,7 @@ REPO = Path(__file__).resolve().parents[2]
 def _extension():
     registry = host.Registry()
     record = registry.load(host.BUNDLED_DIR / "vpinplay")
+    registry.clear()
     assert record.state == host.LOADED, record.reason
     import importlib
 
@@ -115,19 +116,9 @@ class ContributionTests(unittest.TestCase):
     def test_it_contributes_under_the_key_a_theme_reads(self) -> None:
         self.assertIn("vpinplay", contributions.keys())
 
-    def test_it_mints_a_machine_id_when_this_install_has_none(self) -> None:
-        held = self.store.settings("vpinplay").get("machine_id") or ""
-
-        self.assertEqual(len(held), 64)
-
-    def test_it_offers_the_player_under_its_own_name(self) -> None:
-        offered = {one.name: one.extension for one in tokens.offered(tokens.TABLE)}
-
-        self.assertEqual(offered["vpinplay.player"], "vpinplay")
-        self.assertEqual(offered["player"], "", "the bare name is core's own")
-
-    def test_the_player_is_offered_where_somebody_can_be_signed_in(self) -> None:
-        self.assertEqual(tokens.offered(tokens.VPINFE, after=True), ())
+    def test_it_offers_no_name_for_a_command(self) -> None:
+        self.assertEqual([one.name for one in tokens.offered(tokens.TABLE)
+                          if one.extension == "vpinplay"], [])
 
     def test_a_game_no_catalog_matched_is_never_asked_about(self) -> None:
         """It has no id VPinPlay knows it by, which is not a failure."""
