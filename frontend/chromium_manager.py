@@ -389,13 +389,17 @@ def _profile_dirs_in_use() -> set[str] | None:
     except ImportError:
         return None                     # cannot prove anything is dead; sweep nothing
     in_use = set()
-    for proc in psutil.process_iter(["cmdline"]):
-        try:
-            for arg in proc.info["cmdline"] or ():
-                if arg.startswith("--user-data-dir="):
-                    in_use.add(arg.split("=", 1)[1])
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
+    try:
+        for proc in psutil.process_iter(["cmdline"]):
+            try:
+                for arg in proc.info["cmdline"] or ():
+                    if arg.startswith("--user-data-dir="):
+                        in_use.add(arg.split("=", 1)[1])
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+    except (psutil.Error, OSError, SystemError):
+        logger.debug("Could not read the process list; sweeping nothing", exc_info=True)
+        return None
     return in_use
 
 

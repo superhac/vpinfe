@@ -631,5 +631,35 @@ class MacScreenTests(unittest.TestCase):
                           (1728, 0, 1920, 1080), (0, 1117, 1920, 1080)])
 
 
+def _process_list_that_fails(*_args: Any, **_kwargs: Any) -> Any:
+    raise SystemError("<built-in function proc_cmdline> returned a result with an "
+                      "exception set")
+    yield
+
+
+class StaleProfileSweepTests(unittest.TestCase):
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.leftover = Path(tmp.name) / f"{chromium_manager.PROFILE_PREFIX}leftover"
+        self.leftover.mkdir()
+        patcher = mock.patch("frontend.chromium_manager.tempfile.gettempdir",
+                             return_value=tmp.name)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_a_process_list_that_cannot_be_read_sweeps_nothing(self) -> None:
+        with mock.patch("psutil.process_iter", side_effect=_process_list_that_fails):
+            ChromiumManager()
+
+        self.assertTrue(self.leftover.is_dir())
+
+    def test_a_profile_no_process_holds_is_swept(self) -> None:
+        with mock.patch("psutil.process_iter", return_value=iter(())):
+            ChromiumManager()
+
+        self.assertFalse(self.leftover.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
