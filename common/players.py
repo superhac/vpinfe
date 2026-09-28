@@ -241,17 +241,24 @@ class Roster:
         """Turn one account's Share on or off."""
         wanted = (player_id or "").strip()
         with self._lock:
-            kept = self._kept()
-            for index, current in enumerate(kept):
-                if current.player_id == wanted:
-                    kept[index] = _sharing(current, extension, on)
-                    if kept[index] != current:
-                        self._save(kept)
-                    return
-            for index, current in enumerate(self._guests):
-                if current.player_id == wanted:
-                    self._guests[index] = _sharing(current, extension, on)
-                    return
+            before = self._set_sharing(wanted, extension, on)
+        if (before.share.get(extension) is True) != bool(on):
+            events.emit(events.ACCOUNT_SHARE_CHANGED, player=before.as_payload(),
+                        extension=extension, share=bool(on))
+
+    def _set_sharing(self, wanted: str, extension: str, on: bool) -> Player:
+        """Answers the player as they were."""
+        kept = self._kept()
+        for index, current in enumerate(kept):
+            if current.player_id == wanted:
+                kept[index] = _sharing(current, extension, on)
+                if kept[index] != current:
+                    self._save(kept)
+                return current
+        for index, current in enumerate(self._guests):
+            if current.player_id == wanted:
+                self._guests[index] = _sharing(current, extension, on)
+                return current
         raise _no_player(wanted)
 
     def update_player(self, player_id: str, *, name: str | None = None,

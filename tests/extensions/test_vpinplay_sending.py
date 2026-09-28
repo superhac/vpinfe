@@ -409,5 +409,88 @@ class WhatARatingSends(SendingCase):
         self.assertEqual(len(self.requests_sent()), 1)
 
 
+class WhatShareOffDrops(SendingCase):
+    def refuse(self) -> None:
+        self.send.return_value = {"ok": False, "status_code": 503, "response_body": "down"}
+
+    def share(self, player_id: str, on: bool) -> dict:
+        return self.ok(self.client.put(f"/players/{player_id}/accounts/{NAME}/share",
+                                       json={"share": on}))
+
+    def test_turning_share_off_drops_what_waits(self) -> None:
+        self.sharing(self.owner, "owner-id")
+        self.refuse()
+        self.play(self.owner)
+        self.assertEqual(self.account(self.owner)["status"], "1 game waiting to send")
+
+        said = self.share(self.owner, False)
+
+        self.assertEqual((said["share"], said["status"]), (False, ""))
+        self.assertNotIn("send_now", [one["key"] for one in said["acts"]])
+        self.send.return_value = {"ok": True, "status_code": 200, "response_body": ""}
+        self.assertEqual(self.ok(self.act(self.owner, "send_now")),
+                         {"message": "Nothing waiting to send"})
+        self.assertEqual(len(self.requests_sent()), 1, "only the send that failed")
+
+    def test_turning_it_on_again_does_not_bring_them_back(self) -> None:
+        self.sharing(self.owner, "owner-id")
+        self.refuse()
+        self.play(self.owner)
+
+        self.share(self.owner, False)
+        self.share(self.owner, True)
+
+        self.assertEqual(self.account(self.owner)["status"], "")
+
+    def test_what_was_sent_is_kept(self) -> None:
+        self.sharing(self.owner, "owner-id")
+        self.play(self.owner)
+        self.refuse()
+        self.play(self.owner, game_id=OTHER)
+
+        self.share(self.owner, False)
+
+        self.assertEqual(listed_values(accounts.values(NAME, self.owner, self.store)),
+                         {"sent": [GAME], "waiting": []})
+
+    def test_a_send_on_the_wire_as_share_goes_off_keeps_nothing_waiting(self) -> None:
+        self.sharing(self.owner, "owner-id")
+
+        def refused_after_share_went_off(*_args: object) -> dict:
+            players.get_roster().set_sharing(self.owner, NAME, False)
+            return {"ok": False, "status_code": 503, "response_body": "down"}
+
+        self.send.side_effect = refused_after_share_went_off
+        self.play(self.owner)
+
+        self.assertEqual(self.account(self.owner)["status"], "")
+
+    def test_another_player_s_games_still_wait(self) -> None:
+        kept = self.sharing(self.kept().player_id, "jordan")
+        self.sharing(self.owner, "owner-id")
+        self.refuse()
+        self.play(self.owner, kept)
+
+        self.share(self.owner, False)
+
+        self.assertEqual((self.account(self.owner)["status"], self.account(kept)["status"]),
+                         ("", "1 game waiting to send"))
+
+    def test_another_extension_s_share_is_not_this_one_s(self) -> None:
+        self.sharing(self.owner, "owner-id")
+        self.refuse()
+        self.play(self.owner)
+
+        players.get_roster().set_sharing(self.owner, "elsewhere", True)
+        players.get_roster().set_sharing(self.owner, "elsewhere", False)
+
+        self.assertEqual(self.account(self.owner)["status"], "1 game waiting to send")
+
+
+def listed_values(held: dict[str, str]) -> dict[str, list[str]]:
+    return {book: [one for one in held.get(book, "").split(",") if one]
+            for book in ("sent", "waiting")}
+
+
 if __name__ == "__main__":
     unittest.main()

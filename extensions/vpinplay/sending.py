@@ -18,6 +18,7 @@ from .accounts import KEY, LAST_SENT, SENT, USER_ID, WAITING, listed
 
 PLAY_RECORDED = "table.play_recorded"
 GAME_RATED = "game.rated"
+SHARE_CHANGED = "account.share_changed"
 
 
 def _on_a_thread(work: Callable[[], object]) -> None:
@@ -87,6 +88,20 @@ class Sender:
                 or game_id not in self._sent(player_id)):
             return
         _on_a_thread(partial(self._run, holder, Played(game_id, None, False, None)))
+
+    def share_changed(self, **payload: Any) -> None:
+        """`account.share_changed`, for this extension's accounts."""
+        player_id = str((payload.get("player") or {}).get("id") or "")
+        if payload.get("extension") != self._ctx.name or payload.get("share") or not player_id:
+            return
+        with self._books:
+            held = dict(self._ctx.players.account(player_id))
+            dropped = listed(held.pop(WAITING, ""))
+            if not dropped:
+                return
+            self._ctx.players.set_account(player_id, {k: v for k, v in held.items() if v})
+        self._ctx.logger.info("Share is off for %s: dropped %s game(s) waiting to send",
+                              player_id, len(dropped))
 
     # -- what a person asks for ------------------------------------------------
 
@@ -212,14 +227,15 @@ class Sender:
         """Write what a run came to: `settled` leaves the waiting list, then `waiting`
         joins it and `sent` joins what has been sent. Answers how many are waiting. An
         account whose user id changed meanwhile, or a player who has left, is not
-        written."""
+        written, and one whose Share went off meanwhile keeps nothing waiting."""
         sent, waiting, settled = list(sent), list(waiting), set(settled)
         with self._books:
             held = dict(self._ctx.players.account(holder.player_id))
             if held.get(USER_ID) != holder.user_id:
                 return 0
             left = [one for one in listed(held.get(WAITING)) if one not in settled]
-            now_waiting = list(dict.fromkeys([*left, *waiting]))
+            now_waiting = (list(dict.fromkeys([*left, *waiting]))
+                           if self._ctx.players.sharing(holder.player_id) else [])
             held[WAITING] = ",".join(now_waiting)
             if sent:
                 held[SENT] = ",".join(dict.fromkeys([*listed(held.get(SENT)), *sent]))

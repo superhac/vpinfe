@@ -49,6 +49,11 @@ PLAYERS_CHANGED = "players.changed"
 #   game.rated  {game_id, player: {id, name, initials, owner, guest} | None, rating}
 GAME_RATED = "game.rated"
 
+# A player's account with an extension started or stopped sharing. Plain data, for the
+# extension whose account it is:
+#   account.share_changed  {player: {id, name, initials, owner, guest}, extension, share}
+ACCOUNT_SHARE_CHANGED = "account.share_changed"
+
 # Something is starting, stopping or restarting. Announced after it is confirmed, so a
 # surface that did not ask can say what is about to happen. Subscribers only - a
 # confirmation is asked for on the surface that asked, not on this.

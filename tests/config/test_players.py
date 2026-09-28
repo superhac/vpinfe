@@ -552,6 +552,39 @@ class ShareTests(_RosterCase):
         with self.assertRaises(service_errors.NotFoundError):
             self.roster.set_sharing("Nobody0000", "sample", True)
 
+    def test_a_share_that_moves_is_announced_with_whose_it_is(self) -> None:
+        heard = self._hear()
+        guest = self.roster.add_guest("ABC")
+
+        self.roster.set_sharing(self.owner.player_id, "sample", True)
+        self.roster.set_sharing(guest.player_id, "sample", True)
+        self.roster.set_sharing(self.owner.player_id, "sample", False)
+
+        self.assertEqual([(one["player"]["id"], one["extension"], one["share"])
+                          for one in heard],
+                         [(self.owner.player_id, "sample", True),
+                          (guest.player_id, "sample", True),
+                          (self.owner.player_id, "sample", False)])
+        self.assertEqual(heard[1]["player"], {"id": guest.player_id, "name": "",
+                                              "initials": "ABC", "owner": False,
+                                              "guest": True})
+
+    def test_a_share_set_to_what_it_was_is_not_announced(self) -> None:
+        heard = self._hear()
+
+        self.roster.set_sharing(self.owner.player_id, "sample", False)
+        self.roster.set_sharing(self.owner.player_id, "sample", True)
+        self.roster.set_sharing(self.owner.player_id, "sample", True)
+
+        self.assertEqual([one["share"] for one in heard], [True])
+
+    def _hear(self) -> list[dict]:
+        heard: list[dict] = []
+        handler = events.subscribe(events.ACCOUNT_SHARE_CHANGED,
+                                   lambda **payload: heard.append(payload))
+        self.addCleanup(events.unsubscribe, events.ACCOUNT_SHARE_CHANGED, handler)
+        return heard
+
 
 class CardGuestTests(_RosterCase):
     """A guest joining with a card keeps the card's initials, and shares."""

@@ -505,6 +505,11 @@ often public, except for a guest who joined with a card, whose account shares. C
 the switch; an extension reads it with `sharing` and sends nothing on its own while it is
 off. Something the person asks for by hand - an act - is theirs to have asked.
 
+`account.share_changed` says when an account's Share moves: `player`, `{id, name,
+initials, owner, guest}`; `extension`, whose account it is; and `share`, what it is now.
+It carries every extension's, so one reads only its own. **Turning Share off drops
+whatever the account holds back to send** - games that failed to go, a queue of scores -
+so nothing played while it was on goes later by hand, or when it is turned on again.
 
 ### Offering an account
 

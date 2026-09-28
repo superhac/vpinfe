@@ -60,6 +60,7 @@ def register(ctx: Any) -> None:
     sender = sending.Sender(ctx, endpoint)
     ctx.events.subscribe(sending.PLAY_RECORDED, sender.played)
     ctx.events.subscribe(sending.GAME_RATED, sender.rated)
+    ctx.events.subscribe(sending.SHARE_CHANGED, sender.share_changed)
 
     reading, writing = settings.routers(ctx, DEFAULT_ENDPOINT)
     ctx.add_router(reading, scope=ctx.scope("read"))
