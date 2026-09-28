@@ -25,6 +25,7 @@ from . import (
     events,
     extensions,
     filesystem,
+    folders,
     frontend,
     games,
     input,
@@ -138,6 +139,7 @@ def create_api_app() -> FastAPI:
     api.include_router(media.router)
     api.include_router(assets.router)
     api.include_router(filesystem.router)
+    api.include_router(folders.router)
     api.include_router(mediasources.router)
     api.include_router(uploads.router)
     api.include_router(uploads.vps_router)

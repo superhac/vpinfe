@@ -370,6 +370,15 @@ def refresh(on_click: Callable[[], Any], hint: str) -> Any:
         .props("flat dense round size=sm").classes("shrink-0").tooltip(hint)
 
 
+def icon_only(icon: str, on_click: Callable[[], Any], *, hint: str = "") -> Any:
+    """A round button that is only its icon - Up in the folder picker. Returned, so a
+    caller can `.disable()` it, the way Up does at a root."""
+    control = ui.button(icon=icon, on_click=on_click).props("flat round dense")
+    if hint:
+        control.tooltip(hint)
+    return control
+
+
 def selection_actions(hint: str) -> tuple[Any, Any]:
     """A grid bar's `more_vert` for the selected rows, and the menu it opens. Hidden until
     the caller shows it, which is when some rows are selected."""
@@ -633,7 +642,8 @@ def hint(control: Any, said: str) -> None:
 
 def path_field(placeholder: str = "", *, wants: str, value: str = "",
                width: str = "w-96",
-               on_checked: Callable[[str, str], str] | None = None) -> Any:
+               on_checked: Callable[[str, str], str] | None = None,
+               browse: Callable[[str], dict] | None = None) -> Any:
     """A path typed by hand, saying whether it is there. Returns the input.
 
     `wants` is what should be at the end of it - `dir`, `file` or `exe`, the words
@@ -643,6 +653,9 @@ def path_field(placeholder: str = "", *, wants: str, value: str = "",
     `on_checked` returns the line to show under the field - what the path turned out to
     be. It goes in the hint, the row the error message uses, so a field with something
     to say and one without are the same height.
+
+    `browse` draws Browse beside a `dir` field. Opt-in: a `file` or `exe` field has
+    nowhere sensible to start a listing from, so nothing here assumes one.
 
     `debounce=0` stays on the input and the wait goes on a timer: a debounce here leaves
     the value stale at the moment a button is pressed.
@@ -654,6 +667,16 @@ def path_field(placeholder: str = "", *, wants: str, value: str = "",
     control.props("outlined dense debounce=0 bottom-slots").classes(width)
     with control.add_slot("append"):
         holder = ui.element("div").classes("console-value-state")
+        if wants == "dir" and browse is not None:
+            from console import folder_picker
+
+            async def _browsed() -> None:
+                chosen = await folder_picker.pick_folder(browse, control.value or "")
+                if chosen:
+                    control.value = chosen
+
+            ui.button(icon=verbs.BROWSE, on_click=_browsed) \
+                .props("flat round dense").tooltip(t("console.folder_picker.browse"))
     seen: dict[str, Any] = {"was": object()}
 
     async def look() -> None:

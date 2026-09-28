@@ -2867,6 +2867,10 @@ a.console-tag:hover { background: var(--wash-hover); }
 .console-source-row {
   border: 1px solid var(--line-soft); border-radius: 6px; padding: 6px 8px;
 }
+
+/* The folder picker has no fixed-height ancestor to flex against, unlike the sources
+   tabs above, so its list takes an explicit cap instead. */
+.console-folder-list { max-height: 46vh; overflow-y: auto; }
 .console-source-name {
   font-size: var(--fs-body); color: var(--ink-2); word-break: break-all;
   line-height: 1.3;

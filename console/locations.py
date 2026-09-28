@@ -321,7 +321,8 @@ def _ask_new(library: Library, state: dict[str, Any],
     def draw_folder() -> None:
         held["folder"] = panel.path_field(
             placeholder="/path/to/your/games", wants="dir", width="w-full",
-            on_checked=lambda state_now, said: _sort_it(found, state_now, said))
+            on_checked=lambda state_now, said: _sort_it(found, state_now, said),
+            browse=library.folders)
 
     async def keep() -> None:
         wanted = (held["folder"].value or "").strip()

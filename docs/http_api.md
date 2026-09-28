@@ -264,6 +264,7 @@ the documented entry point is a plain 200. Both spellings work.
 | PUT | `/api/v1/locations/{id}/write-to` | Create new games here |
 | GET | `/api/v1/locations/{id}/shadowed` | Game folders here whose id another folder answers for, with both sides |
 | POST | `/api/v1/locations/{id}/shadowed/adopt` | Give one of them, `{"path"}`, an id of its own |
+| GET | `/api/v1/folders?path=` | This device's folders under a path, for a folder field's Browse button. Unbounded, unlike `/filesystem` - empty `path` starts at the home folder, `roots` names where else browsing can start (drives, `/`, `Volumes` on macOS). `config:write`, since picking where a library folder should be is itself a config-writing act |
 | GET | `/api/v1/themes` | Every frontend theme this install knows, active first. `refresh=true` re-reads the sources, which reaches the network. Each has `registry`, the address of the registry that offers it - empty for one listed by its own repository or placed by hand - and `updated`, the date of the newest commit on the release this build would install. `checked` is when the sources were last read |
 | POST | `/api/v1/themes/{key}/install` | Install or update. Installing over an existing copy is what an update is |
 | DELETE | `/api/v1/themes/{key}` | Remove an installed theme. Refused for the active one - the frontend would come up with no theme at all |

@@ -2221,6 +2221,23 @@ class FilesystemListing(ApiModel):
     entries: list[FilesystemEntry]
 
 
+# --- Folders -----------------------------------------------------------------
+
+class FolderEntry(ApiModel):
+    name: str
+    path: str
+
+
+class FolderListing(ApiModel):
+    """Unbounded, unlike `FilesystemListing`: a Browse button is choosing where a
+    library lives, and `roots` is where it can jump to start again."""
+
+    path: str
+    parent: str
+    folders: list[FolderEntry]
+    roots: list[FolderEntry]
+
+
 class MediaSource(ApiModel):
     """An online catalog. `kinds` is what it can serve, so a client can tell a source
     with nothing for this slot from one that is switched off."""

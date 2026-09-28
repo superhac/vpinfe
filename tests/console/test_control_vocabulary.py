@@ -68,6 +68,9 @@ BUDGET = {
                        "import confirmation's per-item tick, not a fact row"),
     "record.py": (1, "a tick per kind in Record Media, a choice over a list as Get missing "
                      "art's is, with what the kind's slot holds beside it"),
+    "folder_picker.py": (1, "the filter above the folder list, a toolbar box like a "
+                           "grid's search - not a fact row and it sets nothing on the "
+                           "folder chosen"),
 }
 
 
