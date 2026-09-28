@@ -159,10 +159,10 @@ def get_games(game_id: str) -> models.TableList:
 
 @router.get("/{game_id}/media", summary="A game's shared media",
             dependencies=[requires(scopes.GAMES_READ)])
-def get_game_media(game_id: str) -> models.MediaList:
+def get_game_media(game_id: str, codecs: bool = Query(False)) -> models.MediaList:
     """Media is the artwork shown about a game - every kind, present or not, so a client
     can enumerate what is possible instead of guessing."""
-    return models.MediaList.model_validate(media_ops.game_media(game_id))
+    return models.MediaList.model_validate(media_ops.game_media(game_id, codecs))
 
 
 @router.get("/{game_id}/media/overrides",
@@ -182,8 +182,9 @@ def get_game_media_file(game_id: str, kind: str, request: Request,
 
 @router.get("/{game_id}/tables/{table_id}/media", summary="One table's media",
             dependencies=[requires(scopes.GAMES_READ)])
-def get_table_media(game_id: str, table_id: str) -> models.MediaList:
-    return models.MediaList.model_validate(media_ops.table_media(game_id, table_id))
+def get_table_media(game_id: str, table_id: str,
+                    codecs: bool = Query(False)) -> models.MediaList:
+    return models.MediaList.model_validate(media_ops.table_media(game_id, table_id, codecs))
 
 
 @router.get("/{game_id}/tables/{table_id}/media/{kind}", summary="One table's media file",

@@ -1,4 +1,5 @@
-"""What a media file is, read from its own header: format, pixel size, running time.
+"""What a media file is, read from its own header: format, pixel size, running time,
+and a video's codec.
 
 Headers only. Nothing here decodes a frame, and every read is bounded, because a library
 on a share pays for each byte.
@@ -8,6 +9,8 @@ from __future__ import annotations
 
 import logging
 import struct
+import threading
+from collections import OrderedDict
 from collections.abc import Iterator
 from pathlib import Path
 from typing import IO, Any
@@ -19,16 +22,42 @@ _MP3_WINDOW = 64 * 1024
 # An Ogg page is at most 65,307 bytes, so the last one starts within this of the end.
 _OGG_TAIL = 65_536 + 27
 
+# A sample entry's type, as `GET /frontend/browser` names the format.
+_VIDEO_CODECS = {b"avc1": "h264", b"avc3": "h264", b"hvc1": "hevc", b"hev1": "hevc",
+                 b"vp09": "vp9", b"av01": "av1"}
+
+_KEPT = 4096
+_kept: OrderedDict[tuple[str, int, int], dict[str, Any]] = OrderedDict()
+_kept_lock = threading.Lock()
+
 
 def probe(path: Path) -> dict[str, Any]:
-    """`format`, `width`, `height` and `duration_s`, each None where the file does not
-    say. Never raises."""
+    """`format`, `width`, `height`, `duration_s` and `video_codec`, each None where the
+    file does not say. Never raises."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return _probe(path, 0)
+    key = (str(path), stat.st_size, stat.st_mtime_ns)
+    with _kept_lock:
+        held = _kept.get(key)
+        if held is not None:
+            _kept.move_to_end(key)
+            return dict(held)
+    facts = _probe(path, stat.st_size)
+    with _kept_lock:
+        _kept[key] = facts
+        while len(_kept) > _KEPT:
+            _kept.popitem(last=False)
+    return dict(facts)
+
+
+def _probe(path: Path, size: int) -> dict[str, Any]:
     facts: dict[str, Any] = {"format": None, "width": None, "height": None,
-                             "duration_s": None}
+                             "duration_s": None, "video_codec": None}
     try:
         with path.open("rb") as handle:
             head = handle.read(16)
-            size = path.stat().st_size
             if head[4:8] in (b"ftyp", b"moov", b"mdat", b"free", b"wide"):
                 facts.update(_mp4(handle, size))
             elif head[:4] == b"OggS":
@@ -89,14 +118,33 @@ def _mp4(handle: IO[bytes], size: int) -> dict[str, Any]:
     for kind, body, end in _boxes(handle, *moov):
         if kind == b"mvhd":
             facts["duration_s"] = _mvhd(handle, body)
-        elif kind == b"trak" and not facts.get("width"):
-            tkhd = next((start for inner, start, _ in _boxes(handle, body, end)
-                         if inner == b"tkhd"), None)
-            if tkhd is not None:
-                width, height = _tkhd(handle, tkhd)
-                if width and height:
-                    facts["width"], facts["height"] = width, height
+        elif kind == b"trak":
+            if not facts.get("width"):
+                tkhd = next((start for inner, start, _ in _boxes(handle, body, end)
+                             if inner == b"tkhd"), None)
+                if tkhd is not None:
+                    width, height = _tkhd(handle, tkhd)
+                    if width and height:
+                        facts["width"], facts["height"] = width, height
+            if not facts.get("video_codec"):
+                facts["video_codec"] = _video_codec(handle, body, end)
     return facts
+
+
+def _video_codec(handle: IO[bytes], body: int, end: int) -> str | None:
+    """The codec of a track's first sample entry, where it is a video one a browser is
+    asked about."""
+    at = (body, end)
+    for wanted in (b"mdia", b"minf", b"stbl", b"stsd"):
+        found = next(((start, stop) for kind, start, stop in _boxes(handle, *at)
+                      if kind == wanted), None)
+        if found is None:
+            return None
+        at = found
+    # Past the full box's version, flags and entry count, to the first entry's type.
+    handle.seek(at[0] + 8)
+    entry = handle.read(8)
+    return _VIDEO_CODECS.get(entry[4:8]) if len(entry) == 8 else None
 
 
 def _mvhd(handle: IO[bytes], body: int) -> float | None:

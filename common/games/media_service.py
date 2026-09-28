@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import quote
 
+from common import media_probe
 from common.config_access import MediaConfig
 from common.games import asset_origin, sized_media
 from common.games.game import GameRecord
@@ -19,6 +20,7 @@ from common.media_specs import (
     MEDIA_SPECS,
     active_set_for,
     media_attr_kind_map,
+    media_family,
     media_filename_map,
     media_label_map,
     resolve_media_entries,
@@ -140,19 +142,24 @@ def shown_art(game_dir: Path, kind: str, table_stem: str | None = None, *,
     return None
 
 
-def media_map(game_dir: Path, prefix: str, table_stem: str | None = None) -> dict:
+def media_map(game_dir: Path, prefix: str, table_stem: str | None = None, *,
+              codecs: bool = False) -> dict:
     """Every kind described for one game, or for one of its tables. Resolve and
     describe together, so no caller can resolve for one table and describe another."""
-    return media_entries(resolved_media(game_dir, table_stem), game_dir, prefix)
+    return media_entries(resolved_media(game_dir, table_stem), game_dir, prefix,
+                         codecs=codecs)
 
 
-def media_entries(resolved: dict, game_dir: Path, prefix: str) -> dict:
+def media_entries(resolved: dict, game_dir: Path, prefix: str, *,
+                  codecs: bool = False) -> dict:
     """What a curator asks of a slot: does it resolve, how specific, and where from.
 
     `via` is why this file is the one being used - "table", "game", "default",
     "set:<name>" or "fallback:<kind>". `origin` is who put it there, which is a
     different question with a different source: the .info ledger, read once per call
     here rather than once per kind. Neither answer implies the other.
+
+    `codecs` reads each video's header for its `video_codec`, which is null otherwise.
     """
     recorded = asset_origin.sources(game_dir)
     hosts = {key: str(source.get("host", "") or "").strip()
@@ -167,6 +174,9 @@ def media_entries(resolved: dict, game_dir: Path, prefix: str) -> dict:
             "origin": asset_origin.origin_of(hosts, game_dir, hit.path) or None,
             "matched_to": asset_origin.match_of(recorded, game_dir, hit.path) or None,
             "version": sized_media.version(hit.path),
+            "video_codec": (media_probe.probe(hit.path)["video_codec"]
+                            if codecs and hit.path is not None
+                            and media_family(key) == "video" else None),
             "links": {"self": f"{prefix}/{key}"} if hit.path is not None else {"self": None},
         }
         for key, hit in resolved.items()

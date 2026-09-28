@@ -56,11 +56,16 @@ def mint_device_id() -> str:
 
 
 def browser_said(report: dict[str, Any]) -> dict[str, Any]:
-    """What an entry keeps of a `GET /frontend/browser` answer: `state`, `name` and
-    `checked_at`. Empty where the answer has no state."""
+    """What an entry keeps of a `GET /frontend/browser` answer: `state`, `name`,
+    `formats` and `checked_at`. Empty where the answer has no state."""
     if not report.get("state"):
         return {}
+    formats = report.get("formats")
     return {"state": str(report["state"]), "name": str(report.get("browser") or ""),
+            "formats": {str(key)[:16]: value
+                        for key, value in list(formats.items())[:32]
+                        if value is None or isinstance(value, bool)}
+            if isinstance(formats, dict) else {},
             "checked_at": utc_now_iso()}
 
 

@@ -15,7 +15,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.device_registry import Device, DeviceRegistry
+from common.device_registry import Device, DeviceRegistry, browser_said
 
 
 class DeviceRegistryTests(unittest.TestCase):
@@ -240,6 +240,24 @@ class BrowserTests(unittest.TestCase):
         self.registry.record("Aaaa111111", display_name="cab")
 
         self.assertEqual(self._held(), self.SAID)
+
+    def test_it_keeps_what_each_format_was_answered(self) -> None:
+        said = browser_said({"state": "no_h264", "browser": "Chromium 145.0.7632.0",
+                             "formats": {"h264": False, "vp9": True, "hevc": None}})
+
+        self.registry.record_reachable("Aaaa111111", browser=said)
+
+        self.assertEqual(DeviceRegistry(self.registry.path).get("Aaaa111111")
+                         .browser["formats"], {"h264": False, "vp9": True, "hevc": None})
+
+    def test_a_format_answered_with_anything_but_yes_no_or_null_is_dropped(self) -> None:
+        said = browser_said({"state": "plays", "formats": {"h264": "probably",
+                                                            "vp9": True}})
+
+        self.assertEqual(said["formats"], {"vp9": True})
+
+    def test_an_answer_from_before_formats_keeps_none(self) -> None:
+        self.assertEqual(browser_said({"state": "plays"})["formats"], {})
 
 
 class DeviceRegistryStorageTests(unittest.TestCase):

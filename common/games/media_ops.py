@@ -72,16 +72,17 @@ def _prefix(game_id: str, table_id: str = "") -> str:
             else f"/api/v1/games/{game_id}/media")
 
 
-def game_media(game_id: str) -> dict:
+def game_media(game_id: str, codecs: bool = False) -> dict:
     """Every kind the folder resolves, which is what all its tables share.
 
     Art named for one build belongs to that build and answers under its table.
     """
     game = game_lens.game_or_refuse(game_id)
-    return {"media": media_service.media_map(_folder(game), _prefix(game_id))}
+    return {"media": media_service.media_map(_folder(game), _prefix(game_id),
+                                             codecs=codecs)}
 
 
-def table_media(game_id: str, table_id: str) -> dict:
+def table_media(game_id: str, table_id: str, codecs: bool = False) -> dict:
     """The same kinds, resolved for one build rather than for the folder.
 
     Two builds of a game can genuinely differ - a VR room and a desktop table are not the
@@ -90,7 +91,7 @@ def table_media(game_id: str, table_id: str) -> dict:
     game = game_lens.game_or_refuse(game_id)
     stem = stem_or_refuse(game, table_id)
     return {"media": media_service.media_map(_folder(game), _prefix(game_id, table_id),
-                                             stem)}
+                                             stem, codecs=codecs)}
 
 
 def media_file(game_id: str, kind: str, table_id: str = "",
@@ -145,7 +146,7 @@ def overrides(game_id: str) -> dict:
 
 
 _NO_FACTS = {"size_bytes": None, "modified": None, "width": None, "height": None,
-             "format": None, "duration_s": None}
+             "format": None, "duration_s": None, "video_codec": None}
 
 
 def _file_facts(path: Path) -> dict:

@@ -153,9 +153,9 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/media` | Every media file in the library (`game`, `kind`, `limit`, `offset`). A game has a shared row per kind, and a table a row of its own only where a file is named for it |
 | GET | `/api/v1/assets` | Every asset file in the library, the same way. A file named for no table gets a row too, and says so |
 | GET | `/api/v1/games/{id}/links` | Where the game is elsewhere, as extensions have contributed. `?table=` for one table, `?path=` for one of its files |
-| GET | `/api/v1/games/{id}/media` | Every media kind, present or not |
+| GET | `/api/v1/games/{id}/media` | Every media kind, present or not. `?codecs=true` reads each video's header for its `video_codec`, which is null otherwise |
 | GET | `/api/v1/games/{id}/media/{kind}` | Stream one media file. `?size=` sends a picture smaller; `?v=` lets it be kept |
-| GET | `/api/v1/games/{id}/media/{kind}/detail` | What that file is. `format` is what the file's header says it is, `width`/`height` are an image's or a video's, and `duration_s` is a video's or a sound's running time |
+| GET | `/api/v1/games/{id}/media/{kind}/detail` | What that file is. `format` is what the file's header says it is, `width`/`height` are an image's or a video's, `duration_s` is a video's or a sound's running time, and `video_codec` is a video's codec as `GET /frontend/browser` names the format - `h264`, `hevc`, `vp9` or `av1`, null for any other or where the header does not say |
 | GET | `/api/v1/games/{id}/media/overrides` | The kinds where a table has art of its own |
 | GET | `/api/v1/games/{id}/media/{kind}/placements` | Where a file of that kind could go, and what each place would replace |
 | GET | `/api/v1/games/{id}/media/{kind}/displaced?filename=` | What placing that file under the folder's name would replace, asked before the bytes are sent |
@@ -164,7 +164,7 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/games/{id}/media/{kind}/import` | Place a file from this device, `{"path", "table"}`, under a browsable root |
 | POST | `/api/v1/games/{id}/media/{kind}/fetch` | Place a file from an online catalog, `{"source", "vps_id"}` with optional `size` and `table` |
 | POST | `/api/v1/games/{id}/media/{kind}/retier?table=` | Rename a placed file so it serves another table, or every table. `?table=` is the table it serves now and `{"table"}` the one it should; empty means every table |
-| GET | `/api/v1/games/{id}/tables/{table_id}/media` | One table's media |
+| GET | `/api/v1/games/{id}/tables/{table_id}/media` | One table's media. `?codecs=true` as for the game's |
 | GET | `/api/v1/games/{id}/tables/{table_id}/media/{kind}` | Stream one table's media file. `?size=` and `?v=` as for the game's |
 | GET | `/api/v1/games/{id}/tables/{table_id}/media/{kind}/detail` | What that file is, as for the game's |
 | GET | `/api/v1/games/{id}/tables/{table_id}/media/{kind}/displaced?filename=` | What placing that file for one table would replace |
@@ -1442,7 +1442,8 @@ else.
 
 Probing a device that answers and runs the frontend also asks it `GET /frontend/browser`,
 and its entry keeps what it said as `browser`: `state`, one of that route's; `name`, the
-browser and its version; and `checked_at`. It is the last known answer, so a device that is
+browser and its version; `formats`, that route's true, false or null for each format; and
+`checked_at`. It is the last known answer, so a device that is
 switched off still has one. A device that no longer runs the frontend has it cleared, and one
 too old to serve the route, or that fails to answer it, keeps what was held. The probe's
 answer carries the same field. An install's own entry is written by its frontend as it

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 import struct
 import tempfile
 import unittest
@@ -28,10 +29,18 @@ def _tkhd(width: int, height: int) -> bytes:
     return _box(b"tkhd", body)
 
 
-def _mp4(*, moov_last: bool = False, version: int = 0) -> bytes:
+def _stsd(entry: bytes) -> bytes:
+    """A track's sample description, down through the boxes that hold it."""
+    stsd = _box(b"stsd", bytes(4) + struct.pack(">I", 1) + _box(entry, bytes(78)))
+    return _box(b"mdia", _box(b"hdlr", bytes(24))
+                + _box(b"minf", _box(b"stbl", stsd)))
+
+
+def _mp4(*, moov_last: bool = False, version: int = 0, sound: bytes = b"mp4a",
+         picture: bytes = b"avc1") -> bytes:
     moov = _box(b"moov", _mvhd(1000, 30_500, version)
-                + _box(b"trak", _tkhd(0, 0))
-                + _box(b"trak", _tkhd(1920, 1080)))
+                + _box(b"trak", _tkhd(0, 0) + _stsd(sound))
+                + _box(b"trak", _tkhd(1920, 1080) + _stsd(picture)))
     head = _box(b"ftyp", b"isom" + bytes(4))
     media = _box(b"mdat", bytes(4096))
     return head + (media + moov if moov_last else moov + media)
@@ -140,6 +149,38 @@ class TheHeaderSaysWhatItIs(unittest.TestCase):
         facts = self._probe("table.mp4", _mp4()[:40])
 
         self.assertEqual(("MP4", None), (facts["format"], facts["duration_s"]))
+
+    def test_a_video_names_its_codec_as_a_browser_is_asked_about_it(self) -> None:
+        named = {entry: self._probe(f"{entry.decode()}.mp4", _mp4(picture=entry))
+                 ["video_codec"]
+                 for entry in (b"avc1", b"avc3", b"hvc1", b"hev1", b"vp09", b"av01")}
+
+        self.assertEqual(named, {b"avc1": "h264", b"avc3": "h264", b"hvc1": "hevc",
+                                 b"hev1": "hevc", b"vp09": "vp9", b"av01": "av1"})
+
+    def test_the_codec_is_found_after_the_media_too(self) -> None:
+        facts = self._probe("bg.mp4", _mp4(moov_last=True, picture=b"vp09"))
+
+        self.assertEqual(facts["video_codec"], "vp9")
+
+    def test_a_codec_no_browser_is_asked_about_is_not_known(self) -> None:
+        self.assertIsNone(self._probe("dmd.mp4", _mp4(picture=b"mp4v"))["video_codec"])
+
+    def test_a_sound_says_no_video_codec(self) -> None:
+        self.assertIsNone(self._probe("audio.mp3", _mp3(100, xing=True))["video_codec"])
+
+    def test_a_file_read_once_is_not_read_again_until_it_changes(self) -> None:
+        path = self.root / "table.mp4"
+        path.write_bytes(_mp4(picture=b"avc1"))
+        probe(path)
+        stamp = path.stat().st_mtime_ns
+        path.write_bytes(_mp4(picture=b"vp09"))
+        os.utime(path, ns=(stamp, stamp))
+
+        self.assertEqual(probe(path)["video_codec"], "h264")
+
+        os.utime(path, ns=(stamp + 1_000_000_000, stamp + 1_000_000_000))
+        self.assertEqual(probe(path)["video_codec"], "vp9")
 
 
 if __name__ == "__main__":

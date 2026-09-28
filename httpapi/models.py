@@ -98,11 +98,12 @@ class DeviceLinks(ApiModel):
 
 
 class DeviceBrowser(ApiModel):
-    """What a device's frontend browser plays, as it said when last asked. `state` is one
-    of `GET /frontend/browser`'s."""
+    """What a device's frontend browser plays, as it said when last asked. `state` and
+    `formats` are `GET /frontend/browser`'s."""
 
     state: str
     name: str = ""
+    formats: dict[str, bool | None] = Field(default_factory=dict)
     checked_at: str = ""
 
 
@@ -2111,6 +2112,8 @@ class MediaEntry(ApiModel):
     matched_to: str | None = None
     # The `v` that lets `links.self` be cached for good; null when nothing is there.
     version: str | None = None
+    # A format id of `GET /frontend/browser`'s; null unless asked with `?codecs=true`.
+    video_codec: str | None = None
     links: MediaEntryLinks
 
 
@@ -2155,7 +2158,8 @@ class MediaDetail(ApiModel):
     read per candidate file, and the media list is on the path a frontend walks every
     time the player changes game - on a library over the network that is the difference
     between free and not. `width`/`height` are an image's or a video's, `duration_s` a
-    video's or a sound's, and `format` is what the file's header says it is.
+    video's or a sound's, `format` is what the file's header says it is, and
+    `video_codec` a video's codec as `GET /frontend/browser` names the format.
     """
 
     kind: str
@@ -2172,6 +2176,7 @@ class MediaDetail(ApiModel):
     height: int | None = None
     format: str | None = None
     duration_s: float | None = None
+    video_codec: str | None = None
     tiers: list[MediaTier] = []
     # The file this lens is shown once a DELETE here has taken the files at its tier;
     # null when nothing would be.

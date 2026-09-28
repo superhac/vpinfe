@@ -299,7 +299,8 @@ class _Answering:
         return self.report
 
 
-NO_H264 = {"state": "no_h264", "browser": "Chromium 145.0.7632.0"}
+NO_H264 = {"state": "no_h264", "browser": "Chromium 145.0.7632.0",
+           "formats": {"h264": False, "vp9": True, "hevc": None}}
 
 
 @unittest.skipIf(TestClient is None, "starlette test client unavailable")
@@ -328,8 +329,9 @@ class ProbeAsksTheBrowserTests(TempTree):
     def test_what_it_plays_comes_back_with_the_probe_and_is_kept(self) -> None:
         probed = self._probed()["browser"]
 
-        self.assertEqual((probed["state"], probed["name"]),
-                         ("no_h264", "Chromium 145.0.7632.0"))
+        self.assertEqual((probed["state"], probed["name"], probed["formats"]),
+                         ("no_h264", "Chromium 145.0.7632.0",
+                          {"h264": False, "vp9": True, "hevc": None}))
         self.assertTrue(probed["checked_at"])
         self.assertEqual(self._held(), probed)
 

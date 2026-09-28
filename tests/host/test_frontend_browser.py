@@ -160,6 +160,7 @@ class RecordTests(_Isolated):
 
         kept = registry.get(own).browser
         self.assertEqual((kept["state"], kept["name"]), (fb.NO_H264, "Chromium 145.0.7632.0"))
+        self.assertEqual((kept["formats"]["h264"], kept["formats"]["vp9"]), (False, True))
         self.assertTrue(kept["checked_at"])
 
     def test_a_report_from_another_browser_is_no_answer(self) -> None:
