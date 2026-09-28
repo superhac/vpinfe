@@ -1,0 +1,140 @@
+"""From a recording to the stored file: one FFmpeg pipeline for every platform.
+
+Each function answers an argv; `run` runs one.
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from . import settings
+from .geometry import Turn
+
+TIMEOUT = 300
+
+CRF = {(settings.H264, settings.STANDARD): 34, (settings.H264, settings.HIGH): 23,
+       (settings.VP9, settings.STANDARD): 60, (settings.VP9, settings.HIGH): 41}
+
+# Peak loudness below which a recording has nothing to hear.
+SILENT_DB = -60.0
+
+# PulseAudio's name, which PipeWire's stand-in keeps, for the default output's monitor.
+DEFAULT_MONITOR = "@DEFAULT_MONITOR@"
+
+Run = Callable[..., Any]
+
+
+def _quiet(ffmpeg: Path) -> list[str]:
+    return [str(ffmpeg), "-hide_banner", "-nostdin", "-loglevel", "error", "-y"]
+
+
+def _window(skip: float, length: float) -> list[str]:
+    return ["-ss", f"{skip:.3f}", "-t", f"{length:.3f}"]
+
+
+def scale(cap: int | None) -> str:
+    """To `cap` on the long side and never up, or the source's own size; always even, as
+    4:2:0 needs."""
+    if not cap:
+        return "scale=trunc(iw/2)*2:trunc(ih/2)*2"
+    return (f"scale='if(gte(iw,ih),min({cap},iw),-2)'"
+            f":'if(gte(iw,ih),-2,min({cap},ih))'")
+
+
+def cap_of(size: str) -> int | None:
+    return None if size == settings.SCREENS_OWN else int(size)
+
+
+def video_filters(turn: Turn, fps: int, cap: int | None) -> str:
+    return ",".join([*turn.filters, f"fps={fps}", scale(cap), "format=yuv420p"])
+
+
+def codec_args(codec: str, quality: str) -> list[str]:
+    crf = str(CRF[(codec, quality)])
+    if codec == settings.VP9:
+        return ["-c:v", "libvpx-vp9", "-deadline", "realtime", "-cpu-used", "8",
+                "-crf", crf, "-b:v", "0", "-row-mt", "1"]
+    return ["-c:v", "libx264", "-preset", "veryfast", "-crf", crf]
+
+
+@dataclass(frozen=True)
+class Encode:
+    """One recorded window to its stored video. `skip` is cut from the head so every
+    window starts at the same moment."""
+
+    source: Path
+    skip: float
+    length: float
+    turn: Turn
+    fps: int
+    cap: int | None
+    codec: str
+    quality: str
+
+
+def encode(ffmpeg: Path, job: Encode, dest: Path) -> list[str]:
+    return [*_quiet(ffmpeg), *_window(job.skip, job.length), "-i", str(job.source),
+            "-map", "0:v:0", "-an", "-vf", video_filters(job.turn, job.fps, job.cap),
+            *codec_args(job.codec, job.quality), "-movflags", "+faststart", str(dest)]
+
+
+def picture(ffmpeg: Path, source: Path, turn: Turn, cap: int | None, dest: Path,
+            at: float | None = None) -> list[str]:
+    """One frame, `at` seconds into a recording, or the whole of a still where None."""
+    seek = ["-ss", f"{at:.3f}"] if at is not None else []
+    return [*_quiet(ffmpeg), *seek, "-i", str(source), "-frames:v", "1", "-update", "1",
+            "-vf", ",".join([*turn.filters, scale(cap)]), str(dest)]
+
+
+def sound(ffmpeg: Path, chosen: str, dest: Path) -> list[str]:
+    """What the device plays, from PulseAudio or PipeWire's stand-in, until stopped.
+    `chosen` is Sound From: a source's name, or Automatic for the default output's."""
+    source = DEFAULT_MONITOR if chosen in ("", settings.AUTO) else chosen
+    return [*_quiet(ffmpeg), "-f", "pulse", "-i", source, "-ac", "2", "-ar", "48000",
+            "-c:a", "pcm_s16le", str(dest)]
+
+
+
+
+def mp3(ffmpeg: Path, source: Path, skip: float, length: float, dest: Path) -> list[str]:
+    return [*_quiet(ffmpeg), *_window(skip, length), "-i", str(source), "-vn",
+            "-c:a", "libmp3lame", "-b:a", "192k", str(dest)]
+
+
+def loudness(ffmpeg: Path, source: Path) -> list[str]:
+    return [str(ffmpeg), "-hide_banner", "-nostdin", "-i", str(source),
+            "-af", "volumedetect", "-f", "null", "-"]
+
+
+def frames(ffmpeg: Path, source: Path) -> list[str]:
+    """Counts by copying the stream to nowhere, which decodes nothing."""
+    return [str(ffmpeg), "-hide_banner", "-nostdin", "-loglevel", "error",
+            "-progress", "pipe:1", "-i", str(source), "-map", "0:v:0", "-c", "copy",
+            "-f", "null", "-"]
+
+
+_FRAME = re.compile(r"^frame=\s*(\d+)", re.MULTILINE)
+_PEAK = re.compile(r"max_volume:\s*(-?[\d.]+|-inf) dB")
+
+
+def frames_in(said: str) -> int:
+    counts = _FRAME.findall(said or "")
+    return int(counts[-1]) if counts else 0
+
+
+def peak_in(said: str) -> float:
+    found = _PEAK.search(said or "")
+    if not found or found.group(1) == "-inf":
+        return float("-inf")
+    return float(found.group(1))
+
+
+def run(argv: list[str], runner: Run = subprocess.run) -> Any:
+    """Raises CalledProcessError where FFmpeg fails, TimeoutExpired where it hangs."""
+    return runner(argv, capture_output=True, text=True, errors="replace",
+                  stdin=subprocess.DEVNULL, timeout=TIMEOUT, check=True)

@@ -170,7 +170,36 @@ class WlrAdapter:
         return hyprland_outputs(ask_hyprland(self._connect(hyprland_socket(self.env))))
 
     def at_once(self, ffmpeg: tools.Found) -> bool:
-        return bool(vaapi_node(ffmpeg))
+        return bool(self.hardware(ffmpeg))
+
+    def hardware(self, ffmpeg: tools.Found) -> str:
+        return vaapi_node(ffmpeg)
+
+    def still(self, found: Mapping[str, tools.Found], output: Output,
+              dest: Path) -> list[str]:
+        return [str(found[tools.GRIM.id].path), "-o", output.name, str(dest)]
+
+    def record(self, found: Mapping[str, tools.Found], output: Output, dest: Path,
+               hardware: str) -> list[str]:
+        """Every refresh copied, `-D`, where this wf-recorder has it: a static screen
+        otherwise gives one frame and a stop that waits for the next forever. Near
+        lossless, since the pipeline encodes it again."""
+        recorder = found[tools.WF_RECORDER.id]
+        every = recorder.probe is not None and (
+            recorder.probe.has(tools.OPTIONS, "-D")
+            or recorder.probe.has(tools.OPTIONS, "--no-damage"))
+        codec = (["-c", "h264_vaapi", "-d", hardware, "-p", "qp=18"] if hardware
+                 else ["-c", "libx264", "-p", "preset=ultrafast", "-p", "crf=18"])
+        return [str(recorder.path), *(["-D"] if every else []), "-o", output.name,
+                *codec, "-f", str(dest)]
+
+    def still_turn(self, output: Output) -> geometry.Turn:
+        """grim draws the output as the screen shows it."""
+        return geometry.NONE
+
+    def recording_turn(self, output: Output) -> geometry.Turn:
+        """wf-recorder hands over the buffer before the output's transform."""
+        return output.transform
 
 
 def reset_for_tests() -> None:

@@ -27,6 +27,7 @@ LAUNCH_INVOKE = "launch:invoke"
 PLAY_STOP = "play:stop"
 
 UPLOADS_WRITE = "uploads:write"
+CAPTURE_RUN = "capture:run"
 # Separate from games:read on purpose: this one makes an outbound call to VPSdb
 # on the caller's behalf, which is not the same permission as reading local games.
 VPS_READ = "vps:read"
@@ -76,7 +77,7 @@ CORE = frozenset({
     GAMES_READ, GAMES_WRITE, GAMES_EXPORT_FULL,
     COLLECTIONS_READ, COLLECTIONS_WRITE,
     PLAY_READ, LAUNCH_INVOKE, PLAY_STOP,
-    UPLOADS_WRITE, VPS_READ, FILESYSTEM_READ,
+    UPLOADS_WRITE, VPS_READ, FILESYSTEM_READ, CAPTURE_RUN,
     CONFIG_READ, CONFIG_WRITE,
     SYSTEM_READ, SYSTEM_ADMIN,
     EVENTS_SUBSCRIBE, JOBS_READ, INPUT_ACT,

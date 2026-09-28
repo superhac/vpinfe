@@ -148,6 +148,7 @@ NOT_WHAT_IT_RAISES = EVERY_WAY - {"raise", "refusal"}
 # Modules nothing a person reads comes from, and why.
 NOT_READ = {
     "common/games/revert_3x.py": "a command-line tool",
+    "common/capture/pipeline.py": "hands FFmpeg its command lines",
     "common/online/update_scripts.py": "writes the scripts an update runs",
     "common/host/dof_service_worker.py": "answers the DOF service, which logs what it says",
     "common/host/display_service.py": "a monitor's name is the frontend API's, which themes "

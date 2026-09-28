@@ -31,6 +31,13 @@ Standard filenames include:
 - Audio: `audio.mp3`, `audiolaunch.mp3`
 - Documents: `rulesheet.pdf`
 
+A device can also record its own screens into these slots (`POST /api/v1/capture/runs`,
+`docs/http_api.md` "Recording"): the playfield, backglass and DMD as pictures and videos,
+and the sound as `audio.mp3`, written through the same placement as an upload, with the
+origin `capture` in the `.info` ledger. Recorded videos are silent `.mp4`, H.264 or, where
+the device's browser plays no H.264, VP9; the playfield is stored with its bottom at the
+right unless Playfield Orientation says otherwise.
+
 Each kind also accepts the rest of its extension family (for images: `.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`), and spec-named files outrank the fixed names: `(Wheel) <table name>.png` beats `(Wheel) <folder name>.png` beats `wheel.png`. The full precedence rules live in `common/media_specs.py`.
 
 ### Media tokens

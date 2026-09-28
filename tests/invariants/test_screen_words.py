@@ -15,6 +15,7 @@ CABINET = {
     "app.vpx.field.TableOverride.ViewFSSMode.choice.2.help": "the physical cabinet",
     "app.vpx.group.displays.heading.cabinet.label": "the physical cabinet the screen sits in",
     "app.vpx.group.point_of_view.heading.cabinet.label": "VPX's view for a cabinet's screen",
+    "capture.outcome.closed": "someone standing at the physical cabinet closed the table",
     "config.presentation.cab_mode.description": "playing standing at the physical cabinet",
     "config.presentation.cab_mode.label": "Cabinet Mode is named for the physical cabinet",
     "config.windows.playfield.orientation.description": "how a screen is mounted in it",

@@ -778,6 +778,55 @@ class CaptureReport(ApiModel):
     tools: list[ConfigTool]
 
 
+class CaptureTable(ApiModel):
+    game: str
+    table: str
+
+
+class CaptureConfirmed(ApiModel):
+    count: int
+
+
+class CaptureRequest(ApiModel):
+    """One game, by id in `games`, or one table, as a game and its table id in `tables`.
+    `kinds` are media kinds; empty is every kind this device can record, with `audio`
+    where `sound` - or, where that is left out, the Sound setting - says so. `settings`
+    holds Recording settings for this run only. `existing` is `fill`,
+    `replace_downloaded` or `replace_all`; `confirmed.count` must equal the plan's
+    `replacing` where that is more than none."""
+
+    games: list[str] = []
+    tables: list[CaptureTable] = []
+    kinds: list[str] = []
+    existing: str = "fill"
+    settings: dict[str, Any] = {}
+    sound: bool | None = None
+    confirmed: CaptureConfirmed | None = None
+
+
+class CapturePlanKind(ApiModel):
+    """`does` is `fill`, `replace` or `leave`. `source` is whose file a replace takes;
+    `reason` says why this device cannot record the kind at all."""
+
+    kind: str
+    does: str
+    source: str | None = None
+    reason: CaptureReason | None = None
+
+
+class CapturePlan(ApiModel):
+    game_id: str
+    table_id: str
+    name: str
+    kinds: list[CapturePlanKind]
+    recording: list[str]
+    replacing: int
+    replacing_by_source: dict[str, int]
+    launches: int
+    at_once: bool
+    estimate_seconds: int
+
+
 class ConfigValues(ApiModel):
     """Values keyed section then key, typed as the store types them. A setting the file
     omits answers its default, which is what the install is running on."""

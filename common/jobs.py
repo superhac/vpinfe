@@ -51,6 +51,8 @@ KIND_DEVICE_SEND = "device.send"
 # Filling a new game's empty media slots from the online sources. One at a time: two
 # fills of the same game would both see the slot empty and both write it.
 KIND_MEDIA_FILL = "library.media_fill"
+# Recording the cabinet's screens into media slots.
+KIND_MEDIA_CAPTURE = "media.capture"
 
 # Finished jobs a client can still ask about. Small on purpose: this is a courtesy
 # for the caller who missed the last event, not a history feature.
@@ -60,7 +62,12 @@ _HISTORY_LIMIT = 20
 _BUSY = {KIND_LIBRARY_SCAN: "error.jobs.library_busy",
          KIND_VPS_ROLLUP: "error.jobs.vps_count_busy",
          KIND_DEVICE_SEND: "error.jobs.sending_busy",
-         KIND_MEDIA_FILL: "error.media_fill.busy"}
+         KIND_MEDIA_FILL: "error.media_fill.busy",
+         KIND_MEDIA_CAPTURE: "error.capture.busy"}
+
+# Kinds refused while another kind runs, and what the refusal says.
+_BLOCKED_BY = {(KIND_MEDIA_CAPTURE, KIND_MEDIA_FILL): "error.capture.fill_running",
+               (KIND_MEDIA_FILL, KIND_MEDIA_CAPTURE): "error.media_fill.recording"}
 
 
 class JobBusyError(service_errors.BlockedError):
@@ -69,6 +76,15 @@ class JobBusyError(service_errors.BlockedError):
 
 def _busy(kind: str) -> JobBusyError:
     return JobBusyError(t(_BUSY.get(kind, "error.jobs.busy")))
+
+
+def _refuse_if_busy(kind: str) -> None:
+    """Under `_lock`."""
+    if kind in _active:
+        raise _busy(kind)
+    for (wanted, running), key in _BLOCKED_BY.items():
+        if wanted == kind and running in _active:
+            raise JobBusyError(t(key))
 
 
 @dataclass
@@ -193,8 +209,7 @@ def track(kind: str, *, progress_cb: ProgressCallback | None = None,
     """Run work on the caller's thread as a job. Raises JobBusyError if one is running."""
     job = Job(id=uuid.uuid4().hex, kind=kind, progress_cb=progress_cb, log_cb=log_cb)
     with _lock:
-        if kind in _active:
-            raise _busy(kind)
+        _refuse_if_busy(kind)
         _active[kind] = job
     try:
         yield job
@@ -211,8 +226,7 @@ def submit(kind: str, work: Callable[[Job], object], *,
     """Start work on its own thread and return its job immediately."""
     job = Job(id=uuid.uuid4().hex, kind=kind, progress_cb=progress_cb, log_cb=log_cb)
     with _lock:
-        if kind in _active:
-            raise _busy(kind)
+        _refuse_if_busy(kind)
         _active[kind] = job
 
     def _run() -> None:

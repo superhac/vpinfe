@@ -29,7 +29,7 @@ class FakeAdapter:
 
     def __init__(self, outputs: Any = None, hardware: bool = True) -> None:
         self._outputs = wlr.sway_outputs(SWAY_OUTPUTS) if outputs is None else outputs
-        self.hardware = hardware
+        self.node = "/dev/dri/renderD128" if hardware else ""
 
     def requirements(self):
         return (tools.FFMPEG, tools.GRIM, tools.WF_RECORDER)
@@ -40,7 +40,10 @@ class FakeAdapter:
         return self._outputs
 
     def at_once(self, ffmpeg):
-        return self.hardware
+        return bool(self.node)
+
+    def hardware(self, ffmpeg):
+        return self.node
 
 
 def found(missing: tuple[str, ...] = (), encoders: frozenset[str] = ENCODERS,

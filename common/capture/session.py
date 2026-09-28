@@ -1,0 +1,414 @@
+"""One table: launched, waited for, recorded, closed, then encoded and placed."""
+
+from __future__ import annotations
+
+import logging
+import shutil
+import subprocess
+import threading
+import time
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from common import events, service_errors
+from common.config_access import cfg_get
+from common.failures import why
+from common.games import asset_origin
+from common.host import launch, launch_state, tools
+
+from . import adapters, geometry, pipeline
+from .adapters import Output, Recording
+from .settings import Settings
+
+logger = logging.getLogger("vpinfe.common.capture.session")
+
+# How long a table has to say it is up.
+START_TIMEOUT = 120.0
+CLOSE_TIMEOUT = 15.0
+# The share of Length times the refresh a recording must hold to have kept up.
+ENOUGH_FRAMES = 0.95
+
+KINDS = {adapters.PLAYFIELD: ("playfield", "playfield_video"),
+         adapters.BACKGLASS: ("backglass", "backglass_video"),
+         adapters.SCOREVIEW: ("scoreview", "scoreview_video"),
+         adapters.TOPPER: ("topper", "topper_video")}
+AUDIO = "audio"
+RECORDABLE = frozenset({kind for pair in KINDS.values() for kind in pair} | {AUDIO})
+
+RECORDED = "recorded"
+FAILED = "failed"
+CLOSED = "closed"
+SKIPPED = "skipped"
+
+WOULD_NOT_START = "capture.outcome.would_not_start"
+CLOSED_AT_CABINET = "capture.outcome.closed"
+NO_FRAMES = "capture.outcome.no_frames"
+SILENT = "capture.outcome.silent"
+NOT_WRITTEN = "capture.outcome.not_written"
+NOTHING_TO_RECORD = "capture.outcome.nothing_to_record"
+
+
+def said(key: str, **params: str) -> dict[str, Any]:
+    return {"key": key, "params": params}
+
+
+@dataclass
+class Kit:
+    """What a session runs things with. Tests hand it stand-ins."""
+
+    launch: Callable[..., Any] = launch.launch_game
+    stop: Callable[[], Any] = launch_state.stop
+    popen: Callable[..., Any] = subprocess.Popen
+    runner: Callable[..., Any] = subprocess.run
+    place: Callable[..., Any] | None = None
+    clock: Callable[[], float] = time.monotonic
+
+
+@dataclass
+class Result:
+    state: str
+    placed: list[dict[str, str]] = field(default_factory=list)
+    failed: list[dict[str, Any]] = field(default_factory=list)
+    reason: dict[str, Any] | None = None
+    # Whether screens still record at once, for the rest of a run.
+    at_once: bool = True
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"state": self.state, "placed": self.placed, "failed": self.failed,
+                "reason": self.reason, "at_once": self.at_once}
+
+
+@dataclass(frozen=True)
+class Target:
+    game_id: str
+    game: Any
+    # "" for the game's own tier.
+    table_id: str
+    # What the launch is asked to play: the table's filename or key, or None for the
+    # game's default.
+    table: str | None
+    kinds: tuple[str, ...]
+
+
+def _place(game_id: str, kind: str, table_id: str, source: Path, origin: str,
+           md5: str) -> Any:
+    from common.games import media_ops
+
+    return media_ops.place_file(game_id, kind, table_id, source, origin, md5)
+
+
+class Session:
+    def __init__(self, target: Target, chosen: Settings, *, adapter: adapters.Adapter,
+                 screens: Mapping[str, Output], found: Mapping[str, tools.Found],
+                 at_once: bool, codec: str, work: Path, config: Any,
+                 kit: Kit | None = None) -> None:
+        self.target = target
+        self.chosen = chosen
+        self.adapter = adapter
+        self.found = found
+        self.at_once = at_once
+        self.codec = codec
+        self.work = work
+        self.config = config
+        self.kit = kit or Kit()
+        self.hardware = adapter.hardware(found[tools.FFMPEG.id]) if at_once else ""
+        wanted = set(target.kinds)
+        self.video = [window for window, (_, video) in KINDS.items()
+                      if video in wanted and window in screens]
+        self.stills = [window for window, (picture, video) in KINDS.items()
+                       if picture in wanted and video not in wanted and window in screens]
+        self.screens = dict(screens)
+        self.sound = AUDIO in wanted
+        self.launched = threading.Event()
+        self.exited = threading.Event()
+        self.either = threading.Event()
+        self.failure: list[BaseException] = []
+        self.counted: dict[Path, int] = {}
+        self.result = Result(RECORDED, at_once=at_once)
+
+    # --- the launch -----------------------------------------------------------------
+
+    def _heard(self, flag: threading.Event) -> Callable[..., None]:
+        def heard(**payload: Any) -> None:
+            if payload.get("source") == launch_state.SOURCE_CAPTURE:
+                flag.set()
+                self.either.set()
+        return heard
+
+    def _launch(self) -> threading.Thread:
+        def launching() -> None:
+            try:
+                self.kit.launch(self.target.game, self.config,
+                                source=launch_state.SOURCE_CAPTURE, table=self.target.table,
+                                record_sound=self.sound)
+            except BaseException as exc:  # noqa: BLE001 - said as the table's outcome
+                self.failure.append(exc)
+            finally:
+                self.exited.set()
+                self.either.set()
+
+        thread = threading.Thread(target=launching, daemon=True, name="capture-launch")
+        thread.start()
+        return thread
+
+    # --- recording ------------------------------------------------------------------
+
+    def _start(self, window: str) -> Recording:
+        dest = self.work / f"{window}.mkv"
+        argv = self.adapter.record(self.found, self.screens[window], dest, self.hardware)
+        return Recording(window, dest, self._spawn(argv), self.kit.clock())
+
+    def _start_sound(self) -> Recording:
+        dest = self.work / "sound.wav"
+        argv = pipeline.sound(self._ffmpeg(), self.chosen.sound_source, dest)
+        return Recording(AUDIO, dest, self._spawn(argv), self.kit.clock())
+
+    def _spawn(self, argv: list[str]) -> Any:
+        logger.info("Recording: %s", argv)
+        return self.kit.popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL)
+
+    def _ffmpeg(self) -> Path:
+        return Path(str(self.found[tools.FFMPEG.id].path))
+
+    def _take_stills(self) -> None:
+        for window in self.stills:
+            dest = self.work / f"{window}.png"
+            try:
+                self.kit.runner(self.adapter.still(self.found, self.screens[window], dest),
+                                capture_output=True, stdin=subprocess.DEVNULL,
+                                timeout=tools.TIMEOUT, check=True)
+            except (OSError, subprocess.SubprocessError):
+                logger.warning("Recording: no picture of the %s screen", window,
+                               exc_info=True)
+
+    def _hold(self, started: float, stills: bool) -> bool:
+        """Until Length has passed since `started`, taking the stills at Picture At.
+        True where the table closed first."""
+        if stills:
+            if self.exited.wait(max(0.0, started + self.chosen.picture_at
+                                    - self.kit.clock())):
+                return True
+            self._take_stills()
+        return self.exited.wait(max(0.0, started + self.chosen.length - self.kit.clock()))
+
+    def _frames(self, recording: Recording) -> int:
+        if recording.path not in self.counted:
+            try:
+                done = pipeline.run(pipeline.frames(self._ffmpeg(), recording.path),
+                                    self.kit.runner)
+                self.counted[recording.path] = pipeline.frames_in(done.stdout)
+            except (OSError, subprocess.SubprocessError):
+                self.counted[recording.path] = 0
+        return self.counted[recording.path]
+
+    def _kept_up(self, recording: Recording) -> bool:
+        refresh = self.screens[recording.window].refresh or 60.0
+        return self._frames(recording) >= ENOUGH_FRAMES * self.chosen.length * refresh
+
+    def _at_once(self) -> tuple[dict[str, Recording], Recording | None, bool]:
+        recordings = {window: self._start(window) for window in self.video}
+        sound = self._start_sound() if self.sound else None
+        started = max((one.started for one in recordings.values()), default=self.kit.clock())
+        closed = self._hold(started, bool(self.stills))
+        for one in [*recordings.values(), *([sound] if sound else [])]:
+            one.stop()
+        return recordings, sound, closed
+
+    def _in_turn(self, sound_too: bool) -> tuple[dict[str, Recording], Recording | None,
+                                                 bool]:
+        recordings: dict[str, Recording] = {}
+        sound = None
+        for index, window in enumerate(self.video):
+            one = self._start(window)
+            if index == 0 and sound_too:
+                sound = self._start_sound()
+            closed = self._hold(one.started, index == 0 and bool(self.stills))
+            one.stop()
+            if sound is not None and index == 0:
+                sound.stop()
+            recordings[window] = one
+            if closed:
+                return recordings, sound, True
+        return recordings, sound, False
+
+    def _no_video(self) -> tuple[dict[str, Recording], Recording | None, bool]:
+        if not self.sound:
+            closed = self.exited.wait(self.chosen.picture_at)
+            if not closed:
+                self._take_stills()
+            return {}, None, closed
+        sound = self._start_sound()
+        closed = self._hold(sound.started, bool(self.stills))
+        sound.stop()
+        return {}, sound, closed
+
+    def _record(self) -> tuple[dict[str, Recording], Recording | None, bool]:
+        if not self.video:
+            return self._no_video()
+        if not (self.at_once and len(self.video) > 1):
+            return self._in_turn(sound_too=self.sound)
+        recordings, sound, closed = self._at_once()
+        if closed or all(self._kept_up(one) for one in recordings.values()):
+            return recordings, sound, closed
+        logger.warning("Recording at once did not keep up; recording %s one screen at a "
+                       "time from here", self.target.game_id)
+        self.at_once = self.result.at_once = False
+        self._clear(recordings.values())
+        recordings, _, closed = self._in_turn(sound_too=False)
+        return recordings, sound, closed
+
+    def _clear(self, recordings: Any) -> None:
+        for one in list(recordings):
+            one.path.unlink(missing_ok=True)
+            self.counted.pop(one.path, None)
+
+    # --- after the table has closed -----------------------------------------------------
+
+    def _rotation(self) -> int:
+        raw = str(cfg_get(self.config, "windows.playfield", "rotation") or "0")
+        return int(raw) if raw.isdigit() else 0
+
+    def _turn(self, window: str, base: geometry.Turn) -> geometry.Turn:
+        if window == adapters.PLAYFIELD:
+            return geometry.playfield(base, self._rotation(),
+                                      self.chosen.playfield_orientation)
+        return geometry.screen(base)
+
+    def _made(self, kind: str, argv: list[str], dest: Path,
+              made: dict[str, Path]) -> None:
+        try:
+            pipeline.run(argv, self.kit.runner)
+        except (OSError, subprocess.SubprocessError):
+            logger.warning("Recording: could not write %s", dest, exc_info=True)
+        if dest.is_file() and dest.stat().st_size:
+            made[kind] = dest
+        else:
+            self._fail(kind, said(NOT_WRITTEN))
+
+    def _fail(self, kind: str, reason: dict[str, Any]) -> None:
+        self.result.failed.append({"kind": kind, "reason": reason})
+
+    def _encode(self, recordings: dict[str, Recording],
+                sound: Recording | None) -> dict[str, Path]:
+        ffmpeg, cap = self._ffmpeg(), pipeline.cap_of(self.chosen.size)
+        wanted = set(self.target.kinds)
+        first = max((one.started for one in recordings.values()), default=0.0) \
+            if self.result.at_once else 0.0
+        made: dict[str, Path] = {}
+        for window, one in recordings.items():
+            picture, video = KINDS[window]
+            skip = max(0.0, first - one.started) if self.result.at_once else 0.0
+            if not one.path.is_file() or not self._frames(one):
+                for kind in (picture, video):
+                    if kind in wanted:
+                        self._fail(kind, said(NO_FRAMES, window=window))
+                continue
+            turn = self._turn(window, self.adapter.recording_turn(self.screens[window]))
+            if video in wanted:
+                job = pipeline.Encode(one.path, skip, self.chosen.length, turn,
+                                      self.chosen.fps, cap, self.codec, self.chosen.quality)
+                self._made(video, pipeline.encode(ffmpeg, job, self.work / f"{video}.mp4"),
+                           self.work / f"{video}.mp4", made)
+            if picture in wanted:
+                dest = self.work / f"{picture}.png"
+                self._made(picture, pipeline.picture(ffmpeg, one.path, turn, cap, dest,
+                                                     at=skip + self.chosen.picture_at),
+                           dest, made)
+        for window in self.stills:
+            picture = KINDS[window][0]
+            still = self.work / f"{window}.png"
+            if not still.is_file():
+                self._fail(picture, said(NO_FRAMES, window=window))
+                continue
+            dest = self.work / f"{picture}.stored.png"
+            turn = self._turn(window, self.adapter.still_turn(self.screens[window]))
+            self._made(picture, pipeline.picture(ffmpeg, still, turn, cap, dest), dest, made)
+        if sound is not None:
+            self._encode_sound(sound, first, made)
+        return made
+
+    def _encode_sound(self, sound: Recording, first: float, made: dict[str, Path]) -> None:
+        ffmpeg = self._ffmpeg()
+        try:
+            heard = pipeline.run(pipeline.loudness(ffmpeg, sound.path), self.kit.runner)
+            peak = pipeline.peak_in(heard.stderr)
+        except (OSError, subprocess.SubprocessError):
+            peak = float("-inf")
+        if peak < pipeline.SILENT_DB:
+            self._fail(AUDIO, said(SILENT))
+            return
+        skip = max(0.0, first - sound.started) if self.result.at_once else 0.0
+        dest = self.work / "audio.mp3"
+        self._made(AUDIO, pipeline.mp3(ffmpeg, sound.path, skip, self.chosen.length, dest),
+                   dest, made)
+
+    def _land(self, made: dict[str, Path]) -> None:
+        place = self.kit.place or _place
+        for kind, path in made.items():
+            try:
+                place(self.target.game_id, kind, self.target.table_id, path,
+                      asset_origin.RECORDED, "")
+            except (OSError, service_errors.ServiceError) as exc:
+                self._fail(kind, {"key": NOT_WRITTEN, "params": {}, "detail": why(exc)})
+                continue
+            self.result.placed.append({"kind": kind})
+
+    # --- the whole of it ------------------------------------------------------------
+
+    def run(self) -> Result:
+        if not self.video and not self.stills and not self.sound:
+            self.result.state, self.result.reason = SKIPPED, said(NOTHING_TO_RECORD)
+            return self.result
+        shutil.rmtree(self.work, ignore_errors=True)
+        self.work.mkdir(parents=True)
+        subscriptions = ((events.TABLE_LAUNCHED, self._heard(self.launched)),
+                         (events.TABLE_EXITED, self._heard(self.exited)))
+        for name, handler in subscriptions:
+            events.subscribe(name, handler)
+        try:
+            return self._run()
+        finally:
+            for name, handler in subscriptions:
+                events.unsubscribe(name, handler)
+            shutil.rmtree(self.work, ignore_errors=True)
+
+    def _run(self) -> Result:
+        thread = self._launch()
+        self.either.wait(START_TIMEOUT)
+        if not self.launched.is_set():
+            self.kit.stop()
+            thread.join(CLOSE_TIMEOUT)
+            self.result.state = FAILED
+            self.result.reason = {"key": WOULD_NOT_START, "params": {},
+                                  "detail": why(self.failure[0]) if self.failure else ""}
+            return self.result
+        if self.exited.wait(self.chosen.wait):
+            return self._closed(thread)
+        recordings, sound, closed = self._record()
+        if closed:
+            return self._closed(thread)
+        self.kit.stop()
+        thread.join(CLOSE_TIMEOUT)
+        made = self._encode(recordings, sound)
+        self._land(made)
+        if made:
+            self._refresh()
+        if not self.result.placed:
+            self.result.state = FAILED
+        return self.result
+
+    def _closed(self, thread: threading.Thread) -> Result:
+        thread.join(CLOSE_TIMEOUT)
+        self.result.state, self.result.reason = CLOSED, said(CLOSED_AT_CABINET)
+        return self.result
+
+    def _refresh(self) -> None:
+        from common.games import game_repository, media_service
+
+        media_service.invalidate_media_cache()
+        folder = getattr(self.target.game, "full_path_game", None)
+        if folder:
+            game_repository.refresh_game(Path(str(folder)))

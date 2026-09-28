@@ -97,6 +97,9 @@ to 2.x still finds them.
 - `geometry.py`: the turns a recorded frame takes to its stored orientation, as one set of FFmpeg filters.
 - `settings.py`: the `capture` settings, with a run's own values in place.
 - `preflight.py`: what this device can record and why not, the report `GET /capture` serves.
+- `pipeline.py`: the FFmpeg command lines from a recording to the stored file - turn, constant rate, size, format, pictures, sound.
+- `session.py`: one table - launched, waited for, recorded, closed, then encoded and placed.
+- `run.py`: what a recording would fill and replace, and starting one as a job.
 
 Depends on `common/host/`, whose Tools it runs.
 

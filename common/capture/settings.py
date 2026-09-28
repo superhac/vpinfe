@@ -17,6 +17,9 @@ SECTION = "capture"
 AUTO = "auto"
 H264 = "h264"
 VP9 = "vp9"
+STANDARD = "standard"
+HIGH = "high"
+SCREENS_OWN = "screen"
 
 _PLAYS_NO_H264 = (frontend_browser.NO_H264, frontend_browser.NO_VIDEO,
                   frontend_browser.NO_BROWSER)

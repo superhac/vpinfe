@@ -47,6 +47,8 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/frontend/state` | What the frontend is showing: whether it is up, its collection and the game on the wheel. `frontend.state_changed` on the stream carries the same after every change |
 | GET | `/api/v1/frontend/browser` | What this device's frontend browser can play, and how to fix what it cannot. `state` is `unknown` until the frontend has reported since this browser was chosen |
 | GET | `/api/v1/capture` | What this device can record of its own screens, and exactly why not. See [Recording](#recording) |
+| POST | `/api/v1/capture/plan` | What recording one game or table would fill and replace, by whose file, and about how long it takes. Nothing happens |
+| POST | `/api/v1/capture/runs` | Record one game or table. 202 with the job; 409 while a table runs or a recording or art fill is under way, 501 where this device records nothing |
 | PUT | `/api/v1/frontend/collection` | Show a collection on the frontend, `""` being the whole library. 202, and the switch arrives as the next `frontend.state_changed`. 409 when the frontend is not running, or when this install reads its library from another that cannot be reached; 404 when there is no collection by that name |
 | PUT | `/api/v1/frontend/game` | Move the frontend's wheel to a game. 202; 409 when the frontend is not running, 404 when the collection on screen does not hold that game |
 | POST | `/api/v1/input/actions` | Press, hold or release an input action on this install — the door a remote drives the frontend through |
@@ -857,6 +859,49 @@ is asked of that device.
   encoder; without one they record one after another in the same launch.
 - The `capture` capability is this report reduced to one answer, whether anything can be
   recorded, with the first reason nothing can, remedy included.
+
+`POST /api/v1/capture/runs` records one game, `{"games": [id]}`, or one table,
+`{"tables": [{"game": id, "table": table_id}]}`, and answers `202` with the job
+(`Location` is where to watch it). `POST /api/v1/capture/plan` takes the same body and does
+nothing:
+
+```
+{"games": ["6f1c9a4e..."], "kinds": ["playfield", "playfield_video"],
+ "existing": "replace_downloaded", "settings": {"length": 25},
+ "confirmed": {"count": 1}}
+```
+
+- `kinds` are media kinds: a window's picture (`playfield`, `backglass`, `scoreview`,
+  `topper`), its video (`playfield_video` and the rest) and `audio`. Left out, it is every
+  kind this device can record, with `audio` where `sound` - or where that is left out too,
+  the Sound setting - says so.
+- `existing` is what happens to a slot that already has a file: `fill` (the default)
+  records only what nothing serves; `replace_downloaded` also replaces a catalog's files;
+  `replace_all` replaces whatever is there. `choose`, which keeps a recording for a person
+  to decide on, is refused until that exists.
+- A run that replaces anything carries `confirmed.count` equal to the plan's `replacing`,
+  and is refused with `details.replacing` otherwise - the confirm a person sees, by count.
+- `settings` are Recording settings for this run only: `length`, `wait`, `picture_at`,
+  `fps`, `size`, `video_codec`, `playfield_orientation`, `quality`, `sound_source`.
+- A game's slot is the file its tables share, and the recording lands there; a table's
+  slot is whatever serves it - its own file, else the shared one - and the recording lands
+  as the table's own.
+- One game or table at a time. More than one is refused until runs of several exist.
+
+The plan answers per kind what it `does` (`fill`, `replace` or `leave`), the `source` of a
+file it replaces (`vpinmediadb`, `user`, `capture`, `unknown`), and a `reason` where this
+device cannot record the kind; then `recording`, `replacing`, `replacing_by_source`,
+`launches` and an `estimate_seconds` that is always approximate.
+
+The job's `result` has one entry in `tables`: `state` is `recorded`, `failed`, `closed` (the
+table was closed at the cabinet before its recording finished, and nothing was placed) or
+`skipped` (nothing asked for needed recording), with the kinds `placed`, those `failed` with
+a `reason`, and `at_once`, false where the screens could not keep up together and were
+recorded again one at a time.
+
+A recording launches the table with `source: "capture"`, which counts no play (see
+`docs/extensions.md`), and each file it places is recorded in the `.info` ledger with the
+origin `capture` and no hash, so no catalog update ever takes it for its own.
 
 ## Event stream
 

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import os
+import signal
+import subprocess
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Protocol
 
 from common.config_access import cfg_get
@@ -66,6 +69,27 @@ class Unsupported:
     params: Mapping[str, str] = field(default_factory=dict)
 
 
+@dataclass
+class Recording:
+    """A recorder running. `started` is the monotonic clock when it was started."""
+
+    window: str
+    path: Path
+    process: Any
+    started: float
+
+    def stop(self, timeout: float = 5.0) -> None:
+        """SIGINT, as Ctrl-C, so the recorder writes the end of its file; killed if it has
+        not gone in `timeout`."""
+        if self.process.poll() is None:
+            self.process.send_signal(signal.SIGINT)
+        try:
+            self.process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+            self.process.wait(timeout=timeout)
+
+
 class Adapter(Protocol):
     id: str
 
@@ -74,6 +98,18 @@ class Adapter(Protocol):
     def outputs(self) -> list[Output]: ...
 
     def at_once(self, ffmpeg: tools.Found) -> bool: ...
+
+    def hardware(self, ffmpeg: tools.Found) -> str: ...
+
+    def still(self, found: Mapping[str, tools.Found], output: Output,
+              dest: Path) -> list[str]: ...
+
+    def record(self, found: Mapping[str, tools.Found], output: Output, dest: Path,
+               hardware: str) -> list[str]: ...
+
+    def still_turn(self, output: Output) -> Turn: ...
+
+    def recording_turn(self, output: Output) -> Turn: ...
 
 
 def resolve(env: Mapping[str, str] | None = None,
