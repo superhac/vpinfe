@@ -842,13 +842,22 @@ class ConfigTools(ApiModel):
 
 # --- Recording ---------------------------------------------------------------
 
+class CaptureRemedy(Said):
+    """What to do about it: a Tool's remedy, with its setting and any `get`, or a step
+    that is no Tool's, which has neither."""
+
+    setting: str = ""
+    get: ToolGet | None = None
+
+
 class CaptureReason(Said):
     """Why something cannot be recorded. `fix` is `user` where a person has to act, and
-    then `remedy` says how; `auto` where VPinFE can do it once a person agrees, the remedy
-    saying what with its `get`; `none` where nobody can."""
+    then `remedy` says how; `auto` where VPinFE can do it once a person agrees - the
+    remedy's `get` where it is a Tool to download, and Choose Screens where the desktop
+    has not been told which screens VPinFE may record; `none` where nobody can."""
 
     fix: str
-    remedy: ToolRemedy | None = None
+    remedy: CaptureRemedy | None = None
 
 
 class CaptureAbility(ApiModel):

@@ -325,6 +325,21 @@ FFMPEG_FILTERS = """Filters:
  .. amix              N->A       Audio mixing.
 """
 
+# gst-inspect-1.0 with no argument, as a pipe reads it: `plugin:  element: name`, and a
+# type finder, `plugin: type: extensions`, with one space.
+GST_INSPECT = """coreelements:  capsfilter: CapsFilter
+coreelements:  filesink: File Sink
+matroska:  matroskamux: Matroska muxer
+pipewire:  pipewiresrc: PipeWire source
+png:  pngenc: PNG image encoder
+typefindfunctions: video/x-matroska: mkv, mka, mk3d, webm
+videoconvertscale:  videoconvert: Colorspace converter
+videorate:  videorate: Video rate adjuster
+x264:  x264enc: x264 H.264 Encoder
+
+Total count: 8 plugins, 9 features
+"""
+
 GRIM_HELP = """Usage: grim [options...] [output-file]
 
   -h              Show help message and quit.
@@ -419,6 +434,28 @@ esac""")
                 self.assertIs(tools.resolve(tools.GRIM, "").state, tools.State.NOT_HERE)
                 self.assertIs(tools.resolve(tools.WF_RECORDER, "").state,
                               tools.State.NOT_HERE)
+                self.assertIs(tools.resolve(tools.GSTREAMER, "").state,
+                              tools.State.NOT_HERE)
+
+    def test_gstreamers_elements_are_what_the_inspect_beside_it_lists(self) -> None:
+        launch = self._answering("gst-launch-1.0", **{
+            "__version": "gst-launch-1.0 version 1.24.2\nGStreamer 1.24.2\n"})
+        _program(self.root, "gst-inspect-1.0", f"cat <<'EOF'\n{GST_INSPECT}EOF")
+
+        probe = tools.GSTREAMER.probe(launch)
+
+        self.assertTrue(probe.works)
+        self.assertEqual(probe.version, "1.24.2")
+        self.assertEqual(probe.can[tools.ELEMENTS],
+                         {"capsfilter", "filesink", "matroskamux", "pipewiresrc", "pngenc",
+                          "videoconvert", "videorate", "x264enc"})
+        self.assertEqual(self._args(), ["--version"])
+
+    def test_an_inspect_that_lists_no_element_is_not_gstreamers(self) -> None:
+        launch = self._answering("gst-launch-1.0", **{"__version": "1.24.2\n"})
+        _program(self.root, "gst-inspect-1.0", "echo 'Total count: 0 plugins'")
+
+        self.assertEqual(tools.GSTREAMER.probe(launch).reason, tools.FAILED)
 
 
 # ydotool's own help, as its client prints it.

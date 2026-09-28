@@ -121,14 +121,13 @@ class PlanTests(_Library):
         self.assertEqual(planned["launches"], 0)
 
     def test_a_device_that_records_nothing_says_why_for_every_kind_named(self) -> None:
-        self.report = report(adapters.Unsupported("avfoundation", adapters.NOT_YET,
-                                                  {"desktop": "macOS"}))
+        self.report = report(adapters.Unsupported("wayland", adapters.NO_WAY))
 
         planned = self.plan(kinds=["playfield", "backglass_video", "audio"])
 
         self.assertEqual({row["does"] for row in planned["targets"][0]["kinds"]}, {"leave"})
         self.assertEqual({row["reason"]["key"] for row in planned["kinds"]},
-                         {adapters.NOT_YET})
+                         {adapters.NO_WAY})
         self.assertEqual(planned["launches"], 0)
 
     def test_the_estimate_is_one_launch_with_every_screen_at_once(self) -> None:

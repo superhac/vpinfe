@@ -37,6 +37,8 @@ INPUTS = {
                            "-video_size", "1920x1080", "-i", ":0.0+1080,0"]),
     commands.AVFOUNDATION: (2, ["-f", "avfoundation", "-framerate", "60",
                                 "-capture_cursor", "0", "-i", "Capture screen 2:none"]),
+    commands.PORTAL: (64, ["pipewiresrc", "fd=-1", "path=64", "do-timestamp=true",
+                           "keepalive-time=1000"]),
 }
 HARDWARE = {
     commands.WLR: (NODE, ["-c", "h264_vaapi", "-d", NODE, "-p", "qp=18"]),
@@ -48,6 +50,7 @@ HARDWARE = {
                               "-c:v", "h264_vaapi", "-qp", "18"]),
     commands.AVFOUNDATION: ("h264_videotoolbox", ["-c:v", "h264_videotoolbox",
                                                   "-realtime", "1", "-b:v", "25M"]),
+    commands.PORTAL: ("", []),
 }
 CHOSEN = Settings(length=20, wait=15, picture_at=5, fps=30, size="1920",
                   video_codec="auto", playfield_orientation="bottom_right",
@@ -75,7 +78,7 @@ class TokenTests(unittest.TestCase):
 
     def test_every_record_token_expands_for_each_platforms_input(self) -> None:
         for adapter_id, (index, expected) in INPUTS.items():
-            for hardware in ("", HARDWARE[adapter_id][0]):
+            for hardware in dict.fromkeys(("", HARDWARE[adapter_id][0])):
                 with self.subTest(adapter_id, hardware=hardware):
                     values = commands.record_values(
                         adapter_id, found(), _screen(index), "backglass",
@@ -83,10 +86,9 @@ class TokenTests(unittest.TestCase):
 
                     argv = commands.expand(_every(commands.RECORD), commands.RECORD, values)
 
-                    wlr = adapter_id == commands.WLR
+                    recorder = commands.RECORDERS.get(adapter_id, tools.FFMPEG)
                     self.assertEqual(argv, [
-                        "/usr/bin/ffmpeg",
-                        "/usr/bin/wf_recorder" if wlr else "/usr/bin/ffmpeg",
+                        "/usr/bin/ffmpeg", f"/usr/bin/{recorder.id}",
                         *commands.inputs(adapter_id, _screen(index), ":0", hardware),
                         "/tmp/a b.mkv", "backglass", "DP-2", str(index), "1080", "0",
                         "1920", "1080", "20", "60",
@@ -140,6 +142,20 @@ class TokenTests(unittest.TestCase):
                                                       ""))
 
         self.assertEqual(argv[2], "ddagrab=output_idx=3")
+
+    def test_the_portals_input_is_the_stream_through_the_remote_lent_to_it(
+            self) -> None:
+        lent = Output("DP-2", 1080, 0, 1920, 1080, (1920, 1080), 0.0, Turn(), 64, 21)
+
+        self.assertEqual(commands.inputs(commands.PORTAL, lent),
+                         ["pipewiresrc", "fd=21", "path=64", "do-timestamp=true",
+                          "keepalive-time=1000"])
+
+    def test_gstreamer_records_the_portals_screens(self) -> None:
+        values = commands.record_values(commands.PORTAL, found(), _screen(), "playfield",
+                                        Path("o.mkv"), CHOSEN, "")
+
+        self.assertEqual(values["recorder"], "/usr/bin/gstreamer")
 
     def test_ffmpeg_everywhere_but_wlroots_is_its_own_recorder(self) -> None:
         for adapter_id in commands.FFMPEG_GRABS:
@@ -250,12 +266,24 @@ class OwnCommandTests(unittest.TestCase):
                                  "-c:v libx264 -preset ultrafast -crf 18 -f matroska "
                                  "[output]")
 
-    def test_a_platform_with_no_adapter_yet_has_no_record_command(self) -> None:
-        self.assertEqual(commands.own("portal", {}, ""),
+    def test_the_portals_is_gstreamer_to_a_near_lossless_file_it_finishes_on_ctrl_c(
+            self) -> None:
+        argv = commands.record(commands.PORTAL, found(), _screen(64), "playfield",
+                               Path("/tmp/a b/playfield.mkv"), CHOSEN, "")
+
+        self.assertEqual(argv, [
+            "/usr/bin/gstreamer", "-q", "-e", "pipewiresrc", "fd=-1", "path=64",
+            "do-timestamp=true", "keepalive-time=1000", "!", "videoconvert", "!",
+            "videorate", "!", "video/x-raw,framerate=60/1", "!", "x264enc",
+            "speed-preset=ultrafast", "pass=qual", "quantizer=18", "!", "matroskamux", "!",
+            "filesink", "location=/tmp/a b/playfield.mkv"])
+
+    def test_a_session_with_no_way_to_record_has_no_record_command(self) -> None:
+        self.assertEqual(commands.own("wayland", {}, ""),
                          {commands.RECORD: "", commands.ENCODE: commands.OWN_ENCODE})
 
     def test_vpinfes_own_commands_are_ones_a_person_could_have_written(self) -> None:
-        for adapter_id in (commands.WLR, *commands.FFMPEG_GRABS):
+        for adapter_id in (commands.WLR, commands.PORTAL, *commands.FFMPEG_GRABS):
             for hardware in ("", "x"):
                 for command, template in commands.own(adapter_id, found(),
                                                       hardware).items():

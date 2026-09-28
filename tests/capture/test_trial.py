@@ -84,8 +84,7 @@ class _Device(unittest.TestCase):
         config["windows.playfield"] = {"rotation": "0"}
         device = run.Device(adapter, found(), config, {"playfield": PLAYFIELD},
                             placing.Placing([PLAYFIELD], config, []))
-        self.unsupported = report(adapters.Unsupported("avfoundation", adapters.NOT_YET,
-                                                       {"desktop": "macOS"}))
+        self.unsupported = report(adapters.Unsupported("wayland", adapters.NO_WAY))
         for target, value in (("common.capture.run.reach", device),
                               ("common.capture.preflight.report", report()),
                               ("common.capture.trial.WORK", Path(held.name) / "test")):
@@ -156,7 +155,7 @@ class TrialTests(_Device):
                 self.assertRaises(service_errors.UnavailableError) as refused:
             self.tried(Playfield())
 
-        self.assertEqual(str(refused.exception), t(adapters.NOT_YET, desktop="macOS"))
+        self.assertEqual(str(refused.exception), t(adapters.NO_WAY))
 
 
 class TrialRouteTests(_Device):

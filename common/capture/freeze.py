@@ -77,7 +77,7 @@ def _table_key(game: Any, table_id: str) -> str | None:
 
 # A picture no screen of this device can be taken of, whichever screen it is on.
 _TOOL_REASONS = (preflight.NEEDS_TOOL, preflight.NO_ENCODER, preflight.NO_GRABBER,
-                 adapters.SCREEN_PERMISSION)
+                 preflight.LACKS, adapters.SCREEN_PERMISSION, adapters.NOT_CHOSEN)
 
 
 def aim(playing: Playing | None = None, config: Any = None) -> Aim | None:
@@ -136,21 +136,35 @@ def grab(aimed: Aim, runner: Callable[..., Any] = subprocess.run) -> Shot:
     work.mkdir(parents=True, exist_ok=True)
     shot = Shot(turns=dict(aimed.turns), work=work)
 
-    def one(window: str) -> tuple[str, Path | None]:
+    def one(window: str, output: adapters.Output) -> tuple[str, Path | None]:
         dest = work / f"{window}.png"
-        argv = aimed.adapter.still(aimed.found, aimed.outputs[window], dest)
+        argv = aimed.adapter.still(aimed.found, output, dest)
         try:
             runner(argv, capture_output=True, stdin=subprocess.DEVNULL,
-                   timeout=tools.TIMEOUT, check=True, creationflags=tools.NO_WINDOW)
+                   timeout=tools.TIMEOUT, check=True, creationflags=tools.NO_WINDOW,
+                   **adapters.passing(output))
         except (OSError, subprocess.SubprocessError) as exc:
             logger.warning("Take Picture: no picture of the %s screen: %s", window, exc)
             return window, None
         return window, dest if dest.is_file() and dest.stat().st_size else None
 
-    with ThreadPoolExecutor(max_workers=len(aimed.outputs)) as pool:
-        for window, path in pool.map(one, list(aimed.outputs)):
-            if path is not None:
-                shot.stills[window] = path
+    try:
+        reached: dict[str, adapters.Output] = {}
+        for window, screen in aimed.adapter.begin(aimed.outputs).items():
+            if screen.output is None:
+                logger.warning("Take Picture: no picture of the %s screen: %s", window,
+                               preflight.words({"key": screen.reason,
+                                                "params": {"window": window,
+                                                           **screen.params}}))
+                continue
+            reached[window] = aimed.adapter.lend(screen.output)
+        if reached:
+            with ThreadPoolExecutor(max_workers=len(reached)) as pool:
+                for window, path in pool.map(one, list(reached), list(reached.values())):
+                    if path is not None:
+                        shot.stills[window] = path
+    finally:
+        aimed.adapter.end()
     return shot
 
 

@@ -53,6 +53,7 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/capture/proposals/{id}` | `{"use": true}` places the recording and deletes the file it replaces; `false` throws it away |
 | DELETE | `/api/v1/capture/proposals` | Throw away every recording waiting |
 | POST | `/api/v1/capture/test` | Record 3 s of the playfield with the Record and Encode Commands, launching nothing, and say what came out: size, rate, frames and a small picture, or which command failed and what it said |
+| POST | `/api/v1/capture/screens/choose` | On KDE Plasma and GNOME, ask on the device's own screen which screens VPinFE may record, and keep the answer. 202 with the job; 409 while a table runs or a recording is under way; 501 where the desktop never asks |
 | POST | `/api/v1/capture/runs` | Record games or tables, one after another. 202 with the job; 409 while a table runs, a recording or art fill is under way, a run waits to be resumed, or the disk has no room for it; 501 where this device records nothing |
 | GET | `/api/v1/capture/runs/current` | The run in hand, running or paused, or `{"run": null}`. `capture.run_changed` on the stream carries the same |
 | POST | `/api/v1/capture/runs/current/pause` | Close the table being recorded, keep nothing of it, and hold the run there. 404 with no run |
@@ -907,10 +908,16 @@ is asked of that device.
 - `adapter` is how this session's screens are reached, read off its variables: `wlr` for
   sway and Hyprland, through grim and wf-recorder; FFmpeg's own input everywhere else -
   `x11grab` on X11, `ddagrab` on Windows (`gdigrab` where the FFmpeg has no `ddagrab`) and
-  `avfoundation` on macOS. KDE Plasma and GNOME on Wayland (`portal`) answer unavailable,
-  not supported yet, with no screens.
+  `avfoundation` on macOS. KDE Plasma and GNOME on Wayland are `portal`: the desktop's
+  screen-sharing portal, read by GStreamer, one screen after another.
 - On macOS every screen is `capture.permission.screen` until macOS lets VPinFE record the
-  screen, read without asking, so nothing VPinFE does raises the prompt. `sound` is
+  screen, read without asking, so nothing VPinFE does raises the prompt.
+- On KDE Plasma and GNOME every screen is `capture.portal.not_chosen` until someone at the
+  device has chosen which screens VPinFE may record. `POST /api/v1/capture/screens/choose`
+  raises the desktop's own picker there, as a job, and keeps the answer; its result is
+  `kept`, how many of the device's `screens` the desktop `shared`, and a `reason` where
+  something is not right. Nothing else raises the picker: a recording restores what was
+  chosen, and a screen the desktop did not share fails with `capture.portal.not_shared`. `sound` is
   `capture.sound.needs_loopback` on macOS and `capture.sound.not_yet` on Windows; elsewhere
   it is read from PulseAudio or PipeWire's stand-in for it.
 - `screens` has a row per window - `playfield`, `backglass`, `scoreview`, `topper` - and
@@ -924,7 +931,9 @@ is asked of that device.
   `user` where a person must act, and then `remedy` says how, in the shape of the Tools'
   remedy; `auto` where VPinFE can do it once a person agrees - a missing FFmpeg on Windows
   and macOS, which `POST /api/v1/config/tools/ffmpeg/get` fetches - with the remedy's
-  `get` saying what; `none` where nobody can. A `window` value is a window's id, said with its media
+  `get` saying what, and a desktop not yet told which screens VPinFE may record, which
+  `POST /api/v1/capture/screens/choose` asks; `none` where nobody can. A remedy that is no
+  Tool's has no `setting`. A `window` value is a window's id, said with its media
   kind's word.
 - `video_codec` is what Automatic records here: `h264`, unless this device's frontend
   browser reports it plays no H.264, then `vp9` in `.mp4`.
@@ -945,12 +954,12 @@ in on its own, so a path with a space in it stays one argument.
 | Token | Record | Encode |
 |---|---|---|
 | `[ffmpeg]` | the FFmpeg the Tools found | the same |
-| `[recorder]` | the program that records a screen: wf-recorder on wlroots, FFmpeg elsewhere | - |
-| `[input]` | the screen's capture input, at its refresh and without the pointer: `-o DP-1` on wlroots, `-f lavfi -i ddagrab=output_idx=1:framerate=60:draw_mouse=0,hwdownload,format=bgra` (without the download where the hardware encoder takes the frames on the graphics card), `-f gdigrab -framerate 60 -draw_mouse 0 -offset_x 1080 -offset_y 0 -video_size 1920x1080 -i desktop`, `-f x11grab -framerate 60 -draw_mouse 0 -video_size 1920x1080 -i :0.0+1080,0`, `-f avfoundation -framerate 60 -capture_cursor 0 -i "Capture screen 1:none"` | the recording, cut to the moment every screen shares: `-ss 0.412 -t 20.000 -i <file>` |
+| `[recorder]` | the program that records a screen: wf-recorder on wlroots, GStreamer's `gst-launch-1.0` on KDE Plasma and GNOME, FFmpeg elsewhere | - |
+| `[input]` | the screen's capture input, at its refresh and without the pointer: `-o DP-1` on wlroots, `-f lavfi -i ddagrab=output_idx=1:framerate=60:draw_mouse=0,hwdownload,format=bgra` (without the download where the hardware encoder takes the frames on the graphics card), `-f gdigrab -framerate 60 -draw_mouse 0 -offset_x 1080 -offset_y 0 -video_size 1920x1080 -i desktop`, `-f x11grab -framerate 60 -draw_mouse 0 -video_size 1920x1080 -i :0.0+1080,0`, `-f avfoundation -framerate 60 -capture_cursor 0 -i "Capture screen 1:none"`, `pipewiresrc fd=21 path=64 do-timestamp=true keepalive-time=1000` (the portal's stream through a PipeWire remote of the recorder's own, the last frame sent again each second of a still screen) | the recording, cut to the moment every screen shares: `-ss 0.412 -t 20.000 -i <file>` |
 | `[output]` | the file to write | the same |
 | `[window]` | `playfield`, `backglass`, `scoreview` or `topper` | the same |
 | `[screen]` | the output's name, `DP-1` | the same |
-| `[monitorIndex]` | the capture API's own number for the screen | - |
+| `[monitorIndex]` | the capture API's own number for the screen: the portal's PipeWire node on KDE Plasma and GNOME | - |
 | `[x]`, `[y]` | where the screen is on the desktop | - |
 | `[width]`, `[height]` | the screen's size | the same |
 | `[duration]` | Length, in seconds | the same |

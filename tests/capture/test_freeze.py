@@ -18,6 +18,7 @@ from common.capture import adapters, freeze, geometry
 from common.capture.geometry import Turn
 from common.games import pictures
 from common.host import launch_state
+from common.i18n import t
 
 
 class _Table:
@@ -184,6 +185,15 @@ class _Adapter:
     def still_turn(self, output):
         return output.transform
 
+    def begin(self, screens):
+        return {window: adapters.Screen(window, output) for window, output in screens.items()}
+
+    def lend(self, output):
+        return output
+
+    def end(self):
+        self.ended = True
+
 
 def _output(name: str, x: int, width: int, height: int, transform: Turn = geometry.NONE):
     return adapters.Output(name, x, 0, width, height, (width, height), 60.0, transform)
@@ -280,12 +290,11 @@ class AimAndGrabTests(unittest.TestCase):
         self.assertEqual(aimed.turns["playfield"], Turn(ccw=0))
 
     def test_an_unsupported_session_aims_at_nothing_and_says_why(self) -> None:
-        unsupported = adapters.Unsupported("avfoundation", adapters.NOT_YET,
-                                           {"desktop": "macOS"})
+        unsupported = adapters.Unsupported("wayland", adapters.NO_WAY)
         with mock.patch.object(adapters, "resolve", return_value=unsupported), \
                 self.assertLogs("vpinfe.common.capture.freeze", "WARNING") as logs:
             self.assertIsNone(freeze.aim(config=object()))
-        self.assertIn("macOS", logs.output[0])
+        self.assertIn(t(adapters.NO_WAY), logs.output[0])
 
     def test_every_screen_is_taken_at_once_and_a_failure_left_out(self) -> None:
         aimed, _ = self._aim()
@@ -304,6 +313,35 @@ class AimAndGrabTests(unittest.TestCase):
 
         self.assertEqual(sorted(shot.stills), ["backglass", "playfield"])
         self.assertEqual(len(ran), 3)
+
+    def test_a_screen_the_desktop_does_not_hand_over_is_left_out_and_each_has_its_own(
+            self) -> None:
+        """The portal's case: a session around the pictures, a remote for each."""
+        aimed, adapter = self._aim()
+        lent = iter(range(40, 50))
+        adapter.begin = lambda screens: {  # type: ignore[method-assign]
+            window: adapters.Screen(window, reason="capture.portal.not_shared",
+                                    params={"desktop": "KDE Plasma"})
+            if window == "scoreview" else adapters.Screen(window, output)
+            for window, output in screens.items()}
+        adapter.lend = lambda output: adapters.Output(  # type: ignore[method-assign]
+            output.name, output.x, output.y, output.width, output.height, output.mode,
+            output.refresh, output.transform, output.index, next(lent))
+        passed: dict[str, tuple[int, ...]] = {}
+
+        def runner(argv, **kwargs):
+            passed[argv[1]] = kwargs.get("pass_fds", ())
+            Path(argv[2]).write_bytes(b"png")
+
+        with tempfile.TemporaryDirectory() as held, \
+                mock.patch.object(freeze, "_work", return_value=Path(held)), \
+                self.assertLogs("vpinfe.common.capture.freeze", "WARNING") as logs:
+            shot = freeze.grab(aimed, runner)
+
+        self.assertEqual(sorted(shot.stills), ["backglass", "playfield"])
+        self.assertEqual(sorted(passed.values()), [(40,), (41,)])
+        self.assertIn("KDE Plasma didn't share", logs.output[0])
+        self.assertTrue(adapter.ended)
 
 
 class KeepTests(unittest.TestCase):

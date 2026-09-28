@@ -1218,6 +1218,10 @@ class ApiClient:
         self._answered(response)
         return response.json()
 
+    def choose_capture_screens(self) -> dict:
+        """Asks the device's desktop which screens VPinFE may record; the job to watch."""
+        return self._post("/capture/screens/choose", {})
+
     def plan_capture(self, body: dict) -> dict:
         """What recording games or tables would fill and replace, doing nothing."""
         return self._post("/capture/plan", body)

@@ -12,7 +12,7 @@ from typing import Any
 from unittest.mock import patch
 
 from common.capture import adapters, commands, placing, preflight, settings
-from common.capture.adapters import ffmpeg, wlr
+from common.capture.adapters import ffmpeg, portal, wlr
 from common.host import frontend_browser, tools
 from common.i18n import t
 from tests.capture.test_adapters import SWAY_OUTPUTS
@@ -21,6 +21,7 @@ from tests.support import trees
 REPO = Path(__file__).resolve().parents[2]
 
 ENCODERS = frozenset({"libx264", "libvpx-vp9", "png", "libmp3lame", "h264_vaapi"})
+ELEMENTS = frozenset(portal.PortalAdapter.NEEDS)
 SOUND_ENV = {"PULSE_SERVER": "unix:/run/user/1000/pulse/native"}
 
 
@@ -45,13 +46,15 @@ class FakeAdapter(wlr.WlrAdapter):
 
 
 def found(missing: tuple[str, ...] = (), encoders: frozenset[str] = ENCODERS,
-          inputs: frozenset[str] = frozenset({"pulse"})) -> dict[str, tools.Found]:
+          inputs: frozenset[str] = frozenset({"pulse"}),
+          elements: frozenset[str] = ELEMENTS) -> dict[str, tools.Found]:
     out = {}
-    for tool in (tools.FFMPEG, tools.GRIM, tools.WF_RECORDER):
+    for tool in (tools.FFMPEG, tools.GRIM, tools.WF_RECORDER, tools.GSTREAMER):
         if tool.id in missing:
             out[tool.id] = tools.Found(tool, tools.State.MISSING)
             continue
-        can = {tools.ENCODERS: encoders, tools.INPUTS: inputs} if tool is tools.FFMPEG else {}
+        can = {tools.ENCODERS: encoders, tools.INPUTS: inputs} if tool is tools.FFMPEG \
+            else {tools.ELEMENTS: elements} if tool is tools.GSTREAMER else {}
         out[tool.id] = tools.Found(tool, tools.State.FOUND, Path(f"/usr/bin/{tool.id}"),
                                    tools.Probe(True, "1.0", can))
     return out
@@ -178,14 +181,12 @@ class ReportTests(unittest.TestCase):
         self.assertFalse(report(probe_hardware=False)["at_once"])
 
     def test_an_unsupported_session_reports_only_why(self) -> None:
-        said = report(adapters.Unsupported("portal", adapters.NOT_YET,
-                                           {"desktop": "KDE Plasma"}))
+        said = report(adapters.Unsupported("wayland", adapters.NO_WAY))
 
         self.assertFalse(said["available"])
         self.assertEqual((said["adapter"], said["screens"], said["tools"]),
-                         ("portal", [], []))
-        self.assertEqual(preflight.words(said["reason"]),
-                         t(adapters.NOT_YET, desktop="KDE Plasma"))
+                         ("wayland", [], []))
+        self.assertEqual(preflight.words(said["reason"]), t(adapters.NO_WAY))
         self.assertEqual(said["commands"]["record"], "")
 
     def test_vpinfes_own_commands_are_this_devices(self) -> None:
@@ -238,14 +239,24 @@ def _blocked_reports() -> list[dict[str, Any]]:
              {"adapter": FakeAdapter(OSError())}, {"adapter": FakeAdapter([])},
              {"shown": placing.Shown("Visual Pinball X", {"backglass": "", "topper": ""})}]
     ways += [{"adapter": adapters.resolve(env, tools.LINUX)}
-             for env in ({"WAYLAND_DISPLAY": "w", "XDG_CURRENT_DESKTOP": "KDE"},
-                         {"WAYLAND_DISPLAY": "w"}, {})]
+             for env in ({"WAYLAND_DISPLAY": "w"}, {})]
+    ways += [{"adapter": portal.PortalAdapter("KDE Plasma", lambda: MONITORS,
+                                              kept_at=Path("/nonexistent/portal.json"))},
+             {"adapter": portal_with_a_choice(),
+              "found": found(elements=ELEMENTS - {"pipewiresrc"})}]
     ways += [{"adapter": ffmpeg.MacAdapter(mac_displays, lambda: False)},
              {"adapter": ffmpeg.MacAdapter(mac_displays, lambda: True)},
              {"adapter": ffmpeg.WindowsAdapter(dxgi_outputs, found()["ffmpeg"])},
              {"adapter": ffmpeg.X11Adapter({"DISPLAY": ":0"}, lambda: MONITORS)}]
     return [report(**{**first, **second})
             for first, second in itertools.combinations_with_replacement(ways, 2)]
+
+
+def portal_with_a_choice() -> portal.PortalAdapter:
+    """KDE Plasma's portal, told once which screens VPinFE may record."""
+    adapter = portal.PortalAdapter("KDE Plasma", lambda: MONITORS)
+    adapter.refused = lambda: None  # type: ignore[method-assign]
+    return adapter
 
 
 def mac_displays() -> list[ffmpeg.MacDisplay]:

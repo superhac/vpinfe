@@ -136,6 +136,7 @@
     "ffmpeg_path": "",
     "grim_path": "",
     "wf_recorder_path": "",
+    "gstreamer_path": "",
     "wtype_path": "",
     "ydotool_path": ""
   },

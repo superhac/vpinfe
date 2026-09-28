@@ -27,10 +27,10 @@ SCREEN_SECTIONS = {PLAYFIELD: "windows.playfield", BACKGLASS: "windows.backglass
 
 NO_SCREEN = "capture.screen.none"
 NOT_FOUND = "capture.screen.not_found"
-NOT_YET = "capture.unsupported.not_yet"
 NO_WAY = "capture.unsupported.no_way"
 NO_SESSION = "capture.unsupported.no_session"
 SCREEN_PERMISSION = "capture.permission.screen"
+NOT_CHOSEN = "capture.portal.not_chosen"
 SOUND_NOT_YET = "capture.sound.not_yet"
 SOUND_LOOPBACK = "capture.sound.needs_loopback"
 
@@ -39,7 +39,8 @@ SOUND_LOOPBACK = "capture.sound.needs_loopback"
 class Output:
     """One of the compositor's outputs. `x`, `y`, `width` and `height` are where the
     desktop lays it out; `mode` is its own pixels before `transform`, which turns them
-    into what the screen shows. `index` is the capture API's own number for it."""
+    into what the screen shows. `index` is the capture API's own number for it.
+    `remote` is a file descriptor the one program reading it inherits, or -1."""
 
     name: str
     x: int
@@ -50,6 +51,7 @@ class Output:
     refresh: float
     transform: Turn
     index: int = 0
+    remote: int = -1
 
     @property
     def surface(self) -> str:
@@ -120,10 +122,17 @@ class Recording:
                     pass
 
 
-def spawn(popen: Callable[..., Any], argv: list[str], **streams: Any) -> Any:
+def passing(output: Output | None) -> dict[str, Any]:
+    """What a program reading `output` is started with beyond its argv."""
+    return {"pass_fds": (output.remote,)} if output is not None and output.remote >= 0 \
+        else {}
+
+
+def spawn(popen: Callable[..., Any], argv: list[str], output: Output | None = None,
+          **streams: Any) -> Any:
     """A recorder, started so `Recording.stop` can end it."""
     stdin = subprocess.PIPE if tools.here() == tools.WINDOWS else subprocess.DEVNULL
-    return popen(argv, stdin=stdin, creationflags=tools.NO_WINDOW,
+    return popen(argv, stdin=stdin, creationflags=tools.NO_WINDOW, **passing(output),
                  **{"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, **streams})
 
 
@@ -144,9 +153,23 @@ class Adapter(Protocol):
         """Whether this FFmpeg can read this desktop's screens where it has to."""
         ...
 
-    def refused(self) -> str:
-        """A catalog key where the desktop does not let VPinFE record its screens."""
+    def lacks(self, found: Mapping[str, tools.Found]) -> tuple[tools.Tool, str] | None:
+        """A Tool found here without a part recording needs, and the part's name."""
         ...
+
+    def refused(self) -> tuple[str, Mapping[str, str]] | None:
+        """Why the desktop does not let VPinFE record its screens, as a catalog key and
+        its values."""
+        ...
+
+    # Around every program that reads the screens. `begin` answers where each window's
+    # output is reached, or why it is not; `lend` makes an output ready for one program
+    # and is never shared between two; `end` gives back whatever `begin` and `lend` took.
+    def begin(self, screens: Mapping[str, Output]) -> dict[str, Screen]: ...
+
+    def lend(self, output: Output) -> Output: ...
+
+    def end(self) -> None: ...
 
     def no_sound(self) -> tuple[str, Mapping[str, str]] | None:
         """Why sound is never recorded here, as a catalog key and its values."""
@@ -172,6 +195,7 @@ def resolve(env: Mapping[str, str] | None = None,
             system: str | None = None) -> Adapter | Unsupported:
     """The adapter for this session, or why there is none. The first that applies."""
     from .ffmpeg import MacAdapter, WindowsAdapter, X11Adapter
+    from .portal import PortalAdapter
     from .wlr import WlrAdapter
 
     env = os.environ if env is None else env
@@ -183,11 +207,9 @@ def resolve(env: Mapping[str, str] | None = None,
     if env.get("WAYLAND_DISPLAY"):
         if WlrAdapter.applies(env):
             return WlrAdapter(env)
-        desktops = str(env.get("XDG_CURRENT_DESKTOP") or "").upper().split(":")
-        if "KDE" in desktops:
-            return Unsupported("portal", NOT_YET, {"desktop": "KDE Plasma"})
-        if "GNOME" in desktops:
-            return Unsupported("portal", NOT_YET, {"desktop": "GNOME"})
+        desktop = PortalAdapter.desktop_of(env)
+        if desktop:
+            return PortalAdapter(desktop)
         return Unsupported("wayland", NO_WAY)
     if env.get("DISPLAY"):
         return X11Adapter(env)

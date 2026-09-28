@@ -69,10 +69,16 @@ def test(overrides: Mapping[str, Any] | None = None, *, kit: session.Kit | None 
         job.progress(0, 1, t("capture.progress.testing"))
         shutil.rmtree(WORK, ignore_errors=True)
         WORK.mkdir(parents=True)
+        reached = device.adapter.begin({adapters.PLAYFIELD: output})[adapters.PLAYFIELD]
         try:
-            return _test(device, output, chosen, kit or session.Kit(),
-                         SECONDS if seconds is None else seconds)
+            if reached.output is None:
+                raise service_errors.UnavailableError(preflight.words({
+                    "key": reached.reason,
+                    "params": {"window": adapters.PLAYFIELD, **reached.params}}))
+            return _test(device, device.adapter.lend(reached.output), chosen,
+                         kit or session.Kit(), SECONDS if seconds is None else seconds)
         finally:
+            device.adapter.end()
             shutil.rmtree(WORK, ignore_errors=True)
 
 
@@ -93,7 +99,7 @@ def _test(device: run.Device, output: adapters.Output, chosen: settings.Settings
 
     said = WORK / "record.log"
     with said.open("wb") as log:
-        process = adapters.spawn(kit.popen, record, stdout=log, stderr=log)
+        process = adapters.spawn(kit.popen, record, output, stdout=log, stderr=log)
         threading.Event().wait(seconds)
         Recording(adapters.PLAYFIELD, recorded, process, kit.clock()).stop()
     if not _frames(ffmpeg, recorded, kit):

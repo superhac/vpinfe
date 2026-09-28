@@ -613,6 +613,9 @@ class Library:
     def test_capture(self, settings: dict | None = None) -> dict:
         return self._client.test_capture(settings)
 
+    def choose_capture_screens(self) -> dict:
+        return self._client.choose_capture_screens()
+
     def plan_capture(self, body: dict) -> dict:
         return self._client.plan_capture(body)
 

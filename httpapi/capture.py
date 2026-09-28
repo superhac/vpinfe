@@ -8,7 +8,8 @@ from fastapi import APIRouter, Response
 from fastapi.responses import FileResponse
 
 from common import events
-from common.capture import preflight, proposals, run, trial
+from common.capture import adapters, preflight, proposals, run, trial
+from common.capture.adapters import portal
 from common.host import frontend_state
 
 from . import jobs as jobs_api
@@ -89,6 +90,13 @@ def discard_run() -> models.CaptureRunCurrent:
              dependencies=[requires(scopes.CAPTURE_RUN)])
 def test_capture(body: models.CaptureTestRequest) -> models.CaptureTest:
     return models.CaptureTest.model_validate(trial.test(body.settings))
+
+
+@router.post("/screens/choose", summary="Ask the desktop which screens VPinFE may record",
+             status_code=202, dependencies=[requires(scopes.CAPTURE_RUN)])
+def choose_screens(response: Response) -> models.JobResource:
+    """Accepted, not done: the desktop's picker waits for someone at this device."""
+    return _started(portal.start_choosing(adapters.resolve()), response)
 
 
 @router.get("/proposals", summary="Recordings waiting for a decision",

@@ -12,7 +12,7 @@ from typing import Any
 from common.host import tools
 
 from .. import commands, geometry
-from . import SCREEN_PERMISSION, SOUND_LOOPBACK, SOUND_NOT_YET, Output, Window
+from . import SCREEN_PERMISSION, SOUND_LOOPBACK, SOUND_NOT_YET, Output, Screen, Window
 from .wlr import vaapi_node
 
 Run = Callable[..., Any]
@@ -66,8 +66,20 @@ class FfmpegAdapter:
     def grabs(self, ffmpeg: tools.Found) -> bool:
         return ffmpeg.probe is not None and ffmpeg.probe.has(tools.INPUTS, self.id)
 
-    def refused(self) -> str:
-        return ""
+    def lacks(self, found: Mapping[str, tools.Found]) -> tuple[tools.Tool, str] | None:
+        return None
+
+    def refused(self) -> tuple[str, Mapping[str, str]] | None:
+        return None
+
+    def begin(self, screens: Mapping[str, Output]) -> dict[str, Screen]:
+        return {window: Screen(window, output) for window, output in screens.items()}
+
+    def lend(self, output: Output) -> Output:
+        return output
+
+    def end(self) -> None:
+        pass
 
     def no_sound(self) -> tuple[str, Mapping[str, str]] | None:
         return None
@@ -324,8 +336,8 @@ class MacAdapter(FfmpegAdapter):
     def outputs(self) -> list[Output]:
         return mac_outputs(self._displays())
 
-    def refused(self) -> str:
-        return "" if self._allowed() else SCREEN_PERMISSION
+    def refused(self) -> tuple[str, Mapping[str, str]] | None:
+        return None if self._allowed() else (SCREEN_PERMISSION, {})
 
     def no_sound(self) -> tuple[str, Mapping[str, str]] | None:
         return SOUND_LOOPBACK, {}

@@ -16,7 +16,7 @@ from typing import Any
 from common.host import tools
 
 from .. import geometry
-from . import Output, Window
+from . import Output, Screen, Window
 
 # sway's IPC: this magic, then the payload's length and the message type, little-endian.
 _MAGIC = b"i3-ipc"
@@ -212,8 +212,20 @@ class WlrAdapter:
         """FFmpeg only encodes here."""
         return True
 
-    def refused(self) -> str:
-        return ""
+    def lacks(self, found: Mapping[str, tools.Found]) -> tuple[tools.Tool, str] | None:
+        return None
+
+    def refused(self) -> tuple[str, Mapping[str, str]] | None:
+        return None
+
+    def begin(self, screens: Mapping[str, Output]) -> dict[str, Screen]:
+        return {window: Screen(window, output) for window, output in screens.items()}
+
+    def lend(self, output: Output) -> Output:
+        return output
+
+    def end(self) -> None:
+        pass
 
     def no_sound(self) -> tuple[str, Mapping[str, str]] | None:
         return None

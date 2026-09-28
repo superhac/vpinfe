@@ -172,8 +172,9 @@ class MacTests(unittest.TestCase):
         self.assertEqual(commands.rate(self._adapter().outputs()[0]), 60)
 
     def test_the_permission_is_macos_own_answer(self) -> None:
-        self.assertEqual(self._adapter(allowed=True).refused(), "")
-        self.assertEqual(self._adapter(allowed=False).refused(), adapters.SCREEN_PERMISSION)
+        self.assertIsNone(self._adapter(allowed=True).refused())
+        self.assertEqual(self._adapter(allowed=False).refused(),
+                         (adapters.SCREEN_PERMISSION, {}))
 
     def test_sound_needs_a_loopback_device(self) -> None:
         self.assertEqual(self._adapter().no_sound(), (adapters.SOUND_LOOPBACK, {}))

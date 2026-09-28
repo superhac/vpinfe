@@ -617,8 +617,9 @@ async def _tools_head(library: Library, rerender: Callable[[], None],
 HEADS: dict[str, Callable] = {"chromium": _browser_head, TOOLS: _tools_head}
 
 # section -> what is wrong with a whole page, drawn with its name, from what the page was
-# offered; None where nothing is.
-FINDINGS: dict[str, Callable[[dict[str, Any]], Callable[[], None] | None]] = {
+# offered, with any act that puts it right; None where nothing is.
+FINDINGS: dict[str, Callable[[dict[str, Any], Library, Callable[[], None]],
+                             Callable[[], None] | None]] = {
     recording.SECTION: recording.finding}
 
 # section -> the lines a setting at its default resolves to on this device, read from what
@@ -1347,7 +1348,7 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
         head = [(panel.HEADING, t(heading))] if heading else []
         blocks.append((above, [*head, *rows]))
     findings = [drawn for name in sections if name in FINDINGS
-                if (drawn := FINDINGS[name](offered)) is not None]
+                if (drawn := FINDINGS[name](offered, library, redraw)) is not None]
     with body:
         page_head(key, findings)
         await build_device_page(library, {"library": library, "rebuild": redraw},

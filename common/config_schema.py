@@ -513,6 +513,13 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             legacy=(),
         ),
         ConfigOption(
+            "gstreamer_path",
+            type="string",
+            path="exe",
+            default="",
+            legacy=(),
+        ),
+        ConfigOption(
             "wtype_path",
             type="string",
             path="exe",

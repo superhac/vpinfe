@@ -19,13 +19,13 @@ NO_SOUND_INPUT = "capture.sound.no_input"
 NO_SOUND_SERVER = "capture.sound.no_server"
 NO_MP3 = "capture.sound.no_mp3"
 NO_GRABBER = "capture.input.missing"
+LACKS = "capture.tool.lacks"
 
 # Who can fix each reason.
 REASONS = {
     adapters.NO_SCREEN: tools.FIX_NONE,
     adapters.NOT_FOUND: tools.FIX_NONE,
     placing.NOT_SHOWN: tools.FIX_NONE,
-    adapters.NOT_YET: tools.FIX_NONE,
     adapters.NO_WAY: tools.FIX_NONE,
     adapters.NO_SESSION: tools.FIX_NONE,
     UNREADABLE: tools.FIX_NONE,
@@ -35,14 +35,17 @@ REASONS = {
     NO_SOUND_SERVER: tools.FIX_NONE,
     NO_MP3: tools.FIX_USER,
     NO_GRABBER: tools.FIX_USER,
+    LACKS: tools.FIX_USER,
     adapters.SCREEN_PERMISSION: tools.FIX_USER,
+    adapters.NOT_CHOSEN: tools.FIX_AUTO,
     adapters.SOUND_NOT_YET: tools.FIX_NONE,
     adapters.SOUND_LOOPBACK: tools.FIX_NONE,
 }
 
 # A remedy that is no Tool's, by the reason it answers.
 REMEDIES = {adapters.SCREEN_PERMISSION: {"key": "capture.permission.screen.remedy",
-                                         "params": {}}}
+                                         "params": {}},
+            adapters.NOT_CHOSEN: {"key": "capture.portal.not_chosen.remedy", "params": {}}}
 
 # The encoder each stored format is written with, as FFmpeg names it.
 ENCODERS = {settings.H264: "libx264", settings.VP9: "libvpx-vp9"}
@@ -93,10 +96,14 @@ def sound_server(env: Mapping[str, str]) -> bool:
 
 def _grabber(adapter: adapters.Adapter,
              found: Mapping[str, tools.Found]) -> dict[str, Any] | None:
-    """Why the FFmpeg found cannot read this desktop's screens, where it has to."""
+    """Why the Tools found cannot read this desktop's screens, where they have to."""
     ffmpeg = found[tools.FFMPEG.id]
     if ffmpeg.state is tools.State.FOUND and not adapter.grabs(ffmpeg):
         return reason(NO_GRABBER, {}, tools.remedy(tools.FFMPEG))
+    lacking = adapter.lacks(found)
+    if lacking is not None:
+        tool, part = lacking
+        return reason(LACKS, {"tool": tool.name, "part": part}, tools.remedy(tool))
     return None
 
 
@@ -127,7 +134,7 @@ def _screen(screen: adapters.Screen, adapter: adapters.Adapter,
             else screen.reason
         where = reason(key, {"window": screen.window, **screen.params})
     refused = adapter.refused()
-    where = where or (reason(refused) if refused else None)
+    where = where or (reason(*refused) if refused else None)
     grabber = _grabber(adapter, found)
     picture = where or _needs(found, adapter.picture_tool) or grabber \
         or _needs(found, tools.FFMPEG, "png", "PNG")

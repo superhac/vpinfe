@@ -61,11 +61,11 @@ class WhichSlotsRecordTests(unittest.TestCase):
 class StoppedTests(unittest.TestCase):
     def test_what_stops_record_is_said_in_order(self) -> None:
         unavailable = {"available": False,
-                       "reason": {"key": adapters.NOT_YET, "params": {"desktop": "macOS"}}}
+                       "reason": {"key": adapters.NO_WAY, "params": {}}}
         able = {"available": True}
 
         self.assertEqual(record.stopped(unavailable, None, running=True),
-                         "Recording isn't supported on macOS yet")
+                         "This desktop gives VPinFE no way to record its screens")
         self.assertEqual(record.stopped(able, {"reason": NOT_SHOWN}, running=True),
                          "Visual Pinball X doesn't show the DMD on a screen of its own")
         self.assertEqual(record.stopped(able, {"reason": None}, running=True),

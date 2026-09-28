@@ -14,7 +14,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import config_schema
-from common.capture import commands, preflight, trial
+from common.capture import adapters, commands, preflight, trial
 from common.failures import why
 from common.i18n import size, t
 from console import confirm, offload, panel, verbs
@@ -105,8 +105,11 @@ def says(name: str, command: str) -> str:
         else t(f"capture.token.{name}")
 
 
-def finding(offered: dict[str, Any]) -> Callable[[], None] | None:
-    """Why this device records nothing, where it does not; or that it could not say."""
+def finding(offered: dict[str, Any], library: Any = None,
+            rerender: Callable[[], None] | None = None) -> Callable[[], None] | None:
+    """Why this device records nothing, where it does not; or that it could not say.
+    With this install's library, Choose Screens beside a desktop that has not been told
+    which screens VPinFE may record."""
     found = report_of(offered)
     if found.get("error"):
         failed = str(found["error"])
@@ -117,8 +120,10 @@ def finding(offered: dict[str, Any]) -> Callable[[], None] | None:
         return unread
     if not found or found.get("available") or not found.get("reason"):
         return None
-    said = preflight.words(found["reason"])
-    gettable = bool((found["reason"].get("remedy") or {}).get("get"))
+    blocked = found["reason"]
+    gettable = bool((blocked.get("remedy") or {}).get("get"))
+    choosable = blocked.get("key") == adapters.NOT_CHOSEN and library is not None
+    said = preflight.words({**blocked, "remedy": None} if choosable else blocked)
 
     def draw() -> None:
         from console.settings import TOOLS, address_for
@@ -129,8 +134,49 @@ def finding(offered: dict[str, Any]) -> Callable[[], None] | None:
                 ui.label(said).classes("console-attention-line")
                 if gettable:
                     panel.link(t("console.settings.page_tools"), to=address_for(TOOLS))()
+            if choosable:
+                panel.action(t("console.recording.choose_screens"),
+                             _chooser(library, rerender or (lambda: None),
+                                      str((blocked.get("params") or {}).get("desktop"))),
+                             icon=verbs.CHOOSE)()
 
     return draw
+
+
+def _chooser(library: Any, rerender: Callable[[], None],
+             desktop: str) -> Callable[[], Any]:
+    """Choose Screens: asked first, since the desktop asks on the device's own screen."""
+    @on_page
+    async def choose() -> None:
+        if not await confirm.ask(t("console.recording.choose_screens_ask"),
+                                 detail=t("console.recording.choose_screens_detail",
+                                          desktop=desktop),
+                                 confirm=t("console.recording.choose_screens"),
+                                 icon=verbs.CHOOSE, danger=False):
+            return
+        try:
+            job = await offload.io(library.choose_capture_screens)
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
+            ui.notify(t("console.recording.could_not_choose"), caption=why(exc),
+                      type="negative")
+            return
+        from console import record  # record imports this module
+
+        ended = await record.ended_job(library, str(job.get("id") or ""))
+        if not ended or ended.get("error"):
+            ui.notify(t("console.recording.could_not_choose"),
+                      caption=str(ended.get("error") or ""), type="negative")
+        elif ended.get("reason"):
+            ui.notify(t("console.recording.could_not_choose"),
+                      caption=preflight.words(ended["reason"]), type="warning")
+        else:
+            every = ended.get("shared") == ended.get("screens")
+            ui.notify(t("console.recording.chose_screens", desktop=desktop,
+                        shared=str(ended.get("shared")), screens=str(ended.get("screens"))),
+                      type="positive" if every else "warning")
+        rerender()
+
+    return choose
 
 
 async def foot(library: Any, rerender: Callable[[], None], *,

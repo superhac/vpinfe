@@ -224,18 +224,19 @@ class Session:
 
     def _start(self, window: str) -> Recording:
         dest = self.work / f"{window}.mkv"
-        argv = commands.record(self.adapter.id, self.found, self.screens[window], window,
-                               dest, self.chosen, self.hardware)
-        return Recording(window, dest, self._spawn(argv), self.kit.clock())
+        output = self.adapter.lend(self.screens[window])
+        argv = commands.record(self.adapter.id, self.found, output, window, dest,
+                               self.chosen, self.hardware)
+        return Recording(window, dest, self._spawn(argv, output), self.kit.clock())
 
     def _start_sound(self) -> Recording:
         dest = self.work / "sound.wav"
         argv = pipeline.sound(self._ffmpeg(), self.chosen.sound_source, dest)
         return Recording(AUDIO, dest, self._spawn(argv), self.kit.clock())
 
-    def _spawn(self, argv: list[str]) -> Any:
+    def _spawn(self, argv: list[str], output: Output | None = None) -> Any:
         logger.info("Recording: %s", argv)
-        return adapters.spawn(self.kit.popen, argv)
+        return adapters.spawn(self.kit.popen, argv, output)
 
     def _ffmpeg(self) -> Path:
         return Path(str(self.found[tools.FFMPEG.id].path))
@@ -243,11 +244,12 @@ class Session:
     def _take_stills(self) -> None:
         for window in self.stills:
             dest = self.work / f"{window}.png"
+            output = self.adapter.lend(self.screens[window])
             try:
-                self.kit.runner(self.adapter.still(self.found, self.screens[window], dest),
+                self.kit.runner(self.adapter.still(self.found, output, dest),
                                 capture_output=True, stdin=subprocess.DEVNULL,
                                 timeout=tools.TIMEOUT, check=True,
-                                creationflags=tools.NO_WINDOW)
+                                creationflags=tools.NO_WINDOW, **adapters.passing(output))
             except (OSError, subprocess.SubprocessError):
                 logger.warning("Recording: no picture of the %s screen", window,
                                exc_info=True)
@@ -455,6 +457,16 @@ class Session:
     # --- the whole of it ------------------------------------------------------------
 
     def run(self) -> Result:
+        if self.video or self.stills:
+            self._place(self.adapter.begin({window: self.screens[window]
+                                            for window in (*self.video, *self.stills)}))
+            self._choose()
+        try:
+            return self._recorded()
+        finally:
+            self.adapter.end()
+
+    def _recorded(self) -> Result:
         if not self.video and not self.stills and not self.sound:
             if self.result.failed:
                 self.result.state = FAILED

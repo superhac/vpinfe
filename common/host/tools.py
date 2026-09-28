@@ -356,6 +356,32 @@ WF_RECORDER = Tool(
     hint=_ON_LINUX_ONLY,
 )
 
+ELEMENTS = "elements"
+# `pipewire:  pipewiresrc: PipeWire source`, as gst-inspect-1.0 lists every element.
+_ELEMENT = re.compile(r"^[\w-]+:  ([\w-]+): ", re.MULTILINE)
+
+
+@probing
+def _gstreamer(path: Path) -> Probe:
+    """gst-launch-1.0 says only its version, on the line after the one its own name, with
+    its "1.0", is on; gst-inspect-1.0, from the same install, lists the elements."""
+    version = next((version_in(line) for line in ask(path, "--version").splitlines()
+                    if line.startswith("GStreamer ")), "")
+    elements = frozenset(_ELEMENT.findall(ask(path.with_name("gst-inspect-1.0"))))
+    if not elements:
+        raise _FailedError(0)
+    return Probe(True, version, {ELEMENTS: elements})
+
+
+GSTREAMER = Tool(
+    id="gstreamer",
+    option="tools.gstreamer_path",
+    name="GStreamer",
+    names={LINUX: ("gst-launch-1.0",)},
+    probe=_gstreamer,
+    hint=_ON_LINUX_ONLY,
+)
+
 
 # --- pressing keys ------------------------------------------------------------------
 
@@ -415,7 +441,7 @@ YDOTOOL = Tool(
     hint=_ON_LINUX_ONLY,
 )
 
-TOOLS: tuple[Tool, ...] = (RAR, FFMPEG, GRIM, WF_RECORDER, WTYPE, YDOTOOL)
+TOOLS: tuple[Tool, ...] = (RAR, FFMPEG, GRIM, WF_RECORDER, GSTREAMER, WTYPE, YDOTOOL)
 
 
 # --- what a person reads ------------------------------------------------------------

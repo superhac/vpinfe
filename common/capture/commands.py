@@ -54,16 +54,24 @@ _TOKEN = re.compile(r"\[\[([^\[\]]*)\]\]|\[([A-Za-z][A-Za-z0-9]*)\]")
 
 # The adapters' ids, as `adapters.resolve` answers them.
 WLR = "wlr"
+PORTAL = "portal"
 DDAGRAB = "ddagrab"
 GDIGRAB = "gdigrab"
 X11GRAB = "x11grab"
 AVFOUNDATION = "avfoundation"
 FFMPEG_GRABS = (DDAGRAB, GDIGRAB, X11GRAB, AVFOUNDATION)
 
+# The program that records a screen where FFmpeg does not.
+RECORDERS = {WLR: tools.WF_RECORDER, PORTAL: tools.GSTREAMER}
+
 # The encode where no hardware one was proved: near lossless, and fast enough to keep
-# up, since the Encode Command encodes it again. wf-recorder's, then FFmpeg's.
+# up, since the Encode Command encodes it again. wf-recorder's, FFmpeg's, GStreamer's.
 _SOFTWARE = "-c libx264 -p preset=ultrafast -p crf=18"
 _FFMPEG_SOFTWARE = "-c:v libx264 -preset ultrafast -crf 18"
+_GSTREAMER_SOFTWARE = "x264enc speed-preset=ultrafast pass=qual quantizer=18"
+
+# How often pipewiresrc hands over the last frame again where the screen has not changed.
+KEEPALIVE_MS = 1000
 
 # The hardware encoders a recording may use, by the name `hardware` holds, as FFmpeg
 # takes each: near lossless, as the software one.
@@ -163,6 +171,9 @@ def inputs(adapter_id: str, output: Output, display: str | None = None,
     size = f"{output.width}x{output.height}"
     if adapter_id == WLR:
         return ["-o", output.name]
+    if adapter_id == PORTAL:
+        return ["pipewiresrc", f"fd={output.remote}", f"path={output.index}",
+                "do-timestamp=true", f"keepalive-time={KEEPALIVE_MS}"]
     if adapter_id == DDAGRAB:
         graph = f"ddagrab=output_idx={output.index}:framerate={fps}:draw_mouse=0"
         return ["-f", "lavfi", "-i",
@@ -208,6 +219,10 @@ def own_record(adapter_id: str, found: Mapping[str, tools.Found], hardware: str)
         return " ".join(["[ffmpeg] -hide_banner -loglevel error -y [input]",
                          "[hwaccel]" if hardware else _FFMPEG_SOFTWARE,
                          "-f matroska [output]"])
+    if adapter_id == PORTAL:
+        return ("[recorder] -q -e [input] ! videoconvert ! videorate ! "
+                f"video/x-raw,framerate=[fps]/1 ! {_GSTREAMER_SOFTWARE} ! matroskamux ! "
+                "filesink location=[output]")
     if adapter_id != WLR:
         return ""
     return " ".join(["[recorder]",
@@ -229,8 +244,9 @@ def record_values(adapter_id: str, found: Mapping[str, tools.Found], output: Out
                   window: str, dest: Path, chosen: Settings, hardware: str,
                   display: str | None = None) -> dict[str, str | list[str]]:
     ffmpeg = _path(found, tools.FFMPEG)
+    recorder = RECORDERS.get(adapter_id)
     return {"ffmpeg": ffmpeg,
-            "recorder": _path(found, tools.WF_RECORDER) if adapter_id == WLR else ffmpeg,
+            "recorder": _path(found, recorder) if recorder is not None else ffmpeg,
             "input": inputs(adapter_id, output, display, hardware), "output": str(dest),
             "window": window,
             "screen": output.name, "monitorIndex": str(output.index),

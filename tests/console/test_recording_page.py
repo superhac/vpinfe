@@ -67,6 +67,10 @@ class Served:
     def test_capture(self, _settings: dict | None = None) -> dict:
         return self.tested
 
+    def choose_capture_screens(self) -> dict:
+        self.chosen = getattr(self, "chosen", 0) + 1
+        return {"id": "j1"}
+
 
 class RecordingPageTests(unittest.IsolatedAsyncioTestCase):
     """A device that records every screen, with the community's settings."""
@@ -76,8 +80,7 @@ class RecordingPageTests(unittest.IsolatedAsyncioTestCase):
         self.enterContext(patch.object(paths, "VPINFE_INI_PATH", root / "vpinfe.ini"))
         self.report = report()
         self.plays_no_h264 = report(browser_state="no_h264")
-        self.unsupported = report(adapters.Unsupported("avfoundation", adapters.NOT_YET,
-                                                       {"desktop": "macOS"}))
+        self.unsupported = report(adapters.Unsupported("wayland", adapters.NO_WAY))
         self.enterContext(patch("common.capture.preflight.report",
                                 side_effect=lambda **_: self.report))
         self.served = Served(TestClient(httpapi.create_api_app(),
@@ -228,7 +231,7 @@ class RecordingPageTests(unittest.IsolatedAsyncioTestCase):
         said()
 
         self.assertEqual(recording.ui.label.call_args.args[0],
-                         t(adapters.NOT_YET, desktop="macOS"))
+                         t(adapters.NO_WAY))
 
     async def test_a_missing_ffmpeg_vpinfe_can_get_links_to_the_tools_page(self) -> None:
         with patch.object(tools, "here", return_value=tools.WINDOWS):
@@ -244,6 +247,76 @@ class RecordingPageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(blocked["fix"], tools.FIX_AUTO)
         link.assert_called_once_with(t("console.settings.page_tools"),
                                      to=settings.address_for(settings.TOOLS))
+
+    async def _choose_screens(self) -> Any:
+        """The Recording page on a desktop not yet told which screens VPinFE may record:
+        what its finding says, and Choose Screens."""
+        self.report = {**self.unsupported, "reason": preflight.reason(
+            adapters.NOT_CHOSEN, {"desktop": "KDE Plasma"})}
+        await self._drawn()
+        [said] = self.head.call_args.args[1]
+        self.action.reset_mock()
+        said()
+        [choose] = [call.args[1] for call in self.action.call_args_list
+                    if call.args[0] == t("console.recording.choose_screens")]
+        return choose
+
+    async def test_a_desktop_not_yet_told_which_screens_offers_choose_screens(self) -> None:
+        await self._choose_screens()
+
+        labels = [call.args[0] for call in recording.ui.label.call_args_list]
+        self.assertIn(t(adapters.NOT_CHOSEN, desktop="KDE Plasma"), labels)
+        self.assertNotIn(t("capture.portal.not_chosen.remedy"), " ".join(labels))
+
+    async def test_choose_screens_asks_first_then_says_what_the_desktop_answered(
+            self) -> None:
+        choose = await self._choose_screens()
+        answered = {"kept": True, "shared": 3, "screens": 3, "reason": None}
+
+        with patch("console.confirm.ask", new=AsyncMock(return_value=True)) as asked, \
+                patch("console.record.ended_job", new=AsyncMock(return_value=answered)):
+            await choose()
+
+        self.assertEqual(asked.call_args.kwargs["detail"],
+                         t("console.recording.choose_screens_detail", desktop="KDE Plasma"))
+        self.assertEqual(self.served.chosen, 1)
+        self.assertEqual(recording.ui.notify.call_args.args[0],
+                         t("console.recording.chose_screens", desktop="KDE Plasma",
+                           shared="3", screens="3"))
+        self.assertEqual(recording.ui.notify.call_args.kwargs["type"], "positive")
+        self.rerender.assert_called_once()
+
+    async def test_a_screen_left_out_of_the_choice_is_a_warning(self) -> None:
+        choose = await self._choose_screens()
+        answered = {"kept": True, "shared": 2, "screens": 3, "reason": None}
+
+        with patch("console.confirm.ask", new=AsyncMock(return_value=True)), \
+                patch("console.record.ended_job", new=AsyncMock(return_value=answered)):
+            await choose()
+
+        self.assertEqual(recording.ui.notify.call_args.kwargs["type"], "warning")
+
+    async def test_what_the_desktop_did_not_keep_is_said_as_a_warning(self) -> None:
+        choose = await self._choose_screens()
+        answered = {"kept": False, "shared": 3, "screens": 3,
+                    "reason": {"key": "capture.portal.not_kept",
+                               "params": {"desktop": "KDE Plasma"}}}
+
+        with patch("console.confirm.ask", new=AsyncMock(return_value=True)), \
+                patch("console.record.ended_job", new=AsyncMock(return_value=answered)):
+            await choose()
+
+        notified = recording.ui.notify.call_args
+        self.assertEqual((notified.kwargs["caption"], notified.kwargs["type"]),
+                         (t("capture.portal.not_kept", desktop="KDE Plasma"), "warning"))
+
+    async def test_choose_screens_asks_nothing_of_the_desktop_until_agreed(self) -> None:
+        choose = await self._choose_screens()
+
+        with patch("console.confirm.ask", new=AsyncMock(return_value=False)):
+            await choose()
+
+        self.assertFalse(hasattr(self.served, "chosen"))
 
     async def test_a_device_that_records_says_nothing_with_it(self) -> None:
         await self._drawn()
@@ -261,7 +334,7 @@ class RecordingPageTests(unittest.IsolatedAsyncioTestCase):
         test = next(call for call in self.action.call_args_list
                     if call.args[0] == t("console.recording.test"))
         self.assertEqual((test.kwargs["enabled"], test.kwargs["hint"]),
-                         (False, t(adapters.NOT_YET, desktop="macOS")))
+                         (False, t(adapters.NO_WAY)))
 
     def test_what_a_test_made_is_said_with_its_picture(self) -> None:
         recording.ui.reset_mock()
