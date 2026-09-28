@@ -9,6 +9,7 @@ inside case is one assertion and the ways out are the rest of the file.
 from __future__ import annotations
 
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -150,34 +151,57 @@ class BrowseTests(_Tree):
 class RootTests(TempTree):
     """What makes a folder browsable, which is the whole of the boundary."""
 
-    def _roots(self, library: str, configured: tuple[str, ...]):
+    @contextmanager
+    def _browsing(self, library: tuple[str, ...], configured: tuple[str, ...]):
         from common.config_access import SettingsConfig
         from common.games import media_browse as filesystem
+        from common.games.locations import Location
 
-        settings = SettingsConfig(game_root_dir=library, media_browse_dirs=configured)
+        held = [Location(f"l{index}", path) for index, path in enumerate(library)]
+        settings = SettingsConfig(media_browse_dirs=configured)
         with patch.object(SettingsConfig, "from_config", return_value=settings), \
-                patch("common.games.media_browse.get_ini_config", return_value=None):
+                patch("common.games.media_browse.get_ini_config", return_value=None), \
+                patch("common.games.locations.configured", return_value=held):
+            yield filesystem
+
+    def _roots(self, library: tuple[str, ...], configured: tuple[str, ...]):
+        with self._browsing(library, configured) as filesystem:
             return filesystem.roots()
 
     def test_the_library_is_browsable_without_being_configured(self) -> None:
-        found = self._roots(str(self.root), ())
+        found = self._roots((str(self.root),), ())
         self.assertEqual([item["source"] for item in found], ["library"])
+
+    def test_every_library_folder_is_browsable(self) -> None:
+        second = Path(self.enterContext(TemporaryDirectory()))
+        found = self._roots((str(self.root), str(second)), ())
+
+        self.assertEqual([item["source"] for item in found], ["library", "library"])
+        self.assertIn(str(second.resolve()), [item["path"] for item in found])
+
+    def test_a_file_in_a_second_library_folder_is_inside_the_bound(self) -> None:
+        second = Path(self.enterContext(TemporaryDirectory()))
+        (second / "art.png").write_bytes(b"png")
+
+        with self._browsing((str(self.root), str(second)), ()) as filesystem:
+            self.assertEqual(filesystem.within_roots(str(second / "art.png")),
+                             (second / "art.png").resolve())
 
     def test_a_configured_folder_is_added_to_it(self) -> None:
         extra = Path(self.enterContext(TemporaryDirectory()))
-        found = self._roots(str(self.root), (str(extra),))
+        found = self._roots((str(self.root),), (str(extra),))
 
         self.assertEqual([item["source"] for item in found], ["library", "configured"])
         self.assertIn(str(extra.resolve()), [item["path"] for item in found])
 
     def test_a_folder_that_is_not_there_is_not_offered(self) -> None:
         """A stale entry in the setting is not a reason to show a dead row."""
-        found = self._roots(str(self.root), (str(Path(self.root) / "gone"),))
+        found = self._roots((str(self.root),), (str(Path(self.root) / "gone"),))
         self.assertEqual(len(found), 1)
 
     def test_nothing_configured_and_no_library_means_nothing_browsable(self) -> None:
         """Not an error, and not a reason to fall back to the whole disk."""
-        self.assertEqual(self._roots("", ()), [])
+        self.assertEqual(self._roots((), ()), [])
 
 
 class ImportTests(_Tree):

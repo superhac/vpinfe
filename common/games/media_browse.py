@@ -17,6 +17,7 @@ from pathlib import Path
 
 from common import service_errors
 from common.config_access import SettingsConfig
+from common.games import locations
 from common.i18n import t
 from common.media_specs import AUDIO_FAMILY, DOC_FAMILY, IMAGE_FAMILY, VIDEO_FAMILY
 from common.paths import get_ini_config
@@ -58,7 +59,8 @@ def roots(game_dir: str = "") -> list[dict]:
 
     if game_dir:
         offer(game_dir, "game")
-    offer(settings.game_root_dir, "library")
+    for location in locations.configured():
+        offer(location.path, "library")
     for extra in settings.media_browse_dirs:
         offer(extra, "configured")
     return found
