@@ -13,7 +13,7 @@
   "wizard.source.help": "The folder the other frontend keeps its library in. Nothing there is changed.",
   "wizard.source.source_type.label": "Coming from",
   "wizard.source.source_type.help": "Which frontend the library belongs to",
-  "wizard.source.auto": "Work it out",
+  "wizard.source.auto": "Auto-detect",
   "wizard.source.path.label": "Folder",
   "wizard.source.path.help": "Its database and its artwork are read from here",
   "wizard.sources.title": "Reading it as {source}",
