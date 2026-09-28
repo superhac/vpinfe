@@ -12,7 +12,7 @@ from unittest import mock
 from starlette.testclient import TestClient
 
 import httpapi
-from common import device_registry, install_identity, paths
+from common import device_registry, install_identity
 from common.host import frontend_browser as fb
 
 BUNDLED = "/opt/vpinfe/chromium/linux/chrome/chrome"
@@ -152,10 +152,11 @@ class RecordTests(_Isolated):
 
     def test_this_install_s_own_device_entry_keeps_it(self) -> None:
         registry = device_registry.get_device_registry()
-        own = install_identity.install_id(paths.get_ini_config())
+        own = "Iiii111111"
         registry.record(own)
 
-        fb.record(BUNDLED_145)
+        with mock.patch.object(install_identity, "install_id", return_value=own):
+            fb.record(BUNDLED_145)
 
         kept = registry.get(own).browser
         self.assertEqual((kept["state"], kept["name"]), (fb.NO_H264, "Chromium 145.0.7632.0"))
