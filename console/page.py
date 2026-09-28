@@ -515,6 +515,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         """Open one extension's own page, or go back to the list."""
         state["extension"] = str(name or "")
         redraw()
+        deeplink.sync(state)
 
     state: dict[str, Any] = {"view": landing_view, "device": None, "mini": False,
                              "workbench": True, "settings_page": "",
@@ -1204,8 +1205,9 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 .classes("text-base console-workbench-title leading-tight truncate")
             ui.label(prompt).classes("text-xs console-workbench-label leading-none truncate")
 
-    def page_header() -> None:
-        """The page's name, and one line saying what it is for.
+    def page_header() -> ui.row:
+        """The page's name, and one line saying what it is for. Answers the slot at the
+        end of the name's row, where a page whose subject is the page draws its menu.
 
         Two controls belong to neither the page nor a row: a library rescan, which is about
         the library and so shows in the library's own toolbar, and a jobs readout, which
@@ -1231,10 +1233,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 .style(f"min-height:{HEADER_H_PX}px"):
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 ui.label(title).classes("grow min-w-0 truncate console-page-title")
+                menu = ui.row().classes("items-center shrink-0 no-wrap")
             # A key with no entry draws as itself, so a page added without one says
             # nothing rather than printing `console.purpose.<view>`.
             if purpose and not purpose.startswith("console.purpose."):
                 ui.label(purpose).classes("console-page-purpose truncate")
+        return menu
 
     def light_nav() -> None:
         """The page you are on stays lit while you are on it."""
@@ -1257,7 +1261,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         light_nav()
         content.clear()
         with content:
-            page_header()
+            menu = page_header()
             view = state["view"]
             if view == "overview":
                 sections.overview(library, devices, discovery, go, state)
@@ -1275,7 +1279,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             elif view.startswith(community_page.PREFIX):
                 listed = community_page.find(view, installed_extensions)
                 if listed is not None:
-                    community_page.build(*listed, library)
+                    community_page.build(*listed, library, subject=menu)
             elif view == "media":
                 media_page.build(library.media_rows(), library, show_slot, state,
                                  rescan=_rescan)
@@ -1577,6 +1581,7 @@ def leave_for(state: dict[str, Any], view: str) -> None:
         state["launcher"] = None
         state["player"] = None
         state["sets"] = None
+    state["extension"] = ""
     state["view"] = view
     remembered.put("section", view)
 

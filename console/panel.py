@@ -961,9 +961,10 @@ class Verb:
 
     Written once per subject and drawn in both places it is offered: the panel header's
     menu and the grid row's context menu. `run` absent is offered and refused, and
-    `hint` says why. `choices` opens a second menu instead of acting. `in_panel` false
-    keeps it to the grid, for a verb whose panel home is a field. `icon` is for where
-    it is also drawn as a button; a menu item takes none.
+    `hint` says why. `choices` opens a second menu instead of acting. `to` makes it a
+    link to that address instead, one outside the Console opening a new tab and marked
+    as leaving. `in_panel` false keeps it to the grid, for a verb whose panel home is a
+    field. `icon` is for where it is also drawn as a button; a menu item takes none.
     """
     label: str
     run: Callable[[], Any] | None = None
@@ -972,17 +973,28 @@ class Verb:
     choices: tuple[tuple[str, Callable[[], Any]], ...] = ()
     in_panel: bool = True
     icon: str = ""
+    to: str = ""
+
+
+def leaves(to: str) -> bool:
+    """Whether an address is outside the Console, which is anything not a path here."""
+    return not to.startswith("/")
 
 
 def _verb_entry(verb: Verb) -> None:
-    live = verb.run is not None or bool(verb.choices)
+    live = verb.run is not None or bool(verb.choices) or bool(verb.to)
     classes = "console-menu-item"
     if not live:
         classes += " console-menu-blocked"
     elif verb.danger:
         classes += " console-menu-danger"
-    item = ui.menu_item(on_click=verb.run if live and not verb.choices else None,
+    acts = live and not verb.choices and not verb.to
+    item = ui.menu_item(on_click=verb.run if acts else None,
                         auto_close=live and not verb.choices).classes(classes)
+    if verb.to:
+        item.props["href"] = verb.to
+        if leaves(verb.to):
+            item.props["target"] = "_blank"
     with item, ui.row().classes("items-center gap-2 no-wrap w-full"):
         with ui.column().classes("gap-0 grow min-w-0"):
             ui.label(verb.label)
@@ -990,6 +1002,8 @@ def _verb_entry(verb: Verb) -> None:
                 ui.label(verb.hint).classes("console-menu-sub")
         if verb.choices:
             ui.icon(verbs.DRILL).classes("console-menu-trail")
+        elif verb.to and leaves(verb.to):
+            ui.icon(verbs.OPEN_OUT).classes("console-menu-trail")
     if verb.choices:
         with item, ui.menu().props('anchor="top end" self="top start"'):
             for label, run in verb.choices:

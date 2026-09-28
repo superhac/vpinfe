@@ -258,10 +258,12 @@ class ExtensionUI:
 
     def community(self, key: str, base: str, *, columns: list[dict], title: str = "",
                   views: list[dict] | None = None, relation: dict | None = None,
-                  tag: str = "") -> None:
+                  tag: str = "", about: str = "") -> None:
         """A list this extension holds, shown under Community.
 
-        `base` is a route of this extension's answering `{"rows": [...]}`. A column is
+        `base` is a route of this extension's answering `{"rows": [...]}`. `about` is one
+        answering `{"status", "acts"}`: the line the list's page says, and what its menu
+        offers. A column is
         `{"field", "header", "kind"}` with `kind` one of `text`, `number`, `date`, and the
         first may name `under`: row fields drawn on the line beneath its value. A view is
         `{"key", "name", "columns", "sort": [{"field", "desc"}], "help", "ranks"}`, and one
@@ -327,6 +329,7 @@ class ExtensionUI:
                        "ranks": bool(view.get("ranks"))} for view in views or []],
             "relation": dict(relation) if relation else None,
             "tag": derived,
+            "about": str(about or "").strip(),
         })
 
     def settings(self, base: str, label: str = "") -> None:

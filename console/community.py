@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable, Sequence
 from typing import Any
+from urllib.parse import quote
 
 from nicegui import ui
 
@@ -15,6 +17,7 @@ from console import (
     busy,
     collection_rules,
     deeplink,
+    ext_page,
     grid,
     offload,
     panel,
@@ -26,6 +29,8 @@ from console import (
 from console.api import ApiClient, ApiError
 from console.data import Library, read_state, sources_of
 from console.on_page import on_page
+
+logger = logging.getLogger("vpinfe.console.community")
 
 PREFIX = "community:"
 ICON = "extension"
@@ -159,6 +164,97 @@ def _address(mine: dict[str, Any], relation: dict[str, Any]) -> str:
     return "/console?" + deeplink.query({"view": "games", "game": game})
 
 
+# Where a list's line may send somebody, by the name its `about` gives the place.
+PLACES: dict[str, Callable[[str], str]] = {
+    "players": lambda _extension: "/console?" + deeplink.query({"view": "players"}),
+    "settings": ext_page.address,
+}
+
+
+def standing(extension: str, about: str) -> dict[str, Any]:
+    """What a list's `about` route answers now, or nothing where there is none to ask or
+    it cannot say."""
+    if not about:
+        return {}
+    try:
+        said = ApiClient().ext_get(f"/ext/{extension}{about}")
+    except (ApiError, OSError) as exc:
+        logger.warning("%s did not say how its list stands: %s", extension, exc)
+        return {}
+    return said if isinstance(said, dict) else {}
+
+
+def status_of(said: dict[str, Any]) -> dict[str, str]:
+    """The line, as `{text, detail, to}`, from a string or from an object saying so."""
+    found = said.get("status")
+    if not isinstance(found, dict):
+        found = {"text": found}
+    to = str(found.get("to") or "")
+    return {"text": str(found.get("text") or "").strip(),
+            "detail": str(found.get("detail") or ""), "to": to if to in PLACES else ""}
+
+
+def web(url: Any) -> str:
+    """An address a browser may open for an extension, or "": nothing but the web."""
+    said = str(url or "").strip()
+    return said if said.startswith(("https://", "http://")) else ""
+
+
+def acts(extension: dict[str, Any], said: dict[str, Any],
+         run: Callable[[dict[str, Any]], Any]) -> list[panel.Verb]:
+    """The menu: what the list's `about` offers, in its order, then Settings where the
+    extension has some. An act with a `url` is a link and never reaches the extension."""
+    def pressed(act: dict[str, Any]) -> Callable[[], Any]:
+        return lambda: run(act)
+
+    offered = []
+    for act in said.get("acts") or []:
+        if not isinstance(act, dict) or not str(act.get("key") or "").strip():
+            continue
+        label = str(act.get("label") or act["key"])
+        if "url" not in act:
+            offered.append(panel.Verb(label, run=pressed(act)))
+        elif web(act["url"]):
+            offered.append(panel.Verb(label, to=web(act["url"])))
+    if (extension.get("surfaces") or {}).get("settings"):
+        offered.append(panel.Verb(t("console.community.settings"),
+                                  to=ext_page.address(str(extension.get("name") or ""))))
+    return offered
+
+
+def said_status(slot: Any, status: dict[str, str], extension: str) -> None:
+    """The line into `slot`, a link where it names a place."""
+    slot.clear()
+    if not status["text"]:
+        return
+    with slot:
+        if status["to"]:
+            with ui.element("div").classes("console-help"):
+                panel.link(status["text"], to=PLACES[status["to"]](extension),
+                           hint=status["detail"])()
+        else:
+            panel.line(status["text"], hint=status["detail"])
+
+
+@on_page
+async def run_act(extension: str, about: str, act: dict[str, Any],
+                  again: Callable[[], Any]) -> None:
+    """Do one of the list's acts, say what came of it, and read the menu again."""
+    try:
+        said = await offload.io(ApiClient().ext_post,
+                                f"/ext/{extension}{about}/acts/"
+                                f"{quote(str(act['key']), safe='')}", {})
+    except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
+        ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
+        return
+    said = said if isinstance(said, dict) else {}
+    if web(said.get("url")):
+        ui.navigate.to(web(said["url"]), new_tab=True)
+    if said.get("message"):
+        ui.notify(str(said["message"]))
+    await again()
+
+
 def read(extension: str, key: str, fetch: Callable[[], dict]) -> dict[str, Any]:
     """Read a list and keep it. A read that fails answers with the last good one, said
     to be stale, and with `rows` None when there is none."""
@@ -257,14 +353,16 @@ def not_running(extension: dict[str, Any]) -> None:
         chip.tooltip(_why(extension))
 
 
-def build(extension: dict[str, Any], declared: dict[str, Any], library: Library) -> None:
+def build(extension: dict[str, Any], declared: dict[str, Any], library: Library,
+          subject: Any = None) -> None:
+    """`subject` is the page header's slot for the list's menu."""
     body = ui.column().classes("w-full grow min-h-0 gap-0")
-    busy.fill(body, lambda: _fill(extension, declared, library, body))
+    busy.fill(body, lambda: _fill(extension, declared, library, body, subject))
 
 
 @on_page
 async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Library,
-                body: Any) -> None:
+                body: Any, subject: Any = None) -> None:
     from .games import view_control
 
     name = str(extension.get("name") or "")
@@ -286,6 +384,20 @@ async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Li
 
     now = await offload.io(as_it_stands, extension)
     stopped = str(now.get("state") or "") != "loaded"
+    about = "" if stopped else str(declared.get("about") or "")
+    line: list[Any] = []
+
+    def stood(found: dict[str, Any]) -> None:
+        if line and not line[0].is_deleted:
+            said_status(line[0], status_of(found), name)
+        if subject is not None and not subject.is_deleted:
+            panel.subject_menu(subject, acts(
+                now, found, lambda act: run_act(name, about, act, stands)))
+
+    async def stands() -> None:
+        stood(await offload.io(standing, name, about))
+
+    standing_now = await offload.io(standing, name, about)
     state = await offload.io(kept, name, key)
     reading = state["rows"] is None and not stopped
     if stopped:
@@ -299,9 +411,11 @@ async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Li
                 panel.intro(t("console.community.not_running", name=said, reason=_why(now)))
                 if stopped else panel.intro(t("console.community.could_not_read", name=said),
                                             hint=str(state["error"]))])
-            if tagging:
-                with ui.row().classes("items-center gap-2 px-3"):
+            with ui.row().classes("items-center gap-2 px-3"):
+                line.append(ui.element("div"))
+                if tagging:
                     _tag_chip(tagging, library)
+        stood(standing_now)
         return
     relation = declared.get("relation") or {}
 
@@ -346,6 +460,7 @@ async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Li
                                            {"tags": [str(tagging["tag"])]})
                 search = panel.search(t("console.community.search"))
             with bar.bottom, panel.bar_end():
+                line.append(ui.element("div"))
                 if tagging:
                     _tag_chip(tagging, library)
                 age = ui.element("div")
@@ -376,6 +491,7 @@ async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Li
         search.on_value_change(
             lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                           search.value or ""))
+    stood(standing_now)
 
     @on_page
     async def read_again(asked: bool = False) -> None:

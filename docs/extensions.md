@@ -440,6 +440,37 @@ it the same way. The order is read with the tags, on the same schedule, and move
 own from the last good read. While the extension is stopped, a collection in its order
 keeps it and shows its games in title order until it runs again.
 
+With `about="/community/tables/about"`, the list's page also says how its source stands
+and what can be done about it. Core asks `GET {about}` as the page opens and again after
+each act:
+
+```json
+{"status": {"text": "Not sharing - Share is off", "to": "players"},
+ "acts": [{"key": "send_now", "label": "Send Now"},
+          {"key": "site", "label": "Open VPinPlay", "url": "https://www.vpinplay.com"}]}
+```
+
+`status` is one line, drawn quietly in the bar above the list, or under the reason when
+the list could not be read. It is a string, or `{text, detail, to}`: `detail` shows on
+hover, and `to` makes the line a link, to `players` - Frontend › Players, where each
+player's accounts and their Share are - or to `settings`, this extension's own page. Those
+two are the whole vocabulary, and any other `to` draws the line with no link. An empty
+`status` draws nothing.
+
+`acts` are the menu at the end of the page's title, in their order, and core adds
+**Settings**, opening this extension's page, after them wherever the extension has
+settings. An act is `{key, label}`, and pressing it is `POST {about}/acts/{key}`, which
+answers the way an account's act does: a `message` is said, a `url` is opened in a new tab.
+An act carrying a `url` of its own is a link instead, opening that address in a new tab
+and marked as leaving, and the extension is never called for it. A `url` that is not
+`http://` or `https://` is not drawn. Offer an act only while it can work: a Send Now with
+nothing waiting is left out rather than refused.
+
+A leaderboard names its week and when it ends, a room says whose name it posts under, a
+score site says who shares with it; each links its own pages. The words are the
+extension's, from `ctx.t`, and core draws all of it. While the extension is stopped
+neither route is asked.
+
 ## Players and their accounts
 
 Who plays is core's; what a service calls them is the extension's. Core keeps the roster -
@@ -473,6 +504,7 @@ install records. It is off until somebody turns it on, since what a service is s
 often public, except for a guest who joined with a card, whose account shares. Core draws
 the switch; an extension reads it with `sharing` and sends nothing on its own while it is
 off. Something the person asks for by hand - an act - is theirs to have asked.
+
 
 ### Offering an account
 

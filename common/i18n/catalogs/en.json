@@ -736,6 +736,7 @@
     "other": "{shown} of {count} rows"
   },
   "console.community.search": "Search",
+  "console.community.settings": "Settings",
   "console.community.stopped": "Stopped",
   "console.community.yours": "In Your Library",
   "console.community.yours.help": "Only what you have",

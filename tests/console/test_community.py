@@ -308,6 +308,107 @@ class ItsExtensionNotRunning(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([False], self.held_when_read)
 
 
+ABOUT = {**PLAIN, "about": "/community/tables/about"}
+STANDING: dict[str, Any] = {"status": {"text": "Not sharing - Share is off", "to": "players"},
+            "acts": [{"key": "send_now", "label": "Send Now"},
+                     {"key": "site", "label": "Open Site", "url": "https://site.example"}]}
+
+
+class WhatTheListSays(unittest.TestCase):
+    def test_a_line_is_words_or_words_with_a_place(self) -> None:
+        self.assertEqual({"text": "Ends Sunday", "detail": "", "to": ""},
+                         community.status_of({"status": "Ends Sunday"}))
+        self.assertEqual({"text": "Not sharing", "detail": "Why", "to": "players"},
+                         community.status_of({"status": {"text": "Not sharing",
+                                                         "detail": "Why",
+                                                         "to": "players"}}))
+
+    def test_a_place_core_does_not_know_draws_no_link(self) -> None:
+        self.assertEqual("", community.status_of(
+            {"status": {"text": "Go", "to": "https://site.example"}})["to"])
+
+    def test_no_line_is_nothing_to_draw(self) -> None:
+        self.assertEqual("", community.status_of({})["text"])
+
+    def test_the_places_are_the_console_s_own_addresses(self) -> None:
+        self.assertEqual(("/console?view=players", "/console?view=extensions:site"),
+                         (community.PLACES["players"]("site"),
+                          community.PLACES["settings"]("site")))
+
+    def test_the_menu_is_its_acts_in_order_then_settings(self) -> None:
+        pressed: list[dict] = []
+        found = community.acts({**LOADED, "surfaces": {"settings": "/settings"}},
+                               STANDING, pressed.append)
+
+        self.assertEqual([("Send Now", ""), ("Open Site", "https://site.example"),
+                          (t("console.community.settings"), "/console?view=extensions:site")],
+                         [(one.label, one.to) for one in found])
+        assert found[0].run is not None
+        found[0].run()
+        self.assertEqual([STANDING["acts"][0]], pressed)
+        self.assertIsNone(found[1].run)
+
+    def test_settings_only_where_the_extension_has_some(self) -> None:
+        self.assertEqual(["Send Now", "Open Site"],
+                         [one.label for one in community.acts(LOADED, STANDING, print)])
+
+    def test_an_address_that_is_not_the_web_is_not_drawn(self) -> None:
+        said = {"acts": [{"key": "x", "label": "X", "url": "javascript:alert(1)"}]}
+
+        self.assertEqual([], community.acts(LOADED, said, print))
+        self.assertEqual("", community.web("javascript:alert(1)"))
+
+
+class TheLineAndItsMenu(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        self.body = ui.column()
+        self.subject = ui.row()
+
+    async def fill(self, now: dict, kept: dict, standing: dict) -> tuple[list[str], Mock]:
+        asked = self.enterContext(patch.object(
+            community, "standing", side_effect=lambda _name, about: standing if about else {}))
+        self.enterContext(patch.object(community, "read", return_value=kept))
+        self.enterContext(patch.object(community.offload, "io", new=_here))
+        self.enterContext(patch.object(community, "as_it_stands", return_value=now))
+        self.enterContext(patch.object(community, "kept", return_value=kept))
+        self.enterContext(patch("console.games.view_control",
+                                return_value=(Mock(), Mock(), Mock(), Mock())))
+        self.enterContext(patch.object(community.grid, "build",
+                                       return_value=Mock(is_deleted=False)))
+        self.enterContext(patch.object(community.grid, "replace_rows"))
+        with self.body:
+            await community._fill(LOADED, ABOUT, Mock(), self.body, self.subject)
+        await asyncio.gather(*(asyncio.all_tasks() - {asyncio.current_task()}))
+        return [str(getattr(one, "text", "")) for one in self.body.descendants()], asked
+
+    def menu(self) -> list[str]:
+        return [str(one.props.get("icon")) for one in self.subject.descendants()
+                if isinstance(one, ui.button)]
+
+    async def test_the_line_sits_in_the_bar_and_links_to_its_place(self) -> None:
+        _said, asked = await self.fill(LOADED, KEPT, STANDING)
+
+        asked.assert_called_with("site", "/community/tables/about")
+        (link,) = [one for one in self.body.descendants() if isinstance(one, ui.link)]
+        self.assertEqual(("Not sharing - Share is off", "/console?view=players"),
+                         (link.text, link.props.get("href")))
+        self.assertEqual([verbs.MORE], self.menu())
+
+    async def test_a_list_that_cannot_be_read_still_says_its_line(self) -> None:
+        said, _asked = await self.fill(LOADED, {**KEPT, "rows": None, "error": "down"},
+                                       {"status": "Sharing as OWN", "acts": []})
+
+        self.assertIn(t("console.community.could_not_read", name="site"), said)
+        self.assertIn("Sharing as OWN", said)
+        self.assertEqual([], self.menu())
+
+    async def test_a_stopped_extension_is_not_asked(self) -> None:
+        _said, asked = await self.fill(SWITCHED_OFF, KEPT, STANDING)
+
+        asked.assert_called_with("site", "")
+        self.assertEqual([], self.menu())
+
+
 class AsItStands(unittest.TestCase):
     def test_the_api_s_answer_wins_over_what_the_rail_read(self) -> None:
         with patch.object(community, "ApiClient") as client:

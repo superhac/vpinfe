@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
+from starlette.testclient import TestClient
+
+import httpapi
+from common import extensions
+from common.extensions import host, store
 from common.extensions.context import ContractError, ExtensionUI
+
+ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "community"
+WEEK = "https://challenge.example/week"
 
 COLUMNS = [{"field": "name", "header": "Table"},
            {"field": "plays", "header": "Plays", "kind": "number"},
@@ -110,6 +120,68 @@ class TheDeclaration(unittest.TestCase):
     def test_it_needs_the_capability_to_draw(self) -> None:
         with self.assertRaises(ContractError):
             ExtensionUI("site", allowed=False).community("tables", "/t", columns=COLUMNS)
+
+    def test_the_route_saying_how_it_stands_is_recorded_as_given(self) -> None:
+        self.ui.community("tables", "/t", title="Site", columns=COLUMNS, about=" /t/about ")
+        self.ui.community("scores", "/s", title="Site", columns=COLUMNS)
+
+        self.assertEqual(["/t/about", ""],
+                         [one["about"] for one in self.ui.community_lists])
+
+
+class HowTheListStands(unittest.TestCase):
+    """The fixture's Ratings list answers a line and its acts from its settings, through
+    the routes core asks."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.store = store.ExtensionStore(Path(tmp.name) / "extensions.json")
+        self.registry = host.Registry(self.store)
+        extensions.set_registry(self.registry)
+        self.addCleanup(extensions.set_registry, host.Registry())
+        self.addCleanup(self.registry.clear)
+        self.registry.load_from(ROOT)
+        self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
+
+    def about(self) -> dict:
+        answer = self.client.get("/ext/challenge/ratings/about")
+        answer.raise_for_status()
+        return answer.json()
+
+    def test_the_declaration_names_the_route_for_core(self) -> None:
+        (found,) = [one for one in self.client.get("/extensions").json()["extensions"]
+                    if one["name"] == "challenge"]
+
+        self.assertEqual({"machines": "", "releases": "", "ratings": "/ratings/about",
+                          "builds": ""},
+                         {one["key"]: one["about"] for one in found["community"]})
+
+    def test_a_line_and_the_acts_that_can_work_now(self) -> None:
+        self.store.set_setting("challenge", "status", "Ends Sunday")
+        self.store.set_setting("challenge", "status_to", "settings")
+        self.store.set_setting("challenge", "waiting", "afm,mm")
+
+        self.assertEqual({"status": {"text": "Ends Sunday", "to": "settings"},
+                          "acts": [{"key": "post", "label": "Post Now"},
+                                   {"key": "week", "label": "This Week", "url": WEEK}]},
+                         self.about())
+
+    def test_an_act_is_pressed_on_the_route_under_it(self) -> None:
+        self.store.set_setting("challenge", "waiting", "afm,mm")
+
+        said = self.client.post("/ext/challenge/ratings/about/acts/post")
+
+        self.assertEqual((200, {"message": "Posted 2"}), (said.status_code, said.json()))
+        self.assertEqual(["week"], [one["key"] for one in self.about()["acts"]])
+
+    def test_a_stopped_extension_answers_neither(self) -> None:
+        self.registry.disable("challenge", "switched off")
+
+        self.assertEqual(
+            (501, 501),
+            (self.client.get("/ext/challenge/ratings/about").status_code,
+             self.client.post("/ext/challenge/ratings/about/acts/post").status_code))
 
 
 if __name__ == "__main__":

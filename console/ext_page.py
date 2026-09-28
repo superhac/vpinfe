@@ -20,9 +20,14 @@ from nicegui import run, ui
 
 from common.failures import why
 from common.i18n import t
-from console import busy, ext_action, offload, panel, verbs
+from console import busy, deeplink, ext_action, offload, panel, verbs
 from console.api import ApiClient
 from console.on_page import on_page
+
+
+def address(name: str) -> str:
+    """Where one extension's page is, for a link from anywhere in the Console."""
+    return "/console?" + deeplink.query({"view": deeplink.EXTENSIONS, "extension": name})
 
 
 def build(extension: dict, back: Any) -> None:
