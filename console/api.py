@@ -186,6 +186,36 @@ class ApiClient:
                 else f"/games/{game_id}/high_scores")
         return self._get(path) or {}
 
+    def pictures(self, game_id: str, table_id: str = "") -> dict:
+        """`pictures`, newest first; only `table_id`'s where one is named."""
+        query = "?" + urlencode({"table": table_id}) if table_id else ""
+        return self._get(f"/games/{game_id}/pictures{query}")
+
+    def _picture_path(self, game_id: str, name: str) -> str:
+        return f"/games/{game_id}/pictures/{quote(name, safe='')}"
+
+    def picture_bytes(self, game_id: str, name: str) -> bytes:
+        route = self._picture_path(game_id, name)
+        _refuse_the_event_loop(route)
+        response = self._session.get(f"{self._base}{route}", timeout=_TIMEOUT)
+        self._answered(response)
+        return response.content
+
+    def remove_picture(self, game_id: str, name: str) -> dict:
+        route = self._picture_path(game_id, name)
+        _refuse_the_event_loop(route)
+        response = self._session.delete(f"{self._base}{route}", timeout=_TIMEOUT)
+        self._answered(response)
+        return response.json()
+
+    def put_picture(self, game_id: str, name: str, data: bytes) -> dict:
+        route = self._picture_path(game_id, name)
+        _refuse_the_event_loop(route)
+        response = self._session.put(f"{self._base}{route}",
+                                     files={"file": (name, data)}, timeout=_TIMEOUT)
+        self._answered(response)
+        return response.json()
+
     def media(self, game_id: str) -> dict:
         # Cached per client: /games carries VPS addon flags, not media coverage, so
         # coverage costs one call per game. 147 games measured at 1.1s, and threading

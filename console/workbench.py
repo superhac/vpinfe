@@ -67,6 +67,7 @@ from console import (
     mediaview,
     offload,
     panel,
+    pictures,
     row_drag,
     screens,
     stars,
@@ -2429,10 +2430,13 @@ def _chosen_table(context: dict[str, Any]) -> dict[str, Any] | None:
 
 
 async def _play_block(context: dict[str, Any]) -> None:
-    """What has been done with this, and the machine's high score table after it."""
+    """What has been done with this, the machine's high score table after it, and the
+    pictures players took."""
     scores = await _high_scores(context)
+    shots = await pictures.read(context)
     with ui.column().classes("gap-0 console-form"):
-        _rows(ui, [*_play_entries(context), *_high_score_rows(context, scores)])
+        _rows(ui, [*_play_entries(context), *_high_score_rows(context, scores),
+                   *pictures.rows(context, shots)])
 
 
 async def _high_scores(context: dict[str, Any]) -> dict[str, Any]:

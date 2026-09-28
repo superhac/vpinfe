@@ -1132,6 +1132,30 @@ class HighScores(ApiModel):
     sections: list[HighScoreSection] = Field(default_factory=list)
 
 
+class Picture(ApiModel):
+    """A picture of every screen, taken during play, in the game's `pictures/` folder."""
+
+    # The file's name, which is how the routes below name it.
+    name: str
+    # When it was taken, in UTC.
+    taken: str
+    # The table that was playing. Empty where the picture does not say.
+    table_id: str = ""
+    size_bytes: int = 0
+    width: int = 0
+    height: int = 0
+    # Changes whenever the file does: the file route's `v`.
+    version: str = ""
+
+
+class PictureList(ApiModel):
+    pictures: list[Picture]
+
+
+class PictureRemoved(ApiModel):
+    removed: str
+
+
 class PlayRecord(ApiModel):
     """What a person did with this, in a consumer's units rather than the file's - the
     `.info` keeps LastRun as an epoch integer and RunTime in minutes."""

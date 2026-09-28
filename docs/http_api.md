@@ -180,6 +180,10 @@ the documented entry point is a plain 200. Both spellings work.
 | DELETE | `/api/v1/games/{id}/play_record` | Reset them |
 | GET | `/api/v1/games/{id}/high_scores` | The machine's high score table for the default table's ROM, read again first where its score file is newer than the read kept. See [High scores](#high-scores) |
 | GET | `/api/v1/games/{id}/tables/{table_id}/high_scores` | The same, for one table's ROM |
+| GET | `/api/v1/games/{id}/pictures` | The pictures taken of every screen during play, newest first. `?table=` keeps one table's. See [Pictures](#pictures) |
+| GET | `/api/v1/games/{id}/pictures/{name}` | One picture. `?size=` and `?v=` as for media |
+| PUT | `/api/v1/games/{id}/pictures/{name}` | A PNG as `file`, under a name no picture of the game has; `409` where one does. Answers with the picture as listed |
+| DELETE | `/api/v1/games/{id}/pictures/{name}` | Delete one picture |
 | DELETE | `/api/v1/games/{id}/tables/{table_id}/play_record` | Reset one table's |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/tags` | One table's own tags, the whole set |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/hidden` | Hide one table, or show it again, `{"hidden": bool}`. The file stays on disk. Answers with `table` and `default`, the table the game now offers first, or `null` when it offers none. Hiding the table chosen as the default clears the choice |
@@ -1642,6 +1646,20 @@ with `new` counted against the read before it. Their `state` says what can be sh
 
 A table with no ROM, or a ROM outside the score map with no score file, answers `null`:
 nothing is there, and no game will change that.
+
+## Pictures
+
+A player's **Take Picture** during play keeps every screen as one PNG in the game's
+`pictures/` folder (see [Input](#input)). The folder is the list: a PNG put there by hand is
+listed too, and one deleted from it is gone.
+
+| Field | What it holds |
+|---|---|
+| `name` | The file's name, which the other routes take as `{name}` |
+| `taken` | When it was taken, in UTC: the PNG's own `Creation Time`, or the file's time where it has none |
+| `table_id` | The table that was playing, from the PNG's `VPinFE Table`. Empty where it does not say |
+| `size_bytes`, `width`, `height` | The file's size and the picture's |
+| `version` | Changes whenever the file does. Sent back as `v`, it lets a browser keep the file |
 
 ## Adding routes
 

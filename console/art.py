@@ -21,6 +21,13 @@ def media(game_id: str, kind: str, table_id: str = "", *,
     return _with(base, version, size if media_family(kind) == "image" else None)
 
 
+def picture(game_id: str, name: str, *, version: str | None = None,
+            size: int | None = None) -> str:
+    """One of a game's Pictures."""
+    return _with(f"/api/v1/games/{quote(game_id, safe='')}/pictures/{quote(name, safe='')}",
+                 version, size)
+
+
 def collection(name: str, *, version: str | None = None, size: int | None = None) -> str:
     return _with(f"/api/v1/collections/{quote(name, safe='')}/image", version, size)
 

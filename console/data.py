@@ -1148,6 +1148,18 @@ class Library:
         """Asked each time the panel opens: that is when a newer score file is read."""
         return self._client.high_scores(game_id, table_id)
 
+    def pictures(self, game_id: str, table_id: str = "") -> list[dict[str, Any]]:
+        return list(self._client.pictures(game_id, table_id).get("pictures") or [])
+
+    def remove_picture(self, game_id: str, name: str) -> bytes:
+        """Answers the file's bytes, for Undo."""
+        held = self._client.picture_bytes(game_id, name)
+        self._client.remove_picture(game_id, name)
+        return held
+
+    def put_picture(self, game_id: str, name: str, data: bytes) -> dict[str, Any]:
+        return self._client.put_picture(game_id, name, data)
+
     def tables_for(self, game_id: str) -> list[dict[str, Any]]:
         """Fetched when something asks, not with the library.
 

@@ -32,6 +32,7 @@ from common.games import (
     media_browse,
     media_ops,
     outside_links,
+    picture_ops,
     table_ops,
 )
 from common.host import play_service
@@ -519,6 +520,37 @@ def get_table_high_scores(game_id: str, table_id: str) -> models.HighScores | No
 
 def _high_scores(found: dict | None) -> models.HighScores | None:
     return models.HighScores.model_validate(found) if found is not None else None
+
+
+@router.get("/{game_id}/pictures", summary="A game's pictures",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_pictures(game_id: str, table: str = Query("")) -> models.PictureList:
+    """Newest first. `table` keeps the ones taken while that table played."""
+    return models.PictureList.model_validate(picture_ops.listing(game_id, table))
+
+
+@router.get("/{game_id}/pictures/{name}", summary="One picture",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_picture(game_id: str, name: str, request: Request,
+                size: int | None = responses.ART_SIZE,
+                v: str = responses.ART_VERSION) -> Response:
+    return responses.art_file(picture_ops.picture_file(game_id, name, size), request, v)
+
+
+@router.put("/{game_id}/pictures/{name}", summary="Put a picture on a game",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+async def put_picture(game_id: str, name: str,
+                      file: UploadFile = File(...)) -> models.Picture:
+    """A PNG, under a name no picture of this game has: 409 where one does."""
+    content = await file.read()
+    return models.Picture.model_validate(
+        await run_in_threadpool(picture_ops.put, game_id, name, content))
+
+
+@router.delete("/{game_id}/pictures/{name}", summary="Delete a picture",
+               dependencies=[requires(scopes.GAMES_WRITE)])
+def delete_picture(game_id: str, name: str) -> models.PictureRemoved:
+    return models.PictureRemoved.model_validate(picture_ops.remove(game_id, name))
 
 
 @router.put("/{game_id}/tables/{table_id}/tags", summary="The tags on one table",

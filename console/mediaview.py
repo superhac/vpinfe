@@ -10,13 +10,15 @@ thing it photographs is portrait.
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable, Callable, Sequence
+from typing import Any
 
 from nicegui import ui
 
 from common.i18n import t
 from common.media_specs import media_family
 from console import dialog as frame
-from console import verbs
+from console import panel, verbs
 
 # Rotated a quarter turn, the picture's visual bounds swap - so the limits that keep it
 # inside the window have to swap with them, or a turned landscape frame runs off the
@@ -216,8 +218,13 @@ _VIEW = f"""
 """
 
 
-def open_image(src: str, label: str) -> None:
-    _open(src, "image", label)
+# An action in the viewer's bar: its icon, its tooltip, and what it does once the viewer
+# has closed.
+Act = tuple[str, str, Callable[[], Awaitable[Any]]]
+
+
+def open_image(src: str, label: str, acts: Sequence[Act] = ()) -> None:
+    _open(src, "image", label, acts)
 
 
 def open_viewer(src: str, kind: str, label: str) -> None:
@@ -225,7 +232,7 @@ def open_viewer(src: str, kind: str, label: str) -> None:
     _open(src, media_family(kind), label)
 
 
-def _open(src: str, family: str, label: str) -> None:
+def _open(src: str, family: str, label: str, acts: Sequence[Act] = ()) -> None:
     if family not in ("image", "video"):
         # Audio has no frame to enlarge and a document is not ours to render.
         ui.notify(t("console.mediaview.nothing_enlarge", label=(label)), type="info")
@@ -240,6 +247,8 @@ def _open(src: str, family: str, label: str) -> None:
                 ui.html(_TRANSPORT).classes("grow min-w-0")
             else:
                 ui.space()
+            for icon, said, act in acts:
+                _act(dialog, icon, said, act)
             turn_left = ui.button(icon=verbs.ROTATE_LEFT).props("flat dense round")
             turn_right = ui.button(icon=verbs.ROTATE_RIGHT).props("flat dense round")
             ui.button(icon="close", on_click=dialog.close).props("flat dense round")
@@ -266,6 +275,14 @@ def _open(src: str, family: str, label: str) -> None:
     ui.run_javascript(_VIEW)
     if family == "video":
         ui.run_javascript(_WIRE)
+
+
+def _act(dialog: Any, icon: str, said: str, act: Callable[[], Awaitable[Any]]) -> None:
+    async def pressed() -> None:
+        dialog.close()
+        await act()
+
+    panel.icon_action(said, pressed, icon=icon, hint=said)()
 
 
 def open_text(label: str, text: str) -> None:
