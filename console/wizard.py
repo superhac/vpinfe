@@ -35,6 +35,8 @@ FIELD_TYPES = {
     "select": "panel.select",
     "multi": "panel.multi_select",
     "switch": "panel.switch",
+    "choice": "panel.choice",
+    "number": "panel.number",
 }
 
 # The forward-verb button's own marker, so a keypress can find whichever step's button is
@@ -167,6 +169,27 @@ def _controls(fields: list[dict], values: dict[str, Any], *,
 
             entries.append((label, panel.switch(
                 bool(values.get(key)), changed(key, bool), on_control=caught)))
+        elif kind == "choice":
+            options = [(str(one[0]), str(one[1]), str(one[2]) if len(one) > 2 else "")
+                      for one in field.get("choices") or []]
+
+            def caught(control: Any, key: str = key) -> None:
+                held[key] = ("choice", control)
+                refused(control, key)
+
+            entries.append((label, panel.choice(
+                options, str(values.get(key) or ""),
+                changed(key, lambda value: str(value or "")), on_control=caught)))
+        elif kind == "number":
+            def caught(control: Any, key: str = key) -> None:
+                held[key] = ("number", control)
+                refused(control, key)
+
+            entries.append((label, panel.number(
+                values.get(key), changed(key, lambda value: value),
+                unit=str(field.get("unit") or ""),
+                low=field.get("min"), high=field.get("max"),
+                whole=False, on_control=caught)))
         elif kind == "path":
             def draw_path(field: dict = field, key: str = key) -> None:
                 def synced(_state: str, said: str) -> str:
@@ -204,6 +227,10 @@ def _sync(values: dict[str, Any], held: dict[str, tuple[str, Any]]) -> None:
             values[key] = list(control.value or [])
         elif kind == "switch":
             values[key] = bool(control.value)
+        elif kind == "number":
+            # Not stringified: a number field holds None or a number, and `str(None)`
+            # would write the word "None" into an answer nobody typed.
+            values[key] = control.value
         else:
             values[key] = str(control.value or "")
 

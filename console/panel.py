@@ -916,7 +916,8 @@ def named_number(value: Any, named: dict[str, str], on_pick: Callable[[Any], Any
 def number(value: Any, on_change: Callable[[Any], Any], *,
            disabled: bool = False, whole: bool = True,
            low: Any = None, high: Any = None, step: Any = None,
-           placeholder: str = "") -> Callable[[], None]:
+           placeholder: str = "", unit: str = "",
+           on_control: Callable[[Any], Any] | None = None) -> Callable[[], None]:
     """A number. Narrow, because a four-digit box in a full-width field says the value
     might be long.
 
@@ -926,19 +927,46 @@ def number(value: Any, on_change: Callable[[Any], Any], *,
 
     Bounds are the control's, not a check afterwards: a spinner that will not go past
     the limit says what the limit is without anybody being told off for passing it.
+
+    `on_control` is handed the control once it exists, for a caller that needs it back -
+    the wizard's own first-field focus and per-field refusals among them.
     """
     def draw() -> None:
         with ui.element("div").classes("console-fact-edit"):
             control = ui.number(value=value if value != "" else None,
                                 placeholder=placeholder or None,
                                 format="%d" if whole else None,
-                                min=low, max=high, step=step,
+                                min=low, max=high, step=step, suffix=unit or None,
                                 on_change=on_change) \
                 .props("dense borderless").classes("console-edit-field console-edit-narrow")
             if placeholder:
                 control.style(f"--blank: {len(placeholder) + 1}ch")
             if disabled:
                 control.disable()
+            if on_control is not None:
+                on_control(control)
+
+    return draw
+
+
+def choice(options: Sequence[tuple[str, str, str]], value: str,
+           on_change: Callable[[Any], Any], *,
+           on_control: Callable[[Any], Any] | None = None) -> Callable[[], None]:
+    """`options` is `(key, label, help)`. The control itself is `ui.radio`; every
+    option's sentence follows below it, in the same order.
+
+    `on_control` is handed the control once it exists, for a caller that needs it back -
+    the wizard's own first-field focus and per-field refusals among them.
+    """
+    def draw() -> None:
+        with ui.column().classes("console-fact-edit gap-1"):
+            control = ui.radio({key: label for key, label, _help in options}, value=value,
+                               on_change=on_change).props("dense")
+            for _key, _label, help_text in options:
+                if help_text:
+                    ui.label(help_text).classes("console-help")
+            if on_control is not None:
+                on_control(control)
 
     return draw
 

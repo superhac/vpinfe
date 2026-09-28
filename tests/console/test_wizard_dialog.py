@@ -249,5 +249,54 @@ class TitleFocusTests(unittest.TestCase):
 
 
 
+class FieldTypeTests(unittest.TestCase):
+    def _drawn(self, field: dict[str, Any]
+              ) -> tuple[dict[str, Any], dict[str, tuple[str, Any]], ui.element]:
+        from console.api import ApiClient
+
+        values: dict[str, Any] = {}
+        with _PAGE:
+            holder = ui.column()
+            with holder:
+                held = wizard._controls([field], values, client=mock.Mock(spec=ApiClient),
+                                        errors={})
+        return values, held, holder
+
+    def test_a_choice_field_draws_its_options_and_their_help(self) -> None:
+        field = {"key": "layout", "type": "choice", "label": "Layout",
+                "choices": [["desktop", "Desktop", "Windowed, no cabinet hardware."],
+                           ["cabinet", "Cabinet", "Full screen across the cabinet."]],
+                "value": "desktop"}
+
+        _values, _held, holder = self._drawn(field)
+
+        radio = next(one for one in holder.descendants() if isinstance(one, ui.radio))
+        helps = [one.text for one in holder.descendants()
+                if isinstance(one, ui.label) and "console-help" in one.classes]
+        self.assertEqual({"desktop": "Desktop", "cabinet": "Cabinet"}, radio.options)
+        self.assertEqual(["Windowed, no cabinet hardware.", "Full screen across the cabinet."],
+                         helps)
+
+    def test_a_number_field_carries_its_unit_and_bounds(self) -> None:
+        field = {"key": "screens", "type": "number", "label": "Screens",
+                "unit": "screens", "min": 1, "max": 4, "value": 2}
+
+        _values, _held, holder = self._drawn(field)
+
+        control = next(one for one in holder.descendants() if isinstance(one, ui.number))
+        self.assertEqual((2, "screens", 1, 4), (control.value, control.suffix,
+                                                control.min, control.max))
+
+    def test_sync_reads_a_cleared_number_back_as_none_not_the_word_none(self) -> None:
+        field = {"key": "screens", "type": "number", "label": "Screens", "value": 2}
+        values, held, holder = self._drawn(field)
+        control = next(one for one in holder.descendants() if isinstance(one, ui.number))
+
+        control.value = None
+        wizard._sync(values, held)
+
+        self.assertIsNone(values["screens"])
+
+
 if __name__ == "__main__":
     unittest.main()

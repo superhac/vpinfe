@@ -373,6 +373,8 @@ The words in these answers are the extension's to look up, with `ctx.t`.
 | `select` | one of `choices` |
 | `multi` | several of `choices` |
 | `switch` | on or off |
+| `choice` | one of `choices`, two to four, each with its own line of help |
+| `number` | a number, with `unit`, `min` and `max` |
 
 `confirm` is the verb at the point of no return, and it is the action's own: a generic
 "Confirm" makes every action look like every other one. `notes` travel with the summary,
