@@ -1150,6 +1150,17 @@ class ApiClient:
         self._answered(response)
         return response.json()
 
+    def frontend_browser(self) -> dict:
+        """What the frontend's browser can play, with the finding and the fix in words.
+        Empty from an install too old to say, never None: `offload.io` reads None as a
+        cancelled call."""
+        _refuse_the_event_loop("/frontend/browser")
+        response = self._session.get(f"{self._base}/frontend/browser", timeout=_TIMEOUT)
+        if response.status_code == 404:
+            return {}
+        self._answered(response)
+        return response.json()
+
     def show_on_frontend(self, collection: str) -> None:
         """Ask the frontend to show a collection, "" being the whole library. The change
         arrives as the next `frontend.state_changed`, not as this call's answer."""

@@ -20,6 +20,7 @@ from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from frontend.chromium_manager import get_chromium_path
 from tests.support.browser_session import BrowserSession, chromium_path
 from tests.support.console_walk import ConsoleWalk, clicked
 from tests.support.library import write_game
@@ -75,8 +76,9 @@ ASCII_WORD = re.compile(r"\b[A-Za-z]{4,}\b")
 def _machine_words(*paths: Path) -> set[str]:
     """Words on screen only because of what this machine is called and where it runs.
 
-    Devices prints the hostname and Metrics prints the watched paths, so both carry words
-    no catalog owns. Derived rather than listed, because a list is one machine's.
+    Devices prints the hostname, Metrics the watched paths and Browser where the browser
+    was found, so all three carry words no catalog owns. Derived rather than listed,
+    because a list is one machine's.
     """
     import socket
     import tempfile
@@ -223,7 +225,8 @@ class PseudoLocaleTests(unittest.TestCase):
             write_game(root, GAME)
             with LiveInstance(root,
                               extra_settings={("general", "language"): "qps"}) as instance:
-                allowed |= _machine_words(root, instance.config_dir)
+                allowed |= _machine_words(root, instance.config_dir,
+                                          Path(get_chromium_path("").path))
                 asyncio.run(look(instance))
 
         self.assertIn("?view=settings&page=hardware.input", settings_pages)

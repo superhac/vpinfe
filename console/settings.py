@@ -36,6 +36,7 @@ from console import (
     panel,
     screens,
     theme_picker,
+    undo,
     verbs,
     when,
 )
@@ -456,6 +457,94 @@ async def _input_foot(library: Library, rerender: Callable[[], None]) -> list[tu
 FOOTERS: dict[str, Callable] = {"updates": _vps_foot, "themes": _themes_foot,
                                  "input": _input_foot}
 
+
+def _browser_rows(found: dict[str, Any], chosen: str) -> list[tuple[Any, Any]]:
+    """Which browser runs, from where, and what it plays, as the frontend last found."""
+    path = str(found.get("path") or "")
+
+    def came_from() -> None:
+        shown = ui.label(t("console.settings.browser_bundled") if found.get("bundled")
+                         else path).classes("console-fact-value truncate min-w-0")
+        if path:
+            shown.tooltip(path)
+
+    source = [] if path and path == chosen.strip() else \
+        [(t("console.settings.browser_from"), came_from)]
+    if not found.get("reported_at"):
+        def unchecked() -> None:
+            ui.label(t("console.settings.browser_not_checked")) \
+                .classes("console-fact-value").tooltip(t("console.settings.browser_checked_when"))
+        return [(t("console.settings.browser_in_use"), unchecked), *source]
+
+    def checked() -> None:
+        stamp = str(found.get("reported_at") or "")
+        ui.label(when.ago(stamp)).classes("console-fact-value").tooltip(when.local(stamp))
+
+    rows: list[tuple[Any, Any]] = [
+        (t("console.settings.browser_in_use"), str(found.get("browser") or t("word.unknown"))),
+        *source,
+        (t("console.settings.browser_plays"), ", ".join(found.get("plays") or [])
+            or t("word.none")),
+    ]
+    if found.get("does_not_play"):
+        rows.append((t("console.settings.browser_does_not_play"),
+                     ", ".join(found["does_not_play"])))
+    rows.append((t("console.settings.browser_checked"), checked))
+    return rows
+
+
+def _browser_finding(library: Library, rerender: Callable[[], None],
+                     found: dict[str, Any]) -> None:
+    """What is wrong, the fix in words, and the act where VPinFE can do it."""
+    fix = found.get("fix") or {}
+    chrome = str(fix.get("chrome_path") or "")
+
+    @on_page
+    async def use(path: str, said: str) -> None:
+        held = await offload.io(library.config_values)
+        before = str(((held.get("chromium") or {}).get("path")) or "")
+        try:
+            await offload.io(library.put_config, {"chromium": {"path": path}})
+            if await offload.io(library.frontend_running):
+                await offload.io(library.perform_action, "frontend", "restart")
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
+            ui.notify(t("console.settings.could_not_use_browser"), caption=why(exc),
+                      type="negative")
+            return
+        if said:
+            undo.offer(said, lambda: use(before, ""))
+        rerender()
+
+    with ui.element("div").classes("console-attention w-full mb-2"):
+        ui.icon("error_outline").classes("console-attention-icon")
+        with ui.column().classes("gap-0 min-w-0 grow"):
+            ui.label(str(found.get("finding") or "")).classes("console-attention-line")
+            if found.get("fix_text"):
+                ui.label(str(found["fix_text"])).classes("console-member-table")
+        if fix.get("action") == "use_chrome" and chrome:
+            panel.action(t("console.settings.use_google_chrome"),
+                         lambda: use(chrome, t("console.settings.using_google_chrome")),
+                         icon=verbs.CHOOSE)()
+
+
+async def _browser_head(library: Library, rerender: Callable[[], None],
+                        values: dict) -> list[tuple[Any, Any]]:
+    """What the browser plays, and what is wrong with it, before its settings."""
+    try:
+        found = await offload.io(library.frontend_browser)
+    except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
+        return [panel.intro(t("console.settings.could_not_read_browser"), hint=why(exc))]
+    if not found:
+        return []
+    rows = _browser_rows(found, str((values.get("chromium") or {}).get("path") or ""))
+    if found.get("finding"):
+        rows.insert(0, (panel.FULL, lambda: _browser_finding(library, rerender, found)))
+    return rows
+
+
+# section -> what to draw above its settings, the counterpart of FOOTERS.
+HEADS: dict[str, Callable] = {"chromium": _browser_head}
+
 # page -> the line under its heading. Optional: a page whose name says the whole thing
 # takes none.
 PAGE_NOTES: dict[str, str] = {
@@ -862,12 +951,15 @@ async def build_device_page(source: Any, context: dict[str, Any], schema: list[d
         name = str(block.get("name"))
         if len(drawn) > 1:
             entries.append((panel.HEADING, _section_label(name)))
+        # A page may carry a head or a foot for what on it is a reading or an act rather
+        # than a value. Only where this install's own client is what serves the page: these
+        # reach for the library, which another machine's client cannot answer for.
+        head = HEADS.get(name)
+        if head is not None and source is context.get("library"):
+            entries += await head(source, rerender, values)
         entries += section_rows(source, name, block["options"], values,
                                 bool(block.get("writable")), rerender, checks,
                                 suggestions)
-        # A page may carry a foot for the one thing on it that is an act rather than a
-        # value. Only where this install's own client is what serves the page: these reach
-        # for the library, which another machine's client cannot answer for.
         foot = FOOTERS.get(name)
         if foot is not None and source is context.get("library"):
             entries += await foot(source, rerender)

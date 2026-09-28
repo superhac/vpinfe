@@ -590,6 +590,14 @@ class Library:
     def perform_action(self, scope: str, action: str, reason: str = "") -> dict:
         return self._client.perform_action(scope, action, reason)
 
+    def frontend_browser(self) -> dict:
+        """Never cached: the frontend reports again each time it opens."""
+        return self._client.frontend_browser()
+
+    def frontend_running(self) -> bool:
+        found = self._client.frontend_state()
+        return bool(found and found.get("running"))
+
     def logs(self, limit: int = 200, level: str = "", contains: str = "",
              source: str = "") -> dict:
         """Never cached, obviously: the whole question is what has happened since."""
