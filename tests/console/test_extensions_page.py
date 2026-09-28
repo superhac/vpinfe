@@ -18,7 +18,7 @@ from nicegui import ui
 
 from common import i18n
 from common.extensions import host
-from console import ext_action, ext_page, sections
+from console import ext_page, sections, wizard
 from tests.support import lines
 
 
@@ -216,19 +216,19 @@ class LanguageTests(unittest.TestCase):
 
 def _said(job: dict, under: str = "ext.sample.action.run") -> list[str]:
     with ui.column() as body:
-        ext_action._report(body, job, under)
+        wizard._report(body, job, under)
     return [one.text for one in body.descendants() if isinstance(one, ui.label)]
 
 
 def _reported(job: dict) -> dict[str, str]:
     with ui.column() as body:
-        ext_action._report(body, job, "ext.sample.action.run")
+        wizard._report(body, job, "ext.sample.action.run")
     return lines.details(body)
 
 
 def _noted(notes: list) -> dict[str, str]:
     with ui.column() as body:
-        ext_action._lines(notes, "")
+        wizard._lines(notes, "")
     return lines.details(body)
 
 
@@ -272,7 +272,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Kiss", said)
 
     def test_a_row_that_did_not_come_across_is_worded_by_the_catalog(self) -> None:
-        with mock.patch.object(ext_action, "t", side_effect=lambda key, **_values: key):
+        with mock.patch.object(wizard, "t", side_effect=lambda key, **_values: key):
             said = _said({"state": "done",
                           "result": {"rows": [{"name": "Kiss", "error": "no table"}]}})
 

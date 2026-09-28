@@ -20,7 +20,7 @@ import httpapi
 from common import extensions
 from common.extensions import host, store
 from common.extensions.contract import ContractError
-from console import ext_action
+from console import wizard
 
 REPO = Path(__file__).resolve().parents[2]
 FIXTURE = REPO / "tests" / "fixtures" / "pinballx"
@@ -245,7 +245,7 @@ class SummaryShapeTests(WizardCase):
 
         found = self._check(source)
         with ui.column() as body:
-            ext_action._lines(found["notes"], "")
+            wizard._lines(found["notes"], "")
         tips = {one.props["target"]: one.text
                 for one in body.descendants() if isinstance(one, ui.tooltip)}
         hovers = {one.text: tips.get(f"#{one.html_id}", "")
