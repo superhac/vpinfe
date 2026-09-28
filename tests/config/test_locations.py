@@ -80,6 +80,13 @@ class StoreTests(_WithStore, unittest.TestCase):
         self.assertEqual([one.location_id for one in LocationStore(path).locations()],
                          ["a"])
 
+    def test_reading_the_list_resolves_no_path(self) -> None:
+        folder = self._location("share")
+        with patch("os.path.realpath", side_effect=AssertionError("resolved")):
+            held = self.store.locations()
+
+        self.assertEqual(held, [folder])
+
     def test_removing_one_forgets_it_and_the_write_target_with_it(self) -> None:
         held = self._location("share")
         self.store.set_write_to(held.location_id)

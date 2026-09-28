@@ -326,11 +326,12 @@ class LocationStore:
                  if isinstance(raw, dict))
                 if one is not None]
         # One row per place. A file edited by hand can hold the same folder twice, and
-        # two rows for one place would each report their own state.
+        # two rows for one place would each report their own state. Compared as spelled,
+        # not through canonical(): resolving a path on a dead mount blocks.
         seen: set[str] = set()
         unique = []
         for one in held:
-            key = canonical(one.path)
+            key = os.path.normpath(os.path.expanduser(one.path))
             if key in seen:
                 logger.warning("Ignoring a second location for %s", one.path)
                 continue
