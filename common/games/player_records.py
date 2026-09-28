@@ -234,6 +234,29 @@ def get_records() -> PlayerRecords:
         return _records
 
 
+def remove_player(player_id: str) -> Player:
+    """Remove a kept player or sign a guest out, forgetting their accounts with every
+    extension and their record. The owner cannot be removed. Raises NotFoundError for an
+    id nobody has."""
+    from common.extensions import accounts
+
+    gone = get_roster().remove(player_id)
+    accounts.forget(gone.player_id)
+    get_records().forget(gone.player_id)
+    return gone
+
+
+def sign_guests_out() -> list[Player]:
+    """Every guest signed out. Returns who left."""
+    gone = []
+    for guest in [player for player in get_roster().players() if player.guest]:
+        try:
+            gone.append(remove_player(guest.player_id))
+        except service_errors.NotFoundError:
+            continue
+    return gone
+
+
 def reset_for_tests(root: Path | None = None) -> None:
     global _records
     with _records_lock:

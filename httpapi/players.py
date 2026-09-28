@@ -9,8 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Response
 
 from common import events
-from common.extensions import accounts
-from common.games import game_lens
+from common.games import game_lens, player_records
 from common.games.player_records import get_records
 from common.players import get_roster
 
@@ -98,9 +97,7 @@ def put_rating(player_id: str, game_id: str,
                status_code=204, dependencies=[requires(scopes.PLAYERS_WRITE)])
 def remove_player(player_id: str) -> Response:
     """Their accounts go with them, from every extension, and so does their record."""
-    get_roster().remove(player_id)
-    accounts.forget(player_id)
-    get_records().forget(player_id)
+    player_records.remove_player(player_id)
     return Response(status_code=204)
 
 

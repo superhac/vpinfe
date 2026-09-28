@@ -284,7 +284,11 @@ class Roster:
         raise _no_player(wanted)
 
     def remove(self, player_id: str) -> Player:
-        """Remove a kept player, or sign a guest out. The owner cannot be removed."""
+        """Remove a kept player, or sign a guest out. The owner cannot be removed.
+
+        Only `player_records.remove_player` calls this: it also forgets what the player
+        held, which this module cannot reach.
+        """
         wanted = (player_id or "").strip()
         with self._changing():
             kept = self._kept()

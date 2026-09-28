@@ -13,7 +13,10 @@ from configparser import ConfigParser
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common import players, service_errors
+from common import extensions, players, service_errors
+from common.extensions import accounts, host
+from common.extensions.store import ExtensionStore
+from common.games import player_records
 from common.games.player_records import PlayerRecords, best_of
 from common.i18n import t
 
@@ -135,6 +138,63 @@ class GuestTests(_RecordsCase):
         self.records.set_rating(self.guest, "g1", 5)
 
         self.assertEqual(self._restart().games(self.guest), {})
+
+
+class LeavingTests(_RecordsCase):
+    def setUp(self) -> None:
+        super().setUp()
+        player_records.reset_for_tests(self.root)
+        self.addCleanup(player_records.reset_for_tests)
+        self.records = player_records.get_records()
+        store = ExtensionStore(self.root.parent / "extensions.json")
+        extensions.set_registry(host.Registry(store))
+        self.addCleanup(extensions.set_registry, host.Registry())
+        accounts.reset_for_tests()
+        self.addCleanup(accounts.reset_for_tests)
+        self.store = store
+
+    def _holding(self, player: players.Player) -> None:
+        accounts.keep("scores_site", player.player_id, {"user_id": "someone"}, self.store)
+        self.records.set_rating(player, "g1", 4)
+
+    def test_a_kept_player_goes_with_their_account_and_record(self) -> None:
+        self._holding(self.kept)
+
+        gone = player_records.remove_player(self.kept.player_id)
+
+        self.assertEqual(gone.player_id, self.kept.player_id)
+        self.assertIsNone(self.roster.get(self.kept.player_id))
+        self.assertEqual(self.store.accounts("scores_site"), {})
+        self.assertFalse((self.root / f"{self.kept.player_id}.json").exists())
+
+    def test_a_guest_signs_out_with_their_account_and_record(self) -> None:
+        self._holding(self.guest)
+
+        player_records.remove_player(self.guest.player_id)
+
+        self.assertEqual(accounts.values("scores_site", self.guest.player_id), {})
+        self.assertEqual(self.records.games(self.guest), {})
+
+    def test_the_owner_stays_with_what_they_hold(self) -> None:
+        accounts.keep("scores_site", self.owner.player_id, {"user_id": "own"}, self.store)
+
+        with self.assertRaises(service_errors.RefusedError):
+            player_records.remove_player(self.owner.player_id)
+
+        self.assertEqual(self.store.accounts("scores_site"),
+                         {self.owner.player_id: {"user_id": "own"}})
+
+    def test_every_guest_signs_out_and_the_kept_players_stay(self) -> None:
+        other = self.roster.add_guest("VIS")
+        self._holding(other)
+
+        gone = player_records.sign_guests_out()
+
+        self.assertEqual({one.player_id for one in gone},
+                         {self.guest.player_id, other.player_id})
+        self.assertEqual([one.player_id for one in self.roster.players()],
+                         [self.owner.player_id, self.kept.player_id])
+        self.assertEqual(accounts.values("scores_site", other.player_id), {})
 
 
 class OwnerTests(_RecordsCase):
