@@ -289,6 +289,113 @@ class RarTests(unittest.TestCase):
                 self.assertEqual(tools.resolve(tools.RAR, "").path, seven)
 
 
+FFMPEG_ENCODERS = """Encoders:
+ V..... = Video
+ A..... = Audio
+ ------
+ V....D libx264              libx264 H.264 / AVC / MPEG-4 AVC (codec h264)
+ V....D h264_videotoolbox    VideoToolbox H.264 Encoder (codec h264)
+ VF...D png                  PNG (Portable Network Graphics) image
+ V....D libvpx-vp9           libvpx VP9 (codec vp9)
+ A....D libmp3lame           libmp3lame MP3 (MPEG audio layer 3) (codec mp3)
+"""
+
+FFMPEG_DEVICES = """Devices:
+ D. = Demuxing supported
+ .E = Muxing supported
+ ---
+  E audiotoolbox    AudioToolbox output device
+ D  avfoundation    AVFoundation input device
+ DE pulse           Pulse audio output
+ D  lavfi           Libavfilter virtual input device
+"""
+
+GRIM_HELP = """Usage: grim [options...] [output-file]
+
+  -h              Show help message and quit.
+  -s <factor>     Set the output image's scale factor.
+  -o <output>     Set the output name to capture.
+  -c              Include cursors in the screenshot.
+"""
+
+
+@unittest.skipUnless(POSIX, "the programs here are shell scripts")
+class RecordingToolTests(unittest.TestCase):
+    def setUp(self) -> None:
+        held = tempfile.TemporaryDirectory()
+        self.addCleanup(held.cleanup)
+        self.root = Path(held.name)
+        self.asked = self.root / "asked"
+
+    def _answering(self, name: str, **said: str) -> Path:
+        """A program that notes each argument list it is given, and prints what `said`
+        holds for that list's first argument."""
+        cases = "\n".join(f"  {flag.replace('_', '-')}) cat <<'EOF'\n{text}EOF\n  ;;"
+                          for flag, text in said.items())
+        return _program(self.root, name,
+                        f'echo "$*" >> "{self.asked}"\ncase "$1" in\n{cases}\n'
+                        "  *) exit 1 ;;\nesac")
+
+    def _args(self) -> list[str]:
+        return self.asked.read_text(encoding="utf-8").splitlines()
+
+    def test_ffmpeg_says_what_it_encodes_and_reads_from(self) -> None:
+        ffmpeg = _program(self.root, "ffmpeg", f"""case "$2" in
+  -version) echo "ffmpeg version 9.0.1 Copyright (c) 2000-2026 the FFmpeg developers" ;;
+  -encoders) cat <<'EOF'
+{FFMPEG_ENCODERS}EOF
+  ;;
+  -devices) cat <<'EOF'
+{FFMPEG_DEVICES}EOF
+  ;;
+  *) exit 1 ;;
+esac""")
+
+        probe = tools.FFMPEG.probe(ffmpeg)
+
+        self.assertTrue(probe.works)
+        self.assertEqual(probe.version, "9.0.1")
+        self.assertEqual(probe.can[tools.ENCODERS],
+                         {"libx264", "h264_videotoolbox", "png", "libvpx-vp9", "libmp3lame"})
+        self.assertEqual(probe.can[tools.INPUTS], {"avfoundation", "pulse", "lavfi"})
+
+    def test_what_grim_can_do_is_what_its_help_lists(self) -> None:
+        grim = self._answering("grim", **{"-h": GRIM_HELP})
+
+        probe = tools.GRIM.probe(grim)
+
+        self.assertTrue(probe.works)
+        self.assertTrue(probe.has(tools.OPTIONS, "-o"))
+        self.assertFalse(probe.has(tools.OPTIONS, "-D"))
+        self.assertEqual(probe.version, "")
+        self.assertEqual(self._args(), ["-h"])
+
+    def test_the_version_is_asked_for_only_where_the_help_lists_it(self) -> None:
+        wf = self._answering("wf-recorder", **{
+            "-h": "Usage: wf-recorder [OPTION]...\n  -D, --no-damage   Record every frame\n"
+                  "  -v, --version     Prints the version of wf-recorder.\n",
+            "__version": "wf-recorder 0.5.0\n"})
+
+        probe = tools.WF_RECORDER.probe(wf)
+
+        self.assertTrue(probe.has(tools.OPTIONS, "--no-damage"))
+        self.assertEqual(probe.version, "0.5.0")
+        self.assertEqual(self._args(), ["-h", "--version"])
+
+    def test_help_that_lists_no_option_is_not_the_tool(self) -> None:
+        other = self._answering("grim", **{"-h": "hello\n"})
+
+        self.assertEqual(tools.GRIM.probe(other).reason, tools.FAILED)
+
+    def test_grim_and_wf_recorder_are_not_here_off_linux(self) -> None:
+        for where in (tools.DARWIN, tools.WINDOWS):
+            with (self.subTest(where=where),
+                  mock.patch.object(tools, "here", return_value=where)):
+                self.assertIs(tools.resolve(tools.GRIM, "").state, tools.State.NOT_HERE)
+                self.assertIs(tools.resolve(tools.WF_RECORDER, "").state,
+                              tools.State.NOT_HERE)
+
+
 class VPinOSTests(unittest.TestCase):
     def setUp(self) -> None:
         vpinos.detected.cache_clear()

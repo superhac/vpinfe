@@ -20,6 +20,7 @@ VERB = re.compile(
     re.IGNORECASE | re.DOTALL)
 
 ALLOWED = {
+    "tools.ffmpeg.hint.darwin": "a shell command, brew install ffmpeg",
     "tools.rar.hint.darwin": "a shell command, brew install unar",
 }
 

@@ -92,7 +92,10 @@ Runtime state written by VPinFE, not shown as a setting.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `rar_path` | string |  | Path to unar or unrar. Blank auto-detects one on this device. |
+| `rar_path` | string |  | Needed to import RAR archives. Blank finds unar, unrar, 7-Zip or bsdtar. |
+| `ffmpeg_path` | string |  | Needed to record media. Blank finds it on this device. |
+| `grim_path` | string |  | Needed to record pictures of the screens. Blank finds it on this device. |
+| `wf_recorder_path` | string |  | Needed to record video of the screens. Blank finds it on this device. |
 
 ### `assets`
 

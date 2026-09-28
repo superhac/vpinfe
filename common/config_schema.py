@@ -470,6 +470,27 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             default="",
             legacy=(("general", "rartoolpath"),),
         ),
+        ConfigOption(
+            "ffmpeg_path",
+            type="string",
+            path="exe",
+            default="",
+            legacy=(),
+        ),
+        ConfigOption(
+            "grim_path",
+            type="string",
+            path="exe",
+            default="",
+            legacy=(),
+        ),
+        ConfigOption(
+            "wf_recorder_path",
+            type="string",
+            path="exe",
+            default="",
+            legacy=(),
+        ),
     ),
     # Art a theme or the frontend draws that is not a game's own.
     *in_section(

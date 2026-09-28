@@ -117,7 +117,10 @@
     "last_read": ""
   },
   "tools": {
-    "rar_path": ""
+    "rar_path": "",
+    "ffmpeg_path": "",
+    "grim_path": "",
+    "wf_recorder_path": ""
   },
   "updates": {
     "ask_where_new_games_go": "true",

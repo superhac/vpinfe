@@ -269,7 +269,75 @@ RAR = Tool(
     places={WINDOWS: ("${ProgramFiles}/WinRAR", "${ProgramFiles}/7-Zip")},
 )
 
-TOOLS: tuple[Tool, ...] = (RAR,)
+
+# --- recording ----------------------------------------------------------------------
+
+ENCODERS = "encoders"
+INPUTS = "inputs"
+OPTIONS = "options"
+
+# ` V....D libx264   libx264 H.264 ...`: what it encodes, five flags, then the name.
+_ENCODER = re.compile(r"^ [VAS][A-Z.]{5} +([\w-]+) ", re.MULTILINE)
+# ` D  avfoundation   AVFoundation input device`: D where it can be read from.
+_INPUT_DEVICE = re.compile(r"^ D[E. ] +(\w+) ", re.MULTILINE)
+
+
+@probing
+def _ffmpeg(path: Path) -> Probe:
+    version = version_in(ask(path, "-hide_banner", "-version"))
+    return Probe(True, version, {
+        ENCODERS: frozenset(_ENCODER.findall(ask(path, "-hide_banner", "-encoders"))),
+        INPUTS: frozenset(_INPUT_DEVICE.findall(ask(path, "-hide_banner", "-devices"))),
+    })
+
+
+# An option as a program's help lists it: `-o`, `--no-damage`.
+_OPTION = re.compile(r"(?<![\w-])(--?[A-Za-z][\w-]*)")
+
+
+def _described(help_flag: str) -> Callable[[Path], Probe]:
+    """A probe that reads what a program can do off the options its help lists."""
+    @probing
+    def probe(path: Path) -> Probe:
+        options = frozenset(_OPTION.findall(ask(path, help_flag)))
+        if not options:
+            raise _FailedError(0)
+        version = version_in(ask(path, "--version")) if "--version" in options else ""
+        return Probe(True, version, {OPTIONS: options})
+    return probe
+
+
+_ON_LINUX_ONLY = {LINUX: "tools.hint.linux", VPINOS: "tools.hint.vpinos"}
+
+FFMPEG = Tool(
+    id="ffmpeg",
+    option="tools.ffmpeg_path",
+    name="FFmpeg",
+    names={LINUX: ("ffmpeg",), DARWIN: ("ffmpeg",), WINDOWS: ("ffmpeg",)},
+    probe=_ffmpeg,
+    hint={**_ON_LINUX_ONLY, DARWIN: "tools.ffmpeg.hint.darwin",
+          WINDOWS: "tools.ffmpeg.hint.windows"},
+)
+
+GRIM = Tool(
+    id="grim",
+    option="tools.grim_path",
+    name="grim",
+    names={LINUX: ("grim",)},
+    probe=_described("-h"),
+    hint=_ON_LINUX_ONLY,
+)
+
+WF_RECORDER = Tool(
+    id="wf_recorder",
+    option="tools.wf_recorder_path",
+    name="wf-recorder",
+    names={LINUX: ("wf-recorder",)},
+    probe=_described("-h"),
+    hint=_ON_LINUX_ONLY,
+)
+
+TOOLS: tuple[Tool, ...] = (RAR, FFMPEG, GRIM, WF_RECORDER)
 
 
 # --- what a person reads ------------------------------------------------------------
