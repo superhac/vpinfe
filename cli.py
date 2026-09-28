@@ -35,17 +35,11 @@ def build_metadata(download_media: bool = True, update_all: bool = True,
     )
 
 
-def _game_root_dir():
-    from common.config_access import SettingsConfig
-
-    return SettingsConfig.from_config(config_store).game_root_dir
-
-
 def upgrade_info_files(game_name: str = None, progress_cb=None, log_cb=None):
     from common.games import game_service
 
     return info_maintenance.upgrade_library(
-        _game_root_dir(), game_name=game_name, progress_cb=progress_cb, log_cb=log_cb,
+        game_name=game_name, progress_cb=progress_cb, log_cb=log_cb,
         route_match=game_service.route_legacy_match)
 
 
@@ -53,7 +47,7 @@ def restore_info_files(game_name: str = None, progress_cb=None, log_cb=None):
     from common.paths import CONFIG_DIR
 
     return info_maintenance.restore_library(
-        _game_root_dir(), game_name=game_name, config_dir=CONFIG_DIR,
+        game_name=game_name, config_dir=CONFIG_DIR,
         progress_cb=progress_cb, log_cb=log_cb)
 
 
@@ -63,7 +57,7 @@ def reset_3x_state(config_only: bool = False, dry_run: bool = False,
     from common.paths import CONFIG_DIR
 
     return revert_3x.reset(
-        _game_root_dir(), CONFIG_DIR,
+        None, CONFIG_DIR,
         http_port=NetworkConfig.from_config(config_store).http_port,
         config_only=config_only, dry_run=dry_run,
         progress_cb=progress_cb, log_cb=log_cb)
@@ -78,7 +72,7 @@ def list_unknown_games():
 
 
 def vpx_patches(progress_cb=None):
-    return metadata_service.apply_vpx_patches(progress_cb=progress_cb, iniconfig=config_store)
+    return metadata_service.apply_vpx_patches(progress_cb=progress_cb)
 
 
 def gamepadtest():

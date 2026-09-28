@@ -5,9 +5,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 
-from common.config_access import SettingsConfig
 from common.config_store import ConfigStore
-from common.games.game_repository import games_under
+from common.games import game_repository
 from common.online.vpsdb import VPSdb
 from common.paths import get_ini_config
 
@@ -22,12 +21,11 @@ def list_missing_games(iniconfig: ConfigStore | None = None,
                        log: Callable[..., None] | None = None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
-    game_root = SettingsConfig.from_config(config).game_root_dir
-    games = games_under(game_root, config)
-    log("Listing tables missing from %s", game_root)
-    log("Found %s tables in %s", len(games), game_root)
+    games = game_repository.all_games()
+    log("Listing tables missing from the library")
+    log("Found %s tables in the library", len(games))
 
-    vps = VPSdb(game_root, config)
+    vps = VPSdb(config)
     log("Found %s tables in VPSdb", len(vps))
 
     games_found = []
@@ -62,12 +60,11 @@ def list_unknown_games(iniconfig: ConfigStore | None = None,
                        log: Callable[..., None] | None = None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
-    game_root = SettingsConfig.from_config(config).game_root_dir
-    games = games_under(game_root, config)
-    log("Listing unknown tables from %s", game_root)
-    log("Found %s tables in %s", len(games), game_root)
+    games = game_repository.all_games()
+    log("Listing unknown tables in the library")
+    log("Found %s tables in the library", len(games))
 
-    vps = VPSdb(game_root, config)
+    vps = VPSdb(config)
     log("Found %s tables in VPSdb", len(vps))
 
     current = 0

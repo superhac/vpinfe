@@ -43,6 +43,18 @@ class AboutTests(unittest.TestCase):
                 self.assertIn(label, text)
                 self.assertIn(str(value), text)
 
+    def test_each_library_folder_is_listed(self) -> None:
+        from common.games.locations import KIND_GAME, Location
+        from common.i18n import t
+
+        held = [Location("l1", "/games/first"), Location("l2", "/games/one", kind=KIND_GAME)]
+        with mock.patch("common.games.locations.configured", return_value=held):
+            facts = next(group["facts"] for group in about.details(refresh=True)
+                         if group["heading"] == t("about.heading.locations"))
+
+        self.assertEqual([value for label, value in facts if label == t("about.fact.tables")],
+                         ["/games/first", "/games/one"])
+
     def test_it_is_read_once(self) -> None:
         """Every field costs a subprocess or a config read, and none of them changes
         while VPinFE is running."""

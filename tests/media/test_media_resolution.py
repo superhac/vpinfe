@@ -304,7 +304,8 @@ class WheelSetTests(unittest.TestCase):
                 for name in sets:
                     (Path(tmp) / game / "medias" / "wheels" / name).mkdir(parents=True)
 
-            self.assertEqual(list_media_sets(tmp, "wheel"),
+            self.assertEqual(list_media_sets([Path(tmp) / "Table A", Path(tmp) / "Table B"],
+                                             "wheel"),
                              ["colorful", "logo", "tarcisio"])
 
 

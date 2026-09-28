@@ -212,13 +212,13 @@ class FrontendServiceTests(unittest.TestCase):
             "name": "Unknown", "manufacturer": "", "year": ""}
         vps_instance.lookup_name.return_value = None
         logs = []
-        ini = types.SimpleNamespace(config={"Settings": {"gamerootdir": "/games"}})
+        ini = types.SimpleNamespace(config={})
 
         def log(msg, *args):
             logs.append(msg % args if args else msg)
 
         with (
-            mock.patch("common.games.game_report_service.games_under",
+            mock.patch("common.games.game_repository.all_games",
                        return_value=parser_instance.get_all_games.return_value),
             mock.patch("common.games.game_report_service.VPSdb", return_value=vps_instance),
         ):

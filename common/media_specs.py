@@ -357,20 +357,15 @@ def available_sets(kind: str, medias_tree: set[str]) -> list[str]:
     return sorted(names)
 
 
-def list_media_sets(game_root: str | Path, kind: str = "wheel") -> list[str]:
-    """Every set name across the library, plus the reserved virtual ones.
+def list_media_sets(game_dirs: Iterable[str | Path], kind: str = "wheel") -> list[str]:
+    """Every set name across these game folders, plus the reserved virtual ones.
 
     "logo" is always offered for the wheel: it needs no wheels/ folder because
     it resolves from each table's logo media directly.
     """
     names: set[str] = set()
-    root = Path(game_root)
-    try:
-        game_dirs = [d for d in root.iterdir() if d.is_dir()]
-    except OSError:
-        game_dirs = []
     for game_dir in game_dirs:
-        sets_dir = game_dir / "medias" / f"{kind}s"
+        sets_dir = Path(game_dir) / "medias" / f"{kind}s"
         try:
             names.update(d.name for d in sets_dir.iterdir() if d.is_dir())
         except OSError:

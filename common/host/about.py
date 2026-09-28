@@ -239,20 +239,19 @@ def _locations() -> list[tuple[str, str]]:
              (t("about.fact.settings_file"), str(VPINFE_INI_PATH))]
     log = log_file()
     found.append((t("about.fact.log_file"), str(log) if log else t("about.not_written_yet")))
-    found.append((t("about.fact.tables"), _tables_root()))
+    found += [(t("about.fact.tables"), path) for path in _library_folders()]
     return found
 
 
-def _tables_root() -> str:
-    from common.config_access import SettingsConfig
-    from common.paths import get_ini_config
+def _library_folders() -> list[str]:
+    from common.games import locations
 
     try:
-        root = SettingsConfig.from_config(get_ini_config()).game_root_dir.strip()
+        held = [one.path for one in locations.configured()]
     except Exception:  # noqa: BLE001
-        logger.debug("Could not read the tables root", exc_info=True)
-        return t("word.unknown")
-    return root or t("about.not_set")
+        logger.debug("Could not read the library folders", exc_info=True)
+        return [t("word.unknown")]
+    return held or [t("about.not_set")]
 
 
 def reset_for_tests() -> None:

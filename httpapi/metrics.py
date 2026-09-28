@@ -29,18 +29,16 @@ router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 def _watched() -> list[str]:
     """The paths worth reporting free space for: where the library lives, and where
-    VPinFE keeps its own files. Two rather than every mount, because those are the two
-    that fill up and stop something working."""
-    from common.config_access import SettingsConfig
-    from common.paths import CONFIG_DIR, get_ini_config
+    VPinFE keeps its own files. Those rather than every mount, because they are what
+    fills up and stops something working."""
+    from common.games import locations
+    from common.paths import CONFIG_DIR
 
     found = []
     try:
-        settings = SettingsConfig.from_config(get_ini_config())
-        if settings.game_root_dir.strip():
-            found.append(settings.game_root_dir.strip())
-    except Exception:  # noqa: BLE001 - an unreadable config is not a metrics failure
-        logger.debug("Could not read the library path for metrics", exc_info=True)
+        found += [one.path for one in locations.configured()]
+    except Exception:  # noqa: BLE001 - an unreadable list is not a metrics failure
+        logger.debug("Could not read the library folders for metrics", exc_info=True)
     found.append(str(CONFIG_DIR))
     # Ordered, de-duplicated: a library kept inside the config directory is one path.
     return list(dict.fromkeys(found))

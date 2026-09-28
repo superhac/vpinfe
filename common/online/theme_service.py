@@ -129,15 +129,13 @@ def _dynamic_select_options(source: str) -> list[dict[str, Any]] | None:
     """
     if source != "wheelsets":
         return None
-    from common.config_access import SettingsConfig
+    from common.games import game_repository
     from common.media_specs import list_media_sets
 
     names: list[str] = []
     try:
-        config = ConfigStore(str(VPINFE_INI_PATH))
-        root = SettingsConfig.from_config(config).game_root_dir
-        if root:
-            names = list_media_sets(root, "wheel")
+        names = list_media_sets((game.full_path_game for game in game_repository.all_games()
+                                 if game.full_path_game), "wheel")
     except Exception:
         pass
     return ([{"label": "Default", "value": ""}]

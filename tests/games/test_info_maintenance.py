@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from common.games.game_parser import GameParser
 from common.games.info_maintenance import (
@@ -19,6 +20,7 @@ from common.games.info_maintenance import (
     upgrade_library,
 )
 from common.games.info_migration import INFO_SCHEMA, backup_schema, schema_of
+from common.games.locations import KIND_GAME, Location
 from tests.support.library import TempTree, write_game
 
 LEGACY = {
@@ -200,6 +202,25 @@ class WalkTests(LibraryTestCase):
 
     def test_a_missing_root_is_not_an_error(self):
         self.assertEqual(game_dirs(self.root / "nope"), [])
+
+    def _library(self):
+        first, second = self.root / "first", self.root / "second"
+        write_game(first, "Dr. Dude", info=LEGACY)
+        write_game(second, "Taxi", info=LEGACY)
+        single = write_game(self.root / "single", "Whirlwind", info=LEGACY)
+        return patch("common.games.locations.configured", return_value=[
+            Location("l1", str(first)), Location("l2", str(second)),
+            Location("l3", str(single), kind=KIND_GAME)])
+
+    def test_with_no_root_it_walks_every_library_folder(self):
+        with self._library():
+            self.assertEqual([d.name for d in game_dirs()], ["Dr. Dude", "Taxi", "Whirlwind"])
+
+    def test_one_game_is_found_in_whichever_library_folder_holds_it(self):
+        with self._library():
+            self.assertEqual([d.parent.name for d in game_dirs(game_name="Taxi")], ["second"])
+            self.assertEqual([d.name for d in game_dirs(game_name="Whirlwind")],
+                             ["Whirlwind"])
 
 
 class WhatThePageSaysTests(LibraryTestCase):

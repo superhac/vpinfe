@@ -499,7 +499,7 @@ class BuildMetadataTests(_Replaced):
             playfieldvideoresolution="4k", update_downloaded=update_downloaded_art)
         parser = MagicMock()
         parser.single_file_extract.return_value = {"filename": f"{RENAMED}.vpx"}
-        with patch.object(metadata_service, "games_under", return_value=[game]), \
+        with patch("common.games.game_repository.all_games", return_value=[game]), \
                 patch.object(metadata_service, "VPSdb", return_value=vps), \
                 patch.object(metadata_service, "VPXParser", return_value=parser):
             metadata_service.build_metadata(update_all=True, iniconfig=self.config)

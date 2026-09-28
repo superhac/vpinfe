@@ -35,7 +35,6 @@ from common.games.info_file import VPINFE_SECTION, MetaConfig
 from common.games.vpx_parser import VPXParser
 from common.i18n import t
 from common.media_specs import media_filename_map
-from common.paths import get_games_path
 from common.uploads.asset_analyzer_service import (
     AnalysisResult,
     AssetSource,
@@ -273,7 +272,7 @@ def _new_games_under(location_id: str = "") -> str:
     Falls back to the root only where the location store has nothing to say, so an
     install that has not been through the seed still imports.
     """
-    from common.games.locations import destination, get_location_store
+    from common.games.locations import KIND_ROOT, configured, destination, get_location_store
 
     found = destination(location_id)
     if found.path:
@@ -285,7 +284,10 @@ def _new_games_under(location_id: str = "") -> str:
         raise ValueError(found.reason)
     # None at all, which is an install that has not been through the seed. It still has
     # to be able to import, and the configured root is where it always went.
-    return get_games_path()
+    unseeded = next((one.path for one in configured() if one.kind == KIND_ROOT), "")
+    if not unseeded:
+        raise ValueError(found.reason)
+    return unseeded
 
 
 def build_import_plan(analysis: AnalysisResult, *, game_dir: Path | None = None,

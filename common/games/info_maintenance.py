@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from common.failures import why
+from common.games import locations
 from common.games.collection_store import (
     COLLECTIONS_NAME,
     restorable_collections_backup,
@@ -48,8 +49,20 @@ class RestoreResult(TypedDict):
     collections_restored: bool
 
 
-def game_dirs(game_root: str | Path, game_name: str | None = None) -> list[Path]:
-    """Game folders under the root. Not load_games: that raises on the first bad `.info`."""
+def game_dirs(game_root: str | Path | None = None,
+              game_name: str | None = None) -> list[Path]:
+    """Game folders under the root, or in every library folder when given none. Not
+    load_games: that raises on the first bad `.info`."""
+    if game_root is None:
+        found: list[Path] = []
+        for location in locations.configured():
+            if location.kind != locations.KIND_GAME:
+                found += game_dirs(location.path, game_name)
+                continue
+            folder = Path(location.path)
+            if folder.is_dir() and game_name in (None, "", folder.name):
+                found.append(folder)
+        return found
     root = Path(game_root)
     if not root.is_dir():
         return []
@@ -78,7 +91,7 @@ def pending_upgrade(game_dir: str | Path) -> bool:
 
 
 def upgrade_library(
-    game_root: str | Path,
+    game_root: str | Path | None = None,
     game_name: str | None = None,
     progress_cb: ProgressCallback | None = None,
     log_cb: LogCallback | None = None,
@@ -136,7 +149,7 @@ def upgrade_library(
 
 
 def restore_library(
-    game_root: str | Path,
+    game_root: str | Path | None = None,
     game_name: str | None = None,
     max_schema: int = INFO_SCHEMA,
     config_dir: str | Path | None = None,

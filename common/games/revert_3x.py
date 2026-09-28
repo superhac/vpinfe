@@ -82,7 +82,7 @@ def running_instance(http_port: int, timeout: float = 1.0) -> bool:
     return isinstance(document, dict) and document.get("name") == "VPinFE"
 
 
-def reset(game_root: str | Path, config_dir: str | Path, *, http_port: int,
+def reset(game_root: str | Path | None, config_dir: str | Path, *, http_port: int,
           config_only: bool = False, dry_run: bool = False,
           progress_cb: ProgressCallback | None = None,
           log_cb: LogCallback | None = None) -> dict:
@@ -122,7 +122,7 @@ def reset(game_root: str | Path, config_dir: str | Path, *, http_port: int,
     return result
 
 
-def _reset_library(game_root: str | Path, result: dict, reporter: JobReporter,
+def _reset_library(game_root: str | Path | None, result: dict, reporter: JobReporter,
                    dry_run: bool) -> None:
     restorable, ours = _library_plan(game_root)
     result["deleted_info"] = sorted(game_dir.name for game_dir in ours)
@@ -177,7 +177,7 @@ def _keep_aside(config_dir: Path, result: dict) -> list[str]:
     return sorted(kept)
 
 
-def _library_plan(game_root: str | Path) -> tuple[list[Path], list[Path]]:
+def _library_plan(game_root: str | Path | None) -> tuple[list[Path], list[Path]]:
     """Which folders get their 2.x `.info` back, and which lose the one 3.0 made.
 
     A folder with no unversioned backup and a 2.x-shaped `.info` is left alone: nothing

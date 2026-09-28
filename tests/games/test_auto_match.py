@@ -92,8 +92,8 @@ class RebuildTests(TempTree):
         config["updates"] = {"update_downloaded_art": "false"}
         parser = MagicMock()
         parser.single_file_extract.return_value = {"filename": f"{FOLDER}.vpx"}
-        with patch.object(metadata_service, "games_under",
-                          return_value=[fake_game(folder, FOLDER)]), \
+        with patch("common.games.game_repository.all_games",
+                   return_value=[fake_game(folder, FOLDER)]), \
                 patch.object(metadata_service, "VPSdb", return_value=self.vps), \
                 patch.object(metadata_service, "VPXParser", return_value=parser):
             metadata_service.build_metadata(update_all=True, iniconfig=config)

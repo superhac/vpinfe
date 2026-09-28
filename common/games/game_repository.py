@@ -14,7 +14,6 @@ from time import perf_counter
 from typing import Any
 
 from common import events
-from common.config_store import ConfigStore
 from common.games import derived_tags, locations, unwritten
 from common.games.collection_store import CollectionStore
 from common.games.game import Game
@@ -131,25 +130,6 @@ def on_this_device(game: Any) -> Any | None:
     if str(getattr(game, "full_path_game", "") or ""):
         return game
     return game_by_id(vpinfe_id(game))
-
-
-def games_under(games_root: str, config: ConfigStore | None = None) -> list[Any]:
-    """The library at `games_root`, from the cache when that is the configured one.
-
-    Most callers want the library the app already has, and building a parser of their
-    own rescans everything - on a network share, the whole cold scan again each time.
-
-    A root that is none of the configured locations is genuinely a different library - a
-    report run against another folder, a test - so it gets its own parse rather than
-    quietly being answered with the wrong games.
-    """
-    wanted = str(games_root or "").strip()
-    if not wanted:
-        return all_games()
-    here = locations.canonical(wanted)
-    if any(locations.canonical(one.path) == here for one in locations.configured()):
-        return all_games()
-    return list(GameParser(wanted, config or get_ini_config()).get_all_games())
 
 
 def refresh_games() -> list[Any]:

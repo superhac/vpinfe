@@ -8,12 +8,19 @@ screen a lie, and they find out by looking for a game where they expected it.
 from __future__ import annotations
 
 import unittest
+from configparser import ConfigParser
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from common.games import locations
 from common.i18n import t
 from tests.support.skips import needs_posix_permissions
+
+
+def _configured_root(path: str) -> ConfigParser:
+    parser = ConfigParser()
+    parser["general"] = {"game_root_dir": path}
+    return parser
 
 
 class _Destinations(unittest.TestCase):
@@ -143,9 +150,18 @@ class ImportTests(_Destinations):
 
         self._save()
 
-        with patch("common.uploads.asset_import_service.get_games_path",
-                   return_value="/configured/root"):
+        with patch("common.paths.get_ini_config",
+                   return_value=_configured_root("/configured/root")):
             self.assertEqual(_new_games_under(), "/configured/root")
+
+    def test_with_nothing_configured_it_is_refused_rather_than_guessed(self) -> None:
+        from common.uploads.asset_import_service import _new_games_under
+
+        self._save()
+
+        with patch("common.paths.get_ini_config", return_value=_configured_root("")), \
+                self.assertRaises(ValueError):
+            _new_games_under()
 
 
 if __name__ == "__main__":

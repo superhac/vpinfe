@@ -15,7 +15,6 @@ from typing import Any
 
 from common import jobs
 from common.atomic_write import staged_for
-from common.config_access import SettingsConfig
 from common.config_store import ConfigStore
 from common.games import game_index_service, game_repository, info_maintenance, metadata_service
 from common.games.collection_store import CollectionStore
@@ -44,7 +43,7 @@ from common.games.tables import (
 from common.games.vpx_parser import VPXParser
 from common.i18n import t
 from common.jobs import LogCallback, ProgressCallback
-from common.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, get_games_path
+from common.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH
 
 logger = logging.getLogger("vpinfe.common.games.game_service")
 
@@ -71,7 +70,7 @@ def ensure_vpsdb_downloaded() -> bool:
     from common.online.vpsdb import VPSdb
     try:
         config = _fresh_config()
-        VPSdb(SettingsConfig.from_config(config).game_root_dir, config)
+        VPSdb(config)
         _vpsdb_cache = None
         return VPSDB_JSON_PATH.exists()
     except Exception as e:
@@ -463,7 +462,7 @@ def associate_vps_to_folder(
         from common.online.vpsdb import VPSdb
 
         config = _fresh_config()
-        vps = VPSdb(SettingsConfig.from_config(config).game_root_dir, config)
+        vps = VPSdb(config)
 
         # A Game with nothing resolved yet: the downloader reads the media paths to
         # see what is already on disk, and for a folder being associated the answer is
@@ -624,7 +623,7 @@ def upgrade_info(progress_cb: ProgressCallback | None = None,
     """Upgrade every game's .info in one pass."""
     return _as_a_job(
         lambda owned: info_maintenance.upgrade_library(
-            get_games_path(), game_name=game_name,
+            game_name=game_name,
             progress_cb=owned.progress, log_cb=owned.log,
             route_match=route_legacy_match),
         progress_cb, log_cb, job)
@@ -636,13 +635,13 @@ def restore_info(progress_cb: ProgressCallback | None = None,
     """Put back the .info files saved before upgrade, for every game that has one."""
     return _as_a_job(
         lambda owned: info_maintenance.restore_library(
-            get_games_path(), game_name=game_name, config_dir=CONFIG_DIR,
+            game_name=game_name, config_dir=CONFIG_DIR,
             progress_cb=owned.progress, log_cb=owned.log),
         progress_cb, log_cb, job)
 
 
 def apply_vpx_patches(progress_cb: ProgressCallback | None = None) -> None:
-    metadata_service.apply_vpx_patches(progress_cb=progress_cb, iniconfig=_fresh_config())
+    metadata_service.apply_vpx_patches(progress_cb=progress_cb)
 
 
 # The fields a caller may answer, by the name the wire uses. Where each is stored is

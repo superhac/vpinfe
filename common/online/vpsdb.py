@@ -76,9 +76,8 @@ class VPSdb:
     along with associated media assets via VPinMediaDB.
     """
 
-    # Declared, not defaulted: __init__ always sets all three, and `= None` gave every
-    # one of them a type it never actually holds.
-    root_game_dir: str
+    # Declared, not defaulted: __init__ always sets both, and `= None` gave each of
+    # them a type it never actually holds.
     data: list[dict]
     _vpinfe_config_store: ConfigStore
 
@@ -86,8 +85,7 @@ class VPSdb:
     VPS_DB_URL = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
     VPINMDB_URL = vpsdb_media.MANIFEST_URL
 
-    def __init__(self, root_game_dir: str,
-                 vpinfe_config_store: ConfigStore) -> None:
+    def __init__(self, vpinfe_config_store: ConfigStore) -> None:
         logger.info("Initializing VPSdb")
 
         self._vpinfe_config_store = vpinfe_config_store
@@ -100,7 +98,6 @@ class VPSdb:
             last_update_url=VPSdb.VPS_LAST_UPDATE_URL,
         )
         self._vpsdb_path = self._cache.path
-        self.root_game_dir = root_game_dir
         self.data = self._cache.ensure_current()
         logger.info("Total VPSdb entries: %s", len(self.data))
         self._write_manufacturer_reference()

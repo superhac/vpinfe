@@ -24,7 +24,7 @@ from common.media_specs import (
     resolve_media_entries,
     resolve_media_files,
 )
-from common.paths import CONFIG_DIR, get_games_path, get_ini_config
+from common.paths import CONFIG_DIR, get_ini_config
 
 logger = logging.getLogger("vpinfe.common.games.media_service")
 
@@ -304,12 +304,7 @@ def media_url_from_path(game_dir_name: str, source_path: str) -> str | None:
 
 
 def scan_media_games(reload: bool = False) -> list[dict]:
-    games_path = get_games_path()
     rows = []
-    if not os.path.exists(games_path):
-        logger.warning("Games path does not exist: %s. Skipping media scan.", games_path)
-        return []
-
     for game in all_games(reload=reload):
         root = game.full_path_game or ""
         if not root:

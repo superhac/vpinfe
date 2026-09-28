@@ -5,11 +5,10 @@ from __future__ import annotations
 import logging
 import os
 
-from common.config_access import SettingsConfig, cfg_bool
+from common.config_access import cfg_bool
 from common.config_store import ConfigStore
-from common.games import game_identity, media_fill
+from common.games import game_identity, game_repository, media_fill
 from common.games.game_metadata import effective_vps_id, record_vps_match, vps_matched_by
-from common.games.game_repository import games_under
 from common.games.info_file import MetaConfig
 from common.games.standalone_scripts import StandaloneScripts
 from common.games.vpx_parser import VPXParser
@@ -42,9 +41,7 @@ def build_metadata(
     not_found_games = 0
     parservpx = VPXParser()
 
-    settings = SettingsConfig.from_config(config)
-
-    games = games_under(settings.game_root_dir, config)
+    games = game_repository.all_games()
 
     if game_name:
         games = [game for game in games if game.game_dir_name == game_name]
@@ -55,7 +52,7 @@ def build_metadata(
 
     total = len(games)
 
-    vps = VPSdb(settings.game_root_dir, config)
+    vps = VPSdb(config)
     log(f"Found {len(vps)} tables in VPSdb")
 
     refresh_art = None
@@ -145,9 +142,6 @@ def build_metadata(
     return {"found": total, "not_found": not_found_games}
 
 
-def apply_vpx_patches(progress_cb: ProgressCallback | None = None,
-                      iniconfig: ConfigStore | None = None) -> None:
-    config = _config(iniconfig)
-    settings = SettingsConfig.from_config(config)
-    games = games_under(settings.game_root_dir, config)
+def apply_vpx_patches(progress_cb: ProgressCallback | None = None) -> None:
+    games = game_repository.all_games()
     StandaloneScripts(games, progress_cb=progress_cb)
