@@ -1469,6 +1469,8 @@
   "console.record.replaces_none": "řèþŀàçèš ñöñè",
   "console.record.replaces_some_yours": "řèþŀàçèš {count}, {yours} öƒ ţĥèɱ ýöûřš",
   "console.record.replaces_yours": "řèþŀàçèš {count} öƒ ýöûřš",
+  "console.record.review": "Řèṽîèŵ",
+  "console.record.review_at": "{at} öƒ {of}",
   "console.record.review_title": "Řèçöřđèđ ƒöř “{name}”",
   "console.record.run_paused": "Řèçöřđîñĝ þàûšèđ àţ {at} öƒ {of}",
   "console.record.run_recorded": {
@@ -1483,6 +1485,8 @@
   "console.record.said_detail": "{said} ({detail})",
   "console.record.save_defaults": "Šàṽè àš Đèṽîçè Đèƒàûŀţš",
   "console.record.saved_defaults": "Šàṽèđ àš ţĥîš đèṽîçè'š đèƒàûŀţš",
+  "console.record.skip": "Šķîþ",
+  "console.record.stop": "Šţöþ",
   "console.record.table_running": "À ţàƀŀè îš řûññîñĝ öñ ţĥîš đèṽîçè",
   "console.record.title": "Řèçöřđ Ḿèđîà ƒöř “{name}”",
   "console.record.title_games": {

@@ -785,9 +785,8 @@ class _Slot(_OneFile):
             with busy.held(made):
                 ran = await record.ended(library, str(job.get("id") or ""))
             now["busy"] = False
-            name = str(self.context["game"].get("name") or "")
             if self.dialog.is_deleted or not self.dialog.value:
-                await record.say(library, ran, name, self.done)
+                await record.say(library, ran, self.done)
                 return
             self.dialog.props(remove="persistent")
             draw_top()

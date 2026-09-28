@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 from collections.abc import Callable, Sequence
+from functools import partial
 from typing import Any, Literal
 
 from nicegui import ui
@@ -313,12 +314,11 @@ def setting_rows(held: Settings, report: dict[str, Any], changed: Callable[[], A
 
 
 @on_page
-async def ask(library: Any, named: Sequence[Target], name: str, title: str,
+async def ask(library: Any, named: Sequence[Target], title: str,
               state: dict[str, Any], then: Callable[[], Any], *,
               only: Sequence[str] | None = None) -> None:
-    """The Record dialog for these games or tables, then the recording. `name` is the
-    game's where there is one, for what is said when it ends. `only` ticks those kinds
-    and no others, leaving what this browser keeps for the rest alone."""
+    """The Record dialog for these games or tables, then the recording. `only` ticks
+    those kinds and no others, leaving what this browser keeps for the rest alone."""
     kinds = order(set(library.kept_kinds().get("media") or ()) or None)
     try:
         report, schema, values, playing = await asyncio.gather(
@@ -346,7 +346,7 @@ async def ask(library: Any, named: Sequence[Target], name: str, title: str,
     if only is None:
         remembered.put(TICKS, remember(remembered_ticks, chosen, slots))
     if len(named) == 1:
-        await _start(library, answer, name, state, then)
+        await _start(library, answer, state, then)
     else:
         await _start_run(library, answer, state, then)
 
@@ -496,7 +496,7 @@ def menu_entry(library: Any, label: str, run: Callable[[], Any]) -> None:
 
 
 @on_page
-async def _start(library: Any, body: dict[str, Any], name: str, state: dict[str, Any],
+async def _start(library: Any, body: dict[str, Any], state: dict[str, Any],
                  then: Callable[[], Any]) -> None:
     try:
         job = await offload.io(library.start_capture, body)
@@ -506,7 +506,7 @@ async def _start(library: Any, body: dict[str, Any], name: str, state: dict[str,
     watch = state.get("watch_jobs")
     if callable(watch):
         watch()
-    await finished(library, str(job.get("id") or ""), name, then)
+    await finished(library, str(job.get("id") or ""), then)
 
 
 async def ended_job(library: Any, job_id: str, *, every: float = _POLL_S,
@@ -554,8 +554,8 @@ async def _start_run(library: Any, body: dict[str, Any], state: dict[str, Any],
 async def follow_run(library: Any, job_id: str, state: dict[str, Any],
                      then: Callable[[], Any]) -> None:
     """Wait for a run's job, however long, and say how it ended."""
-    await say_run(await ended_job(library, job_id, every=_RUN_POLL_S, polls=_RUN_POLLS),
-                  state, then)
+    await say_run(library, await ended_job(library, job_id, every=_RUN_POLL_S,
+                                           polls=_RUN_POLLS), state, then)
 
 
 def waiting(run: dict[str, Any]) -> tuple[str, str]:
@@ -620,9 +620,10 @@ def run_outcome(result: dict[str, Any]) -> tuple[str, Level, str]:
 
 
 @on_page
-async def say_run(result: dict[str, Any], state: dict[str, Any],
+async def say_run(library: Any, result: dict[str, Any], state: dict[str, Any],
                   then: Callable[[], Any]) -> None:
-    """The end of a run of many: one notice, with Show where anything was placed."""
+    """The end of a run of many: one notice, with Review where it ended leaving
+    recordings for a decision, else Show where anything was placed."""
     if not result:
         return
     if "error" in result:
@@ -630,9 +631,15 @@ async def say_run(result: dict[str, Any], state: dict[str, Any],
                   type="negative")
         return
     said, level, caption = run_outcome(result)
-    placed = any(one.get("placed") for one in result.get("tables") or [])
+    tables = list(result.get("tables") or [])
+    placed = any(one.get("placed") for one in tables)
+    waiting = [] if (result.get("run") or {}).get("state") == "paused" else [
+        str(one.get("id") or "") for table in tables for one in table.get("proposed") or []]
     show = state.get("show_recorded")
-    if placed and callable(show):
+    if waiting:
+        undo.act(said, t("console.record.review"), lambda: review(library, then, waiting),
+                 warn=level != "positive", caption=caption)
+    elif placed and callable(show):
         undo.act(said, t("console.page.show"), show, warn=level != "positive",
                  caption=caption)
     else:
@@ -642,18 +649,16 @@ async def say_run(result: dict[str, Any], state: dict[str, Any],
 
 
 @on_page
-async def finished(library: Any, job_id: str, name: str,
-                   then: Callable[[], Any]) -> dict[str, Any]:
+async def finished(library: Any, job_id: str, then: Callable[[], Any]) -> dict[str, Any]:
     """Wait for a recording's job and say what it did. Answers the table's outcome, {}
     where the job failed."""
     ran = await ended(library, job_id)
-    await say(library, ran, name, then)
+    await say(library, ran, then)
     return {} if "error" in ran else ran
 
 
 @on_page
-async def say(library: Any, ran: dict[str, Any], name: str,
-              then: Callable[[], Any]) -> None:
+async def say(library: Any, ran: dict[str, Any], then: Callable[[], Any]) -> None:
     """The end of one table's recording: the notice, the panel read again where files were
     placed, and the review of what was kept for a decision."""
     if not ran:
@@ -668,7 +673,7 @@ async def say(library: Any, ran: dict[str, Any], name: str,
         await _call(then)
     proposed = [str(one.get("id") or "") for one in ran.get("proposed") or []]
     if proposed:
-        await review(library, name, proposed, then)
+        await review(library, then, proposed)
 
 
 async def _call(then: Callable[[], Any]) -> None:
@@ -723,33 +728,96 @@ def outcome(ran: dict[str, Any]) -> tuple[str, Level, str]:
     return recorded, "positive", ""
 
 
+def grouped(rows: Sequence[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """Recordings waiting, a game at a time and a table apart from its game, in the
+    order the first of each was kept; on each, window by window."""
+    pages: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for row in rows:
+        pages.setdefault((str(row.get("game_id") or ""), str(row.get("table_id") or "")),
+                         []).append(row)
+    rank = {kind: at for at, kind in enumerate(order())}
+    return [sorted(page, key=lambda row: rank.get(str(row.get("kind") or ""), len(rank)))
+            for page in pages.values()]
+
+
+SKIP, NEXT, DONE = "skip", "next", "done"
+
+
+def onward(at: int, of: int, settled: bool) -> str:
+    """The way on from a review's game: Done from the last, Next once every file on it
+    is decided, and Skip before that."""
+    if at >= of - 1:
+        return DONE
+    return NEXT if settled else SKIP
+
+
 @on_page
-async def review(library: Any, name: str, proposed: Sequence[str],
-                 then: Callable[[], Any]) -> None:
-    """The recordings kept for a decision, each beside the file its slot holds now."""
+async def review(library: Any, then: Callable[[], Any],
+                 proposed: Sequence[str] | None = None) -> None:
+    """The recordings kept for a decision, a game at a time, each beside the file its
+    slot holds now; `proposed` narrows them to those. `then` runs once the review closes
+    where any was used."""
     try:
         listing = await offload.io(library.capture_proposals)
     except Exception as exc:  # noqa: BLE001 - they still wait on the device
         ui.notify(t("console.record.could_not_read_waiting"), caption=why(exc),
                   type="warning")
         return
-    rows = [row for row in listing.get("proposals") or [] if row.get("id") in proposed]
-    if not rows:
+    pages = grouped([row for row in listing.get("proposals") or []
+                     if proposed is None or row.get("id") in proposed])
+    if not pages:
         return
-    used: list[bool] = []
+    many = len(pages) > 1
+    now: dict[str, Any] = {"at": 0, "decided": set(), "used": False}
 
-    def decided(use: bool) -> None:
-        used.append(use)
+    def decided(proposal_id: str, use: bool) -> None:
+        now["decided"].add(proposal_id)
+        now["used"] = now["used"] or use
+        foot()
 
-    with frame.opened(t("console.record.review_title", name=name), wide=True,
-                      persistent=True) as box:
-        with ui.column().classes("w-full gap-2 px-3"):
-            for row in rows:
-                proposal(library, row, decided)
+    def foot() -> None:
+        way = onward(now["at"], len(pages),
+                     all(row.get("id") in now["decided"] for row in pages[now["at"]]))
+        stop.set_visibility(way != DONE)
+        skip.set_visibility(way == SKIP)
+        ahead.set_visibility(way == NEXT)
+        done.set_visibility(way == DONE)
+
+    def draw() -> None:
+        page = pages[now["at"]]
+        title.set_text(t("console.record.review_title", name=str(page[0].get("name") or "")))
+        if many:
+            bar.set_value((now["at"] + 1) / len(pages))
+            place.set_text(t("console.record.review_at", at=now["at"] + 1, of=len(pages)))
+        body.clear()
+        with body:
+            for row in page:
+                proposal(library, row, partial(decided, str(row.get("id") or "")))
+        foot()
+
+    def on() -> None:
+        now["at"] += 1
+        draw()
+        ui.run_javascript(f"document.getElementById('c{body.id}')?.scrollTo(0, 0)")
+
+    with frame.opened("", wide=True, persistent=True,
+                      classes="console-dialog--series" if many else "") as box:
+        title = ui.label("").classes("console-dialog-title")
+        if many:
+            with ui.row().classes("w-full items-center gap-3 no-wrap px-3 pb-2"):
+                bar = ui.linear_progress(value=0, show_value=False).props("rounded") \
+                    .classes("grow")
+                place = ui.label("").classes("console-help whitespace-nowrap shrink-0")
+        body = ui.column().classes("w-full gap-2 px-3 no-wrap console-series-body")
         with frame.footer():
-            frame.answer(t("word.done"), lambda: box.submit(True), icon=verbs.DONE)
+            stop = frame.quiet(t("console.record.stop"), lambda: box.submit(True),
+                               icon=verbs.STOP)
+            skip = frame.quiet(t("console.record.skip"), on, icon=verbs.SKIP)
+            ahead = frame.answer(t("word.next"), on, icon=verbs.NEXT)
+            done = frame.answer(t("word.done"), lambda: box.submit(True), icon=verbs.DONE)
+        draw()
     await box
-    if any(used):
+    if now["used"]:
         await _call(then)
 
 

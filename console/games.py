@@ -630,8 +630,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         name = str(games[0].get("name") or "") if len(games) == 1 else ""
         title = t("console.record.title", name=name) if name \
             else t("console.record.title_games", count=len(games))
-        await recorder.ask(library, [(game_id, "") for game_id in ids], name, title, state,
-                           placed)
+        await recorder.ask(library, [(game_id, "") for game_id in ids], title, state, placed)
 
     async def fill_bulk() -> None:
         chosen = grid.selection(table)
@@ -1343,7 +1342,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                   table=game_tables.table_name(one)) if one \
             else t("console.record.title_tables", count=len(tables))
         await recorder.ask(library, [(str(row["game_id"]), str(row["id"])) for row in tables],
-                           name, title, state, placed)
+                           title, state, placed)
 
     async def fill_bulk() -> None:
         chosen = grid.selection(table)

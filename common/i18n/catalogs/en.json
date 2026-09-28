@@ -1469,6 +1469,8 @@
   "console.record.replaces_none": "replaces none",
   "console.record.replaces_some_yours": "replaces {count}, {yours} of them yours",
   "console.record.replaces_yours": "replaces {count} of yours",
+  "console.record.review": "Review",
+  "console.record.review_at": "{at} of {of}",
   "console.record.review_title": "Recorded for “{name}”",
   "console.record.run_paused": "Recording paused at {at} of {of}",
   "console.record.run_recorded": {
@@ -1483,6 +1485,8 @@
   "console.record.said_detail": "{said} ({detail})",
   "console.record.save_defaults": "Save as Device Defaults",
   "console.record.saved_defaults": "Saved as this device's defaults",
+  "console.record.skip": "Skip",
+  "console.record.stop": "Stop",
   "console.record.table_running": "A table is running on this device",
   "console.record.title": "Record Media for “{name}”",
   "console.record.title_games": {

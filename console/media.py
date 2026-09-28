@@ -244,8 +244,8 @@ def build(found: list[dict[str, Any]], library: Any,
             name = str(picked[0].get("game") or "") if len(ids) == 1 else ""
             title = t("console.record.title_missing_one", name=name) if name \
                 else t("console.record.title_missing", count=len(ids))
-            await recorder.ask(library, [(game_id, "") for game_id in ids], name, title,
-                               state, placed, only=gaps)
+            await recorder.ask(library, [(game_id, "") for game_id in ids], title, state,
+                               placed, only=gaps)
 
         with actions:
             with ui.menu():

@@ -255,20 +255,20 @@ class EndTests(unittest.IsolatedAsyncioTestCase):
         then = mock.AsyncMock()
 
         with mock.patch.object(record, "review", mock.AsyncMock()) as review:
-            table = await record.finished(library, "j1", "Attack from Mars", then)
+            table = await record.finished(library, "j1", then)
 
         self.assertEqual(table["state"], "recorded")
         said = self.ui.notify.call_args
         self.assertEqual((said.args[0], said.kwargs["type"]),
                          ("Recorded 2 files, 1 failed", "warning"))
         then.assert_awaited_once()
-        review.assert_awaited_once_with(library, "Attack from Mars", ["a1"], then)
+        review.assert_awaited_once_with(library, then, ["a1"])
 
     async def test_a_job_that_failed_says_so_and_reviews_nothing(self) -> None:
         library = Library([{"state": "failed", "error": "A table is already launching"}])
 
         with mock.patch.object(record, "review", mock.AsyncMock()) as review:
-            self.assertEqual(await record.finished(library, "j1", "Name", mock.Mock()), {})
+            self.assertEqual(await record.finished(library, "j1", mock.Mock()), {})
 
         self.assertEqual(self.ui.notify.call_args.args[0], "Couldn't record")
         review.assert_not_awaited()

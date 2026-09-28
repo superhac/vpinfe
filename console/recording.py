@@ -11,7 +11,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from nicegui import ui
+from nicegui import run, ui
 
 from common import config_schema
 from common.capture import commands, preflight, trial
@@ -212,11 +212,25 @@ def _waiting(library: Any, rerender: Callable[[], None],
             return
         rerender()
 
+    games = {str(row.get("game_id") or "") for row in waiting.get("proposals") or []}
+
+    async def used() -> None:
+        await run.io_bound(library.reread_media, games)
+
+    @on_page
+    async def review() -> None:
+        from console import record  # record imports this module
+
+        await record.review(library, used)
+        rerender()
+
     def draw() -> None:
         with ui.element("div").classes("console-fact-edit"):
             ui.label(t("console.recording.waiting_are", count=count,
                        size=size(int(waiting.get("bytes") or 0)))) \
                 .classes("console-fact-value truncate min-w-0")
+            panel.action(t("console.record.review"), review, icon=verbs.REVIEW,
+                         inline=True)()
             panel.action(t("console.recording.discard_all"), discard, icon=verbs.DISCARD,
                          inline=True)()
 

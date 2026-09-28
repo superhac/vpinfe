@@ -1741,7 +1741,7 @@ def _record_media(context: dict[str, Any],
     return panel.action(t("console.record.record_media"),
                         lambda: recorder.ask(context["library"],
                                              [(context["game_id"], context["lens"] or "")],
-                                             name, title, context["state"], placed),
+                                             title, context["state"], placed),
                         icon=verbs.RECORD, enabled=bool(able.get("available")),
                         hint=str(able.get("reason") or ""))
 
