@@ -527,7 +527,8 @@ class PlayerAccount(ApiModel):
     says whether a card can be made for this player now. `error` is why the extension
     could not answer, and the rest is then empty. `share_help` is what the extension says
     Share does with this account, empty where it says nothing. `reads_cards` says whether
-    a card can be used for it."""
+    a card can be used for it. `waiting` is the same fact `status` puts into words, as a
+    plain boolean."""
 
     extension: str
     label: str = ""
@@ -535,6 +536,7 @@ class PlayerAccount(ApiModel):
     share_help: str = ""
     fields: list[dict[str, Any]] = Field(default_factory=list)
     status: str = ""
+    waiting: bool = False
     acts: list[AccountAct] = Field(default_factory=list)
     card: bool = False
     reads_cards: bool = False

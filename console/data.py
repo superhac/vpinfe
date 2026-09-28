@@ -546,6 +546,9 @@ class Library:
     def player_card(self, player_id: str, extension: str) -> bytes:
         return self._client.player_card(player_id, extension)
 
+    def player_rating(self, player_id: str, game_id: str, rating: int) -> None:
+        self._client.player_rating(player_id, game_id, rating)
+
     def locations(self) -> dict:
         """Read fresh every time, for the reason launchers are - this page edits it, and
         what the disk says can change without anybody editing anything."""

@@ -921,6 +921,11 @@ class ApiClient:
         self._answered(response)
         return response.content
 
+    def player_rating(self, player_id: str, game_id: str, rating: int) -> None:
+        """A rating for a player other than the owner. `rate()` above is the owner's."""
+        self._put(f"/players/{quote(player_id, safe='')}/ratings/{quote(game_id, safe='')}",
+                  {"rating": rating})
+
     # --- imports ------------------------------------------------------------
     # The files themselves are uploaded by the browser straight to the API, so nothing
     # streams through here. What the Console does is the three steps after that: read

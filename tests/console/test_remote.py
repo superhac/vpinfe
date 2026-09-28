@@ -6,6 +6,7 @@ import ast
 import json
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from console import remote
 from console.api import _lines, read_frames
@@ -295,3 +296,220 @@ class WritesGoToTheTargetTests(unittest.TestCase):
         for relative in ("console/remote.py", "console/remote_record.py"):
             with self.subTest(relative):
                 self.assertEqual(self._unaimed_clients(relative), [])
+
+
+def _player(player_id: str, **rest) -> dict:
+    return {"id": player_id, "name": "", "initials": "", "owner": False,
+            "guest": False, "up": False} | rest
+
+
+class IdentityTests(unittest.TestCase):
+    """Who a phone is answering for: nobody said behaves as the owner, and everyone
+    else is a rating and a favorite going to the wrong place away from that."""
+
+    def test_nobody_said_is_not_someone_else(self) -> None:
+        self.assertFalse(remote.is_someone_else(None))
+
+    def test_the_owner_would_not_be_someone_else_either(self) -> None:
+        # Never actually reached - the owner is always `None` here - but the function
+        # itself should answer the same either way, not just for the identity the app
+        # happens to produce.
+        self.assertFalse(remote.is_someone_else(_player("own", owner=True)))
+
+    def test_a_kept_player_and_a_guest_are_both_someone_else(self) -> None:
+        self.assertTrue(remote.is_someone_else(_player("kid")))
+        self.assertTrue(remote.is_someone_else(_player("vis", guest=True)))
+
+    def test_a_stale_remembered_id_resolves_to_nobody(self) -> None:
+        """A kept player removed, or a guest signed out, elsewhere leaves nothing for
+        the id to resolve to - and a stale answer must not go on editing somebody's
+        record once they are no longer on the roster."""
+        with mock.patch.object(remote.remembered, "get", return_value={"player_id": "gone"}):
+            found = remote.remembered_identity(_device("here"), [_player("kid")])
+
+        self.assertIsNone(found)
+
+    def test_a_held_id_still_on_the_roster_resolves(self) -> None:
+        with mock.patch.object(remote.remembered, "get", return_value={"player_id": "kid"}):
+            found = remote.remembered_identity(_device("here"), [_player("kid")])
+
+        self.assertEqual(found["id"], "kid")
+
+    def test_nothing_remembered_is_nobody_said(self) -> None:
+        with mock.patch.object(remote.remembered, "get", return_value=None):
+            found = remote.remembered_identity(_device("here"), [_player("kid")])
+
+        self.assertIsNone(found)
+
+    def test_storage_is_keyed_by_target_so_two_targets_hold_different_answers(self) -> None:
+        self.assertNotEqual(remote._identity_key(_device("a")), remote._identity_key(_device("b")))
+
+
+class RatingOfTests(unittest.TestCase):
+    """The stars shown while browsing: the library's for the owner, a player's own
+    record for anyone else - never read from the field the other one writes."""
+
+    GAME = {"id": "g1", "user": {"rating": 4}}
+
+    def test_nobody_said_reads_the_librarys_rating(self) -> None:
+        self.assertEqual(remote._rating_of("g1", self.GAME, None, {"g1": {"rating": 2}}), 4)
+
+    def test_a_kept_player_reads_their_own_record_not_the_library(self) -> None:
+        self.assertEqual(
+            remote._rating_of("g1", self.GAME, _player("kid"), {"g1": {"rating": 2}}), 2)
+
+    def test_a_game_not_in_their_record_is_unrated_to_them(self) -> None:
+        self.assertEqual(remote._rating_of("g1", self.GAME, _player("kid"), {}), 0)
+
+
+class VisibleUpTests(unittest.TestCase):
+    """Which of who was up belongs on this phone's result card."""
+
+    UP = [_player("own", owner=True), _player("kid"), _player("vis", guest=True)]
+
+    def test_nobody_said_sees_everyone_in_order(self) -> None:
+        self.assertEqual([p["id"] for p in remote._visible_up(None, self.UP)],
+                         ["own", "kid", "vis"])
+
+    def test_a_kept_player_sees_theirs_first_then_the_rest(self) -> None:
+        found = remote._visible_up(_player("kid"), self.UP)
+
+        self.assertEqual([p["id"] for p in found], ["kid", "own", "vis"])
+
+    def test_a_guest_sees_only_theirs(self) -> None:
+        found = remote._visible_up(_player("vis", guest=True), self.UP)
+
+        self.assertEqual([p["id"] for p in found], ["vis"])
+
+    def test_a_kept_player_not_part_of_this_play_sees_nothing(self) -> None:
+        """The same reason a guest sees nothing of somebody else's - a household
+        member's phone does not become a window onto a play they were not part of."""
+        found = remote._visible_up(_player("someone_else"), self.UP)
+
+        self.assertEqual(found, [])
+
+    def test_a_guest_not_part_of_this_play_sees_nothing(self) -> None:
+        found = remote._visible_up(_player("another_guest", guest=True), self.UP)
+
+        self.assertEqual(found, [])
+
+
+class SendStatusTests(unittest.TestCase):
+    """What an account did with a game just played, from what it holds locally - never
+    a fact this install's own books can settle by asking the far end again."""
+
+    def test_an_account_not_sharing_says_nothing(self) -> None:
+        self.assertEqual(
+            remote._send_status({"share": False, "waiting": True}, credited=True,
+                                several_up=False), "")
+
+    def test_sharing_and_credited_and_nothing_waiting_is_sent(self) -> None:
+        said = remote._send_status({"share": True, "waiting": False, "label": "VPinPlay"},
+                                   credited=True, several_up=False)
+
+        self.assertEqual(said, "Sent to VPinPlay")
+
+    def test_sharing_and_waiting_is_waiting_even_if_credited(self) -> None:
+        said = remote._send_status({"share": True, "waiting": True, "label": "VPinPlay"},
+                                   credited=True, several_up=False)
+
+        self.assertEqual(said, "Waiting to send")
+
+    def test_alone_and_not_credited_is_still_sent(self) -> None:
+        """Nobody else was up, so there was only one player this send could ever have
+        been for - not being the one credited does not mean anything was refused."""
+        said = remote._send_status({"share": True, "waiting": False, "label": "VPinPlay"},
+                                   credited=False, several_up=False)
+
+        self.assertEqual(said, "Sent to VPinPlay")
+
+    def test_several_up_and_not_credited_is_not_sent(self) -> None:
+        said = remote._send_status({"share": True, "waiting": False, "label": "VPinPlay"},
+                                   credited=False, several_up=True)
+
+        self.assertEqual(said, "Not sent: VPinPlay takes one player per game")
+
+    def test_the_label_falls_back_to_the_extension_name(self) -> None:
+        said = remote._send_status({"share": True, "waiting": False, "extension": "vpinplay"},
+                                   credited=True, several_up=False)
+
+        self.assertEqual(said, "Sent to vpinplay")
+
+
+class PlayRecordedTests(unittest.IsolatedAsyncioTestCase):
+    """`table.play_recorded`: the result card built for whoever of who was up belongs
+    on this phone, with what each of their sharing accounts did with it."""
+
+    def setUp(self) -> None:
+        self.enterContext(mock.patch.object(remote.offload, "io", mock.AsyncMock(
+            side_effect=lambda call, *a, **kw: call(*a, **kw))))
+        self.accounts: dict[str, list[dict]] = {}
+        self.redraw = mock.Mock()
+
+    def _client(self):
+        accounts = self.accounts
+
+        class _C:
+            def player_accounts(self, player_id: str) -> list[dict]:
+                return accounts.get(player_id, [])
+
+        return lambda: _C()
+
+    async def _fire(self, state: dict, payload: dict) -> None:
+        await remote._play_recorded(state, payload, self._client(), self.redraw)
+
+    async def test_a_private_game_reports_no_send_status(self) -> None:
+        self.accounts["kid"] = [{"share": True, "waiting": False, "label": "VPinPlay"}]
+        state = {"identity": None, "screen": remote.NOW}
+
+        await self._fire(state, {"up": [_player("kid")], "private": True,
+                                 "new_entries": [], "game": {"id": "g1", "name": "Alpha"}})
+
+        self.assertEqual(state["result"]["players"][0]["statuses"], [])
+
+    async def test_a_credited_solo_play_carries_the_score_line_and_is_sent(self) -> None:
+        self.accounts["kid"] = [{"share": True, "waiting": False, "label": "VPinPlay"}]
+        state = {"identity": None, "screen": remote.NOW}
+        entry = {"score": 12345, "text": "12,345"}
+
+        await self._fire(state, {
+            "up": [_player("kid")], "private": False,
+            "new_entries": [{"player": {"id": "kid"}, "entries": [entry]}],
+            "game": {"id": "g1", "name": "Alpha"}})
+
+        row = state["result"]["players"][0]
+        self.assertIn("12,345", row["entry"])
+        self.assertEqual(row["statuses"], ["Sent to VPinPlay"])
+
+    async def test_the_second_of_two_up_uncredited_is_not_sent(self) -> None:
+        self.accounts["own"] = [{"share": True, "waiting": False, "label": "VPinPlay"}]
+        self.accounts["kid"] = [{"share": True, "waiting": False, "label": "VPinPlay"}]
+        state = {"identity": None, "screen": remote.NOW}
+
+        await self._fire(state, {
+            "up": [_player("own", owner=True), _player("kid")], "private": False,
+            "new_entries": [{"player": {"id": "own"}, "entries": [{"score": 1, "text": "1"}]}],
+            "game": {"id": "g1", "name": "Alpha"}})
+
+        rows = {row["player"]["id"]: row for row in state["result"]["players"]}
+        self.assertEqual(rows["own"]["statuses"], ["Sent to VPinPlay"])
+        self.assertEqual(rows["kid"]["statuses"],
+                         ["Not sent: VPinPlay takes one player per game"])
+
+    async def test_a_guest_whose_own_phone_was_not_part_of_the_play_gets_no_card(self) -> None:
+        state = {"identity": _player("someone_else", guest=True), "screen": remote.NOW}
+        before = state.get("result")
+
+        await self._fire(state, {"up": [_player("kid")], "private": False,
+                                 "new_entries": [], "game": {"id": "g1", "name": "Alpha"}})
+
+        self.assertEqual(state.get("result"), before)
+
+    async def test_now_open_redraws_but_another_screen_does_not(self) -> None:
+        state = {"identity": None, "screen": remote.PLAY}
+
+        await self._fire(state, {"up": [_player("kid")], "private": False,
+                                 "new_entries": [], "game": {"id": "g1", "name": "Alpha"}})
+
+        self.assertIsNotNone(state.get("result"))
+        self.redraw.assert_not_called()

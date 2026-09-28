@@ -19,7 +19,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from io import BytesIO
 from typing import Any
 
@@ -31,14 +32,27 @@ from common.failures import why
 from common.host.launch_state import SOURCE_CAPTURE
 from common.i18n import t
 from common.labels import humanize
-from console import busy, game_tables, offload, remote_record, stars, theme, verbs
+from console import (
+    busy,
+    confirm,
+    game_tables,
+    offload,
+    panel,
+    remembered,
+    remote_record,
+    stars,
+    theme,
+    verbs,
+)
 from console import dialog as frame
 from console.api import ApiClient, ApiError, local_base_url
+from console.data import Library
 from console.on_page import on_page
+from console.players import CARD_FILES, kind_of, save_card, share_help, shown_name
 
 logger = logging.getLogger("vpinfe.console.remote")
 
-NOW, PLAY, CONTROL = "now", "play", "control"
+NOW, PLAY, CONTROL, JOIN = "now", "play", "control", "join"
 
 SCREENS = (
     (NOW, t("word.now"), "radio_button_checked"),
@@ -99,6 +113,35 @@ def target_name(device: dict[str, Any]) -> str:
     return str(device.get("display_name") or "").strip() or t("console.remote.this_device")
 
 
+def _identity_key(device: dict[str, Any]) -> str:
+    """Per browser and per target: a phone aimed at two installs can hold a
+    different answer to who is holding it on each."""
+    return f"remote.who.{str(device.get('device_id') or '').strip() or 'here'}"
+
+
+def remembered_identity(device: dict[str, Any],
+                        roster: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Who this phone said it is for the target it is aimed at now, or None - nobody
+    said, which behaves as the owner.
+
+    Checked against the roster on every read rather than trusted: a kept player removed,
+    or a guest signed out, elsewhere leaves nothing for a stale id to resolve to.
+    """
+    wanted = str((remembered.get(_identity_key(device)) or {}).get("player_id") or "").strip()
+    if not wanted:
+        return None
+    return next((one for one in roster if one.get("id") == wanted), None)
+
+
+def remember_identity(device: dict[str, Any], player_id: str) -> None:
+    remembered.put(_identity_key(device), {"player_id": player_id} if player_id else None)
+
+
+def is_someone_else(identity: dict[str, Any] | None) -> bool:
+    """Whether the phone is answering for anyone other than the owner."""
+    return identity is not None and not identity.get("owner")
+
+
 def last_played(games: list[dict[str, Any]]) -> dict[str, Any]:
     """The game played most recently, or nothing where none has been.
 
@@ -141,6 +184,7 @@ def _read_target(client: ApiClient) -> dict[str, Any]:
         "jobs": client.jobs(),
         "collections": client.collections(),
         "frontend": showing,
+        "players": client.players(),
         **remote_record.read(client),
     }
     if mirroring(showing):
@@ -164,9 +208,12 @@ def _narrowed_to(client: ApiClient, collection: str) -> dict[str, Any]:
     return {"collection": collection, "collection_ids": ids}
 
 
-# Each carries the whole state, so a phone that missed one is right after the next.
+# The first three carry the whole state, so a phone that missed one is right after the
+# next. `table.play_recorded` does not - it says what one play came to, and a phone that
+# missed it finds out on the next one instead, which is a fact about that play, not
+# something to resync.
 FOLLOWED = (events.FRONTEND_STATE_CHANGED, events.PLAY_STATE_CHANGED,
-            events.CAPTURE_RUN_CHANGED)
+            events.CAPTURE_RUN_CHANGED, events.PLAYERS_CHANGED, events.TABLE_PLAY_RECORDED)
 
 RECONNECT_SECONDS = 5.0
 
@@ -268,17 +315,42 @@ async def remote_page(screen: str = "") -> None:
     local_device_id = loaded["local_device_id"]
     aimable = targets(loaded["devices"], local_device_id)
     state: dict[str, Any] = {
-        "screen": screen if screen in {key for key, *_ in SCREENS} else NOW,
+        "screen": screen if screen in {key for key, *_ in SCREENS} | {JOIN} else NOW,
         "target": aimable[0] if aimable else {},
         "play": {}, "games": [], "jobs": [], "collections": [],
         "find": "", "collection": "", "collection_ids": None,
         "frontend": None, "rows": {}, "relist": None,
         "capture": None, "run": {}, "waiting": [], "reviewing": None,
+        "players": [], "identity": None, "record": {}, "accounts": [], "result": None,
     }
 
     def client_for_target() -> ApiClient:
         """A client aimed at whichever target is chosen. The picker is a base URL."""
         return ApiClient(base_url_of(state["target"], local_device_id) or None)
+
+    async def reread_identity() -> None:
+        """Who this phone is for the target now, and what goes with that: their own
+        record, so a rating shown while browsing is theirs, and their accounts, for the
+        identity sheet's Share and Save Card. Cleared, not failed, when there is nobody -
+        that is the ordinary case, not an error."""
+        state["identity"] = remembered_identity(state["target"], state["players"] or [])
+        identity = state["identity"]
+        if identity is None:
+            state["record"], state["accounts"] = {}, []
+            return
+        try:
+            state["record"] = {row["game_id"]: row for row in
+                               await offload.io(client_for_target().player_record,
+                                                identity["id"])}
+            if identity.get("guest"):
+                state["accounts"] = await offload.io(
+                    client_for_target().player_accounts, identity["id"])
+            else:
+                state["accounts"] = []
+        except Exception as exc:
+            logger.info("remote: could not read %s's record: %s",
+                        shown_name(identity), exc)
+            state["record"], state["accounts"] = {}, []
 
     async def reread() -> None:
         """Ask the chosen machine again. Failure is a state, not a crash: a target that
@@ -293,7 +365,11 @@ async def remote_page(screen: str = "") -> None:
                         target_name(state["target"]), exc)
             state.update({"play": {}, "games": [], "jobs": [], "collections": [],
                           "frontend": None, "reachable": False, "capture": None,
-                          "run": {}, "waiting": [], "reviewing": None})
+                          "run": {}, "waiting": [], "reviewing": None,
+                          "players": [], "identity": None, "record": {}, "accounts": []})
+            follow()
+            return
+        await reread_identity()
         follow()
 
     def draw_strip() -> None:
@@ -303,7 +379,13 @@ async def remote_page(screen: str = "") -> None:
 
     def redraw() -> None:
         """All of it, always. The bar says which screen you are on, so a redraw that
-        rebuilt only the screen left the mark behind on the one you came from."""
+        rebuilt only the screen left the mark behind on the one you came from - and the
+        header's identity can change from something other than the header itself (This
+        Is Me on its own sheet, a roster change heard from the target), so it is rebuilt
+        here too rather than trusted to still be right."""
+        header.clear()
+        with header:
+            _header(state, aimable, aim, client_for_target, redraw)
         body.clear()
         tabs.clear()
         state["relist"] = None
@@ -357,6 +439,14 @@ async def remote_page(screen: str = "") -> None:
 
     @on_page
     async def changed(name: str, payload: dict) -> None:
+        if name == events.PLAYERS_CHANGED:
+            state["players"] = list((payload.get("state") or {}).get("players") or [])
+            await reread_identity()
+            redraw()
+            return
+        if name == events.TABLE_PLAY_RECORDED:
+            await _play_recorded(state, payload, client_for_target, redraw)
+            return
         if name == events.CAPTURE_RUN_CHANGED:
             was, now = state.get("run") or {}, dict(payload.get("run") or {})
             state["run"] = now
@@ -434,7 +524,7 @@ async def remote_page(screen: str = "") -> None:
     # body has to be built here rather than earlier and reparented, because a NiceGUI
     # element belongs to whatever slot was open when it was made.
     with ui.column().classes("w-full h-full gap-0 remote-shell no-wrap"):
-        _header(state, aimable, aim)
+        header = ui.column().classes("w-full gap-0")
         strip = ui.column().classes("w-full gap-0")
         body = ui.column().classes(
             "w-full grow min-h-0 gap-0 overflow-auto remote-body")
@@ -443,14 +533,17 @@ async def remote_page(screen: str = "") -> None:
     loading.delete()
 
 
-def _header(state: dict[str, Any], aimable: list[dict[str, Any]],
-            aim: Any) -> None:
-    """The target, on every screen, because every action's meaning depends on it.
+def _header(state: dict[str, Any], aimable: list[dict[str, Any]], aim: Any,
+            client_for_target: Callable[[], Any], redraw: Callable[[], None]) -> None:
+    """The target, on every screen, because every action's meaning depends on it - and
+    beside it, who this phone is answering for: the target alone for nobody said
+    or a guest, the target and their initials for a kept player.
 
     Drawn as a picker only when there is a choice to make. With one target it is the
     name alone - a select with one option is furniture, which is the same rule that
     keeps a chip off every row.
     """
+    identity = state.get("identity")
     with ui.row().classes("w-full items-center gap-2 remote-header no-wrap"):
         ui.icon("sports_esports").classes("remote-mark")
         if len(aimable) > 1:
@@ -471,6 +564,17 @@ def _header(state: dict[str, Any], aimable: list[dict[str, Any]],
             # administers, and there is nothing here for a remote to drive.
             ui.label(t("console.remote.nothing_drive")) \
                 .classes("remote-target-name truncate")
+        if state.get("target"):
+
+            def open_sheet() -> None:
+                _identity_sheet(state, client_for_target, redraw)
+
+            with ui.row().classes("items-center gap-1 cursor-pointer remote-identity") \
+                    .on("click", open_sheet):
+                if identity is not None and kind_of(identity) == "":
+                    ui.label(str(identity.get("initials") or "")) \
+                        .classes("remote-identity-initials")
+                ui.icon("person").classes("remote-identity-icon")
 
 
 def _strip(state: dict[str, Any], client_for_target: Callable[[], Any],
@@ -522,6 +626,151 @@ def _tabs(state: dict[str, Any], redraw: Callable[[], None]) -> None:
             ui.label(label).classes("remote-tab-label")
 
 
+@contextmanager
+def _asked(title: str) -> Iterator[Any]:
+    """`console.dialog.opened`'s own shape, without calling it."""
+    with frame.made() as box, ui.card().classes("console-dialog"):
+        ui.label(title).classes("console-dialog-title")
+        yield box
+
+
+def _identity_sheet(state: dict[str, Any], client_for_target: Callable[[], Any],
+                    redraw: Callable[[], None]) -> None:
+    """Who this phone is answering for: a kept player chosen with This Is Me, a
+    guest signed out, or nobody, in which case the sheet's own way into Join is the one
+    a phone that never scanned the cabinet's QR still has."""
+    identity = state.get("identity")
+    players = state.get("players") or []
+
+    @on_page
+    async def become(player_id: str) -> None:
+        remember_identity(state["target"], player_id)
+        sheet.close()
+        await state["reread"]()
+        redraw()
+
+    @on_page
+    async def leave() -> None:
+        remember_identity(state["target"], "")
+        sheet.close()
+        await state["reread"]()
+        redraw()
+
+    @on_page
+    async def sign_out() -> None:
+        if identity is None:
+            return
+        if not await confirm.ask(
+                t("console.players.sign_out_one", name=shown_name(identity)),
+                detail=t("console.players.sign_out_detail"),
+                confirm=t("console.players.sign_out"), icon=verbs.SIGN_OUT):
+            return
+        sheet.close()
+        try:
+            await run.io_bound(client_for_target().remove_player, identity["id"])
+        except Exception as exc:
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
+            return
+        remember_identity(state["target"], "")
+        await state["reread"]()
+        redraw()
+
+    def go_join() -> None:
+        sheet.close()
+        state["screen"] = JOIN
+        redraw()
+
+    with frame.made().props("position=bottom") as sheet, \
+            ui.card().classes("w-full remote-sheet"):
+        if identity is None:
+            ui.label(t("console.remote.who_is_this")).classes("remote-headline")
+            for player in (one for one in players if kind_of(one) == ""):
+                panel.remote_action(shown_name(player),
+                                    lambda _e=None, pid=player["id"]: become(pid),
+                                    icon=verbs.THIS_IS_ME)
+            panel.remote_action(t("console.remote.join_as_guest"), go_join, icon=verbs.JOIN)
+        else:
+            ui.label(t("console.remote.youre", name=shown_name(identity))) \
+                .classes("remote-headline")
+            if identity.get("guest"):
+                panel.remote_action(t("console.players.sign_out"), sign_out,
+                                    icon=verbs.SIGN_OUT)
+                _guest_accounts(state, identity, client_for_target, redraw, sheet)
+            else:
+                panel.remote_action(t("console.remote.not_me"), leave, icon=verbs.NOT_ME)
+    sheet.open()
+
+
+def _guest_accounts(state: dict[str, Any], identity: dict[str, Any],
+                    client_for_target: Callable[[], Any], redraw: Callable[[], None],
+                    sheet: Any) -> None:
+    """Where a visitor who joined with Just Initials gets a card: typing a user id makes
+    one, and once it is made, Save Card is how it leaves this phone. A guest who joined
+    with a card already shares and already has one on their phone, so neither is offered
+    - `account.share` alone decides, with no memory of how they joined."""
+    @on_page
+    async def share(account: dict[str, Any]) -> None:
+        if await _share_with(state, identity, account, client_for_target, redraw):
+            sheet.close()
+
+    for account in state.get("accounts") or []:
+        if account.get("share"):
+            if account.get("card"):
+                panel.remote_action(
+                    t("console.players.save_card"),
+                    lambda _e=None, account=account:
+                        save_card(Library(client_for_target()), identity, account),
+                    icon=verbs.FETCH)
+            continue
+        service = str(account.get("label") or account["extension"])
+        panel.remote_action(t("console.remote.share_with", service=service),
+                            lambda _e=None, account=account: share(account),
+                            icon=verbs.SHARE)
+
+
+async def _share_with(state: dict[str, Any], identity: dict[str, Any],
+                      account: dict[str, Any], client_for_target: Callable[[], Any],
+                      redraw: Callable[[], None]) -> bool:
+    """A user id, and VPinPlay makes a key for it the same way it does from the Console
+    (`extensions/vpinplay/accounts.py`'s `write_account`) - core does not mint one.
+    Answers whether it went through, so the identity sheet behind it knows to close."""
+    extension = str(account["extension"])
+    service = str(account.get("label") or extension)
+    about: dict[str, Any] = next(
+        (one for one in account.get("fields") or [] if one.get("key") == "user_id"), {})
+
+    @on_page
+    async def go() -> None:
+        typed = str(control.value or "").strip()
+        if not typed:
+            return
+        library = Library(client_for_target())
+        try:
+            await run.io_bound(library.put_account, identity["id"], extension,
+                               {"user_id": typed})
+            await run.io_bound(library.put_share, identity["id"], extension, True)
+        except Exception as exc:
+            ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
+            return
+        box.submit(True)
+
+    with _asked(t("console.remote.share_with_title", service=service)) as box:
+        ui.label(share_help(account)).classes("console-help px-3")
+        if about.get("help"):
+            ui.label(str(about["help"])).classes("console-help px-3")
+        control = frame.field(placeholder=str(about.get("label") or ""))
+        with frame.footer():
+            frame.cancel(lambda: box.submit(False))
+            answered = frame.answer(t("console.remote.share"), go, icon=verbs.SHARE)
+    frame.focus(box, control)
+    frame.enter_presses(answered)
+    went = bool(await box)
+    if went:
+        await state["reread"]()
+        redraw()
+    return went
+
+
 def _screen(state: dict[str, Any],
             client_for_target: Callable[[], Any],
             redraw: Callable[[], None]) -> None:
@@ -535,6 +784,8 @@ def _screen(state: dict[str, Any],
         _now(state, client_for_target, redraw)
     elif state["screen"] == PLAY:
         _play(state, client_for_target, redraw)
+    elif state["screen"] == JOIN:
+        _join(state, client_for_target, redraw)
     else:
         _control(state, client_for_target, redraw)
 
@@ -597,7 +848,11 @@ def _now(state: dict[str, Any],
                     state, client_for_target, redraw,
                     reviewable=mirroring(state.get("frontend")) and not play.get("launching"))
             if not play.get("launching"):
-                _idle(state, client_for_target, redraw)
+                _up_section(state, client_for_target, redraw)
+                if state.get("result"):
+                    _result_card(state, client_for_target, redraw)
+                else:
+                    _idle(state, client_for_target, redraw)
         _running_jobs(state)
 
 
@@ -639,35 +894,224 @@ def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target: Cal
         .props("no-caps flat").classes("remote-action remote-action--danger")
 
 
+def _rating_of(game_id: str, game: dict[str, Any], identity: dict[str, Any] | None,
+               record: dict[str, dict[str, Any]]) -> int:
+    """The stars to show."""
+    if is_someone_else(identity):
+        return int((record.get(game_id) or {}).get("rating") or 0)
+    return int((game.get("user") or {}).get("rating") or 0)
+
+
+async def _rate(client: ApiClient, identity: dict[str, Any] | None,
+                game_id: str, value: int) -> None:
+    """Writes the rating `_rating_of` reads back."""
+    if identity is not None and is_someone_else(identity):
+        await run.io_bound(client.player_rating, str(identity["id"]), game_id, value)
+    else:
+        await run.io_bound(client.rate, game_id, value)
+
+
+def _up_section(state: dict[str, Any], client_for_target: Callable[[], Any],
+                redraw: Callable[[], None]) -> None:
+    """Who the next game counts for. Nothing to toggle with one player in the roster."""
+    players = state.get("players") or []
+    if len(players) <= 1:
+        return
+    identity = state.get("identity")
+
+    @on_page
+    async def toggle(player_id: str, up: bool) -> None:
+        try:
+            state["players"] = await run.io_bound(
+                client_for_target().set_player_up, player_id, up)
+        except Exception as exc:
+            ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
+            return
+        redraw()
+
+    if identity is not None:
+        mine = next((one for one in players if one.get("id") == identity.get("id")),
+                    identity)
+        if not mine.get("up"):
+            with ui.column().classes("w-full gap-2 console-card"):
+                panel.remote_action(t("console.remote.im_up"),
+                                    lambda: toggle(str(mine["id"]), True),
+                                    icon=verbs.ACCEPT, primary=True)
+            return
+        if identity.get("guest"):
+            with ui.row().classes("w-full items-center justify-between console-card"):
+                ui.label(shown_name(mine)).classes("remote-headline")
+                ui.switch(value=True,
+                         on_change=lambda e: toggle(str(mine["id"]), bool(e.value))) \
+                    .props("dense")
+            return
+
+    with ui.column().classes("w-full gap-0 console-card"):
+        ui.label(t("console.players.up")).classes("console-card-title")
+        for player in players:
+            with ui.row().classes("w-full items-center justify-between remote-up-row"):
+                ui.label(shown_name(player)).classes("remote-row-name")
+                ui.switch(value=bool(player.get("up")),
+                         on_change=lambda e, pid=player["id"]: toggle(str(pid), bool(e.value))) \
+                    .props("dense")
+
+
 def _idle(state: dict[str, Any], client_for_target: Callable[[], Any],
           redraw: Callable[[], None]) -> None:
     """Nothing is playing, so this offers the one thing worth doing about that.
 
     The last game played, with its rating. That is the moment somebody has an opinion
     about a table and the phone is already in their hand, and it is the only reason this
-    screen has anything to say when the machine is quiet.
+    screen has anything to say when the machine is quiet. Superseded by the result card
+    the moment a play is recorded this session - this is what is left to say before that
+    has happened even once.
     """
     game = last_played(state.get("games") or [])
     if not game:
         with ui.column().classes("w-full gap-1 console-card"):
             ui.label(t("console.remote.nothing_playing")).classes("remote-headline")
         return
+    identity = state.get("identity")
 
     @on_page
     async def rate(value: int) -> None:
         try:
-            await run.io_bound(client_for_target().rate, game["id"], value)
+            await _rate(client_for_target(), identity, str(game["id"]), value)
         except Exception as exc:
             ui.notify(t("console.stars.could_not_save_rating"), caption=why(exc),
                       type="negative")
             return
-        game.setdefault("user", {})["rating"] = value
+        if is_someone_else(identity):
+            state.setdefault("record", {}).setdefault(str(game["id"]), {})["rating"] = value
+        else:
+            game.setdefault("user", {})["rating"] = value
         redraw()
 
     with ui.column().classes("w-full gap-2 console-card"):
         ui.label(t("word.last_played")).classes("console-card-title")
         ui.label(str(game.get("name") or "")).classes("remote-headline")
-        stars.draw(int((game.get("user") or {}).get("rating") or 0), rate)()
+        stars.draw(_rating_of(str(game["id"]), game, identity, state.get("record") or {}),
+                  rate)()
+
+
+def _visible_up(identity: dict[str, Any] | None,
+                up: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Which of who was up belongs on this phone's result card: everyone for
+    nobody said or the owner, theirs first for a kept player, theirs alone for a guest -
+    and nothing for a kept player who was not part of this play, the same reason a guest
+    sees nothing of somebody else's."""
+    if identity is None:
+        return list(up)
+    player_id = str(identity.get("id") or "")
+    mine = next((one for one in up if str(one.get("id") or "") == player_id), None)
+    if mine is None:
+        return []
+    if identity.get("guest"):
+        return [mine]
+    return [mine, *(one for one in up if str(one.get("id") or "") != player_id)]
+
+
+def _send_status(account: dict[str, Any], *, credited: bool, several_up: bool) -> str:
+    """Empty for an account that is not sharing."""
+    if not account.get("share"):
+        return ""
+    service = str(account.get("label") or account.get("extension") or "")
+    if several_up and not credited:
+        return t("console.remote.not_sent_one_per_game", service=service)
+    if account.get("waiting"):
+        return t("console.remote.waiting_to_send")
+    return t("console.remote.sent_to", service=service)
+
+
+async def _play_recorded(state: dict[str, Any], payload: dict[str, Any],
+                         client_for_target: Callable[[], Any],
+                         redraw: Callable[[], None]) -> None:
+    """`table.play_recorded`: build the result card for whichever of who was up belongs
+    on this phone, and show it the moment Now is open - or the moment it is next opened,
+    since it replaces the idle card until superseded by the next one."""
+    up = list(payload.get("up") or [])
+    visible = _visible_up(state.get("identity"), up)
+    if not visible:
+        return
+    credited = {str((one.get("player") or {}).get("id") or "")
+               for one in payload.get("new_entries") or []}
+    entries_of = {str((one.get("player") or {}).get("id") or ""): one.get("entries") or []
+                 for one in payload.get("new_entries") or []}
+    private = bool(payload.get("private"))
+    several = len(up) > 1
+    rows = []
+    for player in visible:
+        player_id = str(player.get("id") or "")
+        got = player_id in credited
+        line = ""
+        if got and entries_of.get(player_id):
+            from console import workbench
+            line = workbench._score_lines(entries_of[player_id][0])[0]
+        statuses: list[str] = []
+        if not private:
+            try:
+                accounts = await offload.io(client_for_target().player_accounts, player_id)
+            except Exception as exc:
+                logger.info("remote: could not read %s's accounts: %s", player_id, exc)
+                accounts = []
+            statuses = [said for said in
+                       (_send_status(one, credited=got, several_up=several)
+                        for one in accounts) if said]
+        rows.append({"player": player, "entry": line, "statuses": statuses})
+    game = payload.get("game") or {}
+    state["result"] = {"game_id": str(game.get("id") or ""),
+                       "game_name": str(game.get("name") or ""), "players": rows}
+    if state["screen"] == NOW:
+        redraw()
+
+
+def _result_card(state: dict[str, Any], client_for_target: Callable[[], Any],
+                 redraw: Callable[[], None]) -> None:
+    """What became of the play just recorded, for each player the result card is
+    showing - their new entry where they made one, and what each of their sharing
+    accounts did with it. The phone's own row carries the rating control the idle card
+    used to; nobody else's does; stars are always about the one screen they are on."""
+    result = state.get("result") or {}
+    rows = result.get("players") or []
+    if not rows:
+        return
+    identity = state.get("identity")
+    game_id = str(result.get("game_id") or "")
+    if identity is None:
+        mine = next((row for row in rows if row["player"].get("owner")), None)
+    else:
+        mine = next((row for row in rows
+                    if str(row["player"].get("id") or "") == str(identity.get("id") or "")),
+                    None)
+
+    @on_page
+    async def rate(value: int) -> None:
+        try:
+            await _rate(client_for_target(), identity, game_id, value)
+        except Exception as exc:
+            ui.notify(t("console.stars.could_not_save_rating"), caption=why(exc),
+                      type="negative")
+            return
+        if is_someone_else(identity):
+            state.setdefault("record", {}).setdefault(game_id, {})["rating"] = value
+        else:
+            for game in state.get("games") or []:
+                if str(game.get("id") or "") == game_id:
+                    game.setdefault("user", {})["rating"] = value
+        redraw()
+
+    with ui.column().classes("w-full gap-2 console-card"):
+        ui.label(str(result.get("game_name") or "")).classes("console-card-title")
+        for row in rows:
+            with ui.column().classes("w-full gap-0"):
+                ui.label(shown_name(row["player"])).classes("remote-headline")
+                if row.get("entry"):
+                    ui.label(row["entry"]).classes("remote-note")
+                for said in row.get("statuses") or []:
+                    ui.label(said).classes("remote-note")
+        if mine is not None:
+            stars.draw(_rating_of(game_id, mine["player"], identity,
+                                  state.get("record") or {}), rate)()
 
 
 def _running_jobs(state: dict[str, Any]) -> None:
@@ -892,6 +1336,8 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target: 
             ui.label(made).classes("remote-note")
         lacks = ui.label("").classes("remote-note")
         lacks.set_visibility(False)
+        identity = state.get("identity")
+        someone_else = is_someone_else(identity)
 
         @on_page
         async def write(call: Any, *args: Any) -> bool:
@@ -902,28 +1348,39 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target: 
                 return False
             return True
 
+        @on_page
         async def rate(value: int) -> None:
-            if await write(client_for_target().rate, game["id"], value):
+            try:
+                await _rate(client_for_target(), identity, str(game["id"]), value)
+            except Exception as exc:
+                ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
+                return
+            if someone_else:
+                state.setdefault("record", {}).setdefault(str(game["id"]), {})["rating"] = value
+            else:
                 game.setdefault("user", {})["rating"] = value
-                sheet.close()
-                redraw()
+            sheet.close()
+            redraw()
 
-        stars.draw(int((game.get("user") or {}).get("rating") or 0), rate)()
+        stars.draw(_rating_of(str(game["id"]), game, identity, state.get("record") or {}),
+                  rate)()
 
-        held = bool((game.get("user") or {}).get("favorite"))
+        if not someone_else:
+            held = bool((game.get("user") or {}).get("favorite"))
 
-        async def favor() -> None:
-            if await write(client_for_target().set_favorite, game["id"], not held):
-                game.setdefault("user", {})["favorite"] = not held
-                sheet.close()
-                redraw()
+            async def favor() -> None:
+                if await write(client_for_target().set_favorite, game["id"], not held):
+                    game.setdefault("user", {})["favorite"] = not held
+                    sheet.close()
+                    redraw()
 
-        ui.button(t("word.favorite") if not held else t("console.remote.remove_favorite"),
-                  icon="favorite" if not held else "favorite_border",
-                  on_click=favor) \
-            .props("no-caps flat").classes("remote-action")
+            ui.button(t("word.favorite") if not held else t("console.remote.remove_favorite"),
+                      icon="favorite" if not held else "favorite_border",
+                      on_click=favor) \
+                .props("no-caps flat").classes("remote-action")
 
-        _add_to_collection(game, state, sheet, write, client_for_target)
+        if not (identity is not None and identity.get("guest")):
+            _add_to_collection(game, state, sheet, write, client_for_target)
 
         async def started() -> None:
             sheet.close()
@@ -1165,6 +1622,73 @@ async def _say(client_for_target: Callable[[], Any], action: str, phase: str) ->
                            ttl_ms=RENEW_MS * 3)
     except Exception as exc:
         logger.info("remote: %s %s did not reach the target: %s", action, phase, exc)
+
+
+def _join(state: dict[str, Any], client_for_target: Callable[[], Any],
+         redraw: Callable[[], None]) -> None:
+    """The Join screen: Use My Card, read as 2.x reads it, or Just Initials."""
+
+    @on_page
+    async def joined(said: dict[str, Any]) -> None:
+        player = dict(said or {})
+        remember_identity(state["target"], str(player.get("id") or ""))
+        ui.notify(t("console.remote.youre_up", initials=str(player.get("initials") or "")),
+                  type="positive")
+        state["screen"] = NOW
+        await state["reread"]()
+        redraw()
+
+    @on_page
+    async def with_card(event: Any) -> None:
+        text = (await event.file.read()).decode("utf-8", "replace")
+        try:
+            said = await run.io_bound(client_for_target().add_guest_from_card, text)
+        except Exception as exc:
+            ui.notify(t("console.remote.could_not_join"), caption=why(exc), type="negative")
+            return
+        await joined(said or {})
+
+    @on_page
+    async def just_initials() -> None:
+        with _asked(t("console.players.just_initials")) as box:
+            control = frame.field(placeholder=t("console.players.initials_example"))
+            control.props("maxlength=3 bottom-slots")
+
+            @on_page
+            async def go() -> None:
+                try:
+                    said = await run.io_bound(client_for_target().add_guest,
+                                              str(control.value or "").strip())
+                except Exception as exc:
+                    control.props["error"] = True
+                    control.props["error-message"] = why(exc)
+                    control.update()
+                    return
+                box.submit(said)
+
+            with frame.footer():
+                frame.cancel(lambda: box.submit(None))
+                answered = frame.answer(t("console.remote.join"), go, icon=verbs.ACCEPT)
+        frame.focus(box, control)
+        frame.enter_presses(answered)
+        said: dict[str, Any] | None = await box
+        if said is not None:
+            await joined(said)
+
+    with ui.column().classes("w-full gap-4 p-4 items-center text-center"):
+        ui.label(t("console.remote.play_as_you",
+                   target=target_name(state["target"]))).classes("remote-headline")
+        uploader = ui.upload(on_upload=with_card, auto_upload=True).classes("hidden")
+        uploader.props(f'accept="{",".join(CARD_FILES)}"')
+        uploader.on("finish",
+                   js_handler=f"() => getElement({uploader.id}).$refs.qRef.reset()")
+        card_button = panel.remote_action(t("console.remote.use_my_card"), icon=verbs.FROM_FILE,
+                                          primary=True)
+        card_button.on("click",
+                       js_handler=f"() => getElement({uploader.id}).$refs.qRef.pickFiles()")
+        panel.remote_action(t("console.players.just_initials"), just_initials,
+                            icon=verbs.INITIALS_ONLY)
+        ui.label(t("console.remote.guest_until_close")).classes("remote-note")
 
 
 def where_to_find_it() -> str:

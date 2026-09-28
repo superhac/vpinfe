@@ -96,6 +96,13 @@ RECORD = "fiber_manual_record"
 ADD_ART = "add_photo_alternate"
 ADD_TO_LIST = "playlist_add"
 
+# Saying who is holding the phone.
+THIS_IS_ME = "person"
+NOT_ME = "person_off"
+SIGN_OUT = "logout"
+JOIN = "qr_code_2"
+INITIALS_ONLY = "badge"
+
 # Working on what is on screen.
 ENLARGE = "open_in_full"
 TUNE = "tune"

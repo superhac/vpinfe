@@ -77,6 +77,27 @@
   font-size: var(--fs-title);
   color: var(--ink);
 }
+/* Who this phone is answering for, beside the target it is answering to - a kept
+   player's initials only; a guest and the owner both leave the target to speak for
+   itself. A row rather than a button: the whole header would count against the
+   ceiling `tests/invariants/test_actions_sit_with_their_subject.py` holds on
+   hand-built buttons, and a tap target does not require the element to be one. */
+.remote-identity-initials {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+.remote-identity {
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: 0 4px;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.remote-identity-icon { font-size: var(--icon-nav); }
 .remote-body { padding-bottom: 4px; }
 .remote-tabs {
   border-top: 1px solid var(--line);
@@ -166,6 +187,10 @@
 /* The row on the wheel: the accent and a rule at the leading edge, as the current tab. */
 .remote-row--here { box-shadow: inset 3px 0 0 0 var(--accent); }
 .remote-row--here .remote-row-name { color: var(--accent); }
+/* Who is up, one row each, a switch at the trailing edge rather than a whole row that
+   toggles: the row is still tappable text (a name to read), not a control. */
+.remote-up-row { min-height: var(--target-min); border-bottom: 1px solid var(--line); }
+.remote-up-row:last-child { border-bottom: none; }
 /* A band of the header rather than a card of the screen: it stays put under a scroll. */
 .remote-strip {
   padding: 10px 14px;

@@ -522,14 +522,17 @@ routes under `base`, with the player's id, and draws the answer on every player.
 
 | call | answers |
 |---|---|
-| `GET {base}/{player_id}` | `fields`, `status`, `acts`, `card` |
+| `GET {base}/{player_id}` | `fields`, `status`, `waiting`, `acts`, `card` |
 | `PUT {base}/{player_id}` | receives `{"values": {…}}`; answers as the `GET` does |
 | `POST {base}/{player_id}/acts/{key}` | what came of it, with an optional `message` |
 | `GET {base}/{player_id}/card` | `{"card": {…}, "filename"}` - the card to draw, or a `404` while there is none |
 | `POST {base}/cards` | receives `{"card": {…}}`; answers `name`, `initials` and the account's `values` |
 
 `fields` are the same as settings' - `{key, label, type, value, help}` - and `status` is
-one line in words: *Sent 2 minutes ago*, or why not. An act is `{key, label, description}`.
+one line in words: *Sent 2 minutes ago*, or why not. `waiting` is the same fact as a
+plain boolean, for a caller that has to branch on it rather than show it - the Remote's
+after-a-game card, which says what became of a specific play rather than showing the
+account's own sentence. An act is `{key, label, description}`.
 `card` says whether a card can be made for this player now. The words are the
 extension's, from `ctx.t`.
 

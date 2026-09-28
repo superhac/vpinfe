@@ -116,6 +116,7 @@ def routers(ctx: Any, site: str, sender: Sender) -> tuple[APIRouter, APIRouter]:
                  "value": held.get(KEY, ""), "help": ctx.t("account.key.help")},
             ],
             "status": status(player_id, held),
+            "waiting": bool(listed(held.get(WAITING))),
             "acts": acts(user_id, carded, len(listed(held.get(WAITING)))),
             "card": carded,
         }

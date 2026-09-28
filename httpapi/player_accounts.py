@@ -153,6 +153,7 @@ def _shaped(declared: dict[str, Any], player_id: str, said: Any) -> models.Playe
         share_help=str(declared.get("share_help") or ""),
         fields=[one for one in answer.get("fields") or [] if isinstance(one, dict)],
         status=str(answer.get("status") or ""),
+        waiting=bool(answer.get("waiting")),
         acts=[models.AccountAct(key=str(one["key"]),
                                 label=str(one.get("label") or one["key"]),
                                 description=str(one.get("description") or ""))
