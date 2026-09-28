@@ -22,7 +22,9 @@ CABINET = {
     "console.themes.cabinet": "a theme made for a cabinet rather than a desktop",
 }
 
-MACHINE: dict[str, str] = {}
+MACHINE: dict[str, str] = {
+    "ext.vpinplay.error.card.no_machine_id": "VPinPlay's machineId field on a card",
+}
 
 BUILD = {
     "about.fact.build": "this VPinFE build",

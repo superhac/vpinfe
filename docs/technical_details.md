@@ -246,7 +246,7 @@ Runtime state written by VPinFE, not shown as a setting.
 
 ### `vpinplay`
 
-Owned by the VPinPlay extension, which names these on its own settings page. Declared here so a 2.x file converts, read once by the handover, and written by nothing in core.
+Owned by the VPinPlay extension. Declared here so a 2.x file converts, read once by the handover, and written by nothing in core. `api_endpoint` is the extension's Server setting, and `user_id` and `machine_id` become the owner's VPinPlay account.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |

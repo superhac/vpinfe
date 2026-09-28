@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "requires_platform": 1,
   "scopes": [
-    "games:read"
+    "games:read",
+    "players:read"
   ],
   "capabilities": [
     "net:outbound",

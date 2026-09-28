@@ -13,13 +13,11 @@ says what it said before there was an extension.
 
 from __future__ import annotations
 
-import secrets
-import string
 import threading
 from typing import Any
 from urllib.parse import urlencode
 
-from . import client, community, guest, settings, sync
+from . import accounts, client, community, guest, settings, sync
 
 # What the setting is called here. Core handed it over from its own configuration when
 # this extension first loaded, so an install that was already using VPinPlay finds it
@@ -41,15 +39,11 @@ def _truthy(value: Any) -> bool:
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")
 
 
-def _new_machine_id(length: int = 64) -> str:
-    alphabet = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(length))
-
-
 def register(ctx: Any) -> None:
     # Identifies this cabinet to VPinPlay; a sync cannot say who it is without one.
     if not str(ctx.config.get(MACHINE_KEY, "") or "").strip():
-        ctx.config.set(MACHINE_KEY, _new_machine_id())
+        ctx.config.set(MACHINE_KEY, accounts.new_key())
+    accounts.move_owner_account(ctx)
 
     def rating_for(game: Any) -> Any:
         """What VPinPlay says about one game, or None.
@@ -209,6 +203,11 @@ def register(ctx: Any) -> None:
     ctx.add_router(reading, scope=ctx.scope("read"))
     ctx.add_router(writing, scope=ctx.scope("write"))
     ctx.ui.settings("/settings")
+
+    reading, writing = accounts.routers(ctx, SITE)
+    ctx.add_router(reading, scope=ctx.scope("read"))
+    ctx.add_router(writing, scope=ctx.scope("write"))
+    ctx.ui.account("/accounts", cards=(accounts.CARD_TYPE,))
 
     ctx.add_router(community.router(lambda: str(ctx.config.get(ENDPOINT_KEY, "")
                                                 or DEFAULT_ENDPOINT)),

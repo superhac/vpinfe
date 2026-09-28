@@ -178,7 +178,7 @@ class WireTests(unittest.TestCase):
                                 {"filename", "filehash", "version", "vbsHash", "rom"})
 
     def test_the_machine_id_minted_here_is_the_length_they_take(self) -> None:
-        self.assertEqual(len(vpinfe_ext_vpinplay._new_machine_id()), 64)
+        self.assertEqual(len(vpinfe_ext_vpinplay.accounts.new_key()), 64)
 
 
 class SendTests(unittest.TestCase):
