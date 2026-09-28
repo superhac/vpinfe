@@ -252,9 +252,10 @@ def open_image(src: str, label: str, acts: Sequence[Act] = ()) -> None:
     _open(src, "image", label, acts)
 
 
-def open_viewer(src: str, kind: str, label: str) -> None:
-    """Show this file large. Returns as soon as the dialog is on screen."""
-    _open(src, media_family(kind), label)
+def open_viewer(src: str, kind: str, label: str, *, family: str = "") -> None:
+    """Show this file large. `family` overrides what `kind` would answer, for a source
+    with no kind of its own - a card's data URI, say."""
+    _open(src, family or media_family(kind), label)
 
 
 def _open(src: str, family: str, label: str, acts: Sequence[Act] = ()) -> None:

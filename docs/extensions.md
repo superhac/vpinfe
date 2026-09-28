@@ -146,7 +146,8 @@ what it declared:
 | `action.<key>.result.<field>` | A count its run reports, beside the number |
 | `settings.label`, `state.label` | Its settings and what it is holding. Left out, the Console uses its own |
 | `account.label` | The heading over a player's account with it. Left out, its name |
-| `account.share.help` | What its account's Share switch makes of what is played, under the switch. Left out, the Console says it sends it |
+| `account.share.help` | What its account's Share switch makes of what is played, under the switch. Left out, the Console names what a played game, a rating and a high score become once claimed |
+| `account.consent.<name>` | Not a key core reads by name - `consent=` on `ctx.ui.account(...)` takes already-resolved strings, and this is where an extension keeps the ones it built from |
 | `community.<key>.title` | A Community list |
 | `community.<key>.column.<field>.header`, `...help` | One of its columns |
 | `community.<key>.view.<key>.name`, `...help` | One of its views |
@@ -514,40 +515,62 @@ so nothing played while it was on goes later by hand, or when it is turned on ag
 ### Offering an account
 
 ```python
-ctx.ui.account("/accounts", cards=("scores_site_card",))
+ctx.ui.account("/accounts", cards=("scores_site_card",), check="/available",
+               consent=(ctx.t("account.consent.id"), ctx.t("account.consent.plays")))
 ```
 
 Like settings, an account is declared rather than drawn: core asks the extension's own
-routes under `base`, with the player's id, and draws the answer on every player.
+routes under `base`, with the player's id, and draws the same panel for every extension
+that offers one - a user id chosen free, claimed deliberately, then read-only. WoVP or
+iScored can hold one the same way; nothing about the shape below is VPinPlay's.
 
 | call | answers |
 |---|---|
-| `GET {base}/{player_id}` | `fields`, `status`, `waiting`, `acts`, `card` |
-| `PUT {base}/{player_id}` | receives `{"values": {…}}`; answers as the `GET` does |
-| `POST {base}/{player_id}/acts/{key}` | what came of it, with an optional `message` |
+| `GET {base}/{player_id}` | `user_id`, `claimed`, `page`, `card`, `status`, `waiting`, `waiting_count`, `acts`, `fields` (unused by this shape, kept for a simpler account that is only ever settings-like) |
+| `PUT {base}/{player_id}` | receives `{"values": {…}}`; saves what is given and answers as the `GET` does. Never mints a key - claiming is its own act, never a side effect of a write |
+| `POST {base}/{player_id}/acts/{key}` | what came of it, with an optional `message`; `claim` and `disconnect` answer the account itself, as the `GET` does |
 | `GET {base}/{player_id}/card` | `{"card": {…}, "filename"}` - the card to draw, or a `404` while there is none |
 | `POST {base}/cards` | receives `{"card": {…}}`; answers `name`, `initials` and the account's `values` |
+| `GET {check}?candidate=…` | `{"available": bool}` for a candidate id, asked live as one is typed. Not under `{base}/{player_id}`: it needs no player, and the Console asks it straight through to the extension, the way it asks `settings` and a Community list's `about` - `GET /ext/{extension}{check}?candidate=…`. Raise to say it could not be reached; the Console reads that as "can't reach", never as "taken" |
 
-`fields` are the same as settings' - `{key, label, type, value, help}` - and `status` is
-one line in words: *Sent 2 minutes ago*, or why not. `waiting` is the same fact as a
-plain boolean, for a caller that has to branch on it rather than show it - the Remote's
-after-a-game card, which says what became of a specific play rather than showing the
-account's own sentence. An act is `{key, label, description}`.
-`card` says whether a card can be made for this player now. The words are the
-extension's, from `ctx.t`.
+`user_id` is the id chosen, lower case as the service will keep it, or `""` before one is
+chosen. `claimed` says whether it is registered with the service - free to change or drop
+until then with a plain `PUT`, read-only after. `page` is the account's public page once
+claimed, `""` before. `status` is one line in words - *1 game waiting to send*, *Sent 2
+minutes ago* - or `""` while unclaimed; `waiting` is the same fact `waiting_count` puts as
+a number, as a plain boolean, for a caller that has to branch on it rather than show it -
+the Remote's after-a-game card, which says what became of a specific play rather than
+showing the account's own sentence. An act is `{key, label, description}`; `send_now` is
+the one this shape draws generically, only while claimed and something waits. `card` says
+whether a card can be made for this player now. The words are the extension's, from `ctx.t`.
+
+**Claiming is deliberate, never a side effect.** The Console's own dialog checks `check`
+live as an id is typed, saves it with a plain `PUT` - nothing sent, no key made - and only
+makes the key and registers the pair when the player turns Share on: an empty send (a
+service's `tables: []`, read as registering the pair rather than filing one). `claim`
+refuses with an ordinary error where the id was taken in the meantime, the player has no
+initials, or the account already holds a key; the Console shows whatever it says and
+leaves Share off. `disconnect` forgets the id and key here - the extension's own
+`set_account(player_id, {})` - while the account stays with the service, whatever was
+already shared.
+
+`consent` is what Share tells the player becomes public, asked once, the first time it is
+turned on: each line already in its own words from `ctx.t`, drawn as what the account
+shares. Core adds that the service can neither rename nor delete an account, since this
+shape never offers either.
 
 The Console follows what an act answers. A `message` is said, and a `url` is opened in a
-new tab. The acts keyed `show_card` and `save_card` answer the card as the card route does,
-with the `filename` to save it under: the Console shows core's drawing of it, or saves it
-as that SVG file, and says the `message` beside it. Core asks these in-process as whoever asked core, so the
-routes are gated and fail the way any of its routes do. A route answering a `404` or
-an `HTTPException` is an answer, passed on as it was given.
+new tab. Core asks these in-process as whoever asked core, so the routes are gated and
+fail the way any of its routes do. A route answering a `404` or an `HTTPException` is an
+answer, passed on as it was given.
 
 **A `secret` field is accepted on a write and never answered.** Answer one with its
 `value` like any other field: core takes the value out of every answer from an
 extension's routes, its settings included, and puts `set`, true or false, in its place.
 Nothing on a page or across the network ever holds it. Leaving one empty on a write is
-the extension's to decide; the Console only sends one when something was typed.
+the extension's to decide; the Console only sends one when something was typed. This
+shape's own `user_id`/key pair does not use `fields` at all - the key never crosses the
+wire in either direction, only `claimed`.
 
 ### Cards
 

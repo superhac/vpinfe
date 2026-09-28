@@ -134,18 +134,11 @@ class ThePanel(unittest.TestCase):
         self.assertEqual(players.share_help({"extension": "site", "label": "Site"}),
                          t("console.players.share.help", service="Site"))
 
-    def test_a_card_is_asked_about_first_only_over_a_secret_already_held(self) -> None:
-        def account(held: bool) -> dict[str, Any]:
-            return {"fields": [{"key": "user_id", "type": "string", "value": "u"},
-                               {"key": "key", "type": "secret", "set": held}]}
-        self.assertEqual([players.holds_a_secret(account(True)),
-                          players.holds_a_secret(account(False)),
-                          players.holds_a_secret({})], [True, False, False])
-
-    def test_a_card_is_saved_as_an_svg_under_the_name_the_extension_gives(self) -> None:
-        self.assertEqual([players.card_filename(said, "vpinplay") for said in (
-            {"filename": "vpinplay-player-one"}, {"filename": "named.svg"}, {})],
-            ["vpinplay-player-one.svg", "named.svg", "vpinplay-card.svg"])
+    def test_a_card_is_saved_as_an_svg_named_for_the_service_and_the_user_id(self) -> None:
+        self.assertEqual([players.card_filename(account) for account in (
+            {"extension": "vpinplay", "user_id": "player-one"},
+            {"extension": "vpinplay", "user_id": ""})],
+            ["vpinplay-player-one.svg", "vpinplay-card.svg"])
 
 
 class ThePlays(unittest.TestCase):
@@ -229,10 +222,12 @@ class TheClient(unittest.TestCase):
              ("PUT", "/players/p-1/accounts/vpinplay/share", {"share": False})),
             (lambda c: c.use_card("p-1", "vpinplay", "{}"),
              ("POST", "/players/p-1/accounts/vpinplay/card", {"card": "{}"})),
-            (lambda c: c.account_act("p-1", "vpinplay", "save_card"),
-             ("POST", "/players/p-1/accounts/vpinplay/acts/save_card", {})),
+            (lambda c: c.account_act("p-1", "vpinplay", "claim"),
+             ("POST", "/players/p-1/accounts/vpinplay/acts/claim", {})),
             (lambda c: c.player_card("p-1", "vpinplay"),
              ("GET", "/players/p-1/accounts/vpinplay/card", None)),
+            (lambda c: c.account_available("vpinplay", "/available", "jordan"),
+             ("GET", "/ext/vpinplay/available?candidate=jordan", None)),
         ]
         for call, wanted in cases:
             with self.subTest(wanted[1]):

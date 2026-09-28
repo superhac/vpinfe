@@ -522,21 +522,32 @@ class AccountAct(ApiModel):
 
 
 class PlayerAccount(ApiModel):
-    """One account a player can hold, with the extension that holds it. `fields` are as
-    an extension's settings are, a secret one carrying `set` and never its value. `card`
-    says whether a card can be made for this player now. `error` is why the extension
-    could not answer, and the rest is then empty. `share_help` is what the extension says
-    Share does with this account, empty where it says nothing. `reads_cards` says whether
-    a card can be used for it. `waiting` is the same fact `status` puts into words, as a
-    plain boolean."""
+    """One account a player can hold, with the extension that holds it. `claimed` says
+    whether `user_id` is registered with the service - free to change or drop until then,
+    read-only after. `page` is the public page for a claimed account, empty otherwise.
+    `fields` are as an extension's settings are, a secret one carrying `set` and never its
+    value; the account contract above leaves it empty. `card` says whether a card can be
+    made for this player now. `error` is why the extension could not answer, and the rest
+    is then empty. `share_help` is what the extension says Share does with this account,
+    empty where it says nothing. `consent` is what Share tells the player becomes public,
+    asked once, the first time it is turned on. `check` is the extension's own route for
+    checking a candidate id, asked at `/ext/{extension}{check}?candidate=…` - empty where
+    it offers none. `reads_cards` says whether a card can be used for it. `waiting` is the
+    same fact `waiting_count` puts as a number, as a plain boolean."""
 
     extension: str
     label: str = ""
     share: bool = False
     share_help: str = ""
+    consent: list[str] = Field(default_factory=list)
+    check: str = ""
+    user_id: str = ""
+    claimed: bool = False
+    page: str = ""
     fields: list[dict[str, Any]] = Field(default_factory=list)
     status: str = ""
     waiting: bool = False
+    waiting_count: int = 0
     acts: list[AccountAct] = Field(default_factory=list)
     card: bool = False
     reads_cards: bool = False

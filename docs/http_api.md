@@ -1558,24 +1558,34 @@ read from a game's `user`, and their rating is written by `PUT /games/{id}/ratin
 
 ### Accounts and cards
 
-A player can hold an account with an extension that offers one - a user id and key at a
-scores site, say. The account is the extension's: its fields, a status line and what can
-be done with it come from the extension, asked with the player's id, and it keeps the
+A player can hold an account with an extension that offers one - a user id at a scores
+site, say, chosen free and claimed deliberately. The account is the extension's: what can
+be done with it comes from the extension, asked with the player's id, and it keeps the
 values. A guest's are held in memory and gone when they are.
 
 ```json
 {"accounts": [
   {"extension": "scores_site", "label": "Scores Site", "share": false,
    "share_help": "Posts your scores to Scores Site",
-   "fields": [{"key": "user_id", "label": "User ID", "type": "string", "value": "jordan"},
-              {"key": "key", "label": "Key", "type": "secret", "set": true}],
-   "status": "Sent 2 minutes ago", "acts": [{"key": "send", "label": "Send Now",
-   "description": ""}], "card": true, "reads_cards": true, "error": ""}
+   "consent": ["their id and initials", "the games they play from now on"],
+   "check": "/available", "user_id": "jordan", "claimed": true,
+   "page": "https://scores.example/players/jordan",
+   "status": "Sent 2 minutes ago", "waiting": false, "waiting_count": 0,
+   "acts": [{"key": "send_now", "label": "Send Now", "description": ""}],
+   "fields": [], "card": true, "reads_cards": true, "error": ""}
 ]}
 ```
 
-**A secret is never answered.** A field of type `secret` is accepted on a write and read
-back as `set`, true or false, by this route and by every route an extension serves.
+`claimed` says whether `user_id` is registered with the service - free to change or drop
+with a plain `PUT` until then, read-only after. `page` is the account's public page once
+claimed, `""` before. `check` is where a candidate id is asked about while it is being
+chosen, not under this player: `GET /ext/{extension}{check}?candidate=…`, straight through
+to the extension the way its settings are. `consent` is what Share tells the player
+becomes public, asked once, the first time it is turned on. `acts` is empty until claimed;
+`send_now` is the one this shape offers, only while something waits. `fields` is unused by
+this shape - a `secret` field of an extension whose account is settings-like instead is
+accepted on a write and read back as `set`, true or false, by this route and by every
+route an extension serves, and never answered.
 
 **Share** is whether the account sends what this install records, and it is core's, kept
 per player per extension in `players.json`. It is off until someone turns it on, except for

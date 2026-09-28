@@ -75,7 +75,9 @@ class SendingCase(VPinPlayCase):
 
     def sharing(self, player_id: str, user_id: str = "") -> str:
         if user_id:
-            self.fill(player_id, user_id=user_id)
+            # A key too: a send needs a claimed account, and nothing here is testing
+            # the claim itself.
+            self.fill(player_id, user_id=user_id, key=KEY)
         players.get_roster().set_sharing(player_id, NAME, True)
         return player_id
 
@@ -230,7 +232,7 @@ class WhatIsNeverSent(SendingCase):
         self.assertEqual(self.account(self.owner)["status"], "")
 
     def test_a_game_played_before_share_was_on_is_never_sent(self) -> None:
-        self.fill(self.owner, user_id="owner-id")
+        self.fill(self.owner, user_id="owner-id", key=KEY)
         self.play(self.owner, game_id=GAME)
 
         self.sharing(self.owner)

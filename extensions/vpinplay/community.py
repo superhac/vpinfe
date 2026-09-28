@@ -14,7 +14,11 @@ from fastapi import APIRouter, HTTPException
 
 from common.extensions.contract import why, words
 
-from .accounts import SEND_NOW, USER_ID, YOUR_PAGE, page_for
+from .accounts import SEND_NOW, USER_ID, page_for
+
+# Not one of the account's own acts: it carries its own `url`, so the Console draws it
+# as a link and never calls back for it.
+YOUR_PAGE = "your_page"
 
 if TYPE_CHECKING:
     from .sending import Sender
@@ -170,7 +174,7 @@ def acts(ctx: Any, site: str, sender: Sender) -> list[dict[str, str]]:
     owner = next((one for one in ctx.players.roster() if one.get("owner")), None)
     user_id = ctx.players.account(owner["id"]).get(USER_ID, "") if owner else ""
     if user_id:
-        offered.append({"key": YOUR_PAGE, "label": ctx.t("account.act.your_page.label"),
+        offered.append({"key": YOUR_PAGE, "label": ctx.t("community.act.your_page.label"),
                         "url": page_for(site, user_id)})
     return offered
 

@@ -48,7 +48,7 @@ from console import dialog as frame
 from console.api import ApiClient, ApiError, local_base_url
 from console.data import Library
 from console.on_page import on_page
-from console.players import CARD_FILES, kind_of, save_card, share_help, shown_name
+from console.players import CARD_FILES, CLAIM, kind_of, save_card, share_help, shown_name
 
 logger = logging.getLogger("vpinfe.console.remote")
 
@@ -737,9 +737,10 @@ def _guest_accounts(state: dict[str, Any], identity: dict[str, Any],
 async def _share_with(state: dict[str, Any], identity: dict[str, Any],
                       account: dict[str, Any], client_for_target: Callable[[], Any],
                       redraw: Callable[[], None]) -> bool:
-    """A user id, and VPinPlay makes a key for it the same way it does from the Console
-    (`extensions/vpinplay/accounts.py`'s `write_account`) - core does not mint one.
-    Answers whether it went through, so the identity sheet behind it knows to close."""
+    """A user id, saved then claimed through the same act Players' own dialog uses
+    (`extensions/vpinplay/accounts.py`'s `claim`) - checked, keyed and registered before
+    Share goes on, never assumed free. Answers whether it went through, so the identity
+    sheet behind it knows to close."""
     extension = str(account["extension"])
     service = str(account.get("label") or extension)
     about: dict[str, Any] = next(
@@ -754,6 +755,7 @@ async def _share_with(state: dict[str, Any], identity: dict[str, Any],
         try:
             await run.io_bound(library.put_account, identity["id"], extension,
                                {"user_id": typed})
+            await run.io_bound(library.account_act, identity["id"], extension, CLAIM)
             await run.io_bound(library.put_share, identity["id"], extension, True)
         except Exception as exc:
             ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")

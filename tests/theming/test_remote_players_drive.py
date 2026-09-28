@@ -2,8 +2,8 @@
 Join by Just Initials, the identity sheet's Sign Out, Share with VPinPlay and Save Card,
 This Is Me and Not Me changing who a rating and Favorite are for, and Now's up switches.
 
-Slow: boots a real instance and a real browser. VPinPlay runs, pointed at a port nothing
-answers on, so sharing a card never reaches it.
+Slow: boots a real instance and a real browser. VPinPlay talks to a stand-in served here,
+which takes any id and any claim.
 """
 
 from __future__ import annotations
@@ -16,12 +16,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common.i18n import t
+from tests.support import vpinplay_stub
 from tests.support.browser_session import BrowserSession, chromium_path
 from tests.support.console_walk import ConsoleWalk
 from tests.support.library import game_info, write_game
 from tests.support.live_instance import LiveInstance
 
-NOWHERE = "http://127.0.0.1:9"
 USER_ID = "visitor-one"
 CARD_FILE = f"vpinplay-{USER_ID}.svg"
 KID_NAME = "Kid"
@@ -71,15 +71,21 @@ class RemotePlayersDrive(unittest.TestCase):
     def setUpClass(cls) -> None:
         if not chromium_path():
             raise unittest.SkipTest("no Chromium on this machine")
-        with TemporaryDirectory() as tmp, TemporaryDirectory() as saved:
-            write_game(Path(tmp), "Alpha", info=game_info("Alpha", vps_id="", game_id="alpha"))
-            instance = LiveInstance(Path(tmp))
-            settings = instance.config_dir / "extension_settings"
-            settings.mkdir(parents=True, exist_ok=True)
-            (settings / "vpinplay.json").write_text(json.dumps(
-                {"endpoint": NOWHERE, "sync_on_exit": "false"}), encoding="utf-8")
-            with instance:
-                cls.seen = asyncio.run(cls._drive(instance, Path(saved)))
+        server = vpinplay_stub.start()
+        try:
+            with TemporaryDirectory() as tmp, TemporaryDirectory() as saved:
+                write_game(Path(tmp), "Alpha",
+                          info=game_info("Alpha", vps_id="", game_id="alpha"))
+                instance = LiveInstance(Path(tmp))
+                settings = instance.config_dir / "extension_settings"
+                settings.mkdir(parents=True, exist_ok=True)
+                (settings / "vpinplay.json").write_text(json.dumps(
+                    {"endpoint": vpinplay_stub.endpoint(server),
+                     "sync_on_exit": "false"}), encoding="utf-8")
+                with instance:
+                    cls.seen = asyncio.run(cls._drive(instance, Path(saved)))
+        finally:
+            vpinplay_stub.stop(server)
 
     @classmethod
     async def _drive(cls, instance: LiveInstance, saved: Path) -> dict:
@@ -254,11 +260,10 @@ class RemotePlayersDrive(unittest.TestCase):
         self.assertIn(t("console.players.sign_out"), said)
         self.assertIn(t("console.remote.share_with", service="VPinPlay"), said)
 
-    def test_sharing_sets_the_user_id_and_turns_share_on(self) -> None:
+    def test_sharing_sets_the_user_id_claims_it_and_turns_share_on(self) -> None:
         account = self.seen["guest_account_after_share"]
-        self.assertTrue(account["share"])
-        self.assertEqual(
-            next(f["value"] for f in account["fields"] if f["key"] == "user_id"), USER_ID)
+        self.assertEqual((account["share"], account["user_id"], account["claimed"]),
+                         (True, USER_ID, True))
 
     def test_once_shared_the_sheet_offers_save_card_not_share_again(self) -> None:
         said = self.seen["guest_sheet_after_share"]

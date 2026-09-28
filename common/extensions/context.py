@@ -356,13 +356,16 @@ class ExtensionUI:
         self.state_label = str(label or "").strip()
 
     def account(self, base: str, *, label: str = "", cards: Iterable[str] = (),
-                marker: str = "") -> None:
+                marker: str = "", check: str = "", consent: Iterable[str] = ()) -> None:
         """Say that a player can hold an account with this extension.
 
         `base` is a route of this extension's, asked with a player's id as
-        `docs/extensions.md` lists: the fields, a status line, the acts, and the card.
-        `cards` are the `type`s of card it reads. `marker` names where a card it makes
-        hides its text, and is the extension's name unless given.
+        `docs/extensions.md` lists: whether it is claimed, a page, the card, a status
+        line and the acts. `cards` are the `type`s of card it reads. `marker` names where
+        a card it makes hides its text, and is the extension's name unless given.
+        `check` is a route asked with a candidate id, `available`, while it is being
+        chosen. `consent` is what Share tells the player becomes public, each line
+        already in its own words from `ctx.t`.
         """
         self._needs_ui("an account")
         if self.account_offered:
@@ -375,7 +378,9 @@ class ExtensionUI:
             raise ContractError(f"{self._name} offers an account with no route, a card "
                                 "with no type, or a marker that is not a plain name")
         self.account_offered = {"base": wanted, "label": str(label or "").strip(),
-                                "cards": list(read), "marker": hidden}
+                                "cards": list(read), "marker": hidden,
+                                "check": str(check or "").strip(),
+                                "consent": [str(one) for one in consent if str(one).strip()]}
 
     def kept(self, key: str) -> dict | None:
         """The last good read core keeps of one of this extension's Community lists:

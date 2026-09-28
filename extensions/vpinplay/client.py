@@ -1,7 +1,9 @@
-"""What VPinPlay's players have rated a table, in the shape themes read.
+"""What VPinPlay's players have rated a table, in the shape themes read, and the two
+requests an account makes outside a game's sync: whether a candidate id is free, and the
+empty send that claims one.
 
-Answered from VPinPlay's table list, never asked of the service per table. The shape is the
-one published themes already read by name, and does not change.
+Ratings are answered from VPinPlay's table list, never asked of the service per table. The
+shape is the one published themes already read by name, and does not change.
 """
 
 from __future__ import annotations
@@ -9,6 +11,13 @@ from __future__ import annotations
 import threading
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import quote
+
+import requests
+
+from . import sync
+
+AVAILABLE_TIMEOUT = 10
 
 
 def _number(value: Any, fallback: Any = None) -> Any:
@@ -109,3 +118,22 @@ class Ratings:
         with self._lock:
             held = self._by_id.get(str(vps_id or "").strip())
         return None if held is None else {**held, "vpsdb": dict(held["vpsdb"])}
+
+
+def check_available(sync_endpoint: str, user_id: str) -> bool:
+    """Whether `user_id` is free to choose. Raises `requests.RequestException` where
+    VPinPlay could not be asked, which a caller must not read as taken."""
+    root = sync_endpoint.removesuffix("/sync")
+    url = f"{root}/users/{quote(user_id, safe='')}/available"
+    response = requests.get(url, timeout=AVAILABLE_TIMEOUT)
+    response.raise_for_status()
+    body = response.json()
+    return bool(body.get("available")) if isinstance(body, dict) else False
+
+
+def register(sync_endpoint: str, user_id: str, initials: str, key: str,
+             program_version: str) -> dict:
+    """Claim `user_id`: an empty send, which VPinPlay reads as registering the pair
+    rather than filing any table."""
+    payload = sync.envelope(user_id, initials, key, [], program_version, sync.now())
+    return sync.send(sync_endpoint, payload, sync.GAME_TIMEOUT)

@@ -898,6 +898,13 @@ class ApiClient:
         return list(self._get(f"/players/{quote(player_id, safe='')}/accounts")
                     .get("accounts") or [])
 
+    def account_available(self, extension: str, check: str, candidate: str) -> bool:
+        """Whether a candidate id is free to choose, asked at `extension`'s own declared
+        `check` route."""
+        return bool(self.ext_get(
+            f"/ext/{quote(extension, safe='')}{check}"
+            f"?candidate={quote(candidate)}").get("available"))
+
     def _account(self, player_id: str, extension: str) -> str:
         return f"/players/{quote(player_id, safe='')}/accounts/{quote(extension, safe='')}"
 

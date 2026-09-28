@@ -67,10 +67,12 @@ def register(ctx: Any) -> None:
     ctx.add_router(writing, scope=ctx.scope("write"))
     ctx.ui.settings("/settings")
 
-    reading, writing = accounts.routers(ctx, SITE, sender)
+    reading, writing = accounts.routers(ctx, SITE, sender, endpoint)
     ctx.add_router(reading, scope=ctx.scope("read"))
     ctx.add_router(writing, scope=ctx.scope("write"))
-    ctx.ui.account("/accounts", cards=(accounts.CARD_TYPE,))
+    ctx.ui.account("/accounts", cards=(accounts.CARD_TYPE,), check="/available",
+                   consent=(ctx.t("account.consent.identity"), ctx.t("account.consent.plays"),
+                           ctx.t("account.consent.ratings")))
 
     ctx.add_router(community.router(endpoint, read), scope=ctx.scope("read"))
     reading, writing = community.about_routers(ctx, SITE, sender)

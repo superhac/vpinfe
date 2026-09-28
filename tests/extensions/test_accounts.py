@@ -93,7 +93,7 @@ class ReadingAccounts(AccountsCase):
 
         self.assertEqual(next(one for one in listed if one["name"] == "sample")["account"],
                          {"base": "/accounts", "label": "Sample", "cards": ["sample_card"],
-                          "marker": "sample", "share_help": ""})
+                          "marker": "sample", "check": "", "consent": [], "share_help": ""})
 
     def test_an_extension_with_no_words_for_share_leaves_them_to_core(self) -> None:
         self.assertEqual(self.account(self.owner)["share_help"], "")
@@ -418,8 +418,16 @@ class TheDeclaration(unittest.TestCase):
         self.ui.account("/accounts", cards=["site_card"])
 
         self.assertEqual(self.ui.account_offered, {"base": "/accounts", "label": "",
-                                                   "cards": ["site_card"],
-                                                   "marker": "site"})
+                                                   "cards": ["site_card"], "marker": "site",
+                                                   "check": "", "consent": []})
+
+    def test_a_check_route_and_consent_lines_are_recorded_too(self) -> None:
+        self.ui.account("/accounts", cards=["site_card"], check="/accounts/available",
+                        consent=["their id", "what they play"])
+
+        self.assertEqual((self.ui.account_offered["check"],
+                          self.ui.account_offered["consent"]),
+                         ("/accounts/available", ["their id", "what they play"]))
 
     def test_an_account_needs_ui_mount(self) -> None:
         with self.assertRaises(ContractError):

@@ -532,6 +532,9 @@ class Library:
     def player_accounts(self, player_id: str) -> list[dict]:
         return self._client.player_accounts(player_id)
 
+    def account_available(self, extension: str, check: str, candidate: str) -> bool:
+        return self._client.account_available(extension, check, candidate)
+
     def put_account(self, player_id: str, extension: str, values: dict) -> dict:
         return self._client.put_account(player_id, extension, values)
 

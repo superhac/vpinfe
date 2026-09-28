@@ -139,6 +139,8 @@ async def _read(request: Request, player_id: str,
             extension=declared["extension"], label=declared["label"], error=why(exc),
             share=get_roster().sharing(player_id, declared["extension"]),
             share_help=str(declared.get("share_help") or ""),
+            consent=[str(one) for one in declared.get("consent") or []],
+            check=str(declared.get("check") or ""),
             reads_cards=bool(declared.get("cards")))
     return _shaped(declared, player_id, said)
 
@@ -151,9 +153,13 @@ def _shaped(declared: dict[str, Any], player_id: str, said: Any) -> models.Playe
         extension=declared["extension"], label=declared["label"],
         share=get_roster().sharing(player_id, declared["extension"]),
         share_help=str(declared.get("share_help") or ""),
+        consent=[str(one) for one in declared.get("consent") or []],
+        check=str(declared.get("check") or ""),
+        user_id=str(answer.get("user_id") or ""), claimed=bool(answer.get("claimed")),
+        page=str(answer.get("page") or ""),
         fields=[one for one in answer.get("fields") or [] if isinstance(one, dict)],
         status=str(answer.get("status") or ""),
-        waiting=bool(answer.get("waiting")),
+        waiting=bool(answer.get("waiting")), waiting_count=int(answer.get("waiting_count") or 0),
         acts=[models.AccountAct(key=str(one["key"]),
                                 label=str(one.get("label") or one["key"]),
                                 description=str(one.get("description") or ""))

@@ -1,11 +1,10 @@
 """Frontend › Players, driven as a person would: add a player, rename them, change their
-initials, put them up and take them down, give them a VPinPlay account, show and save
-its card, read what they played, and remove them with the card offered first. The owner
-takes that account from its card. Guests join by initials and by a card file, and sign out
-together.
+initials, put them up and take them down, choose a VPinPlay user id, share it through the
+consent dialog, show and save its card, read what they played, and remove them with the
+card offered first. The owner takes that account from its card. Guests join by initials
+and by a card file, and sign out together.
 
-Slow: boots a real instance and a real browser. VPinPlay runs, pointed at a port nothing
-answers on.
+Slow: boots a real instance and a real browser. VPinPlay talks to a stand-in served here.
 """
 
 from __future__ import annotations
@@ -17,12 +16,12 @@ import urllib.request
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from tests.support import vpinplay_stub
 from tests.support.browser_session import BrowserSession, chromium_path
 from tests.support.console_walk import ConsoleWalk
 from tests.support.library import game_info, write_game
 from tests.support.live_instance import LiveInstance
 
-NOWHERE = "http://127.0.0.1:9"
 USER_ID = "player-one"
 CARD_FILE = f"vpinplay-{USER_ID}.svg"
 
@@ -70,17 +69,22 @@ class PlayersDrive(unittest.TestCase):
     def setUpClass(cls) -> None:
         if not chromium_path():
             raise unittest.SkipTest("no Chromium on this machine")
-        with TemporaryDirectory() as tmp, TemporaryDirectory() as saved:
-            write_game(Path(tmp), "Alpha", info=game_info(
-                "Alpha", vps_id="", game_id="alpha",
-                Info={"Manufacturer": "Bally", "Year": "1992"}))
-            instance = LiveInstance(Path(tmp))
-            settings = instance.config_dir / "extension_settings"
-            settings.mkdir(parents=True, exist_ok=True)
-            (settings / "vpinplay.json").write_text(json.dumps(
-                {"endpoint": NOWHERE, "sync_on_exit": "false"}), encoding="utf-8")
-            with instance:
-                cls.seen = asyncio.run(cls._drive(instance, Path(saved)))
+        server = vpinplay_stub.start()
+        try:
+            with TemporaryDirectory() as tmp, TemporaryDirectory() as saved:
+                write_game(Path(tmp), "Alpha", info=game_info(
+                    "Alpha", vps_id="", game_id="alpha",
+                    Info={"Manufacturer": "Bally", "Year": "1992"}))
+                instance = LiveInstance(Path(tmp))
+                settings = instance.config_dir / "extension_settings"
+                settings.mkdir(parents=True, exist_ok=True)
+                (settings / "vpinplay.json").write_text(json.dumps(
+                    {"endpoint": vpinplay_stub.endpoint(server),
+                     "sync_on_exit": "false"}), encoding="utf-8")
+                with instance:
+                    cls.seen = asyncio.run(cls._drive(instance, Path(saved)))
+        finally:
+            vpinplay_stub.stop(server)
 
     @classmethod
     async def _drive(cls, instance: LiveInstance, saved: Path) -> dict:
@@ -195,25 +199,47 @@ class PlayersDrive(unittest.TestCase):
             seen["shared_tip"] = await browser.evaluate(
                 f"document.querySelector({json.dumps(chip)}).title")
 
-            # A VPinPlay account on Jordan: the key is set and never shown.
+            # A VPinPlay account on Jordan, through all three states.
             await open_player(jordan)
             seen["rail"] = await browser.evaluate(RAIL_NAMES)
             await open_section("VPinPlay")
-            await type_into(f"{WORK} input", 0, USER_ID)
-            await browser.wait_for(
-                f"[...document.querySelectorAll('{WORK} .console-tier')]"
-                ".some(el => el.innerText.trim() === 'Set')")
-            await browser.wait_for(f"{SHOWN_ACTS}.length === 4")
-            seen["account"] = await browser.evaluate(
-                f"document.querySelector('{WORK}').innerText")
-            seen["acts"] = await browser.evaluate(f"{SHOWN_ACTS}.map({SAYS})")
+            seen["state1"] = await browser.wait_for(_text(WORK))
+            seen["state1_acts"] = await browser.evaluate(f"{SHOWN_ACTS}.map({SAYS})")
 
-            await press(ACTS, "Show Card")
-            await browser.wait_for(f"!!document.querySelector('{DIALOG} .console-qr svg')")
+            # Choose a user id: checked live, Available once typed, no key made.
+            await press(ACTS, "Choose a User ID")
             await browser.wait_for(DIALOG_UP)
-            seen["shown"] = await browser.wait_for(DIALOG_TEXT)
-            await press(FOOTER, "Close")
-            await browser.wait_for(f"!document.querySelector('{DIALOG} .console-qr')")
+            seen["choose_title"] = await browser.wait_for(DIALOG_TEXT)
+            await type_into(f"{DIALOG} input", 0, USER_ID)
+            seen["choose_checked"] = await browser.wait_for(
+                f"(said => said && said.includes('Available') ? said : null)({DIALOG_TEXT})")
+            await press(FOOTER, "Choose")
+            await browser.wait_for(f"!document.querySelector('{DIALOG}')")
+
+            seen["state2"] = await browser.wait_for(
+                f"(said => said && said.includes({json.dumps(USER_ID)}) ? said : null)"
+                f"({_text(WORK)})")
+            seen["state2_acts"] = await browser.evaluate(f"{SHOWN_ACTS}.map({SAYS})")
+
+            # Share, while unclaimed: the consent dialog, then claimed.
+            await browser.click(f"{WORK} .q-toggle")
+            await browser.wait_for(DIALOG_UP)
+            seen["consent"] = await browser.wait_for(DIALOG_TEXT)
+            await press(FOOTER, "Share")
+            await browser.wait_for(f"!document.querySelector('{DIALOG}')")
+
+            seen["state3"] = await browser.wait_for(
+                f"(said => said && said.includes('Your Page') ? said : null)"
+                f"({_text(WORK)})")
+            seen["state3_acts"] = await browser.evaluate(f"{SHOWN_ACTS}.map({SAYS})")
+
+            # The card: hidden until Show is pressed, then large in the media viewer.
+            await browser.click(f"{WORK} .console-source-thumb")
+            await browser.wait_for(DIALOG_UP)
+            seen["viewer_has_image"] = await browser.evaluate(
+                f"!!document.querySelector('{DIALOG} img')")
+            await press(f"{DIALOG} .q-btn", "close")
+            await browser.wait_for(f"!document.querySelector('{DIALOG}')")
 
             await press(ACTS, "Save Card")
             seen["saved"] = await _saved(saved / CARD_FILE)
@@ -251,9 +277,7 @@ class PlayersDrive(unittest.TestCase):
             # when the account already holds a key.
             await open_section("VPinPlay")
             await pick(f"{WORK} .q-uploader input[type=file]", saved / CARD_FILE)
-            await browser.wait_for(
-                f"[...document.querySelectorAll('{WORK} .console-tier')]"
-                ".some(el => el.innerText.trim() === 'Set')")
+            await browser.wait_for(f"{_text(WORK)}.includes('Your Page')")
             seen["owner_account"] = instance.api(
                 f"/api/v1/players/{owner}/accounts/vpinplay")
             # Initials, so a card can be made of what is held and Save Card is offered.
@@ -339,18 +363,36 @@ class PlayersDrive(unittest.TestCase):
     def test_the_owner_has_no_plays_of_their_own(self) -> None:
         self.assertEqual(self.seen["owner_rail"], ["Details", "VPinPlay"])
 
-    def test_the_key_is_set_and_never_shown(self) -> None:
-        account = self.seen["account"]
-        self.assertIn("Set", account)
-        self.assertIn("Makes your tables, play history, ratings and high scores public "
-                      "on VPinPlay", account)
-        self.assertEqual(self.seen["acts"], ["Show Card", "Save Card", "Your Page",
-                                             "Use a Card"])
+    def test_state_one_offers_choosing_and_a_card_only(self) -> None:
+        self.assertIn("No VPinPlay account", self.seen["state1"])
+        self.assertEqual(self.seen["state1_acts"], ["Choose a User ID", "Use a Card"])
 
-    def test_a_card_shown_says_what_it_lets_somebody_do(self) -> None:
-        self.assertIn("Card for “Sam”", self.seen["shown"])
-        self.assertIn("Anyone with this card can send plays under your name",
-                      self.seen["shown"])
+    def test_choosing_checks_live_and_shows_it_lower_cased(self) -> None:
+        self.assertIn("Choose a “VPinPlay” User ID", self.seen["choose_title"])
+        self.assertIn("Available", self.seen["choose_checked"])
+        self.assertIn(USER_ID, self.seen["choose_checked"])
+
+    def test_state_two_is_text_not_an_input_with_change_and_remove(self) -> None:
+        self.assertIn("Not on VPinPlay until you share", self.seen["state2"])
+        self.assertEqual(self.seen["state2_acts"],
+                         ["Change User ID", "Remove", "Use a Card"])
+
+    def test_share_while_unclaimed_asks_first_and_names_what_becomes_public(self) -> None:
+        said = self.seen["consent"]
+        self.assertIn(f"Share as “{USER_ID}” on “VPinPlay”?", said)
+        self.assertIn("Anyone can see:", said)
+        self.assertIn("VPinPlay can't rename or delete an account", said)
+
+    def test_state_three_is_claimed_with_a_page_and_a_card_section(self) -> None:
+        said = self.seen["state3"]
+        self.assertIn("Your Page", said)
+        self.assertIn("Played games, ratings, high scores and play times are public "
+                      "on VPinPlay", said)
+        self.assertIn("Anyone holding this card can play as you on VPinPlay", said)
+        self.assertEqual(self.seen["state3_acts"], ["Disconnect", "Save Card", "Use a Card"])
+
+    def test_the_card_stays_hidden_until_shown_large(self) -> None:
+        self.assertTrue(self.seen["viewer_has_image"])
 
     def test_a_card_saved_is_the_card(self) -> None:
         for saved in (self.seen["saved"], self.seen["saved_again"]):
@@ -364,11 +406,10 @@ class PlayersDrive(unittest.TestCase):
         self.assertIn("3 plays · 25 min", plays)
         self.assertIn("Best 1,234,560", plays)
 
-    def test_the_owner_takes_an_account_from_its_card(self) -> None:
+    def test_the_owner_takes_a_claimed_account_from_its_card(self) -> None:
         account = self.seen["owner_account"]
-        self.assertEqual([(one["key"], one.get("value", one.get("set")))
-                          for one in account["fields"]], [("user_id", USER_ID), ("key", True)])
-        self.assertFalse(account["share"])
+        self.assertEqual((account["user_id"], account["claimed"], account["share"]),
+                         (USER_ID, True, False))
 
     def test_a_card_over_a_held_key_is_asked_about_first(self) -> None:
         said = self.seen["use_again"]

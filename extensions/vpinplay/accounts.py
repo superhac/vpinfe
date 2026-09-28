@@ -1,13 +1,16 @@
-"""A player's VPinPlay account, and the card that carries it to another install.
+"""A player's VPinPlay account: a user id, chosen free and claimed deliberately, and the
+key VPinPlay ties it to once it is.
 
-An account is a user id and the key VPinPlay holds that user id to, and what it has been
-sent. Core draws the account on each player and asks the routes below with the player's
-id; the values live in this extension's own file for a kept player, and in memory for a
-guest.
+An account is unclaimed while it holds a user id and no key - free to change or drop,
+never sent. **Claiming** checks the id is still free, mints the key and registers the pair
+with an empty send; nothing before that reaches VPinPlay. Core draws the account on each
+player and asks the routes below with the player's id; the values live in this extension's
+own file for a kept player, and in memory for a guest.
 """
 
 from __future__ import annotations
 
+import logging
 import secrets
 import string
 import threading
@@ -15,10 +18,17 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
+import requests
 from fastapi import APIRouter, HTTPException
 
+from . import client, sync
+
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from .sending import Sender
+
+logger = logging.getLogger("vpinfe.ext.vpinplay.accounts")
 
 USER_ID = "user_id"
 KEY = "key"
@@ -35,10 +45,9 @@ CARD_TYPE = "vpinplay_identity"
 CARD_VERSION = 1
 CARD_INITIALS_AT_MOST = 3
 
-SHOW_CARD = "show_card"
-SAVE_CARD = "save_card"
 SEND_NOW = "send_now"
-YOUR_PAGE = "your_page"
+CLAIM = "claim"
+DISCONNECT = "disconnect"
 
 PLAYERS_CHANGED = "players.changed"
 
@@ -62,11 +71,12 @@ def page_for(site: str, user_id: str) -> str:
     return f"{site}/players.html?userid={quote(user_id)}"
 
 
-def routers(ctx: Any, site: str, sender: Sender) -> tuple[APIRouter, APIRouter]:
+def routers(ctx: Any, site: str, sender: Sender,
+           endpoint: Callable[[], str]) -> tuple[APIRouter, APIRouter]:
     """Reading and writing, the way settings are split.
 
-    An act answers what came of it: Show Card and Save Card the card, as the card route
-    does; Your Page a `url`; Send Now a `message`.
+    An act answers what came of it: Send Now a `message`; Claim and Disconnect the
+    account, as `GET {base}/{player_id}` does.
     """
     reading = APIRouter()
     writing = APIRouter()
@@ -83,42 +93,33 @@ def routers(ctx: Any, site: str, sender: Sender) -> tuple[APIRouter, APIRouter]:
                          "initials": initials, "machineId": key},
                 "filename": f"vpinplay-{user_id}"}
 
-    def acts(user_id: str, carded: bool, waiting: int) -> list[dict]:
-        offered = []
-        if carded:
-            offered += [{"key": SHOW_CARD, "label": ctx.t("account.act.show_card.label")},
-                        {"key": SAVE_CARD, "label": ctx.t("account.act.save_card.label")}]
-        if user_id and waiting:
-            offered += [{"key": SEND_NOW, "label": ctx.t("account.act.send_now.label")}]
-        if user_id:
-            offered += [{"key": YOUR_PAGE, "label": ctx.t("account.act.your_page.label")}]
-        return offered
+    def acts(claimed: bool, waiting: int) -> list[dict]:
+        if claimed and waiting:
+            return [{"key": SEND_NOW, "label": ctx.t("account.act.send_now.label")}]
+        return []
 
-    def status(player_id: str, held: dict[str, str]) -> str:
-        if not held.get(USER_ID):
+    def status(claimed: bool, held: dict[str, str], waiting: int) -> str:
+        if not claimed:
             return ""
-        if not initials_of(player_id):
-            return ctx.t("account.status.no_initials")
-        waiting = len(listed(held.get(WAITING)))
         if waiting:
             return ctx.t("account.status.waiting", count=waiting)
         return sent_ago(ctx, held.get(LAST_SENT, ""))
 
     def answer(player_id: str) -> dict:
         held = ctx.players.account(player_id)
-        user_id = held.get(USER_ID, "")
-        carded = card_for(player_id, held) is not None
+        user_id, key = held.get(USER_ID, ""), held.get(KEY, "")
+        claimed = bool(user_id and key)
+        waiting = len(listed(held.get(WAITING)))
         return {
-            "fields": [
-                {"key": USER_ID, "label": ctx.t("account.user_id.label"), "type": "string",
-                 "value": user_id, "help": ctx.t("account.user_id.help")},
-                {"key": KEY, "label": ctx.t("account.key.label"), "type": "secret",
-                 "value": held.get(KEY, ""), "help": ctx.t("account.key.help")},
-            ],
-            "status": status(player_id, held),
-            "waiting": bool(listed(held.get(WAITING))),
-            "acts": acts(user_id, carded, len(listed(held.get(WAITING)))),
-            "card": carded,
+            "fields": [],
+            "user_id": user_id,
+            "claimed": claimed,
+            "page": page_for(site, user_id) if claimed else "",
+            "status": status(claimed, held, waiting),
+            "waiting": bool(waiting),
+            "waiting_count": waiting,
+            "acts": acts(claimed, waiting),
+            "card": card_for(player_id, held) is not None,
         }
 
     def card_or_404(player_id: str) -> dict:
@@ -127,24 +128,68 @@ def routers(ctx: Any, site: str, sender: Sender) -> tuple[APIRouter, APIRouter]:
             raise HTTPException(404, detail=ctx.t("error.no_card"))
         return made
 
+    def reached(url: str, user_id: str) -> bool:
+        """Whether `user_id` is free, asked fresh. Raises where VPinPlay could not be."""
+        try:
+            return client.check_available(url, user_id)
+        except requests.RequestException as exc:
+            logger.warning("Could not reach VPinPlay to check %r: %s", user_id, exc)
+            raise HTTPException(503, detail=ctx.t("error.unreachable")) from exc
+
+    def claim(player_id: str) -> dict:
+        held = dict(ctx.players.account(player_id))
+        user_id = held.get(USER_ID, "").strip()
+        if not user_id:
+            raise HTTPException(400, detail=ctx.t("error.no_user_id"))
+        if held.get(KEY):
+            raise HTTPException(400, detail=ctx.t("error.already_claimed"))
+        initials = initials_of(player_id)
+        if not initials:
+            raise HTTPException(400, detail=ctx.t("error.no_initials"))
+        where = sync.endpoint_for(endpoint())
+        if not reached(where, user_id):
+            raise HTTPException(400, detail=ctx.t("error.taken"))
+        key = new_key()
+        try:
+            result = client.register(where, user_id, initials, key, ctx.host_version)
+        except requests.RequestException as exc:
+            logger.warning("Could not reach VPinPlay to claim %r: %s", user_id, exc)
+            raise HTTPException(503, detail=ctx.t("error.unreachable")) from exc
+        if not result.get("ok"):
+            raise HTTPException(503, detail=ctx.t("error.claim_failed"))
+        with sender.books():
+            ctx.players.set_account(player_id, {USER_ID: user_id, KEY: key})
+        return answer(player_id)
+
+    def disconnect(player_id: str) -> dict:
+        with sender.books():
+            ctx.players.set_account(player_id, {})
+        return answer(player_id)
+
+    # A path of its own, one segment away from `/accounts/{player_id}` below: this must
+    # never be read as that route with `player_id="available"`.
+    @reading.get("/available")
+    def check_available(candidate: str) -> dict:
+        where = sync.endpoint_for(endpoint())
+        return {"available": reached(where, candidate.strip().lower())}
+
     @reading.get("/accounts/{player_id}")
     def read_account(player_id: str) -> dict:
         return answer(player_id)
 
     @writing.put("/accounts/{player_id}")
     def write_account(player_id: str, payload: dict) -> dict:
+        """Saves what is chosen; claiming is its own act, never a side effect of a write."""
         offered = dict((payload or {}).get("values") or {})
         with sender.books():
             held = dict(ctx.players.account(player_id))
             was = held.get(USER_ID, "")
             if USER_ID in offered:
-                held[USER_ID] = str(offered[USER_ID] or "").strip()
-            # No write clears a key, an empty one included.
+                held[USER_ID] = str(offered[USER_ID] or "").strip().lower()
+            # No write clears a key, an empty one included. A card writes both at once.
             written_key = str(offered.get(KEY) or "").strip()
             if written_key:
                 held[KEY] = written_key
-            if held.get(USER_ID) and not held.get(KEY):
-                held[KEY] = new_key()
             kept = (USER_ID, KEY, *(BOOKS if held.get(USER_ID) == was else ()))
             ctx.players.set_account(player_id, {key: value for key, value in held.items()
                                                 if key in kept and value})
@@ -152,15 +197,15 @@ def routers(ctx: Any, site: str, sender: Sender) -> tuple[APIRouter, APIRouter]:
 
     @writing.post("/accounts/{player_id}/acts/{act}")
     def run_act(player_id: str, act: str) -> dict:
-        if act in (SHOW_CARD, SAVE_CARD):
-            return {**card_or_404(player_id), "message": ctx.t("account.card_warning")}
-        user_id = ctx.players.account(player_id).get(USER_ID, "")
-        if act not in (SEND_NOW, YOUR_PAGE):
+        if act == CLAIM:
+            return claim(player_id)
+        if act == DISCONNECT:
+            return disconnect(player_id)
+        if act != SEND_NOW:
             raise HTTPException(404, detail=ctx.t("error.no_act", act=act))
-        if not user_id:
+        held = ctx.players.account(player_id)
+        if not (held.get(USER_ID) and held.get(KEY)):
             raise HTTPException(404, detail=ctx.t("error.no_user_id"))
-        if act == YOUR_PAGE:
-            return {"url": page_for(site, user_id)}
         if not sender.waiting(player_id):
             return {"message": ctx.t("account.nothing_waiting")}
         went, waiting = sender.send_now(player_id)

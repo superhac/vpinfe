@@ -27,6 +27,8 @@ from tests.support.live_instance import LiveInstance
 GAME = "alpha"
 VPS_ID = "vps-alpha"
 USER_ID = "owner-id"
+# A send needs a claimed account; claiming itself is Players' own drive.
+KEY = "k" * 64
 LIST = "/console?view=community:vpinplay:tables"
 PAGE = "/console?view=extensions:vpinplay"
 
@@ -203,7 +205,7 @@ class CommunityMenuDrive(unittest.TestCase):
             # The owner holds one, with Share off.
             _call(instance, "PATCH", f"/api/v1/players/{owner}", {"initials": "OWN"})
             _call(instance, "PUT", f"/api/v1/players/{owner}/accounts/vpinplay",
-                  {"values": {"user_id": USER_ID}})
+                  {"values": {"user_id": USER_ID, "key": KEY}})
             seen["share_off"] = await the_list()
 
             # Share on.
