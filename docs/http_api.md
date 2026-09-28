@@ -816,7 +816,9 @@ What's on it, each alongside the `install_id` described below:
 
 | Event | Payload |
 |-------|---------|
-| `table.launching` / `table.launched` / `table.exited` | `{"game": {"id", "name", "links"}, "table": {"id"}}` — which game, and which of its tables launched. `table` is null when the launch didn't come from the wheel, and the whole payload is `{"game": null}` when there is no game at all |
+| `table.launching` / `table.exited` | `{"game": {"id", "name", "links"}, "table": {"id"}}` — which game, and which of its tables launched. `table` is null when the launch didn't come from the wheel, and the whole payload is `{"game": null}` when there is no game at all |
+| `table.launched` | The same, and `up`: who the game counts for, taken as it starts, each `{"id", "name", "initials", "owner", "guest"}` |
+| `table.play_recorded` | The same as `table.launched`, once the game has ended and its play is written, and `seconds` played; `reading`, the machine's high score table as read after the game, or null; `new_entries`, `[{"player", "entries"}]` for each player with an entry new this game - see [Players](#players) |
 | `game.selected` | `{"game": {"id", "name", "links"}, "table": null}` — the wheel stops on a game, so there is no table to name |
 | `game.changed` | `{"game": {"id", "name", "links"}}` — a game's metadata was rewritten, so anything holding it is stale |
 | `collections.changed` | `{}` — the collections were edited, or a read of a Community list moved a ranked order; re-read them |
@@ -1156,6 +1158,18 @@ already holds stay as they are when left unchanged, even shorter ones brought fr
 guest whose initials a kept player has joins anyway, and each lists the other under
 `shares_initials_with`: while they share them, a score carrying those initials goes to
 neither.
+
+**A game counts for who was up as it started, and a new score for whose initials it has.**
+The high score table is read before the launch and again after the game. An entry is new
+when the second reading holds it more times than the first, whatever its rank or section,
+and a game with no reading before it has nothing new. A new entry goes to the player whose
+initials it carries, up or not. One with no initials, or `???`, goes to the one player up,
+and with several up to nobody. A machine that keeps a single number has a new entry when
+the number changed, and it goes the same way. `table.play_recorded` says who each one went
+to.
+
+The library's own counts - how often a game was played, for how long, and its score - are
+the owner's. They move only for a game the owner was up for.
 
 A refusal - removing the owner, initials taken or not three characters, a guest with none -
 is `invalid_request` with the reason as its message. An id nobody has is `not_found`.

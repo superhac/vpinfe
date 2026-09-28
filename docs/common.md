@@ -21,7 +21,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `values.py`: value coercion (`is_truthy`) shared by config, metadata and filters.
 - `config_store.py`, `config_bootstrap.py`: ini reading and first-run config creation.
 - `events.py`: the in-process event bus. Hooks are part of an operation; subscribers are told about it.
-- `players.py`: who plays on this install and who the next game counts for. Kept players are in `players.json`; guests and who is up are held in memory and gone when VPinFE closes. Every comparison of two sets of initials goes through `same_initials`, and every change is announced as `players.changed`.
+- `players.py`: who plays on this install and who the next game counts for. Kept players are in `players.json`; guests and who is up are held in memory and gone when VPinFE closes. Every comparison of two sets of initials goes through `same_initials`, `Roster.whose_score` says whose a new score is, and every change is announced as `players.changed`.
 - `media_specs.py`: canonical media keys, filenames, playfield attributes, and path resolution.
 - `input_registry.py`: every input action, its default bindings and the names it used to have. `[input]` in the config is generated from it, so the two cannot disagree.
 - `lifecycle.py`: starting, stopping and restarting the frontend, VPinFE or the machine, whichever surface asked.

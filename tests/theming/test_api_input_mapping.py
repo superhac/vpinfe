@@ -150,7 +150,8 @@ class TestApiInputMapping(unittest.TestCase):
             with (
                 patch("common.host.launch.delete_vpinball_log_on_start_if_configured",
                       side_effect=lambda *_a: call_order.append("delete_log")),
-                patch("common.host.launch.game_play_service"),
+                patch("common.host.launch.game_play_service",
+                      **{"parse_score_from_nvram.return_value": (None, None)}),
                 patch("frontend.play_events.save_last_launched"),
             ):
                 play_events.register(ws_bridge)

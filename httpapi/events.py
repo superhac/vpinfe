@@ -76,6 +76,14 @@ def _game_event(game: Any = None, table_id: str | None = None, **_: Any) -> dict
             "table": table}
 
 
+def _session_event(game: Any = None, table_id: str | None = None, **payload: Any) -> dict:
+    """A game event, and who played it: `up` from the launch on, and at the end the
+    seconds, the high score table as read and each player's new entries."""
+    return _game_event(game, table_id) | {
+        name: payload[name] for name in ("up", "seconds", "reading", "new_entries")
+        if name in payload}
+
+
 def _game_reference(game_id: str, name: str) -> dict:
     reference: dict[str, Any] = {"id": game_id, "name": name}
     if game_id:
@@ -130,8 +138,9 @@ def _lifecycle_event(**payload: Any) -> dict:
 # has to be answered before anything is streamed.
 STREAMED_EVENTS: dict[str, Callable[..., dict]] = {
     events.TABLE_LAUNCHING: _game_event,
-    events.TABLE_LAUNCHED: _game_event,
+    events.TABLE_LAUNCHED: _session_event,
     events.TABLE_EXITED: _game_event,
+    events.TABLE_PLAY_RECORDED: _session_event,
     events.GAME_SELECTED: _game_event,
     # The library moved under whoever is holding it. Local subscribers get this
     # already; it crosses now because a frontend on another machine has no other way

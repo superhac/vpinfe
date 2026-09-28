@@ -118,7 +118,10 @@ def score_rom_from_meta(config: dict) -> str:
     return str(default_table_entry(config).get("rom", "") or "").strip()
 
 
-def parse_score_from_nvram(game: Game) -> tuple[dict | None, str | None]:
+def parse_score_from_nvram(game: Game,
+                           initials: str | None = None) -> tuple[dict | None, str | None]:
+    """The table's high score table and where it was read from. `initials` goes on a
+    blank score, the one player up's when it is None; "" leaves them blank."""
     config = clone_game_meta(game)
     if not config:
         logger.warning("Could not parse Score: invalid game metadata for %s", game.game_dir_name)
@@ -133,7 +136,7 @@ def parse_score_from_nvram(game: Game) -> tuple[dict | None, str | None]:
         from common.games.score_parser import read_rom_with_source, result_to_jsonable
 
         parsed_result, score_path = read_rom_with_source(rom, str(game.full_path_game))
-        score_data = result_to_jsonable(rom, parsed_result, score_path)
+        score_data = result_to_jsonable(rom, parsed_result, score_path, initials)
     except FileNotFoundError:
         logger.debug("No score source found for %s and ROM %s", game.game_dir_name, rom)
         return None, None
@@ -181,14 +184,11 @@ def build_runtime_submission_meta(game: Game, user_state: dict) -> dict:
     return config
 
 
-def update_score_from_nvram(game: Game) -> None:
+def update_score(game: Game, score_data: dict, score_path: str | None) -> None:
+    """Keep a reading from `parse_score_from_nvram` as the game's score."""
     config = clone_game_meta(game)
     if not config:
         logger.warning("Could not update Score: invalid game metadata for %s", game.game_dir_name)
-        return
-
-    score_data, score_path = parse_score_from_nvram(game)
-    if not score_data:
         return
 
     apply_score_update(config, score_data)

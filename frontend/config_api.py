@@ -174,9 +174,9 @@ def set_audio_muted(api: API, muted: Any) -> bool:
 def get_vpinplay_endpoint(config: ConfigSource) -> str:
     """Where VPinPlay is, for a theme that asks.
 
-    The extension's answer, or the config's where the extension holds none - the shape
-    `score_parser.get_default_initials` uses. A published theme may still call this to
-    build a URL of its own, so it answers whether or not the extension is loaded.
+    The extension's answer, or the config's where the extension holds none. A published
+    theme may still call this to build a URL of its own, so it answers whether or not
+    the extension is loaded.
     """
     held = str(get_extension_store().settings("vpinplay").get("endpoint") or "").strip()
     if held:

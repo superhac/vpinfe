@@ -14,6 +14,7 @@ found by reading.
 from __future__ import annotations
 
 import ast
+import inspect
 import pathlib
 import unittest
 
@@ -40,6 +41,37 @@ def _imports(path: pathlib.Path) -> set[str]:
             found.add(node.module.split(".")[0])
         elif isinstance(node, ast.Import):
             found |= {alias.name.split(".")[0] for alias in node.names}
+    return found
+
+
+# The extension store's calls about one extension, which take its name first, and the
+# ones about the store as a whole. Every public method is in one or the other - a test
+# below holds that - so a new one has to be placed before this check can pass.
+STORE_CALLS_NAMING_AN_EXTENSION = {"enabled", "set_enabled", "settings", "set_setting",
+                                   "forget"}
+STORE_CALLS_ABOUT_THE_STORE = {"migrations", "mark_migration"}
+
+
+def _names_handed_to_the_store(tree: ast.Module) -> list[tuple[int, str]]:
+    """(line, name) for each store call given an extension's name as a string, written
+    at the call or held in a module-level constant. A name passed through a variable is
+    the host's business: it is handed the names of whatever is installed."""
+    methods = STORE_CALLS_NAMING_AN_EXTENSION
+    constants = {target.id: node.value.value for node in tree.body
+                 if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant)
+                 and isinstance(node.value.value, str)
+                 for target in node.targets if isinstance(target, ast.Name)}
+    found = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr in methods):
+            continue
+        given = node.args[:1] + [kw.value for kw in node.keywords if kw.arg == "name"]
+        for argument in given:
+            if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+                found.append((node.lineno, argument.value))
+            elif isinstance(argument, ast.Name) and argument.id in constants:
+                found.append((node.lineno, constants[argument.id]))
     return found
 
 
@@ -89,6 +121,37 @@ class LayeringTests(unittest.TestCase):
                         found.add((path.name, name))
 
         self.assertEqual(sorted(found - allowed), [])
+
+    def test_common_names_no_extension_to_the_extension_store(self) -> None:
+        """An extension's settings are its own. Core reading one by name makes a core
+        fact live in an extension, and it goes wrong the moment that extension is off."""
+        found = []
+        for path in sorted((REPO / "common").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            relative = path.relative_to(REPO).as_posix()
+            found += [f"{relative}:{line} names {name!r}"
+                      for line, name in _names_handed_to_the_store(trees.tree_for(path))]
+        self.assertEqual(found, [])
+
+    def test_the_store_check_sees_a_name_written_either_way(self) -> None:
+        tree = trees.parse_snippet(
+            "OWNER = 'somebody'\n"
+            "get_extension_store().settings('somebody')\n"
+            "store.set_setting(OWNER, 'key', 'value')\n"
+            "store.enabled(name='somebody')\n"
+            "store.settings(extension)\n")
+
+        self.assertEqual(_names_handed_to_the_store(tree),
+                         [(2, "somebody"), (3, "somebody"), (4, "somebody")])
+
+    def test_every_store_call_is_placed(self) -> None:
+        from common.extensions.store import ExtensionStore
+
+        public = {name for name, _ in inspect.getmembers(ExtensionStore, inspect.isfunction)
+                  if not name.startswith("_")}
+        self.assertEqual(public - STORE_CALLS_NAMING_AN_EXTENSION
+                         - STORE_CALLS_ABOUT_THE_STORE, set())
 
     def test_the_api_does_not_reach_into_a_user_interface(self) -> None:
         """Business logic under a UI package makes that UI privileged: a replacement

@@ -331,7 +331,7 @@ class FrontendServiceTests(unittest.TestCase):
                 score_data, score_path = game_play_service.parse_score_from_nvram(game)
 
             read_rom.assert_called_once_with("vpx_rom", str(game_dir))
-            to_json.assert_called_once_with("vpx_rom", 123, "/scores/vpx_rom.nv")
+            to_json.assert_called_once_with("vpx_rom", 123, "/scores/vpx_rom.nv", None)
             self.assertEqual(score_data, {"rom": "vpx_rom"})
             self.assertEqual(score_path, "/scores/vpx_rom.nv")
 

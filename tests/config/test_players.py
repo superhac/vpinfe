@@ -15,7 +15,7 @@ from unittest import mock
 
 from common import events, service_errors
 from common.extensions import store as extension_store
-from common.players import OWNER_MIGRATION, Roster, same_initials
+from common.players import OWNER_MIGRATION, Roster, names_nobody, same_initials
 
 
 def _config(initials: str | None = None) -> ConfigParser:
@@ -423,6 +423,37 @@ class UpTests(_RosterCase):
         self.assertEqual(self.roster.whose("abc"), self.alex)
         self.assertIsNone(self.roster.whose(""))
         self.assertIsNone(self.roster.whose("ZZZ"))
+
+
+class WhoseScoreTests(_RosterCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.owner = self.roster.ensure_owner(_config("OWN"))
+        self.alex = self.roster.add_player("Alex", "ABC")
+
+    def test_a_score_goes_by_its_initials_up_or_not(self) -> None:
+        self.assertEqual(self.roster.whose_score(" abc", [self.owner]), self.alex)
+
+    def test_initials_nobody_has_go_to_nobody_even_with_one_up(self) -> None:
+        self.assertIsNone(self.roster.whose_score("ZZZ", [self.owner]))
+
+    def test_no_initials_go_to_the_one_player_up(self) -> None:
+        for none in ("", "  ", "???", "?"):
+            with self.subTest(initials=none):
+                self.assertEqual(self.roster.whose_score(none, [self.alex]), self.alex)
+
+    def test_no_initials_go_to_nobody_with_several_up(self) -> None:
+        self.assertIsNone(self.roster.whose_score("", [self.owner, self.alex]))
+        self.assertIsNone(self.roster.whose_score("???", [self.owner, self.alex]))
+
+    def test_initials_two_players_share_go_to_neither(self) -> None:
+        guest = self.roster.add_guest("ABC")
+
+        self.assertIsNone(self.roster.whose_score("ABC", [guest]))
+
+    def test_only_question_marks_name_nobody(self) -> None:
+        self.assertTrue(names_nobody(" ??? "))
+        self.assertFalse(names_nobody("A?C"))
 
 
 class ChangedEventTests(_RosterCase):

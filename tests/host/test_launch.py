@@ -6,16 +6,20 @@ disagreed - most visibly, only one of them recorded that a table had been played
 
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import tempfile
 import types
 import unittest
+from configparser import ConfigParser
+from dataclasses import asdict
 from pathlib import PurePath
 from unittest import mock
 
-from common import events
+from common import events, players
 from common.games import tables
+from common.games.score_parser import ParsedEntry
 from common.host import commands, launch, launch_state, table_commands
 
 
@@ -48,19 +52,36 @@ def _launcher(bin_path: str = "/opt/vpx"):
                     settings={"bin_path": bin_path})
 
 
+def _reading(*entries: tuple[str, int]) -> dict:
+    """A high score table as it is read: (initials, score), ranked in the order given."""
+    return {"rom": "example", "resolved_rom": "example", "score_kind": "Leaderboard",
+            "entries": [asdict(ParsedEntry(section="HIGH SCORES", rank=rank,
+                                           initials=initials, score=score))
+                        for rank, (initials, score) in enumerate(entries, 1)]}
+
+
 class LaunchTests(unittest.TestCase):
     def setUp(self) -> None:
         events.clear()
         launch_state.clear()
         self.addCleanup(events.clear)
         self.addCleanup(launch_state.clear)
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        players.reset_for_tests(pathlib.Path(folder.name) / "players.json")
+        self.addCleanup(players.reset_for_tests)
+        self.roster = players.get_roster()
+        made = self.roster.ensure_owner(ConfigParser())
+        assert made is not None
+        self.owner = self.roster.update_player(made.player_id, initials="OWN")
 
-    def _run(self, popen=None, game=None, **overrides):
+    def _run(self, popen=None, game=None, readings=None, **overrides):
         """Launch with every collaborator stubbed, so only the orchestration runs.
 
         Nobody is signed in as a guest, and that needs no stub: with no extension
         answering, the seam says so on its own - which is also what an install without
-        that extension looks like.
+        that extension looks like. `readings` are the high score table before the launch
+        and after the game, each with where it was read from.
         """
         popen = popen or (lambda cmd, **kwargs: _FakePopen())
         patches = {
@@ -75,6 +96,8 @@ class LaunchTests(unittest.TestCase):
 
         with mock.patch.object(launch, "game_play_service") as play, \
                 mock.patch.multiple(launch, **patches):
+            play.parse_score_from_nvram.side_effect = list(
+                readings or [(None, None), (None, None)])
             launch.launch_game(game or _game(), types.SimpleNamespace(config={}),
                                 source=launch_state.SOURCE_API, popen=popen)
         return play
@@ -178,10 +201,13 @@ class PlayDataTests(LaunchTests):
         play.increment_start_count.assert_called_once()
 
     def test_runtime_and_score_are_recorded_when_the_game_exits(self) -> None:
-        play = self._run()
+        after = _reading(("OWN", 400))
+        game = _game()
+
+        play = self._run(game=game, readings=[(None, None), (after, "/nv/example.nv")])
 
         play.add_play_time.assert_called_once()
-        play.update_score_from_nvram.assert_called_once()
+        play.update_score.assert_called_once_with(game, after, "/nv/example.nv")
         play.delete_nvram_if_configured.assert_called_once()
 
     def test_the_table_that_was_launched_is_the_one_credited(self) -> None:
@@ -217,6 +243,146 @@ class PlayDataTests(LaunchTests):
             self._run(popen=boom)
 
         self.assertEqual(seen, [])
+
+
+class SessionTests(LaunchTests):
+    """Who a game counts for, and whose its new scores are."""
+
+    def _recorded(self, readings, **run) -> dict:
+        heard = []
+        events.subscribe(events.TABLE_PLAY_RECORDED, lambda **payload: heard.append(payload))
+        self._run(readings=readings, **run)
+        (payload,) = heard
+        return payload
+
+    def _alex(self) -> players.Player:
+        return self.roster.add_player("Alex", "ABC")
+
+    def _library_writes(self, play) -> list[str]:
+        return [name for name in ("increment_start_count", "add_play_time", "update_score")
+                if getattr(play, name).called]
+
+    def test_the_owner_s_session_goes_in_the_library(self) -> None:
+        play = self._run(readings=[(_reading(("AAA", 300)), "/nv"),
+                                   (_reading(("OWN", 400), ("AAA", 300)), "/nv")])
+
+        self.assertEqual(self._library_writes(play),
+                         ["increment_start_count", "add_play_time", "update_score"])
+
+    def test_the_owner_up_beside_another_player_still_goes_in_the_library(self) -> None:
+        self.roster.set_who_is_up([self.owner.player_id, self._alex().player_id])
+
+        play = self._run(readings=[(None, None), (_reading(("OWN", 400)), "/nv")])
+
+        self.assertEqual(self._library_writes(play),
+                         ["increment_start_count", "add_play_time", "update_score"])
+
+    def test_a_session_the_owner_was_not_up_for_stays_out_of_the_library(self) -> None:
+        self.roster.set_who_is_up([self._alex().player_id])
+
+        play = self._run(readings=[(_reading(("AAA", 300)), "/nv"),
+                                   (_reading(("ABC", 400), ("AAA", 300)), "/nv")])
+
+        self.assertEqual(self._library_writes(play), [])
+
+    def test_a_guest_signed_in_through_an_extension_still_takes_the_session(self) -> None:
+        answers = {"guest.record_start": True, "guest.active": object()}
+        asked = []
+
+        def ask(name, *args):
+            asked.append((name, args))
+            return answers.get(name)
+
+        with mock.patch.object(launch.ext_services, "ask", ask):
+            play = self._run(readings=[(None, None), (_reading(("", 400)), "/nv")])
+
+        self.assertEqual(self._library_writes(play), [])
+        (played,) = [args for name, args in asked if name == "guest.record_play"]
+        self.assertEqual(played[2]["entries"][0]["initials"], "OWN",
+                         "the reading kept, with a blank score given the one player up")
+
+    def test_a_new_score_goes_to_whose_initials_it_carries_up_or_not(self) -> None:
+        alex = self._alex()
+
+        recorded = self._recorded([(_reading(("AAA", 300), ("BBB", 200)), "/nv"),
+                                   (_reading(("AAA", 300), ("ABC", 250), ("BBB", 200)),
+                                    "/nv")])
+
+        (only,) = recorded["new_entries"]
+        self.assertEqual(only["player"], alex.as_payload())
+        self.assertEqual([(entry["initials"], entry["score"]) for entry in only["entries"]],
+                         [("ABC", 250)])
+        self.assertEqual(recorded["up"], [self.owner.as_payload()])
+
+    def test_a_blank_score_goes_to_the_one_player_up(self) -> None:
+        guest = self.roster.add_guest("GST")
+
+        recorded = self._recorded([(_reading(("AAA", 300)), "/nv"),
+                                   (_reading(("AAA", 300), ("", 200)), "/nv")])
+
+        (only,) = recorded["new_entries"]
+        self.assertEqual(only["player"], guest.as_payload())
+        self.assertEqual([(entry["initials"], entry["score"]) for entry in only["entries"]],
+                         [("GST", 200)])
+        self.assertEqual(recorded["reading"]["entries"][1]["initials"], "GST")
+
+    def test_a_blank_score_goes_to_nobody_with_two_up(self) -> None:
+        self.roster.set_who_is_up([self.owner.player_id, self._alex().player_id])
+
+        recorded = self._recorded([(_reading(("AAA", 300)), "/nv"),
+                                   (_reading(("AAA", 300), ("", 200)), "/nv")])
+
+        self.assertEqual(recorded["new_entries"], [])
+        self.assertEqual(recorded["reading"]["entries"][1]["initials"], "")
+
+    def test_a_one_number_reading_that_moved_goes_to_the_one_player_up(self) -> None:
+        recorded = self._recorded([({"rom": "example", "value": 1000}, "/ini"),
+                                   ({"rom": "example", "value": 1500}, "/ini")])
+
+        (only,) = recorded["new_entries"]
+        self.assertEqual(only["player"], self.owner.as_payload())
+        self.assertEqual([(entry["initials"], entry["score"]) for entry in only["entries"]],
+                         [("OWN", 1500)])
+
+    def test_who_is_up_is_taken_as_the_game_starts(self) -> None:
+        """A change of who is up mid-game is for the next one: this game's play and its
+        blank scores stay with whoever was up when it began."""
+        alex = self._alex()
+        events.subscribe(events.TABLE_LAUNCHED,
+                         lambda **_: self.roster.set_who_is_up([alex.player_id]))
+
+        recorded = self._recorded(
+            [(_reading(("", 300)), "/nv"), (_reading(("", 300), ("", 200)), "/nv")],
+            popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
+
+        self.assertEqual(recorded["up"], [self.owner.as_payload()])
+        (only,) = recorded["new_entries"]
+        self.assertEqual(only["player"], self.owner.as_payload())
+
+    def test_both_events_carry_who_played_as_plain_data(self) -> None:
+        heard = {}
+        for name in (events.TABLE_LAUNCHED, events.TABLE_PLAY_RECORDED):
+            events.subscribe(name, lambda _n=name, **payload: heard.setdefault(_n, payload))
+        game = _game()
+        game.meta_config = {"tables": {"t1": {"id": "t1", "filename": "Example.vpx"}}}
+
+        self._run(game=game, popen=lambda cmd, **k: _FakePopen(["Startup done\n"]),
+                  readings=[(_reading(("AAA", 300)), "/nv"),
+                            (_reading(("OWN", 400), ("AAA", 300)), "/nv")])
+
+        launched, recorded = heard[events.TABLE_LAUNCHED], heard[events.TABLE_PLAY_RECORDED]
+        self.assertIs(recorded["game"], game, "what subscribers had before is still there")
+        self.assertIn("ini_config", recorded)
+        self.assertEqual(launched["up"], [self.owner.as_payload()])
+        self.assertEqual(launched["table_id"], "t1")
+        plain = {key: value for key, value in recorded.items()
+                 if key not in ("game", "ini_config")}
+        self.assertEqual(sorted(plain),
+                         ["new_entries", "reading", "seconds", "table_id", "up"])
+        self.assertEqual(json.loads(json.dumps(plain)), plain)
+        self.assertEqual(plain["table_id"], "t1")
+        self.assertIsInstance(plain["seconds"], int)
+        self.assertEqual(plain["new_entries"][0]["player"]["initials"], "OWN")
 
 
 class RefusalTests(LaunchTests):

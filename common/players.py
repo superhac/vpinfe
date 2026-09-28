@@ -48,6 +48,11 @@ def same_initials(one: Any, other: Any) -> bool:
     return bool(mine) and mine == str(other or "").strip().casefold()
 
 
+def names_nobody(initials: Any) -> bool:
+    """Whether a machine wrote no initials: blank, or question marks in their place."""
+    return not str(initials or "").strip().strip("?")
+
+
 def _clean_name(raw: Any) -> str:
     return str(raw or "").strip()
 
@@ -60,6 +65,11 @@ class Player:
     owner: bool = False
     guest: bool = False
     extra: dict[str, Any] = field(default_factory=dict)
+
+    def as_payload(self) -> dict[str, Any]:
+        """Who this is, as plain data for an event."""
+        return {"id": self.player_id, "name": self.name, "initials": self.initials,
+                "owner": self.owner, "guest": self.guest}
 
     def as_record(self) -> dict[str, Any]:
         """What `players.json` holds for a kept player. A guest has no record."""
@@ -129,14 +139,21 @@ class Roster:
         found = [p for p in self.players() if same_initials(p.initials, initials)]
         return found[0] if len(found) == 1 else None
 
+    def whose_score(self, initials: str, up: list[Player]) -> Player | None:
+        """Who a new score counts for: the player whose initials it carries, up or not.
+        A score carrying none goes to the one player in `up`, and to nobody when `up`
+        holds several."""
+        if names_nobody(initials):
+            return up[0] if len(up) == 1 else None
+        return self.whose(initials)
+
     def state(self) -> dict[str, Any]:
         """The whole roster, as `players.changed` carries it."""
         with self._lock:
             everyone = self.players()
             up = {p.player_id for p in self._up_among(everyone)}
         return {"players": [
-            {"id": p.player_id, "name": p.name, "initials": p.initials,
-             "owner": p.owner, "guest": p.guest, "up": p.player_id in up,
+            {**p.as_payload(), "up": p.player_id in up,
              "shares_initials_with": [other.player_id for other in everyone
                                       if other.player_id != p.player_id
                                       and same_initials(other.initials, p.initials)]}

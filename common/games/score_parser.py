@@ -12,14 +12,14 @@ import json
 import logging
 import re
 import sys
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO
 
-from common.config_access import cfg_get
-from common.extensions.store import get_extension_store
-from common.paths import USER_ROMS_PATH, get_ini_config
+from common.paths import USER_ROMS_PATH
+from common.players import get_roster
 
 if TYPE_CHECKING:
     # The concrete views dict returns. An override may not widen them to
@@ -277,31 +277,55 @@ roms = _Roms()
 
 
 def get_default_initials() -> str:
-    """Whose initials go on a score the machine did not record any for.
-
-    The extension's answer, or the config's where the extension holds none.
-    """
-    held = str(get_extension_store().settings("vpinplay").get("initials") or "").strip()
-    if held:
-        return held
-    return str(cfg_get(get_ini_config(), "vpinplay", "initials", "") or "").strip()
+    """Whose initials go on a score the machine did not record any for: the one player
+    up's, and none while several are up."""
+    one = get_roster().one_up()
+    return one.initials if one else ""
 
 
-def apply_default_initials(result: int | list[ParsedEntry]) -> int | list[ParsedEntry]:
+def apply_default_initials(result: int | list[ParsedEntry],
+                           initials: str | None = None) -> int | list[ParsedEntry]:
+    """`initials` for a blank score, or the one player up's when it is None."""
     if isinstance(result, int):
         return result
+    return _with_initials(result, get_default_initials() if initials is None else initials)
 
-    default_initials = get_default_initials()
-    if not default_initials:
-        return result
 
-    normalized_entries: list[ParsedEntry] = []
-    for entry in result:
-        if entry.initials or entry.score is None:
-            normalized_entries.append(entry)
-            continue
-        normalized_entries.append(replace(entry, initials=default_initials))
-    return normalized_entries
+def _with_initials(entries: list[ParsedEntry], initials: str) -> list[ParsedEntry]:
+    if not initials:
+        return entries
+    return [entry if entry.initials or entry.score is None
+            else replace(entry, initials=initials) for entry in entries]
+
+
+def entries_with_initials(entries: list[dict], initials: str) -> list[dict]:
+    """Entries as `result_to_jsonable` gives them, a blank score given `initials`."""
+    return [asdict(entry) for entry in
+            _with_initials([ParsedEntry(**entry) for entry in entries], initials)]
+
+
+def new_entries(before: dict | None, after: dict | None) -> list[dict]:
+    """The entries on `after` that were not on `before`, both from `result_to_jsonable`."""
+    if not before or not after or ("value" in before) != ("value" in after):
+        return []
+    if "value" in after:
+        if after["value"] == before["value"]:
+            return []
+        return [asdict(ParsedEntry(section="", rank=None, initials="", score=after["value"]))]
+    held = Counter(_entry_key(entry) for entry in before.get("entries") or [])
+    found = []
+    for entry in after.get("entries") or []:
+        key = _entry_key(entry)
+        if held[key]:
+            held[key] -= 1
+        else:
+            found.append(entry)
+    return found
+
+
+def _entry_key(entry: dict) -> str:
+    return json.dumps({key: value for key, value in entry.items()
+                       if key not in ("rank", "section")}, sort_keys=True)
 
 
 def resolve_special_text_score_file(rom_name: str, filename: str) -> tuple[dict, Path] | None:
@@ -1639,10 +1663,13 @@ def result_to_jsonable(
     rom_name: str,
     result: int | list[ParsedEntry],
     filename: str | None = None,
+    initials: str | None = None,
 ) -> dict | None:
+    """The reading as plain data. `initials` goes on a blank score, as
+    `apply_default_initials` takes it."""
     resolved_rom_name = resolve_rom_name(rom_name)
     score_kind = detect_score_kind(rom_name, filename)
-    result = apply_default_initials(result)
+    result = apply_default_initials(result, initials)
 
     if isinstance(result, int):
         return {

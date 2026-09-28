@@ -23,11 +23,18 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from common import apps, events
+from common import apps, events, players
 from common.config_store import ConfigStore
 from common.extensions import services as ext_services
 from common.failures import why
-from common.games import game_play_service, game_repository, info_file, launchers, tables
+from common.games import (
+    game_play_service,
+    game_repository,
+    info_file,
+    launchers,
+    score_parser,
+    tables,
+)
 from common.games.game import Game
 from common.games.tables import (
     entry_for_filename,
@@ -211,30 +218,61 @@ def _plan(entry: apps.Entry, binary: str,
             app.launch.session(settings).readiness_marker)
 
 
-def _record_play(game: Game, ini_config: ConfigStore, elapsed_seconds: float,
-                 table: str = "") -> None:
-    """Play data for a finished session. Runs on every path.
+def _counts_in_the_library(up: list[players.Player]) -> bool:
+    return not up or any(player.owner for player in up)
 
-    A guest takes the session if one is signed in - their half hour is theirs and must
-    not land in the play count of a library that is not theirs. Nothing answering means
+
+def _record_play(game: Game, elapsed_seconds: float, table: str,
+                 up: list[players.Player], before: dict | None) -> dict[str, Any]:
+    """Play data for a finished session, and what `table.play_recorded` says about it.
+    Runs on every path.
+
+    A guest signed in through an extension takes the session - nothing answering means
     nobody is, which is also what an install without that extension looks like. The
-    hardware is read once on either path.
+    hardware is read once on every path.
     """
-    if ext_services.ask("guest.active") is None:
+    after, score_path = game_play_service.parse_score_from_nvram(game, initials="")
+    one = up[0] if len(up) == 1 else None
+    reading = _with_initials(after, one.initials if one else "")
+
+    if ext_services.ask("guest.active") is not None:
+        game_key = str(game.full_path_game or game.game_dir_name or "")
+        if not game_key:
+            logger.warning("Skipping a guest's session: nothing identifies the table")
+        else:
+            ext_services.ask("guest.record_play", game_key, elapsed_seconds, reading)
+            if reading:
+                logger.info("Captured a guest's score for %s from %s",
+                            game.game_dir_name, score_path)
+    elif _counts_in_the_library(up):
         game_play_service.add_play_time(game, elapsed_seconds, table)
-        game_play_service.update_score_from_nvram(game)
-        return
+        if reading:
+            game_play_service.update_score(game, reading, score_path)
 
-    game_key = str(game.full_path_game or game.game_dir_name or "")
-    if not game_key:
-        logger.warning("Skipping a guest's session: nothing identifies the table")
-        return
+    return {"up": [player.as_payload() for player in up],
+            "seconds": int(round(elapsed_seconds)),
+            "reading": reading,
+            "new_entries": _whose_new_entries(before, after, up)}
 
-    score_data, score_path = game_play_service.parse_score_from_nvram(game)
-    ext_services.ask("guest.record_play", game_key, elapsed_seconds, score_data)
-    if score_data:
-        logger.info("Captured a guest's score for %s from %s",
-                    game.game_dir_name, score_path)
+
+def _with_initials(reading: dict | None, initials: str) -> dict | None:
+    if not reading or "entries" not in reading:
+        return reading
+    return {**reading,
+            "entries": score_parser.entries_with_initials(reading["entries"], initials)}
+
+
+def _whose_new_entries(before: dict | None, after: dict | None,
+                       up: list[players.Player]) -> list[dict[str, Any]]:
+    roster = players.get_roster()
+    credited: dict[str, tuple[players.Player, list[dict]]] = {}
+    for entry in score_parser.new_entries(before, after):
+        player = roster.whose_score(str(entry.get("initials") or ""), up)
+        if player is not None:
+            credited.setdefault(player.player_id, (player, []))[1].append(entry)
+    return [{"player": player.as_payload(),
+             "entries": score_parser.entries_with_initials(entries, player.initials)}
+            for player, entries in credited.values()]
 
 
 def check_launchable(game: Game, ini_config: ConfigStore,
@@ -312,6 +350,8 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
         launcher.value("log_delete_on_start"), str(launcher.in_effect("ini_path") or ""))
 
     started_at = None
+    up: list[players.Player] = []
+    before: dict | None = None
     # Outside everything, including our own hooks. What a person writes here sets the
     # machine up for a table, so "before the table" has to mean before all of it -
     # anywhere further in and its meaning shifts as our sequence changes.
@@ -335,6 +375,10 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
         try:
             launch_state.set_launching(game.game_dir_name, source=source)
             cmd, marker = _plan(playing, binary, launcher)
+            up = players.get_roster().up()
+            before, _ = game_play_service.parse_score_from_nvram(game, initials="")
+            launched = {"game": game, "ini_config": ini_config, "table_id": table_id,
+                        "up": [player.as_payload() for player in up]}
             logger.info("Launching: %s", cmd)
             process = popen(
                 cmd,
@@ -346,12 +390,10 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
             )
             launch_state.attach(process)
             started_at = time.time()
-            # A guest's play is not the library's. Whoever is signed in takes the
-            # session, and the game's own count moves only when nobody is.
             started = ext_services.ask(
                 "guest.record_start",
                 str(game.full_path_game or game.game_dir_name or ""))
-            if not started:
+            if not started and _counts_in_the_library(up):
                 game_play_service.increment_start_count(
                     game, tables.entry_native_key(entry))
 
@@ -360,14 +402,14 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
             # and nothing ever told about it.
             running = not marker
             if running:
-                events.emit(events.TABLE_LAUNCHED, game=game, ini_config=ini_config)
+                events.emit(events.TABLE_LAUNCHED, **launched)
 
             # Draining stdout is not optional: the pipe fills and the child blocks on a
             # write if nobody reads it.
             for line in process.stdout or ():
                 if not running and marker in line:
                     running = True
-                    events.emit(events.TABLE_LAUNCHED, game=game, ini_config=ini_config)
+                    events.emit(events.TABLE_LAUNCHED, **launched)
                     logger.info("table running")
 
             process.wait()
@@ -383,9 +425,10 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
         table_commands.after(around, started_at=started_at)
 
     if started_at is not None:
-        _record_play(game, ini_config, max(0.0, time.time() - started_at),
-                     tables.entry_native_key(entry))
-        events.emit(events.TABLE_PLAY_RECORDED, game=game, ini_config=ini_config)
+        recorded = _record_play(game, max(0.0, time.time() - started_at),
+                                tables.entry_native_key(entry), up, before)
+        events.emit(events.TABLE_PLAY_RECORDED, game=game, ini_config=ini_config,
+                    table_id=table_id, **recorded)
     game_play_service.delete_nvram_if_configured(game)
 
 
