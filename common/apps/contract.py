@@ -4,9 +4,9 @@ An app is the program that plays something; a launcher is a configured wrapper a
 one and holds the values for the fields the app declares. This module is the whole of
 the boundary: an implementation under `apps/` imports it and nothing else of ours.
 
-Six capability groups. `claim` and `kinds` are declarations every app makes; `format`,
-`launch`, `config` and `capability` are behavior, and None is a real answer for each.
-Consumers ask before they call.
+Seven capability groups. `claim` and `kinds` are declarations every app makes; `format`,
+`launch`, `config`, `capability` and `capture` are behavior, and None is a real answer for
+each. Consumers ask before they call.
 
 Nothing here takes or returns a VPinFE object, and nothing holds a word. An app's words
 are in `i18n/<language>.json` beside it, found by what the app declares: `name`,
@@ -311,6 +311,22 @@ class Capability(Protocol):
     def probe(self, settings: Mapping[str, Any]) -> Mapping[str, Availability]: ...
 
 
+# --- capture ----------------------------------------------------------------------
+
+
+@runtime_checkable
+class Capture(Protocol):
+    """How an entry is launched to have its screens recorded rather than to be played.
+
+    Answers in place of `Launch.command`; `Launch.session` still says when it is up.
+    `folder` is empty, the app's to write into, and removed with everything in it once
+    the entry closes. `sound` is whether the entry's sound is being recorded.
+    """
+
+    def command(self, entry: Entry, settings: Mapping[str, Any], *, sound: bool,
+                folder: str) -> list[str]: ...
+
+
 # --- the app ----------------------------------------------------------------------
 
 
@@ -329,3 +345,4 @@ class App:
     launch: Launch | None = None
     config: Config | None = None
     capability: Capability | None = None
+    capture: Capture | None = None

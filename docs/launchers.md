@@ -43,6 +43,8 @@ A second launcher's fields are then the same names, which is what lets its edito
 
 `ini_path` is the **Settings File**: the `VPinballX.ini` a table starts with and the one the Console's settings change. One that is not Visual Pinball's own is passed as `-ini`. Empty means Visual Pinball's own, which VPinFE finds where the program keeps it: the newest version folder under its preferences folder (`~/.local/share/VPinballX/10.8/` on Linux, `~/Library/Application Support/VPinballX/10.8/` on macOS, `%APPDATA%\VPinballX\10.8\` on Windows), then beside the program, then the layouts from before version folders.
 
+A table launched to be recorded (`SOURCE_CAPTURE`) is given a copy of the Settings File instead, through the app's capture hook (`common/apps/contract.py` `Capture`). Visual Pinball's (`apps/vpx/capture.py`) writes it with `SyncMode = 0` and `MaxFramerate = -1`, the frame cap at the display's refresh, because at its own frame pacing VPX runs at half rate while a screen is being recorded; and, unless the table's sound is recorded, with `PlaySound` and `PlayMusic` off and both volumes at 0. Where the table's own settings file sets any of those, a copy of it with the recording's values goes in with `-tableini`, since the table's value would win. The copies live in `capture/launch/` under the config directory for as long as the table runs. The Settings File itself is never written: VPX writes back the file it was given when it exits.
+
 `owns_ini` records whether VPinFE created the file `ini_path` names.
 
 **A launcher is per install.** A binary path and an ini path are facts about one machine; `common/launcher_path.py` exists only because macOS hands you a `.app` bundle and Linux hands you an executable.

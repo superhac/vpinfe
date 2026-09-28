@@ -288,7 +288,7 @@ def path_for(scope: str, target: str, settings: Mapping[str, Any]) -> Path | Non
 _FILES = threading.RLock()
 
 
-def _read(path: Path | None) -> vini.Ini:
+def read_file(path: Path | None) -> vini.Ini:
     if path is None or not path.is_file():
         return vini.Ini()
     try:
@@ -428,7 +428,7 @@ class VPXConfig:
         what each value means, into a comment above it. A setting a later build adds
         appears without this file changing, in the rest if no area names it.
         """
-        schema = _read(settings_file(settings))
+        schema = read_file(settings_file(settings))
         installed = plugins.installed(str(settings.get("bin_path") or ""))
         by_area: dict[str, list[Field]] = {}
         for one in (*map(_registered, schema.settings.values()),
@@ -455,10 +455,10 @@ class VPXConfig:
         `value` is what VPX will use, never what this scope happens to hold - you should
         not be shown a number that is not the one in force.
         """
-        app = _read(settings_file(settings))
-        table = _read(table_layer(target)) if target else vini.Ini()
+        app = read_file(settings_file(settings))
+        table = read_file(table_layer(target)) if target else vini.Ini()
         mine_path = path_for(scope, target, settings)
-        mine = _read(mine_path)
+        mine = read_file(mine_path)
         # The table layer is one file. Which of the two spellings it is decides whether
         # a folder file is reaching this table at all - and where a game folder is named
         # after the table it holds, which is the ordinary case, both spellings are the
@@ -524,7 +524,7 @@ class VPXConfig:
         if path is None:
             raise ValueError(f"There is no {scope} file to write.")
         with _FILES:
-            colors = _colors(_read(settings_file(settings)))
+            colors = _colors(read_file(settings_file(settings)))
             values = {key: stored_color(str(value)) if key in colors else value
                       for key, value in values.items()}
             cleared = _inherited(scope, values, settings)
@@ -532,7 +532,7 @@ class VPXConfig:
                      if str(value) == "" or key in cleared]
                     if scope != SCOPE_LAUNCHER else [])
             keep = {key: value for key, value in values.items() if key not in drop}
-            held = _read(path)
+            held = read_file(path)
             text = vini.written(held, keep, remove=drop)
             if scope != SCOPE_LAUNCHER and held.settings and not vini.parse(text).settings:
                 path.unlink(missing_ok=True)
@@ -604,7 +604,7 @@ class VPXConfig:
     def held_groups(self, target: str) -> tuple[ConfigGroup, ...]:
         """The table options a table's settings hold. The table's script declares them
         while it runs, so this ini says nothing of their range or meaning."""
-        held = _read(table_layer(target))
+        held = read_file(table_layer(target))
         options = tuple(
             Field(key=qualified, label=qualified[len(areas.TABLE_OPTION_KEYS):]
                   .replace("_", " ").strip(), type="text")
@@ -628,8 +628,8 @@ class VPXConfig:
         game = _game_layer(own)
         if game is None or _same(own, game):
             return {}
-        mine, theirs = _read(own), _read(game)
-        app = _read(settings_file(settings))
+        mine, theirs = read_file(own), read_file(game)
+        app = read_file(settings_file(settings))
         return {key: value for key in sorted(theirs.settings)
                 if (value := theirs.value(key)) is not None and mine.value(key) is None
                 and _offered(key) and SCOPE_ENTRY in self.scopes_for(key)
@@ -640,7 +640,7 @@ class VPXConfig:
         which settings it changes for the table other than the camera, and whether it
         holds a camera."""
         winning = table_layer(target)
-        held = _read(winning)
+        held = read_file(winning)
         setting = [q for q in held.settings if held.value(q) is not None]
         keys = sorted(q for q in setting if _offered(q) and _read_at_table(q)
                       and not q.startswith(POINT_OF_VIEW))
@@ -672,7 +672,7 @@ def _inherited(scope: str, values: Mapping[str, str],
     excepted."""
     if scope == SCOPE_LAUNCHER:
         return frozenset()
-    app = _read(settings_file(settings))
+    app = read_file(settings_file(settings))
     return frozenset(key for key, value in values.items()
                      if str(value) != "" and not _contextual(key)
                      and _alike(key, _given(app, key), str(value)))
@@ -739,7 +739,7 @@ def _beneath(target: str, winning: Path | None) -> vini.Ini:
     if not target or winning is None:
         return vini.Ini()
     game = _game_layer(Path(str(target).strip()))
-    return vini.Ini() if game is None or _same(game, winning) else _read(game)
+    return vini.Ini() if game is None or _same(game, winning) else read_file(game)
 
 
 def _same(one: Path | None, two: Path | None) -> bool:

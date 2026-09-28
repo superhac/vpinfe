@@ -16,6 +16,7 @@ import os
 import platform
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -46,9 +47,12 @@ from common.host import commands, launch_state, table_commands
 from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
 from common.i18n import t
 from common.launcher_path import resolve_launcher_path
-from common.paths import PLUGIN_PROFILES_DIR
+from common.paths import CONFIG_DIR, PLUGIN_PROFILES_DIR
 
 logger = logging.getLogger("vpinfe.common.host.launch")
+
+# Where a capture launch's app writes what the table is launched with, while it runs.
+CAPTURE_LAUNCH_DIR = CONFIG_DIR / "capture" / "launch"
 
 
 class LaunchUnavailableError(Exception):
@@ -199,13 +203,15 @@ def _launch_env(launcher: launchers.Launcher) -> dict:
     return env
 
 
-def _plan(entry: apps.Entry, binary: str,
-          launcher: launchers.Launcher) -> tuple[list[str], str]:
+def _plan(entry: apps.Entry, binary: str, launcher: launchers.Launcher, *,
+          capture: Path | None = None,
+          record_sound: bool = False) -> tuple[list[str], str]:
     """What to run, and what the app writes once it is actually up.
 
     Both come from the app the launcher wraps. `bin_path` is overwritten with the
     resolved executable, because what a person picked may be a macOS bundle and the app
-    is handed something it can spawn.
+    is handed something it can spawn. With `capture`, the folder for a recording, the
+    app's capture hook answers the command where it has one.
     """
     app = apps.get(getattr(launcher, "app", "")) or apps.default_app()
     if app.launch is None:
@@ -215,8 +221,18 @@ def _plan(entry: apps.Entry, binary: str,
     settings = {declared.key: launcher.value(declared.key)
                 for declared in launcher.fields()}
     settings["bin_path"] = binary
-    return (app.launch.command(entry, settings),
-            app.launch.session(settings).readiness_marker)
+    marker = app.launch.session(settings).readiness_marker
+    if capture is not None and app.capture is not None:
+        return (app.capture.command(entry, settings, sound=record_sound,
+                                    folder=str(capture)), marker)
+    return app.launch.command(entry, settings), marker
+
+
+def _capture_folder() -> Path:
+    """Emptied first: one still there was left by a launch that never got to close."""
+    shutil.rmtree(CAPTURE_LAUNCH_DIR, ignore_errors=True)
+    CAPTURE_LAUNCH_DIR.mkdir(parents=True)
+    return CAPTURE_LAUNCH_DIR
 
 
 def _counts_in_the_library(up: list[players.Player]) -> bool:
@@ -331,7 +347,8 @@ def _reference_is_reachable(game: Game, entry: dict) -> None:
 
 def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
                 table: str | None = None,
-                popen: Callable[..., subprocess.Popen[Any]] | None = None) -> None:
+                popen: Callable[..., subprocess.Popen[Any]] | None = None,
+                record_sound: bool = False) -> None:
     """Launch a game and stay with it until it exits. Blocking.
 
     Callers that must not block run this on a thread; the API and the Remote page
@@ -339,7 +356,8 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
     cannot be launched at all.
 
     A `SOURCE_CAPTURE` launch is a recording: nobody is up for it, it writes no play
-    data, and `table.play_recorded` is not announced.
+    data, and `table.play_recorded` is not announced. Its app's capture hook says how it
+    is launched, told by `record_sound` whether the table's sound is recorded too.
     """
     # Looked up here rather than in the signature so a test can patch it.
     popen = popen or subprocess.Popen
@@ -368,6 +386,7 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
         launcher.value("log_delete_on_start"), str(launcher.in_effect("ini_path") or ""))
 
     started_at = None
+    folder: Path | None = None
     up: list[players.Player] = []
     before: dict | None = None
     # Outside everything, including our own hooks. What a person writes here sets the
@@ -392,7 +411,9 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
         # leaving the frontend with its input suppressed for the life of the process.
         try:
             launch_state.set_launching(game.game_dir_name, source=source)
-            cmd, marker = _plan(playing, binary, launcher)
+            folder = _capture_folder() if capturing else None
+            cmd, marker = _plan(playing, binary, launcher, capture=folder,
+                                record_sound=record_sound)
             if not capturing:
                 up = players.get_roster().up()
                 before, _ = game_play_service.parse_score_from_nvram(game, initials="")
@@ -438,6 +459,8 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
             # Before the play data below, so the peripherals come back promptly rather
             # than waiting on an NVRAM parse and possibly a network call.
             launch_state.clear()
+            if folder is not None:
+                shutil.rmtree(folder, ignore_errors=True)
             events.emit(events.TABLE_EXITED, game=game, ini_config=ini_config,
                         table_id=table_id, source=source)
     finally:

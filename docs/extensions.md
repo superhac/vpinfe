@@ -233,8 +233,8 @@ provides is taken back when it unloads, so a disabled extension leaves no suffix
 by something that is no longer there.
 
 A provided app does not get the rest of the app contract — parsing a table, resolving a
-ROM, a settings surface. Those are declared absent rather than half-answered, the same way
-the generic app declares them.
+ROM, a settings surface, a launch of its own for a recording. Those are declared absent
+rather than half-answered, the same way the generic app declares them.
 
 ## Adding something to an entry
 

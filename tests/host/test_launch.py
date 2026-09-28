@@ -90,7 +90,7 @@ class LaunchTests(unittest.TestCase):
         patches = {
             "_launcher_for": lambda game, vpx_path: (_launcher(), ""),
             "_binary_of": lambda launcher: "/opt/vpx",
-            "_plan": lambda table, binary, launcher: (
+            "_plan": lambda table, binary, launcher, **plan: (
                 ["/opt/vpx", "-play", "x.vpx"], "Startup done"),
             "parse_launch_env_overrides": lambda raw: {},
             "delete_vpinball_log_on_start_if_configured": lambda *a, **k: None,
@@ -318,6 +318,94 @@ class RecordingTests(LaunchTests):
                                  dict.fromkeys(heard, source))
                 self.assertEqual(heard[events.TABLE_EXITED]["table_id"],
                                  heard[events.TABLE_LAUNCHING]["table_id"])
+
+
+class RecordingCommandTests(LaunchTests):
+    """What a recording's table is launched with, which lasts as long as the table."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        root = pathlib.Path(folder.name)
+        self.folder = root / "capture" / "launch"
+        patcher = mock.patch.object(launch, "CAPTURE_LAUNCH_DIR", self.folder)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.settings_file = root / "VPinballX.ini"
+        self.settings_file.write_text("[Player]\nSyncMode = 3\n", encoding="utf-8")
+
+    def _launch(self, source=launch_state.SOURCE_CAPTURE, app="vpx", popen=None,
+                **launch_kwargs) -> dict:
+        """What was run, and what the folder held while it ran."""
+        from common.games.launchers import Launcher
+
+        launcher = Launcher(launcher_id="l1", app=app, display_name="Launcher",
+                            settings={"bin_path": "/opt/vpx", "args": "",
+                                      "ini_path": str(self.settings_file)})
+        seen: dict = {}
+
+        def run(cmd, **kwargs):
+            seen["cmd"] = cmd
+            seen["held"] = sorted(one.name for one in self.folder.glob("*"))
+            return _FakePopen(["Startup done\n"])
+
+        with mock.patch.object(launch, "game_play_service") as play, \
+                mock.patch.multiple(launch, _launcher_for=lambda *a: (launcher, ""),
+                                    _binary_of=lambda found: "/opt/vpx"):
+            play.parse_score_from_nvram.return_value = (None, None)
+            launch.launch_game(_game(), types.SimpleNamespace(config={}), source=source,
+                               popen=popen or run, **launch_kwargs)
+        return seen
+
+    def test_a_recording_is_launched_through_a_copy_of_the_settings_file(self) -> None:
+        seen = self._launch()
+
+        self.assertIn(str(self.folder / "VPinballX.ini"), seen["cmd"])
+        self.assertIn("VPinballX.ini", seen["held"])
+        self.assertEqual(self.settings_file.read_text(encoding="utf-8"),
+                         "[Player]\nSyncMode = 3\n")
+
+    def test_the_copy_is_gone_once_the_table_closes(self) -> None:
+        self._launch()
+
+        self.assertFalse(self.folder.exists())
+
+    def test_and_gone_when_the_launch_blows_up(self) -> None:
+        def boom(cmd, **kwargs):
+            raise RuntimeError("popen failed")
+
+        with self.assertRaises(RuntimeError):
+            self._launch(popen=boom)
+
+        self.assertFalse(self.folder.exists())
+
+    def test_one_left_behind_by_a_launch_that_never_closed_is_emptied_first(self) -> None:
+        self.folder.mkdir(parents=True)
+        (self.folder / "table.ini").write_text("[Player]\n", encoding="utf-8")
+
+        seen = self._launch()
+
+        self.assertEqual(seen["held"], ["VPinballX.ini"])
+
+    def test_whether_the_sound_is_recorded_reaches_the_app(self) -> None:
+        with mock.patch.object(launch.apps.default_app().capture, "command",
+                               return_value=["/opt/vpx"]) as command:
+            self._launch(record_sound=True)
+
+        self.assertIs(command.call_args.kwargs["sound"], True)
+
+    def test_a_play_is_launched_with_no_copy(self) -> None:
+        seen = self._launch(source=launch_state.SOURCE_API)
+
+        self.assertIn(str(self.settings_file), seen["cmd"])
+        self.assertFalse(self.folder.exists())
+
+    def test_an_app_with_no_capture_hook_is_recorded_as_it_is_played(self) -> None:
+        recorded = self._launch(app="generic")["cmd"]
+        played = self._launch(app="generic", source=launch_state.SOURCE_API)["cmd"]
+
+        self.assertEqual(recorded, played)
 
 
 class SessionTests(LaunchTests):
