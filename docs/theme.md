@@ -966,6 +966,7 @@ Events are sent between windows via `receiveEvent()`. These are the built-in eve
 | `TableLaunching` | — | A game is about to launch. Frontend keyboard/gamepad routing is suspended until `TableLaunchComplete`; use this to fade out, stop audio, etc. |
 | `TableRunning` | — | The launched game has finished loading and is now running. Sent when the table process outputs "Startup done". |
 | `TableLaunchComplete` | — | The launched game has exited and frontend input routing is restored. Use this to fade back in, resume audio. |
+| `PlayersChanged` | `state` | The roster changed - a player added, removed, or who is up. `state` is the same shape `vpin.players` holds, and core updates that property from it before your handler runs, so reading `vpin.players` again is enough; nothing needs to come from the message itself. |
 
 **What `TableIndexUpdate` carries.** Every one of these is on every index message — a step,
 a page and a startup restore all announce themselves the same way:
@@ -1257,6 +1258,7 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 | `vpin.contract` | `number` | Which contract you are being served. |
 | `vpin.windowName` | `string` | This window's name — which page it loaded, and its media kind when it has one. Known before the socket opens, so there is nothing to await. |
 | `vpin.collectionMenuUP` | `boolean` | Whether the collection menu overlay is currently visible. |
+| `vpin.players` | `object` | Everyone on this install and who is up: `{ players: [{ id, name, initials, owner, guest, up, shares_initials_with }] }`. `owner` is the one player the library's own ratings and history belong to; `guest` is forgotten when VPinFE closes; `up` is who the next game counts for - several may be at once. `shares_initials_with` lists the ids of any other player with the same initials, which is how a score could go to nobody. Loaded during init and kept current by `PlayersChanged`. |
 
 ### API Reference
 

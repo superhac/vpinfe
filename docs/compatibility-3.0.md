@@ -1488,6 +1488,25 @@ it names (`core_waiting`, on by default), and a theme reads the same list as
 library with nothing in it. Covered by `tests/js/waiting.test.js`,
 `tests/theming/test_library_waiting.py` and `tests/games/test_game_repository_locations.py`.
 
+**PAR-103 - A theme can read who is playing.** One WebSocket method, `get_players`,
+published: everyone on this install and who is up, the same shape `PlayersChanged`
+carries. Core loads it at startup as `vpin.players` and keeps it current from the
+message, so a theme reads a property rather than repeating the call.
+*Why:* the Players design gives every surface one answer to who is up; a theme that wants
+to show it - a name beside the wheel, a badge for a guest - needs a way to ask.
+Covered by `tests/invariants/test_theme_api_surface.py` and `tests/theming/test_render_smoke.py`.
+
+**PAR-104 - The main menu's Player list and Rating dialog write and read who they are
+for.** Three WebSocket methods, refused to themes like `get_paging_state`:
+`set_player_up` (the Player list's Start), and `get_player_rating`/`set_player_rating`
+(the Rating dialog's, for whoever is up when that is not the owner). A theme reads who
+is up through `vpin.players`; only core's own overlay changes it or rates on another
+player's behalf.
+*Why:* the cabinet has no keyboard, so the Player list and Rating are core's own overlays,
+not something a theme is expected to build its own version of.
+Covered by `tests/invariants/test_theme_api_surface.py`, `tests/js/internal-methods.test.js`
+and `tests/theming/test_render_smoke.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

@@ -71,6 +71,11 @@ LEDGER_ALLOWS = {
     "PAR-101": {"recording_offer", "record_media", "switch_preview", "decide_preview",
                 "end_preview"},
     "PAR-102": {"library_waiting"},
+    # PAR-103: one method added so a theme can read who is playing.
+    "PAR-103": {"get_players"},
+    # PAR-104: three methods added for the main menu's Player list and Rating dialog.
+    # Additive and refused to themes, like PAR-101's.
+    "PAR-104": {"set_player_up", "set_player_rating", "get_player_rating"},
     # New media kinds add theme-payload keys. Additive only: every key master
     # had must still be present and equal.
     "PAR-11": {"InstructionCardImagePath", "TopperPath", "TopperVideoPath",
@@ -182,7 +187,8 @@ class ParityTests(unittest.TestCase):
             | LEDGER_ALLOWS["PAR-88"] | LEDGER_ALLOWS["PAR-95"]
             | LEDGER_ALLOWS["PAR-96"] | LEDGER_ALLOWS["PAR-97"] | LEDGER_ALLOWS["PAR-99"]
             | LEDGER_ALLOWS["PAR-100"] | LEDGER_ALLOWS["PAR-101"]
-            | LEDGER_ALLOWS["PAR-102"],
+            | LEDGER_ALLOWS["PAR-102"] | LEDGER_ALLOWS["PAR-103"]
+            | LEDGER_ALLOWS["PAR-104"],
             "only PAR-04's, PAR-21's and PAR-27's additions are permitted")
 
     def test_legacy_endpoints_served_on_master_and_do_not_serve_here(self) -> None:

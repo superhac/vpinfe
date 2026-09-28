@@ -101,53 +101,6 @@ def _build_remote_qr_svg(url: str) -> str:
     return stream.getvalue().decode("utf-8")
 
 
-def _managerui_page_urls(config: ConfigSource, page: str) -> list[str]:
-    port = NetworkConfig.from_config(config).http_port
-    hostname = socket.gethostname().strip()
-    urls: list[str] = []
-    seen_hosts: set[str] = set()
-
-    def detect_primary_ipv4() -> str:
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-                sock.connect(("8.8.8.8", 80))
-                candidate = str(sock.getsockname()[0]).strip()
-                return candidate if usable_ipv4(candidate) else ""
-        except Exception:
-            return ""
-
-    def add_host(host: str) -> None:
-        normalized = (host or "").strip()
-        if not normalized:
-            return
-        key = normalized.lower()
-        if key in seen_hosts:
-            return
-        seen_hosts.add(key)
-        urls.append(f"http://{normalized}:{port}/?page={page}")
-
-    primary_ip = detect_primary_ipv4()
-    if primary_ip:
-        add_host(primary_ip)
-
-    if hostname and hostname.lower() not in {"localhost", "ip6-localhost"}:
-        add_host(hostname)
-
-        try:
-            for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None, socket.AF_INET):
-                if family != socket.AF_INET:
-                    continue
-                ip = str(sockaddr[0]).strip()
-                if not usable_ipv4(ip):
-                    continue
-                add_host(ip)
-        except Exception:
-            pass
-
-    add_host("localhost")
-    return urls
-
-
 def _preferred_managerui_url(urls: list[str]) -> str:
     return next(
         (url for url in urls if url.startswith("http://") and url.split("://", 1)[1].split(":",
@@ -223,7 +176,9 @@ def get_managerui_remote_link(config: ConfigSource) -> dict[str, Any]:
 
 
 def get_managerui_vpinplay_multi_link(config: ConfigSource) -> dict[str, Any]:
-    urls = _managerui_page_urls(config, "vpinplay_account")
+    """The main menu's second QR: the Remote's Join screen. Still named for the page
+    it opened in 2.x, not the one it answers now."""
+    urls = [f"{url}?screen=join" for url in _managerui_remote_urls(config)]
     preferred_url = _preferred_managerui_url(urls)
     return {
         "url": preferred_url,

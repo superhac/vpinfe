@@ -35,9 +35,11 @@ from common.games.collection_store import (
 )
 from common.games.game_metadata import game_rating, normalize_meta, set_game_rating
 from common.games.game_repository import all_games
+from common.games.player_records import get_records
 from common.host import frontend_browser, frontend_state, launch, launch_state
 from common.host.display_service import monitors_as_dicts
 from common.i18n import t
+from common.players import get_roster
 from common.service_errors import NotFoundError, ServiceError
 from frontend import (
     config_api,
@@ -125,6 +127,9 @@ API_PUBLISHED_METHODS = {
     'get_managerui_remote_link',
     'get_managerui_vpinplay_multi_link',
     'get_theme_index_page',
+    # Additive: the roster and who is up, for a theme that wants to show it. Kept live
+    # by the PlayersChanged window message rather than re-asked for.
+    'get_players',
     # Additive: the contract a theme declared, so vpinfe-core.js can serve the surface
     # that theme asked for rather than every surface at once.
     'get_theme_contract',
@@ -169,6 +174,11 @@ API_INTERNAL_METHODS = {
     'switch_preview',
     'decide_preview',
     'end_preview',
+    # The main menu's Player list and its Rating dialog asking whose. A theme reads who
+    # is up through get_players/PlayersChanged; only core's own overlay writes it.
+    'set_player_up',
+    'set_player_rating',
+    'get_player_rating',
 }
 
 
@@ -887,6 +897,40 @@ class API:
 
         stored = set_game_rating(entry.game, rating)
         logger.info("Updated User.Rating for %s -> %s", entry.game.game_dir_name, stored)
+        return {"success": True, "rating": stored}
+
+    def get_players(self) -> dict[str, Any]:
+        """Everyone on this install and who is up, as `PlayersChanged` carries it."""
+        return get_roster().state()
+
+    def set_player_up(self, player_id: Any, up: Any = True) -> dict[str, Any]:
+        """Put one player up, or take them down. The main menu's Player list; a theme
+        reads who is up rather than setting it."""
+        get_roster().set_up(str(player_id or "").strip(), bool(up))
+        return get_roster().state()
+
+    def get_player_rating(self, player_id: Any, index: Any) -> int:
+        """A player's own rating (0-5) for a game index, for the main menu's Rating
+        dialog to preview. The owner's is get_game_rating's, read the same way."""
+        entry = self.entry_at(index)
+        if entry is None:
+            return 0
+        player = get_roster().get(str(player_id or "").strip())
+        if player is None:
+            return 0
+        if player.owner:
+            return game_rating(entry.game)
+        return get_records().game(player, game_identity.game_id(entry.game)).get("rating", 0)
+
+    def set_player_rating(self, player_id: Any, index: Any, rating: Any) -> dict[str, Any]:
+        """A non-owner player's own rating (0-5) for a game index - their own record,
+        never the library's. The owner writes through set_game_rating instead."""
+        entry = self.entry_at(index)
+        if entry is None:
+            logger.warning("Ignoring rating for invalid index: %s", index)
+            return {"success": False, "reason": "invalid_index"}
+        player = get_roster().player(str(player_id or "").strip())
+        stored = get_records().set_rating(player, game_identity.game_id(entry.game), rating)
         return {"success": True, "rating": stored}
 
     def build_metadata(self, download_media: bool = True,

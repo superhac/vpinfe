@@ -24,17 +24,23 @@ function navigable(items = [], cursor = 0) {
 }
 let ratingDraft = 0;
 let ratingGameIndex = 0;
+// Who the open rating dialog is for - null means the owner, read through
+// get_game_rating/set_game_rating as it always has been.
+let ratingForPlayer = null;
 let currentGameIndex = 0;
 let ratingLabelRequestSeq = 0;
 let audioMuted = false;
 let menuConfigLoaded = false;
 let relayoutTimer = null;
 let remoteQrLoaded = false;
-let vpinplayMultiQrLoaded = false;
+let joinQrLoaded = false;
 // recording_offer's last answer, or null; whether its choices are the list on screen;
 // and a count so a late answer for another game is dropped.
 let recordOffer = null;
 let choosing = false;
+// Which choice list is open: 'record' (Record Media's), 'player_up' (Player - Start
+// toggles who is up), or 'player_pick' (Rating, asking whose with several up).
+let choosingKind = null;
 let recordStarting = false;
 let offerSeq = 0;
 
@@ -65,7 +71,7 @@ window.addEventListener('message', async (event) => {
   }
 
   if (message.event === 'reset state') {
-    leaveRecordChoices();
+    leaveChoices();
     menu = navigable();
     await applyMainMenuConfig();
     updateMenu();
@@ -86,6 +92,10 @@ window.addEventListener('message', async (event) => {
       currentGameIndex = Math.floor(ev.index);
       refreshRatingMenuLabel(currentGameIndex);
       loadRecordOffer();
+    }
+    if (ev.type === 'PlayersChanged') {
+      refreshPlayerMenuLabel();
+      refreshRatingMenuLabel(currentGameIndex);
     }
   }
 });
@@ -115,22 +125,23 @@ async function loadRemoteQrPanel() {
   }
 }
 
-async function loadVPinPlayMultiQrPanel() {
-  if (vpinplayMultiQrLoaded) return;
+async function loadJoinQrPanel() {
+  if (joinQrLoaded) return;
 
   const panel = document.getElementById('menu-qr-panels');
-  const code = document.getElementById('vpinplay-multi-qr-code');
+  const code = document.getElementById('join-qr-code');
   if (!panel || !code) return;
 
   try {
-    const multiLink = await window.parent.vpin.call('get_managerui_vpinplay_multi_link');
-    const rawUrl = multiLink && typeof multiLink.url === 'string' ? multiLink.url.trim() : '';
-    const qrSvg = multiLink && typeof multiLink.qr_svg === 'string' ? multiLink.qr_svg.trim() : '';
+    // Still the 2.x method name; it answers the Remote's Join screen now.
+    const joinLink = await window.parent.vpin.call('get_managerui_vpinplay_multi_link');
+    const rawUrl = joinLink && typeof joinLink.url === 'string' ? joinLink.url.trim() : '';
+    const qrSvg = joinLink && typeof joinLink.qr_svg === 'string' ? joinLink.qr_svg.trim() : '';
     if (!rawUrl || !qrSvg) return;
 
     code.innerHTML = qrSvg;
     panel.hidden = false;
-    vpinplayMultiQrLoaded = true;
+    joinQrLoaded = true;
   } catch (_e) {
     code.innerHTML = '';
   }
@@ -151,7 +162,46 @@ async function applyMainMenuConfig() {
   }
 
   menuConfigLoaded = true;
-  await Promise.all([loadRemoteQrPanel(), loadVPinPlayMultiQrPanel()]);
+  refreshPlayerMenuLabel();
+  await Promise.all([loadRemoteQrPanel(), loadJoinQrPanel()]);
+}
+
+// -- players: the roster read from the theme window's own copy, kept live by
+// PlayersChanged - see vpinfe-core.js. Nothing here calls get_players itself. --------
+
+function playersRoster() {
+  try {
+    const held = window.parent.vpin && window.parent.vpin.players;
+    return (held && Array.isArray(held.players)) ? held.players : [];
+  } catch (_e) {
+    return [];
+  }
+}
+
+function playerToken(player) {
+  return (player && (player.initials || player.name))
+    || t('frontend.mainmenu.no_name', 'No name');
+}
+
+function refreshPlayerMenuLabel() {
+  const item = document.getElementById('player-item');
+  // A choice list owns the menu's rows while it is open; rebuilding under it here
+  // would pull its rows into the navigable list. It catches up when the list closes.
+  if (!item || choosing) return;
+  const roster = playersRoster();
+  if (roster.length <= 1) {
+    item.style.display = 'none';
+  } else {
+    const up = roster.filter((player) => player.up);
+    item.textContent = up.length <= 1
+      ? t('frontend.mainmenu.player_one', 'Player: {name}',
+          { name: playerToken(up[0]) })
+      : t('frontend.mainmenu.player_many', 'Players: {names}',
+          { names: up.map(playerToken).join(', ') });
+    item.style.display = '';
+  }
+  rebuildMenuItems();
+  syncMenuWidthFromLongestLabel();
 }
 
 function rebuildMenuItems() {
@@ -287,6 +337,24 @@ function scheduleMenuRelayout() {
   });
 }
 
+// The player the Rating stars are for, or null for the owner.
+function asRatingTarget(player) {
+  return player ? { id: player.id, owner: !!player.owner, token: playerToken(player) } : null;
+}
+
+function ratingLabelTarget() {
+  const roster = playersRoster();
+  if (roster.length <= 1) return null;
+  const up = roster.filter((player) => player.up);
+  return up.length === 1 ? asRatingTarget(up[0]) : null;
+}
+
+async function readRating(target, idx) {
+  return target
+    ? window.parent.vpin.callInternal('get_player_rating', target.id, idx)
+    : window.parent.vpin.call('get_game_rating', idx);
+}
+
 async function refreshRatingMenuLabel(indexHint = null) {
   const ratingItem = document.getElementById('rating-item');
   if (!ratingItem) return;
@@ -301,7 +369,7 @@ async function refreshRatingMenuLabel(indexHint = null) {
       currentGameIndex = idx;
     }
 
-    const savedRating = await window.parent.vpin.call('get_game_rating', idx);
+    const savedRating = await readRating(ratingLabelTarget(), idx);
     if (requestSeq !== ratingLabelRequestSeq) return;
     ratingItem.innerHTML = `${t('word.rating', 'Rating')} (<span style="color:#ffd84d;">${ratingStarsText(savedRating)}</span>)`;
     syncMenuWidthFromLongestLabel();
@@ -360,7 +428,11 @@ function handleInput(input) {
       } else if (selectedItem.id === 'shutdown-item') {
         window.parent.vpin.requestLifecycle('system', 'stop');
       } else if (selectedItem.id === 'rating-item') {
-        showRatingDialog();
+        startRatingFlow();
+      } else if (selectedItem.id === 'player-item') {
+        showPlayerChoices('player_up',
+                          t('frontend.mainmenu.who_is_up', "Who's Up"));
+        return;
       } else if (selectedItem.id === 'audio-item') {
         toggleAudioMute();
       } else if (selectedItem.id === 'buildmeta-item') {
@@ -421,13 +493,46 @@ function showRecordChoices() {
   heading.textContent = recordOffer.label;
   heading.hidden = false;
   choosing = true;
+  choosingKind = 'record';
   menu = null;
   updateMenu();
   scheduleMenuRelayout();
 }
 
-function leaveRecordChoices(backTo = null) {
-  document.querySelectorAll('.record-choice').forEach((item) => item.remove());
+// Player and Rating's "whose" both open the same kind of list: every kept player and
+// guest, under a heading, in the roster's own order. `kind` says what Start does with
+// a row - see handleChoiceInput.
+function showPlayerChoices(kind, heading) {
+  const list = document.getElementById('menu');
+  for (const player of playersRoster()) {
+    const item = document.createElement('li');
+    item.className = 'menu-item player-choice';
+    item.dataset.playerId = player.id;
+    item.dataset.name = playerToken(player);
+    if (player.up) item.classList.add('player-choice-up');
+    item.textContent = playerChoiceLabel(item);
+    list.appendChild(item);
+  }
+  list.classList.add('choosing');
+  const headingEl = document.getElementById('menu-heading');
+  headingEl.textContent = heading;
+  headingEl.hidden = false;
+  choosing = true;
+  choosingKind = kind;
+  menu = null;
+  updateMenu();
+  scheduleMenuRelayout();
+}
+
+// A check on whoever is up - the roster always has someone - a blank space of the
+// same width on everyone else, so the names still line up.
+function playerChoiceLabel(item) {
+  const mark = item.classList.contains('player-choice-up') ? '✓ ' : '  ';
+  return mark + item.dataset.name;
+}
+
+function leaveChoices(backTo = null) {
+  document.querySelectorAll('.record-choice, .player-choice').forEach((item) => item.remove());
   document.getElementById('menu')?.classList.remove('choosing');
   for (const id of ['menu-heading', 'menu-note']) {
     const element = document.getElementById(id);
@@ -437,7 +542,9 @@ function leaveRecordChoices(backTo = null) {
     }
   }
   const was = choosing;
+  const wasKind = choosingKind;
   choosing = false;
+  choosingKind = null;
   recordStarting = false;
   if (!was) return;
   menu = null;
@@ -446,6 +553,9 @@ function leaveRecordChoices(backTo = null) {
   if (at >= 0) menu.moveTo(at);
   updateMenu();
   scheduleMenuRelayout();
+  // Start's toggle already updated the row; this catches the label up without waiting
+  // on the PlayersChanged round trip.
+  if (wasKind === 'player_up') refreshPlayerMenuLabel();
 }
 
 function handleChoiceInput(input) {
@@ -459,10 +569,14 @@ function handleChoiceInput(input) {
       menu.moveBy(1);
       break;
     case 'select':
-      startRecording(menu.current);
+      if (choosingKind === 'player_up') togglePlayerUp(menu.current);
+      else if (choosingKind === 'player_pick') pickPlayerForRating(menu.current);
+      else startRecording(menu.current);
       return;
     case 'back':
-      leaveRecordChoices(document.getElementById('record-item'));
+      leaveChoices(document.getElementById(
+        choosingKind === 'player_up' ? 'player-item'
+          : choosingKind === 'player_pick' ? 'rating-item' : 'record-item'));
       return;
   }
   updateMenu();
@@ -482,8 +596,32 @@ async function startRecording(choice) {
     scheduleMenuRelayout();
     return;
   }
-  leaveRecordChoices();
+  leaveChoices();
   window.parent.vpin.toggleOverlay('menu');
+}
+
+// Start on a Player row toggles it, live - there is no separate save step, since
+// several players can be up at once. A refusal (the id is stale) leaves the row as
+// it was.
+async function togglePlayerUp(item) {
+  if (!item || !item.dataset.playerId) return;
+  const wantUp = !item.classList.contains('player-choice-up');
+  try {
+    await window.parent.vpin.callInternal('set_player_up', item.dataset.playerId, wantUp);
+  } catch (_e) {
+    return;
+  }
+  item.classList.toggle('player-choice-up', wantUp);
+  item.textContent = playerChoiceLabel(item);
+}
+
+// Start on a Rating "whose" row picks that player and moves straight to the stars -
+// there is nothing else to do with the choice.
+function pickPlayerForRating(item) {
+  if (!item || !item.dataset.playerId) return;
+  const chosen = playersRoster().find((player) => player.id === item.dataset.playerId);
+  leaveChoices(null);
+  showRatingDialog(asRatingTarget(chosen));
 }
 
 function handleDialogInput(input) {
@@ -585,15 +723,36 @@ function renderRatingStars() {
     });
 }
 
-async function showRatingDialog() {
+// With several up there is no single player to rate for without asking; the picked
+// answer lands back here through pickPlayerForRating.
+function startRatingFlow() {
+  const roster = playersRoster();
+  if (roster.length <= 1) {
+    showRatingDialog(null);
+    return;
+  }
+  const up = roster.filter((player) => player.up);
+  if (up.length === 1) {
+    showRatingDialog(asRatingTarget(up[0]));
+    return;
+  }
+  showPlayerChoices('player_pick', t('frontend.mainmenu.rating_whose', 'Whose rating?'));
+}
+
+async function showRatingDialog(forPlayer) {
+  ratingForPlayer = forPlayer;
+  ratingGameIndex = resolveCurrentGameIndex();
   try {
-    ratingGameIndex = resolveCurrentGameIndex();
-    const savedRating = await window.parent.vpin.call('get_game_rating', ratingGameIndex);
-    ratingDraft = normalizeRating(savedRating);
+    ratingDraft = normalizeRating(await readRating(forPlayer, ratingGameIndex));
   } catch (_e) {
-    ratingGameIndex = resolveCurrentGameIndex();
     ratingDraft = 0;
   }
+
+  const forText = document.getElementById('rating-for-text');
+  forText.hidden = !forPlayer;
+  forText.textContent = forPlayer
+    ? t('frontend.mainmenu.rating_for', 'Rating for {name}', { name: forPlayer.token })
+    : '';
 
   renderRatingStars();
   document.getElementById('rating-overlay').style.display = 'block';
@@ -611,11 +770,17 @@ function hideRatingDialog() {
   document.getElementById('rating-overlay').style.display = 'none';
   dialogState = null;
   dialog = navigable();
+  ratingForPlayer = null;
 }
 
 async function saveRatingDialog() {
   try {
-    await window.parent.vpin.call('set_game_rating', ratingGameIndex, ratingDraft);
+    if (ratingForPlayer && !ratingForPlayer.owner) {
+      await window.parent.vpin.callInternal(
+        'set_player_rating', ratingForPlayer.id, ratingGameIndex, ratingDraft);
+    } else {
+      await window.parent.vpin.call('set_game_rating', ratingGameIndex, ratingDraft);
+    }
     window.parent.vpin.sendMessageToAllWindowsIncSelf({
       type: 'TableDataChange',
       index: ratingGameIndex,

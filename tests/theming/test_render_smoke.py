@@ -349,7 +349,64 @@ class RenderSmokeTests(TempTree):
         with LiveInstance(self.root) as instance:
             self.assertTrue(asyncio.run(run(instance)))
 
+    # -- the Player list: shown only when the roster holds more than one ---------
 
+    PLAYER_ITEM_TEXT = (
+        "(() => { const doc = document.getElementById('menu-frame')?.contentDocument;"
+        " const item = doc?.getElementById('player-item'); if (!item) return null;"
+        " return doc.defaultView.getComputedStyle(item).display === 'none'"
+        " ? '' : item.textContent; })()")
+
+    PLAYER_ROWS = (
+        "[...(document.getElementById('menu-frame')?.contentDocument"
+        "?.querySelectorAll('.player-choice') || [])].map(el => ["
+        "el.dataset.playerId, el.classList.contains('selected'),"
+        " el.classList.contains('player-choice-up')])")
+
+    def test_the_player_item_is_hidden_with_one_player(self) -> None:
+        """The roster holds only the owner until a test, or a person, adds someone."""
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                await self._open_menu(browser, instance)
+                return await browser.evaluate(self.PLAYER_ITEM_TEXT)
+
+        with LiveInstance(self.root) as instance:
+            self.assertEqual(asyncio.run(run(instance)), "")
+
+    def test_the_player_list_shows_and_toggles_who_is_up(self) -> None:
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                await self._open_menu(browser, instance)
+                await browser.press("ArrowDown", "ArrowDown")
+                label = await browser.wait_for(
+                    f"({self.SELECTED}) === 'player-item' && ({self.PLAYER_ITEM_TEXT})")
+                await browser.press("Enter", "Enter")
+                first = await browser.wait_for(self.PLAYER_ROWS)
+                # The flippers move the list's own cursor too.
+                await browser.press("ArrowDown", "ArrowDown")
+                moved = await browser.wait_for(
+                    f"(({self.PLAYER_ROWS}).find(r => r[1]) || [])[0]")
+                self.assertNotEqual(first[0][0], moved)
+                # Start toggles the row now under the cursor.
+                before_up = next(row[2] for row in first if row[0] == moved)
+                await browser.press("Enter", "Enter")
+                await browser.wait_for(
+                    f"(({self.PLAYER_ROWS}).find(r => r[0] === {moved!r}) || [])[2]"
+                    f" !== {str(before_up).lower()}")
+                await browser.press("b", "KeyB")
+                closed = await browser.wait_for(
+                    f"!({self.PLAYER_ROWS}).length")
+                return label, moved, closed
+
+        with LiveInstance(self.root) as instance:
+            instance.wait_for_api()
+            instance.post("/api/v1/players", {"name": "Kid", "initials": "KID"})
+            label, toggled_id, closed = asyncio.run(run(instance))
+            roster = {p["id"]: p["up"] for p in instance.api("/api/v1/players")["players"]}
+
+        self.assertIn("Player", label)
+        self.assertTrue(closed)
+        self.assertTrue(roster[toggled_id], "the row Start toggled did not end up up")
 
     # -- the collection menu, which carries a second cursor inside the first ---
     #

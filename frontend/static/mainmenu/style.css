@@ -84,8 +84,9 @@ ul.menu {
   z-index: 1;
 }
 
-/* Record Media's choices take the list's place, under the item's name. */
-ul.menu.choosing li.menu-item:not(.record-choice) {
+/* A choice list - Record Media's, or a player's - takes the menu's place, under the
+   item's name. */
+ul.menu.choosing li.menu-item:not(.record-choice):not(.player-choice) {
   display: none !important;
 }
 

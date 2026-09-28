@@ -449,6 +449,10 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                    collection: str = "", launcher: str = "", sets: str = "",
                    player: str = "") -> None:
     """The Console. Query parameters say where in it, so a place can be linked to."""
+    # 2.x's own page keys, still sitting in bookmarks and manager-ui-state.json.
+    if page.strip().lower() in ("vpinplay_account", "vpinplay_player"):
+        ui.navigate.to("/remote?screen=join")
+        return
     # The palette and Quasar's dark mode are two separate switches. The toggle button
     # that used to own the second one is gone, so it is set here - without it the shell
     # renders light while the tokens stay dark.

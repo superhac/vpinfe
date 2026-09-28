@@ -140,6 +140,12 @@ def on_game_changed(**_payload: Any) -> None:
         _change_timer.start()
 
 
+def on_players_changed(*, state: dict | None = None, **_payload: Any) -> None:
+    """Who is kept, who is a guest, and who is up. Forwarded into every overlay iframe
+    as well as the theme windows, which is how the main menu's Player list keeps up."""
+    _broadcast({"type": "PlayersChanged", "state": state or {"players": []}})
+
+
 def _flush_game_changes() -> None:
     global _change_timer
     with _change_lock:
@@ -163,6 +169,7 @@ def register(ws_bridge: DeviceChannel, frontend_browser: ChromiumManager | None 
     events.subscribe(events.TABLE_PLAY_RECORDED, on_play_recorded)
     events.subscribe(events.GAME_CHANGED, on_game_changed)
     events.subscribe(events.COLLECTIONS_CHANGED, on_game_changed)
+    events.subscribe(events.PLAYERS_CHANGED, on_players_changed)
     _registered = True
 
 

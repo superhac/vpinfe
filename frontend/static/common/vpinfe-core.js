@@ -411,6 +411,9 @@ const INTERNAL_METHODS = new Set([
   "switch_preview",
   "decide_preview",
   "end_preview",
+  "set_player_up",
+  "set_player_rating",
+  "get_player_rating",
 ]);
 
 // By the ids `common/host/frontend_browser.py` knows.
@@ -683,6 +686,9 @@ class VPinFECore {
     installLegacyAliases(this);
     installOverlayAliases(this);
     this.monitors = [];
+    // Everyone on this install and who is up. Loaded during init() and kept live by
+    // PlayersChanged - see handleEvent().
+    this.players = { players: [] };
     this._resolveReady = null;
     this.ready = new Promise(resolve => this._resolveReady = resolve);
     this.inputHandlers = []; // gamepad and joystick input handlers for theme
@@ -1483,6 +1489,10 @@ class VPinFECore {
       this.#applyEntryData(message);
     }
 
+    if (message.type === "PlayersChanged") {
+      this.players = message.state || { players: [] };
+    }
+
     // Default handling for TableDataChange
     if (message.type === "TableDataChange") {
       if (this.isController()) this._lastSelectedIndex = null;
@@ -2216,6 +2226,7 @@ class VPinFECore {
     this.playfieldMediaRotation = await this.call("get_playfield_media_rotation");
     this.#publishLayout();
     await this.#loadMonitors();
+    await this.#loadPlayers();
     await this.getTableData();
 
     // Draw once now the games are here. Waiting for a selection message would leave a
@@ -2946,6 +2957,14 @@ class VPinFECore {
 
   async #loadMonitors() {
     this.monitors = await this.call("get_monitors");
+  }
+
+  async #loadPlayers() {
+    try {
+      this.players = await this.call("get_players");
+    } catch (_e) {
+      /* an older build cannot answer; the empty roster already covers it */
+    }
   }
 
   // One branch, once, for the whole surface. A theme declares what it was written
