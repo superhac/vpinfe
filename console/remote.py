@@ -28,6 +28,7 @@ from nicegui import background_tasks, run, ui
 from common import device_registry, events, install_identity
 from common.config_access import NetworkConfig
 from common.failures import why
+from common.host.launch_state import SOURCE_CAPTURE
 from common.i18n import t
 from common.labels import humanize
 from console import busy, game_tables, offload, stars, theme, verbs
@@ -355,9 +356,11 @@ async def remote_page(screen: str = "") -> None:
         if not isinstance(said, dict):
             return
         if name == events.PLAY_STATE_CHANGED:
-            was_playing = bool((state.get("play") or {}).get("launching"))
+            was = state.get("play") or {}
             state["play"] = said
-            if was_playing != bool(said.get("launching")):
+            if bool(was.get("launching")) != bool(said.get("launching")) \
+                    or (bool(was.get("paused")) != bool(said.get("paused"))
+                        and state["screen"] != PLAY):
                 redraw()
             return
         was = state.get("frontend")
@@ -564,8 +567,14 @@ def _now(state: dict[str, Any],
         _running_jobs(state)
 
 
+def takes_pictures(play: dict[str, Any], showing: dict[str, Any] | None) -> bool:
+    """Whether a table is up that a player can take a picture of from here."""
+    return (bool(play.get("launching")) and play.get("source") != SOURCE_CAPTURE
+            and not frontend_closed(showing))
+
+
 def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target: Callable[[], Any],
-             redraw: Callable[[], None]) -> None:
+             redraw: Callable[[], None], note: str = "") -> None:
     @on_page
     async def quit_table() -> None:
         try:
@@ -576,10 +585,18 @@ def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target: Cal
         state["play"] = await offload.io(client_for_target().play_state)
         redraw()
 
+    paused = bool(play.get("paused"))
     with ui.column().classes("w-full gap-1 console-card"):
-        ui.label(t("console.remote.playing")).classes("console-card-title")
+        ui.label(t("console.remote.paused" if paused else "console.remote.playing")) \
+            .classes("console-card-title")
         ui.label(str(play.get("game_name") or t("console.remote.table"))) \
             .classes("remote-headline")
+        if note:
+            ui.label(note).classes("remote-note")
+    if takes_pictures(play, state.get("frontend")):
+        _tap_button("take_picture", client_for_target, icon=verbs.TAKE_PICTURE, primary=True)
+        if paused:
+            _tap_button("back", client_for_target, icon=verbs.BACK)
     ui.button(t("console.remote.quit_table"), icon=verbs.STOP, on_click=quit_table) \
         .props("no-caps flat").classes("remote-action remote-action--danger")
 
@@ -927,6 +944,7 @@ def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet: Any,
 BUTTON_WORDS = {
     "select": t("console.remote.select"),
     "back": t("word.back"),
+    "take_picture": t("input.take_picture.label"),
     "menu": t("console.remote.menu"),
     "collection_menu": t("console.remote.collections"),
     "tutorial": t("word.tutorial"),
@@ -1032,14 +1050,8 @@ def _playing_instead(play: dict[str, Any], state: dict[str, Any],
                      client_for_target: Callable[[], Any],
                      redraw: Callable[[], None]) -> None:
     with ui.column().classes("w-full gap-3 p-3"):
-        with ui.column().classes("w-full gap-1 console-card"):
-            ui.label(t("console.remote.playing")) \
-                .classes("console-card-title")
-            ui.label(str(play.get("game_name") or t("console.remote.table"))) \
-                .classes("remote-headline")
-            ui.label(t("console.remote.wheel_not_listening_while")) \
-                .classes("remote-note")
-        _playing(play, state, client_for_target, redraw)
+        _playing(play, state, client_for_target, redraw,
+                 note=t("console.remote.wheel_not_listening_while"))
 
 
 def _pad(client_for_target: Callable[[], Any]) -> None:
@@ -1066,19 +1078,24 @@ def _held_button(action: str, icon: str, cls: str) -> None:
 
 
 def _tap_button(action: str, client_for_target: Callable[[], Any], *, danger: bool = False,
-                cls: str = "", icon_only: bool = False) -> None:
+                cls: str = "", icon_only: bool = False, icon: str = "",
+                primary: bool = False) -> None:
     async def tap() -> None:
         await _say(client_for_target, action, "tap")
 
     said = BUTTON_WORDS.get(action, action)
-    button = ui.button(on_click=tap)
+    button = ui.button(on_click=tap, icon=icon or None)
     if icon_only:
         button.props("flat round").classes(f"remote-pad-key {cls}").tooltip(said)
         with button:
             ui.icon("radio_button_checked")
         return
+    if primary:
+        button.props("no-caps unelevated color=primary") \
+            .classes("remote-action remote-action--primary").set_text(said)
+        return
     # Flat either way: filled is what the one action a screen is *for* wears, and on
-    # this screen that is the pad. A destructive button drawn louder than everything
+    # Control that is the pad. A destructive button drawn louder than everything
     # around it is the one a thumb finds by accident.
     button.props("no-caps flat") \
         .classes("remote-action" + (" remote-action--danger" if danger else "")) \

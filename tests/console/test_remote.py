@@ -210,6 +210,31 @@ class FollowsTheFrontendTests(unittest.TestCase):
         self.assertEqual(remote.wheel_id(None), "")
 
 
+class TakePictureTests(unittest.TestCase):
+    PLAYING = {"launching": True, "game_name": "Example", "source": "frontend",
+               "paused": False}
+    UP = {"running": True, "collection": "", "game": None}
+
+    def test_offered_while_a_table_is_played(self) -> None:
+        self.assertTrue(remote.takes_pictures(self.PLAYING, self.UP))
+        self.assertTrue(remote.takes_pictures(self.PLAYING | {"source": "remote"}, None))
+
+    def test_not_while_nothing_is_played_or_a_recording_runs(self) -> None:
+        self.assertFalse(remote.takes_pictures({"launching": False}, self.UP))
+        self.assertFalse(remote.takes_pictures(self.PLAYING | {"source": "capture"},
+                                               self.UP))
+
+    def test_not_with_the_frontend_closed_since_nothing_would_hear_it(self) -> None:
+        self.assertFalse(remote.takes_pictures(self.PLAYING, self.UP | {"running": False}))
+
+    def test_its_press_is_the_input_action_of_that_name(self) -> None:
+        from common import input_registry
+
+        self.assertIn("take_picture", input_registry.IN_PLAY)
+        self.assertIn("back", input_registry.IN_PLAY)
+        self.assertIn("take_picture", remote.BUTTON_WORDS)
+
+
 class ReadsTheEventStreamTests(unittest.TestCase):
     """The reader is held to the frames the install writes, not to a copy of them."""
 
