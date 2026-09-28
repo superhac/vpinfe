@@ -19,6 +19,8 @@ from common.media_specs import default_media_path
 
 logger = logging.getLogger("vpinfe.common.online.vpsdb_media")
 
+PUBLISHER = "vpinmediadb"
+
 
 # Where the manifest is published. One name for it, so the downloader and anything
 # browsing the catalog cannot end up pointed at different copies.
@@ -207,7 +209,7 @@ class VPSMediaDownloader:
             it declined to touch, so a user's artwork is never claimed as ours."""
             if result and meta_config:
                 path, md5hash = result
-                meta_config.add_asset(path, "vpinmediadb", md5hash)
+                meta_config.add_asset(path, PUBLISHER, md5hash)
 
         # `key` indexes the remote manifest, so it is vpinmediadb's word for the thing
         # and not ours. They differ for three of them - see REMOTE_KEYS. The kind is no
@@ -218,8 +220,10 @@ class VPSMediaDownloader:
             default_filename = str(default_media_path(game_dir, kind, self.playfieldvariant))
             on_disk = filename if filename and self.file_exists(filename) else default_filename
             held = recorded.get(asset_origin.path_of(game_dir, Path(on_disk))) or {}
+            ours = str(held.get("host", "") or "") == PUBLISHER
             record(self.download_media(game_id, metadata, key, filename, default_filename,
-                                       recorded_md5=str(held.get("hash", "") or ""),
+                                       recorded_md5=str(held.get("hash", "") or "")
+                                       if ours else "",
                                        published=published))
 
         process("backglass", game_media.get("1k"), REMOTE_KEYS["backglass"],

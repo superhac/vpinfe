@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from nicegui import ui
 
+from common.games import asset_origin
 from common.i18n import t
 from common.media_specs import media_label_map
 
@@ -24,6 +25,7 @@ from common.media_specs import media_label_map
 # anything predating the ledger, or placed with another tool, leaves no record.
 YOU = t("console.media_ownership.you")
 UNKNOWN = t("word.unknown")
+RECORDED = t("console.media_ownership.recorded")
 
 
 def source_name(origin: str) -> str:
@@ -36,6 +38,8 @@ def source_name(origin: str) -> str:
         return ""
     if origin == "user":
         return YOU
+    if origin == asset_origin.RECORDED:
+        return RECORDED
     if origin == UNKNOWN.lower():
         return UNKNOWN
     from common.online import asset_sources
@@ -46,7 +50,8 @@ def source_name(origin: str) -> str:
 def source_names() -> list[str]:
     """Every source a file could report, for a filter that offers them all."""
     from common.online import asset_sources
-    return sorted({source.name for source in asset_sources.BUILT_IN} | {YOU, UNKNOWN})
+    return sorted({source.name for source in asset_sources.BUILT_IN}
+                  | {YOU, UNKNOWN, RECORDED})
 
 
 # One .vpx owns it; the game owns it; something else is standing in; nothing is here.

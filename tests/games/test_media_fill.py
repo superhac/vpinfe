@@ -434,6 +434,18 @@ class UpdateTests(_Replaced):
         self.assertEqual(self.placed()[WHEEL], OLD_WHEEL.decode())
         self.downloads.assert_not_called()
 
+    def test_a_file_another_host_placed_is_never_replaced(self) -> None:
+        self.ours(PLAYFIELD, OLD_TABLE)
+        recording = self.ours(WHEEL, OLD_WHEEL)
+        media_placement.record_origin(self.folder, recording, asset_origin.RECORDED,
+                                      _md5(OLD_WHEEL))
+
+        media_fill.update_downloaded()
+
+        placed = self.placed()
+        self.assertEqual(placed[WHEEL], OLD_WHEEL.decode())
+        self.assertEqual(placed[PLAYFIELD], _url("table-4k-new.png"))
+
     def test_a_kind_this_library_does_not_collect_is_left(self) -> None:
         self.policy.set("hidden_media_kinds", ["wheel"])
         self.ours(WHEEL, OLD_WHEEL)

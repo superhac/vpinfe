@@ -3,7 +3,7 @@
 import unittest
 
 from common import apps
-from common.games import asset_registry
+from common.games import asset_origin, asset_registry
 from common.i18n import t
 from common.labels import field_label
 from console import (
@@ -348,6 +348,14 @@ class FunnelChoiceTests(unittest.TestCase):
         self.assertEqual({choice["label"] for choice in games._STATE_CHOICES},
                          {t(media_ownership.tier_for(key).noun)
                           for key in media_ownership.STATES})
+
+
+class SourceWordTests(unittest.TestCase):
+    def test_a_recording_is_named_and_offered_as_recorded(self) -> None:
+        said = media_ownership.source_name(asset_origin.RECORDED)
+
+        self.assertEqual(said, t("console.media_ownership.recorded"))
+        self.assertIn(said, media_ownership.source_names())
 
 
 class StarControlTests(unittest.TestCase):

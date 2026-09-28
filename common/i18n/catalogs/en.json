@@ -1112,6 +1112,7 @@
   "console.media_ownership.not": "not here",
   "console.media_ownership.nothing": "Nothing here",
   "console.media_ownership.orphan": "Orphan",
+  "console.media_ownership.recorded": "Recorded",
   "console.media_ownership.set": "From the “{detail}” set",
   "console.media_ownership.shared_every_table": "shared by every table",
   "console.media_ownership.something_else_filling_slot": "Something else is filling this slot",

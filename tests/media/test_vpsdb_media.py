@@ -8,6 +8,7 @@ from unittest import mock
 
 import requests
 
+from common.games import asset_origin
 from common.online.vpsdb_cache import VPSDatabaseCache
 from common.online.vpsdb_media import (
     REMOTE_KEYS,
@@ -176,6 +177,27 @@ class UpdateDownloadedTests(unittest.TestCase):
             self.assertEqual((root / "medias" / "wheel.png").read_bytes(), OURS)
             meta.add_asset.assert_called_once_with(
                 str(root / "medias" / "wheel.png"), "vpinmediadb", _md5(OURS))
+
+    def test_a_file_another_host_placed_is_never_replaced(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp) / "Cactus Canyon (Bally 1998)"
+            (root / "medias").mkdir(parents=True)
+            (root / "medias" / "wheel.png").write_bytes(OLD)
+            (root / f"{root.name}.info").write_text(json.dumps({"assets": {
+                "medias/wheel.png": {"source": {"host": asset_origin.RECORDED,
+                                                "hash": _md5(OLD)}}}}), encoding="utf-8")
+            dl = VPSMediaDownloader(
+                {"vps-1": {"wheel": "https://example.invalid/wheel.png",
+                           "wheel_md5": _md5(OURS)}},
+                playfieldvariant="table", playfieldresolution="1k",
+                playfieldvideoresolution="1k", update_downloaded=True)
+            meta = mock.Mock()
+            with mock.patch("common.online.vpsdb_media.download_file",
+                            side_effect=lambda url, dest: Path(dest).write_bytes(OURS)):
+                dl.download_media_for_game(_game_at(root), "vps-1", meta)
+
+            self.assertEqual((root / "medias" / "wheel.png").read_bytes(), OLD)
+            meta.add_asset.assert_not_called()
 
 
 class RemoteVocabularyTests(unittest.TestCase):
