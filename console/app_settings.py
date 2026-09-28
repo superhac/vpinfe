@@ -138,7 +138,8 @@ async def _program_entries(context: dict[str, Any],
         entries.append((panel.FULL, partial(_add_picker, context, added, offered)))
     entries.append((panel.FULL, panel.action(
         t("console.app_settings.show_every_setting"),
-        partial(_every_setting, context, table, inner), icon=verbs.DRILL)))
+        partial(_every_setting, context, table, inner), icon=verbs.DRILL,
+        hint=t("console.app_settings.show_every_setting.help"))))
     return entries
 
 

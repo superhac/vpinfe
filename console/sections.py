@@ -187,9 +187,11 @@ def overview(library: Library, registry: list[dict], discovery: dict,
                     panel.action(t("console.art_fill.get_art"),
                                  lambda ids=ids, kind=FILLS[key]: art_fill.confirm_kind(
                                      ids, kind, state, lambda: placed(ids)),
-                                 icon=verbs.FETCH, enabled=bool(games))()
+                                 icon=verbs.FETCH, enabled=bool(games),
+                                 hint=t("console.art_fill.get_art.help"))()
                 panel.action(t("console.sections.show"), lambda: go("games"),
-                             icon=verbs.GO, enabled=bool(games))()
+                             icon=verbs.GO, enabled=bool(games),
+                             hint=t("console.sections.show_finding.help"))()
 
     def drawn_again() -> None:
         if state.get("view") == "overview":
@@ -450,7 +452,8 @@ def metadata_line(library: Library, state: dict[str, Any]) -> None:
         with line, ui.element("div").classes("console-attention mb-2"):
             ui.icon("error_outline").classes("console-attention-icon")
             ui.label(said).classes("console-attention-line grow")
-            panel.action(t("console.sections.show"), show, icon=verbs.GO)()
+            panel.action(t("console.sections.show"), show, icon=verbs.GO,
+                         hint=t("console.sections.show_metadata.help"))()
 
     def fill() -> None:
         body = held.get("body")

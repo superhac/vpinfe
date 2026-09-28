@@ -396,7 +396,8 @@ class _Sources:
                 # Use takes the folder; anywhere else on the row opens it.
                 with ui.element("div").classes("shrink-0") \
                         .on("click", js_handler="(e) => e.stopPropagation()"):
-                    panel.action(t("console.candidates.use"), use, icon=verbs.ACCEPT)()
+                    panel.action(t("console.candidates.use"), use, icon=verbs.ACCEPT,
+                                 hint=t("console.candidates.use.help"))()
         row.on("click", lambda p=path: self._show_folder(listing, p))
 
 
@@ -428,6 +429,7 @@ class _OneFile(_Sources):
     def zone(self, card: Any) -> None:
         ui.label(t("console.mediasource.drop_file")).classes("console-help")
         panel.action(t("console.mediasource.choose_file"), None, icon=verbs.FROM_FILE,
+                     hint=t("console.mediasource.choose_file.help"),
                      js=f"() => getElement({self.uploader.id}).$refs.qRef.pickFiles()")()
         card.on("drop", self._dropped_wrong, js_handler=_one(self.uploader.id))
 
@@ -739,7 +741,8 @@ class _Slot(_OneFile):
                     _attention(now["stop"])
                 with ui.row().classes("items-center gap-2 no-wrap min-w-0"):
                     panel.action(t("console.record.record"), go, icon=verbs.RECORD,
-                                 enabled=not now["stop"] and not now["busy"])()
+                                 enabled=not now["stop"] and not now["busy"],
+                                 hint=t("console.mediasource.record_this.help"))()
                     if now["plan"].get("recording"):
                         ui.label(record.about(int(now["plan"].get("estimate_seconds") or 0))) \
                             .classes("console-help")
@@ -1023,9 +1026,11 @@ class _Folder(_Sources):
         with ui.row().classes("items-center justify-center gap-2"):
             panel.action(t("console.mediasource.choose_files"), heard,
                          icon=verbs.FROM_FILE,
+                         hint=t("console.mediasource.choose_files.help"),
                          js="() => window.__consoleChoose(false, emit)")()
             panel.action(t("console.mediasource.choose_folder"), heard,
                          icon=verbs.FROM_FOLDER,
+                         hint=t("console.mediasource.choose_folder.help"),
                          js="() => window.__consoleChoose(true, emit)")()
         card.on("drop", heard, js_handler=_MANY)
 
@@ -1088,6 +1093,7 @@ class _Notes(_Folder):
         heard = uploads.listener(self.arrived)
         ui.label(t("console.mediasource.drop_file")).classes("console-help")
         panel.action(t("console.mediasource.choose_file"), heard, icon=verbs.FROM_FILE,
+                     hint=t("console.mediasource.choose_file.help"),
                      js="() => window.__consoleChoose(false, emit)")()
         card.on("drop", heard, js_handler=_MANY)
 
@@ -1135,9 +1141,11 @@ class _Table(_Folder):
         with ui.row().classes("items-center justify-center gap-2"):
             panel.action(t("console.mediasource.choose_files"), heard,
                          icon=verbs.FROM_FILE,
+                         hint=t("console.mediasource.choose_files.help"),
                          js="() => window.__consoleChoose(false, emit)")()
             panel.action(t("console.mediasource.choose_folder"), heard,
                          icon=verbs.FROM_FOLDER,
+                         hint=t("console.mediasource.choose_folder.help"),
                          js="() => window.__consoleChoose(true, emit)")()
         card.on("drop", heard, js_handler=_MANY)
 
@@ -1158,7 +1166,8 @@ class _Table(_Folder):
                                          wants="file", width="grow min-w-0",
                                          browse=self.library.folders,
                                          suffixes=apps.table_suffixes())
-                panel.action(t("word.add"), lambda: self._typed(typed), icon=verbs.ADD)()
+                panel.action(t("word.add"), lambda: self._typed(typed), icon=verbs.ADD,
+                             hint=t("console.mediasource.add_typed_path.help"))()
             typed.on("keydown.enter", lambda: self._typed(typed))
         await super().host_tab(listed)
 
@@ -1228,7 +1237,8 @@ class _Table(_Folder):
                 with ui.row().classes("items-center gap-2 w-full console-slot-actions"):
                     panel.action(t("console.mediasource.add_launcher"),
                                  lambda: self._add_launcher(sorted(takes_ids)),
-                                 icon=verbs.ADD)()
+                                 icon=verbs.ADD,
+                                 hint=t("console.mediasource.add_launcher.help"))()
                 return
             first = next((one for one in offered
                           if defaults.get(one.get("app")) == one.get("launcher_id")),
@@ -1273,7 +1283,8 @@ class _Table(_Folder):
                 await self._imported()
 
             with ui.row().classes("items-center gap-2 w-full console-slot-actions"):
-                panel.action(t("word.add"), add, icon=verbs.ADD)()
+                panel.action(t("word.add"), add, icon=verbs.ADD,
+                             hint=t("console.mediasource.add_keyed_table.help"))()
             held["typed"].on("keydown.enter", add)
 
     @on_page

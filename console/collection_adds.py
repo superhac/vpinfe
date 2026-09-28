@@ -567,7 +567,8 @@ async def _pick_one(title: str, collections: list[dict[str, Any]],
             listing = ui.column().classes("w-full gap-1 console-pick-list")
         with ui.element("div").classes("px-3 mt-1"):
             panel.action(t("console.adds.new_collection"), lambda: box.submit(_NEW),
-                         icon=verbs.CREATE)()
+                         icon=verbs.CREATE,
+                         hint=t("console.adds.new_collection.help"))()
         with frame.footer():
             frame.cancel(lambda: box.submit(None))
             go = frame.answer(t("word.add"), lambda: box.submit(chosen["name"] or None),

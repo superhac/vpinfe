@@ -1068,7 +1068,8 @@ def _folder_actions(context: dict[str, Any], kind: str, label: str, present: boo
         panel.action(t("word.replace") if present else t("word.add"),
                      lambda: mediasource.open_folder_sources(context, kind, label,
                                                              context["rebuild"], path),
-                     icon=verbs.REPLACE if present else verbs.ADD)()
+                     icon=verbs.REPLACE if present else verbs.ADD,
+                     hint=t("console.workbench.folder_source.help"))()
         if present and path:
             ui.button(t("word.remove"), icon=verbs.REMOVE,
                       on_click=lambda: _remove_asset(context, kind, path, "", files=files)) \
@@ -1776,7 +1777,8 @@ async def _media_block(context: dict[str, Any]) -> None:
             panel.action(t("console.art_fill.get_missing"),
                          lambda: art_fill.ask([game_id], context["state"], placed,
                                               name=str(context["game"].get("name") or "")),
-                         icon=verbs.FETCH)()
+                         icon=verbs.FETCH,
+                         hint=t("console.art_fill.get_missing.help"))()
         if recording is not None:
             recording()
 
@@ -2797,7 +2799,8 @@ async def _guides_block(context: dict[str, Any]) -> None:
                     _guide_row(*guide_words(one), act=_guide_act(context, one))
         with ui.element("div").classes("console-slot-actions px-3"):
             panel.action(t("console.workbench.add_guide"),
-                         lambda: _add_guide(context), icon=verbs.ADD)()
+                         lambda: _add_guide(context), icon=verbs.ADD,
+                         hint=t("console.workbench.add_guide.help"))()
     # Read at the drop by the page's listener, `guide_moved`.
     context["state"]["guide_move"] = context
     if len(shown) > 1:
@@ -2832,7 +2835,8 @@ def _guide_act(context: dict[str, Any], guide: dict[str, Any]) -> Callable[[], N
 
     def draw() -> None:
         if guide.get("hidden"):
-            panel.action(t("console.workbench.unhide"), act, icon=verbs.UNHIDE, inline=True)()
+            panel.action(t("console.workbench.unhide"), act, icon=verbs.UNHIDE, inline=True,
+                         hint=t("console.workbench.unhide.help"))()
             return
         mine = guide.get("origin") != "vps"
         with ui.element("div").classes("console-row-action"):
@@ -3350,10 +3354,12 @@ def _change_match(pick: Callable[[], Any], *, matched: bool) -> Callable[[], Non
     """The one act a Match group offers, named for whether there is a match to change."""
     said = t("console.workbench.change_match") if matched \
         else t("console.workbench.match_vps")
+    hint = t("console.workbench.change_match.help") if matched \
+        else t("console.workbench.match_vps.help")
 
     def draw() -> None:
         with ui.element("div").classes("console-slot-actions"):
-            panel.action(said, pick, icon=verbs.MATCH)()
+            panel.action(said, pick, icon=verbs.MATCH, hint=hint)()
 
     return draw
 
@@ -3480,7 +3486,8 @@ def _with_add(context: dict[str, Any], kind: str, chip: Callable[[], Any]) -> An
 def _add_action(context: dict[str, Any], kind: str) -> None:
     opens = _add_opener(context, kind)
     if opens is not None:
-        panel.action(t("word.add"), opens, icon=verbs.ADD, inline=True)()
+        panel.action(t("word.add"), opens, icon=verbs.ADD, inline=True,
+                     hint=t("console.workbench.add_missing.help"))()
 
 
 def _add_opener(context: dict[str, Any], kind: str) -> Callable[[], None] | None:
@@ -3545,14 +3552,17 @@ def _faults(context: dict[str, Any], table: dict[str, Any],
             faults.append((t("console.workbench.file_not_disk"),
                            panel.action(t("word.forget"),
                                         partial(_forget_table, context, table),
-                                        icon=verbs.FORGET)))
+                                        icon=verbs.FORGET,
+                                        hint=t("console.workbench.forget_table.help"))))
     base = (table.get("source") or {}).get("base") or {}
     if table.get("available") and base.get("file") and not base.get("available"):
         faults.append((t("console.workbench.made_from_gone"), None))
     if pinmame.get("effective") and pinmame.get("installed") is False:
         opens = _add_opener(context, "rom")
         faults.append((t("console.workbench.rom_not_installed", rom=pinmame["effective"]),
-                       panel.action(t("word.add"), opens, icon=verbs.ADD) if opens else None))
+                       panel.action(t("word.add"), opens, icon=verbs.ADD,
+                                    hint=t("console.workbench.add_missing.help"))
+                       if opens else None))
     if flex.get("detected") and not flex.get("installed"):
         faults.append((t("console.workbench.script_uses_flexdmd_not"), None))
     if table.get("update_available"):
@@ -4093,7 +4103,7 @@ def _tables_block(context: dict[str, Any], held: bool = True) -> None:
     # where one of these is added.
     with ui.row().classes("items-center gap-2 w-full console-slot-actions"):
         panel.action(t("console.workbench.add_table"), lambda: _add_table(context),
-                     icon=verbs.ADD)()
+                     icon=verbs.ADD, hint=t("console.workbench.add_table.help"))()
 
 
 def _release_line(table: dict[str, Any], held: bool = True) -> None:
@@ -4920,7 +4930,8 @@ async def _config_rows(context: dict[str, Any], group: Any) -> None:
     if rest := len(group.settings) - len(curated_keys(group)):
         entries.append((FULL, panel.action(
             t("console.workbench.more_in_all_settings", count=rest),
-            lambda: _open_all_settings(context, area=group.key), icon=verbs.DRILL)))
+            lambda: _open_all_settings(context, area=group.key), icon=verbs.DRILL,
+            hint=t("console.workbench.more_in_all_settings.help"))))
     with ui.column().classes("gap-0 console-form"):
         panel.facts(ui, entries)
 
@@ -5816,7 +5827,8 @@ def _one_copy(one: dict, put_back: Callable, dialog: Any,
             if reason:
                 panel.state(reason, "off")()
             panel.action(t("console.workbench.put_back"), go, icon=verbs.RESTORE,
-                         inline=True, enabled=not playing)()
+                         inline=True, enabled=not playing,
+                         hint=t("console.workbench.put_back.help"))()
     return draw
 
 
@@ -6235,7 +6247,8 @@ def _empty_fork(context: dict[str, Any]) -> None:
                     for one in offered:
                         panel.action(one.reads(),
                                      lambda _e=None, one=one: _start_from(context, one),
-                                     icon=verbs.ADD, inline=True)()
+                                     icon=verbs.ADD, inline=True,
+                                     hint=t("console.workbench.start_from.help"))()
 
 
 def _start_from(context: dict[str, Any], template: collection_rules.Template) -> None:
@@ -6325,7 +6338,8 @@ def _rules_block(context: dict[str, Any], row: dict[str, Any]) -> None:
         _add_rule_button(context)
         if smart and not _drafting(context):
             panel.action(t("console.workbench.convert_hand_picked"),
-                         lambda: _convert(context), icon=verbs.KEEP)()
+                         lambda: _convert(context), icon=verbs.KEEP,
+                         hint=t("console.workbench.convert_hand_picked.help"))()
     added, taken = _by_hand(context)
     ui.label(collection_rules.sentence(rows, context["fields"], added, taken)) \
         .classes("console-help console-rule-sentence mt-1 mb-2")
@@ -6589,7 +6603,7 @@ def _draft_bar(context: dict[str, Any]) -> None:
                 .tooltip(t("console.workbench.not_saved_rules"))
         with ui.row().classes("items-center gap-2 no-wrap ml-auto"):
             panel.action(t("word.cancel"), lambda: _cancel_rules(context),
-                         icon=verbs.CANCEL)()
+                         icon=verbs.CANCEL, hint=t("console.workbench.cancel_rules.help"))()
             ui.button(t("console.workbench.save_rules"), icon=verbs.SAVE,
                       on_click=lambda: _save_rules(context)) \
                 .props("dense no-caps no-wrap unelevated size=sm")

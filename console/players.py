@@ -274,6 +274,7 @@ def _card_picker(label: str, on_upload: Callable[[Any], Any]) -> None:
     uploader.props(f'accept="{",".join(CARD_FILES)}"')
     uploader.on("finish", js_handler=f"() => getElement({uploader.id}).$refs.qRef.reset()")
     panel.action(label, None, icon=verbs.FROM_FILE,
+                 hint=t("console.mediasource.choose_file.help"),
                  js=f"() => getElement({uploader.id}).$refs.qRef.pickFiles()")()
 
 

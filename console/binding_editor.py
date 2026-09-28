@@ -290,7 +290,8 @@ def _menu(chip: Any, binding: str, store: Callable[..., Any], held: list,
         panel.action(t("word.remove"),
                      lambda: _remove(now["text"], input_registry.describe(now["text"]),
                                      store, held),
-                     icon="close", danger=True)()
+                     icon="close", danger=True,
+                     hint=t("console.binding_editor.takes_input_off_binding.help"))()
 
     # Dismissed is when the rest of the page catches up.
     if rerender is not None:

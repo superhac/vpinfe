@@ -117,7 +117,8 @@ async def _which(found: list[dict[str, Any]]) -> dict[str, Any]:
         with ui.column().classes("gap-2 px-3"):
             for device in found:
                 panel.action(name_of(device), lambda _e=None, d=device: box.submit(d),
-                             icon=verbs.SEND)()
+                             icon=verbs.SEND,
+                             hint=t("console.send_to_device.pick_this_device.help"))()
         with frame.footer():
             frame.cancel(lambda: box.submit(None))
     return await box or {}

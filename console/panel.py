@@ -954,15 +954,19 @@ def action(label: str,
 
 
 def remote_action(label: str, on_click: Callable[..., Any] | None = None, *, icon: str,
-                  primary: bool = False, danger: bool = False) -> ui.button:
+                  primary: bool = False, danger: bool = False, hint: str = "") -> ui.button:
     """A verb on the Remote, the width of its row. `primary` for the one a screen is for,
     `danger` for one that ends what the others are for."""
     control = ui.button(label, icon=icon, on_click=on_click)
     if primary:
-        return control.props("no-caps unelevated color=primary") \
+        control = control.props("no-caps unelevated color=primary") \
             .classes("remote-action remote-action--primary")
-    return control.props("no-caps flat") \
-        .classes("remote-action" + (" remote-action--danger" if danger else ""))
+    else:
+        control = control.props("no-caps flat") \
+            .classes("remote-action" + (" remote-action--danger" if danger else ""))
+    if hint:
+        control.tooltip(hint)
+    return control
 
 
 def icon_action(label: str, on_click: Callable[[], Any], *, icon: str, hint: str = "",

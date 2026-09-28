@@ -85,7 +85,8 @@ def add_under(entries: list[Any], option: dict, value: Any,
         with ui.column().classes("gap-1 min-w-0"):
             if own and not str(value or "").strip():
                 panel.action(t("console.recording.copy_vpinfe_command"), copy,
-                             icon=verbs.COPY)()
+                             icon=verbs.COPY,
+                             hint=t("console.recording.copy_vpinfe_command.help"))()
             with panel.disclosure(t("console.commands.names_can_use", count=len(names))) \
                     .classes("console-tokens"):
                 with ui.column().classes("gap-1 pt-1"):
@@ -138,7 +139,8 @@ def finding(offered: dict[str, Any], library: Any = None,
                 panel.action(t("console.recording.choose_screens"),
                              _chooser(library, rerender or (lambda: None),
                                       str((blocked.get("params") or {}).get("desktop"))),
-                             icon=verbs.CHOOSE)()
+                             icon=verbs.CHOOSE,
+                             hint=t("console.recording.choose_screens.help"))()
 
     return draw
 
@@ -282,8 +284,8 @@ def _waiting(library: Any, rerender: Callable[[], None],
                        size=size(int(waiting.get("bytes") or 0)))) \
                 .classes("console-fact-value truncate min-w-0")
             panel.action(t("console.record.review"), review, icon=verbs.REVIEW,
-                         inline=True)()
+                         inline=True, hint=t("console.record.review.help"))()
             panel.action(t("console.recording.discard_all"), discard, icon=verbs.DISCARD,
-                         inline=True)()
+                         inline=True, hint=t("console.recording.discard_all.help"))()
 
     return (t("console.recording.waiting"), draw)

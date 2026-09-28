@@ -836,6 +836,11 @@ anywhere but `panel.py`, and the nav rail in `page.py`.
 - **A verb nothing draws falls back by what it does** - open `open_in_new`, change `edit`,
   add `add`, remove `close` - rather than getting an icon invented for it. The words carry
   the meaning; the icon only says this is a button.
+- **A hint says what pressing it does.** Every `panel.action` and `panel.remote_action`
+  carries `hint=`, drawn as the button's tooltip and worded from what the handler does
+  rather than a restatement of the label.
+  `tests/invariants/test_every_button_says_what_pressing_it_does.py` fails on one with
+  no hint.
 
 `tests/invariants/test_every_button_carries_an_icon.py` fails on a button with words and
 no icon, and on an icon name `verbs.py` does not declare.

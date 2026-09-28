@@ -130,14 +130,16 @@ def run_card(state: dict[str, Any], client_for_target: Client,
     if recording:
         panel.remote_action(t("console.remote.pause"),
                             partial(act, "pause_capture", "console.remote.could_not_pause"),
-                            icon=verbs.PAUSE)
+                            icon=verbs.PAUSE, hint=t("console.remote.pause.help"))
     else:
         panel.remote_action(t("console.page.resume"),
                             partial(act, "resume_capture", "console.remote.could_not_resume"),
-                            icon=verbs.RUN, primary=True)
+                            icon=verbs.RUN, primary=True,
+                            hint=t("console.remote.resume_capture.help"))
     panel.remote_action(t("console.record.stop"),
                         partial(act, "stop_capture", "console.remote.could_not_stop"),
-                        icon=verbs.STOP, danger=True)
+                        icon=verbs.STOP, danger=True,
+                        hint=t("console.remote.stop_capture.help"))
 
 
 def waiting_card(state: dict[str, Any], client_for_target: Client,
@@ -150,7 +152,8 @@ def waiting_card(state: dict[str, Any], client_for_target: Client,
         ui.label(t("console.remote.recordings", count=count)).classes("remote-headline")
     panel.remote_action(t("console.record.review"),
                         partial(begin, state, client_for_target, redraw),
-                        icon=verbs.REVIEW).set_enabled(reviewable)
+                        icon=verbs.REVIEW,
+                        hint=t("console.record.review.help")).set_enabled(reviewable)
 
 
 def _current(review: dict[str, Any]) -> dict[str, Any]:
@@ -257,12 +260,14 @@ def controller(state: dict[str, Any], client_for_target: Client,
         .props("spread no-caps unelevated toggle-color=primary") \
         .classes("w-full remote-toggle").set_enabled(bool(row.get("replaces")))
     panel.remote_action(t("console.record.use_this"), partial(decide, True),
-                        icon=verbs.ACCEPT, primary=True)
+                        icon=verbs.ACCEPT, primary=True,
+                        hint=t("console.record.use_this.help"))
     panel.remote_action(t("console.record.discard"), partial(decide, False),
-                        icon=verbs.DISCARD)
-    panel.remote_action(t("console.record.skip"), skip, icon=verbs.SKIP)
+                        icon=verbs.DISCARD, hint=t("console.record.discard.help"))
+    panel.remote_action(t("console.record.skip"), skip, icon=verbs.SKIP,
+                        hint=t("console.record.skip.help"))
     panel.remote_action(t("console.record.stop"), partial(end, state, client_for_target, redraw),
-                        icon=verbs.STOP)
+                        icon=verbs.STOP, hint=t("console.record.stop.help"))
 
 
 @on_page
@@ -307,7 +312,8 @@ def sheet_entry(game: dict[str, Any], state: dict[str, Any], client_for_target: 
         return
     words = {FILL: t("console.remote.missing_only"), CHOOSE: t("console.remote.replace")}
     with ui.column().classes("w-full gap-1") as holder:
-        button = panel.remote_action(t("console.remote.record_media"), icon=verbs.RECORD)
+        button = panel.remote_action(t("console.remote.record_media"), icon=verbs.RECORD,
+                                     hint=t("console.remote.record_media.help"))
         button.set_enabled(False)
         note = ui.label(str(able.get("reason") or "")).classes("remote-note")
     note.set_visibility(not able.get("available"))

@@ -466,7 +466,8 @@ def last_checked(checked_at: str, now: Callable[[], Any]) -> tuple[Any, Any]:
                 .classes("console-fact-value truncate min-w-0")
             if checked_at:
                 shown.tooltip(when.local(checked_at))
-            panel.action(t("console.settings.check_now"), now, icon=verbs.REFRESH, inline=True)()
+            panel.action(t("console.settings.check_now"), now, icon=verbs.REFRESH, inline=True,
+                         hint=t("console.settings.check_now.help"))()
 
     return (t("console.settings.last_checked"), checked)
 
@@ -586,7 +587,8 @@ def _browser_finding(library: Library, rerender: Callable[[], None],
         if fix.get("action") == "use_chrome" and chrome:
             panel.action(t("console.settings.use_google_chrome"),
                          lambda: use(chrome, t("console.settings.using_google_chrome")),
-                         icon=verbs.CHOOSE)()
+                         icon=verbs.CHOOSE,
+                         hint=t("console.settings.use_google_chrome.help"))()
 
 
 async def _browser_head(library: Library, rerender: Callable[[], None],
@@ -641,7 +643,8 @@ def _get_tool(library: Library, rerender: Callable[[], None], row: dict[str, Any
         ui.icon("error_outline").classes("console-attention-icon")
         ui.label(t("console.settings.ffmpeg_missing")) \
             .classes("console-attention-line min-w-0 grow")
-        panel.action(t("console.settings.get_ffmpeg"), get, icon=verbs.FETCH)()
+        panel.action(t("console.settings.get_ffmpeg"), get, icon=verbs.FETCH,
+                     hint=t("console.settings.get_ffmpeg.help"))()
 
 
 async def _tools_head(library: Library, rerender: Callable[[], None],

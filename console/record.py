@@ -893,5 +893,7 @@ def proposal(library: Any, row: dict[str, Any], decided: Callable[[bool], Any], 
         await _call(lambda: decided(False))
 
     with strip:
-        panel.action(t("console.record.use_this"), use, icon=verbs.ACCEPT)()
-        panel.action(t("console.record.discard"), discard, icon=verbs.DISCARD)()
+        panel.action(t("console.record.use_this"), use, icon=verbs.ACCEPT,
+                     hint=t("console.record.use_this.help"))()
+        panel.action(t("console.record.discard"), discard, icon=verbs.DISCARD,
+                     hint=t("console.record.discard.help"))()

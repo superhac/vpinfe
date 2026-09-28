@@ -267,7 +267,8 @@ def _available_rows(device: dict[str, Any], client: Any, update: dict[str, Any],
         with ui.element("div").classes("console-fact-edit"):
             panel.action(t("console.devices.update_3", latest=(latest)),
                          lambda: _confirm_update(client, device_label(device), update),
-                         icon=verbs.UPDATE, inline=True)()
+                         icon=verbs.UPDATE, inline=True,
+                         hint=t("console.devices.update_3.help"))()
 
     rows.append(("", update_action))
     return rows
@@ -787,7 +788,9 @@ def settings_door(context: dict[str, Any]) -> list[tuple[Any, Any]]:
             panel.action(t("console.devices.open_system") if here
                     else t("console.devices.open_settings"),
                          open_it, icon="open_in_new", inline=True,
-                         enabled=not stopped)()
+                         enabled=not stopped,
+                         hint=t("console.devices.open_system.help") if here
+                         else t("console.devices.open_settings.help"))()
 
     return [("", door), panel.note(t(stopped) if stopped else t(SETTINGS_NOTE))]
 
@@ -1011,7 +1014,8 @@ def _action_control(context: dict[str, Any],
         with ui.element("div").classes("console-fact-edit"):
             panel.action(label, go, icon=_ACTION_ICONS.get((scope, action), "play_arrow"),
                          inline=True, danger=scope in _HEAVY,
-                         enabled=bool(entry.get("available")))()
+                         enabled=bool(entry.get("available")),
+                         hint=t(f"action.{scope}.{action}.help"))()
 
     return draw
 

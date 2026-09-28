@@ -687,17 +687,21 @@ def _identity_sheet(state: dict[str, Any], client_for_target: Callable[[], Any],
             for player in (one for one in players if kind_of(one) == ""):
                 panel.remote_action(shown_name(player),
                                     lambda _e=None, pid=player["id"]: become(pid),
-                                    icon=verbs.THIS_IS_ME)
-            panel.remote_action(t("console.remote.join_as_guest"), go_join, icon=verbs.JOIN)
+                                    icon=verbs.THIS_IS_ME,
+                                    hint=t("console.remote.this_is_me.help"))
+            panel.remote_action(t("console.remote.join_as_guest"), go_join, icon=verbs.JOIN,
+                                hint=t("console.remote.join_as_guest.help"))
         else:
             ui.label(t("console.remote.youre", name=shown_name(identity))) \
                 .classes("remote-headline")
             if identity.get("guest"):
                 panel.remote_action(t("console.players.sign_out"), sign_out,
-                                    icon=verbs.SIGN_OUT)
+                                    icon=verbs.SIGN_OUT,
+                                    hint=t("console.players.sign_out.help"))
                 _guest_accounts(state, identity, client_for_target, redraw, sheet)
             else:
-                panel.remote_action(t("console.remote.not_me"), leave, icon=verbs.NOT_ME)
+                panel.remote_action(t("console.remote.not_me"), leave, icon=verbs.NOT_ME,
+                                    hint=t("console.remote.not_me.help"))
     sheet.open()
 
 
@@ -720,12 +724,14 @@ def _guest_accounts(state: dict[str, Any], identity: dict[str, Any],
                     t("console.players.save_card"),
                     lambda _e=None, account=account:
                         save_card(Library(client_for_target()), identity, account),
-                    icon=verbs.FETCH)
+                    icon=verbs.FETCH,
+                    hint=t("console.players.save_card.help"))
             continue
         service = str(account.get("label") or account["extension"])
         panel.remote_action(t("console.remote.share_with", service=service),
                             lambda _e=None, account=account: share(account),
-                            icon=verbs.SHARE)
+                            icon=verbs.SHARE,
+                            hint=t("console.remote.share_with.help"))
 
 
 async def _share_with(state: dict[str, Any], identity: dict[str, Any],
@@ -936,7 +942,8 @@ def _up_section(state: dict[str, Any], client_for_target: Callable[[], Any],
             with ui.column().classes("w-full gap-2 console-card"):
                 panel.remote_action(t("console.remote.im_up"),
                                     lambda: toggle(str(mine["id"]), True),
-                                    icon=verbs.ACCEPT, primary=True)
+                                    icon=verbs.ACCEPT, primary=True,
+                                    hint=t("console.remote.im_up.help"))
             return
         if identity.get("guest"):
             with ui.row().classes("w-full items-center justify-between console-card"):
@@ -1680,11 +1687,13 @@ def _join(state: dict[str, Any], client_for_target: Callable[[], Any],
         uploader.on("finish",
                    js_handler=f"() => getElement({uploader.id}).$refs.qRef.reset()")
         card_button = panel.remote_action(t("console.remote.use_my_card"), icon=verbs.FROM_FILE,
-                                          primary=True)
+                                          primary=True,
+                                          hint=t("console.remote.use_my_card.help"))
         card_button.on("click",
                        js_handler=f"() => getElement({uploader.id}).$refs.qRef.pickFiles()")
         panel.remote_action(t("console.players.just_initials"), just_initials,
-                            icon=verbs.INITIALS_ONLY)
+                            icon=verbs.INITIALS_ONLY,
+                            hint=t("console.players.just_initials.help"))
         ui.label(t("console.remote.guest_until_close")).classes("remote-note")
 
 

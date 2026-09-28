@@ -324,6 +324,15 @@ def acts(library: Library, theme: dict[str, Any],
     return offered
 
 
+# The one act `_status_value` offers, named by its icon rather than by which of Install,
+# Update or Make Active it is - `acts` already picked that.
+_STATUS_HINTS = {
+    verbs.FETCH: "console.themes.install.help",
+    verbs.UPDATE: "console.themes.update.help",
+    verbs.ACTIVATE: "console.themes.make_active.help",
+}
+
+
 def _status_value(context: dict[str, Any], library: Library,
                   theme: dict[str, Any]) -> Callable[[], None]:
     state_of = STATES[status(theme)]
@@ -337,7 +346,8 @@ def _status_value(context: dict[str, Any], library: Library,
         with ui.row().classes("items-center gap-2 no-wrap"):
             panel.state(state_of["label"], state_of.get("tier", "off"))()
             if waiting is not None:
-                panel.action(waiting.label, waiting.run, icon=waiting.icon, inline=True)()
+                panel.action(waiting.label, waiting.run, icon=waiting.icon, inline=True,
+                             hint=t(_STATUS_HINTS.get(waiting.icon, "")))()
     return draw
 
 

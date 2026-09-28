@@ -315,7 +315,8 @@ def _collection_action(library: Library, existing: str, title: str,
     else:
         panel.action(t("console.community.make_collection"),
                      lambda: _make_collection(library, title, filters),
-                     icon=verbs.CREATE)()
+                     icon=verbs.CREATE,
+                     hint=t("console.community.make_collection.help"))()
 
 
 def _tag_chip(said: dict[str, Any], library: Library) -> None:
