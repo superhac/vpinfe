@@ -1432,6 +1432,10 @@
     "other": "Řèçöřđèđ {count} ƒîŀèš"
   },
   "console.record.recorded_failed": "{recorded}, {failed} ƒàîŀèđ",
+  "console.record.recording_for": {
+    "one": "Řèçöřđîñĝ, àƀöûţ 1 ɱîñ",
+    "other": "Řèçöřđîñĝ, àƀöûţ {count} ɱîñ"
+  },
   "console.record.replace_ask": {
     "one": "Řèþŀàçè 1 ƒîŀè?",
     "other": "Řèþŀàçè {count} ƒîŀèš?"

@@ -2000,6 +2000,15 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                           context, kind, label, draw,
                           str(detail.get("path") or entry.get("path") or ""))) \
                 .props("flat dense no-caps size=sm").classes("console-action")
+            able = mediasource.records(library, kind)
+            if able is not None:
+                panel.action(t("console.record.record"),
+                             lambda: mediasource.open_sources(
+                                 context, kind, label, draw,
+                                 str(detail.get("path") or entry.get("path") or ""),
+                                 recording_it=True),
+                             icon=verbs.RECORD, enabled=bool(able.get("available")),
+                             hint=str(able.get("reason") or ""))()
             if present:
                 # Beside the acts on the bytes: a slot holding nothing has no identity.
                 _match_button(context, kind, label,

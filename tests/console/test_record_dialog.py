@@ -212,9 +212,11 @@ class Library:
         self.used: list[tuple[str, bool]] = []
         self.waiting = {"count": 1, "bytes": 10, "proposals": [
             {"id": "a1", "game_id": "g1", "table_id": "", "kind": "playfield_video",
-             "size": 4_700_000, "url": "/api/v1/capture/proposals/a1/file",
+             "file": "playfield_video.mp4", "size": 4_700_000,
+             "url": "/api/v1/capture/proposals/a1/file",
              "replaces": {"path": "medias/table.mp4", "source": "vpinmediadb",
                           "goes": True}}]}
+        self.displaced: list[str] = ["medias/(Playfield) Game.mp4"]
 
     def capture_job(self, _job_id: str) -> dict[str, Any]:
         return self.jobs.pop(0)
@@ -225,6 +227,9 @@ class Library:
     def use_proposal(self, proposal_id: str, use: bool) -> dict[str, Any]:
         self.used.append((proposal_id, use))
         return {}
+
+    def displaced_by(self, _game: str, _table: str, _kind: str, _name: str) -> list[str]:
+        return self.displaced
 
 
 def _io(call: Any, *args: Any, **kwargs: Any) -> Any:
@@ -277,33 +282,45 @@ class ReviewTests(unittest.IsolatedAsyncioTestCase):
         self.enterContext(mock.patch.object(record.offload, "io",
                                             mock.AsyncMock(side_effect=_io)))
         self.library = Library()
-        self.used: list[str] = []
-        record.proposal(self.library, self.library.waiting["proposals"][0], self.used)
+        self.decided: list[bool] = []
+        record.proposal(self.library, self.library.waiting["proposals"][0],
+                        self.decided.append)
 
     def _act(self, label: str) -> Any:
         return next(call.args[1] for call in self.action.call_args_list
                     if call.args[0] == label)
 
-    async def test_use_this_asks_first_where_a_file_goes_then_places_it(self) -> None:
+    async def test_use_this_asks_first_naming_every_file_it_deletes(self) -> None:
         with mock.patch.object(record.confirm, "replace",
                                mock.AsyncMock(return_value=True)) as asked:
             await self._act("Use This")()
 
-        asked.assert_awaited_once_with("Playfield Video", ["medias/table.mp4"])
+        asked.assert_awaited_once_with("Playfield Video", ["medias/(Playfield) Game.mp4",
+                                                           "medias/table.mp4"])
         self.assertEqual(self.library.used, [("a1", True)])
         self.assertEqual(self.state.call_args.args, ("Used", "on"))
+        self.assertEqual(self.decided, [True])
+
+    def test_a_file_that_stays_is_not_named_and_none_is_named_twice(self) -> None:
+        self.assertEqual(record.deleted(["medias/table.mp4"],
+                                        {"path": "medias/table.mp4", "goes": True}),
+                         ["medias/table.mp4"])
+        self.assertEqual(record.deleted([], {"path": "medias/table.mp4", "goes": False}), [])
+        self.assertEqual(record.deleted([], None), [])
 
     async def test_use_this_answered_no_places_nothing(self) -> None:
         with mock.patch.object(record.confirm, "replace", mock.AsyncMock(return_value=False)):
             await self._act("Use This")()
 
         self.assertEqual(self.library.used, [])
+        self.assertEqual(self.decided, [])
 
     async def test_discard_throws_the_recording_away(self) -> None:
         await self._act("Discard")()
 
         self.assertEqual(self.library.used, [("a1", False)])
         self.assertEqual(self.state.call_args.args, ("Discarded", "off"))
+        self.assertEqual(self.decided, [False])
 
 
 class EntryTests(unittest.TestCase):

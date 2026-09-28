@@ -42,6 +42,8 @@ TICKS = "record.kinds"
 TICKED_ELSEWHERE = frozenset({"sound"})
 # Whose file is a person's own, where a count says how many of what goes are theirs.
 YOURS = frozenset({"user", asset_origin.UNKNOWN, asset_origin.RECORDED})
+# What a recording's file is, by its kind's family: the session writes these.
+MADE_AS = {"video": ".mp4", "image": ".png", "audio": ".mp3"}
 _POLL_S = 1.0
 _POLLS = 3600
 
@@ -144,8 +146,16 @@ def touches(plan: dict[str, Any]) -> str:
     return t("console.record.touches", fills=filled, then=then)
 
 
+def _minutes(seconds: int) -> int:
+    return max(1, round(seconds / 60))
+
+
 def about(seconds: int) -> str:
-    return t("console.record.about_minutes", count=max(1, round(seconds / 60)))
+    return t("console.record.about_minutes", count=_minutes(seconds))
+
+
+def recording_for(seconds: int) -> str:
+    return t("console.record.recording_for", count=_minutes(seconds))
 
 
 def going(plan: dict[str, Any]) -> list[str]:
@@ -154,6 +164,13 @@ def going(plan: dict[str, Any]) -> list[str]:
               source=holds(row))
             for row in plan.get("kinds") or []
             if row.get("does") == REPLACED and row.get("goes")]
+
+
+def stopped(report: dict[str, Any], row: dict[str, Any] | None, running: bool) -> str:
+    """Why Record cannot run now, in words; "" where it can."""
+    if not report.get("available"):
+        return preflight.words(report.get("reason") or {})
+    return blocked(row) or (t("console.record.table_running") if running else "")
 
 
 def device_default(option: dict[str, Any], device: Any, value: Any) -> str:
@@ -196,7 +213,7 @@ class Settings:
         self.changed.clear()
 
 
-def _capture_options(schema: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def options_of(schema: list[dict[str, Any]]) -> list[dict[str, Any]]:
     section = next((block for block in schema
                     if str(block.get("name")) == recording.SECTION), {})
     return [option for option in section.get("options") or []
@@ -266,7 +283,7 @@ async def ask(library: Any, game_id: str, table_id: str, name: str, title: str,
         return
     slots = {str(row["kind"]): row for row in whole.get("kinds") or []}
     device = dict((values or {}).get(recording.SECTION) or {})
-    held = Settings(_capture_options(schema), device)
+    held = Settings(options_of(schema), device)
     remembered_ticks = dict(remembered.get(TICKS) or {})
     chosen = ticked(kinds, slots, remembered_ticks,
                     bool(settings.value_for({"type": "bool"}, device.get("sound", False))))
@@ -417,11 +434,9 @@ async def _start(library: Any, body: dict[str, Any], name: str, state: dict[str,
     await finished(library, str(job.get("id") or ""), name, then)
 
 
-@on_page
-async def finished(library: Any, job_id: str, name: str,
-                   then: Callable[[], Any]) -> dict[str, Any]:
-    """Wait for a recording's job and say what it did; recordings kept for a decision
-    open for review. Answers the table's outcome, {} where the job failed."""
+async def ended(library: Any, job_id: str) -> dict[str, Any]:
+    """A recording's job once it ends: its table's outcome, with `error` where the job
+    itself failed; {} where the job could not be read."""
     for _ in range(_POLLS):
         await asyncio.sleep(_POLL_S)
         try:
@@ -431,19 +446,39 @@ async def finished(library: Any, job_id: str, name: str,
         if found.get("state") == "running":
             continue
         if found.get("state") == "failed":
-            ui.notify(t("console.record.could_not_record"),
-                      caption=str(found.get("error") or ""), type="negative")
-            return {}
-        ran = dict(((found.get("result") or {}).get("tables") or [{}])[0])
-        said, level, caption = outcome(ran)
-        ui.notify(said, type=level, caption=caption, multi_line=bool(caption))
-        if ran.get("placed"):
-            await _call(then)
-        proposed = [str(one.get("id") or "") for one in ran.get("proposed") or []]
-        if proposed:
-            await review(library, name, proposed, then)
-        return ran
+            return {"error": str(found.get("error") or "")}
+        return dict(((found.get("result") or {}).get("tables") or [{}])[0])
     return {}
+
+
+@on_page
+async def finished(library: Any, job_id: str, name: str,
+                   then: Callable[[], Any]) -> dict[str, Any]:
+    """Wait for a recording's job and say what it did. Answers the table's outcome, {}
+    where the job failed."""
+    ran = await ended(library, job_id)
+    await say(library, ran, name, then)
+    return {} if "error" in ran else ran
+
+
+@on_page
+async def say(library: Any, ran: dict[str, Any], name: str,
+              then: Callable[[], Any]) -> None:
+    """The end of one table's recording: the notice, the panel read again where files were
+    placed, and the review of what was kept for a decision."""
+    if not ran:
+        return
+    if "error" in ran:
+        ui.notify(t("console.record.could_not_record"), caption=str(ran["error"]),
+                  type="negative")
+        return
+    said, level, caption = outcome(ran)
+    ui.notify(said, type=level, caption=caption, multi_line=bool(caption))
+    if ran.get("placed"):
+        await _call(then)
+    proposed = [str(one.get("id") or "") for one in ran.get("proposed") or []]
+    if proposed:
+        await review(library, name, proposed, then)
 
 
 async def _call(then: Callable[[], Any]) -> None:
@@ -452,17 +487,21 @@ async def _call(then: Callable[[], Any]) -> None:
         await answer
 
 
+def failed_because(one: dict[str, Any]) -> str:
+    """Why one kind failed, with what the program said where it said something."""
+    reason = dict(one.get("reason") or {})
+    said = preflight.words(reason)
+    detail = str(reason.get("detail") or "")
+    return t("console.record.said_detail", said=said, detail=detail) if detail else said
+
+
 def failures(failed: Sequence[dict[str, Any]]) -> str:
     """Why kinds failed, each reason once with the kinds it stopped."""
     labels = media_label_map()
     stopped: dict[str, list[str]] = {}
     for one in failed:
-        reason = dict(one.get("reason") or {})
-        said = preflight.words(reason)
-        if reason.get("detail"):
-            said = t("console.record.said_detail", said=said, detail=str(reason["detail"]))
         kind = str(one.get("kind") or "")
-        stopped.setdefault(said, []).append(labels.get(kind, kind))
+        stopped.setdefault(failed_because(one), []).append(labels.get(kind, kind))
     return "; ".join(t("console.record.failed_kinds", kinds=", ".join(kinds), reason=said)
                      for said, kinds in stopped.items())
 
@@ -507,32 +546,49 @@ async def review(library: Any, name: str, proposed: Sequence[str],
     rows = [row for row in listing.get("proposals") or [] if row.get("id") in proposed]
     if not rows:
         return
-    used: list[str] = []
+    used: list[bool] = []
+
+    def decided(use: bool) -> None:
+        used.append(use)
+
     with frame.opened(t("console.record.review_title", name=name), wide=True,
                       persistent=True) as box:
         with ui.column().classes("w-full gap-2 px-3"):
             for row in rows:
-                proposal(library, row, used)
+                proposal(library, row, decided)
         with frame.footer():
             frame.answer(t("word.done"), lambda: box.submit(True), icon=verbs.DONE)
     await box
-    if used:
+    if any(used):
         await _call(then)
 
 
-def proposal(library: Any, row: dict[str, Any], used: list[str]) -> None:
+def deleted(displaced: Sequence[str], replaces: dict[str, Any] | None) -> list[str]:
+    """Every file placing a recording deletes: those its name displaces at its tier, and
+    the file serving the slot where that goes too."""
+    going = list(displaced)
+    path = str((replaces or {}).get("path") or "")
+    if path and (replaces or {}).get("goes") and path not in going:
+        going.append(path)
+    return going
+
+
+def proposal(library: Any, row: dict[str, Any], decided: Callable[[bool], Any], *,
+             titled: bool = True) -> None:
     """One recording beside the file it would take the place of, with Use This and
-    Discard."""
+    Discard. `decided` hears which, once it is done."""
     kind, game_id = str(row.get("kind") or ""), str(row.get("game_id") or "")
+    table_id = str(row.get("table_id") or "")
     label = media_label_map().get(kind, kind)
     replaces = row.get("replaces") or None
-    panel.facts(ui, [(panel.HEADING, label)])
+    if titled:
+        panel.facts(ui, [(panel.HEADING, label)])
     with ui.row().classes("w-full gap-3 no-wrap items-start"):
         if replaces:
             with ui.column().classes("gap-0 flex-1 min-w-0"):
                 with ui.element("div").classes("console-slot-art"):
-                    mediaview.preview(art.media(game_id, kind, str(row.get("table_id") or ""),
-                                                size=art.PANEL), kind, label)
+                    mediaview.preview(art.media(game_id, kind, table_id, size=art.PANEL),
+                                      kind, label)
                 panel.line(t("console.record.now", source=holds(replaces)),
                            hint=str(replaces.get("path") or ""))
         with ui.column().classes("gap-0 flex-1 min-w-0"):
@@ -549,16 +605,22 @@ def proposal(library: Any, row: dict[str, Any], used: list[str]) -> None:
 
     @on_page
     async def use() -> None:
-        if replaces and replaces.get("goes") and not await confirm.replace(
-                label, [str(replaces.get("path") or "")]):
+        try:
+            going = deleted(await offload.io(library.displaced_by, game_id, table_id, kind,
+                                             str(row.get("file") or "")), replaces)
+        except Exception as exc:  # noqa: BLE001 - nothing is placed unasked
+            ui.notify(t("console.mediasource.could_not_check_slot"), caption=why(exc),
+                      type="negative")
+            return
+        if going and not await confirm.replace(label, going):
             return
         try:
             await offload.io(library.use_proposal, str(row["id"]), True)
         except Exception as exc:  # noqa: BLE001 - it still waits on the device
             ui.notify(t("console.record.could_not_use"), caption=why(exc), type="negative")
             return
-        used.append(kind)
         settled(t("console.record.used"), "on")
+        await _call(lambda: decided(True))
 
     @on_page
     async def discard() -> None:
@@ -569,6 +631,7 @@ def proposal(library: Any, row: dict[str, Any], used: list[str]) -> None:
                       type="negative")
             return
         settled(t("console.record.discarded"), "off")
+        await _call(lambda: decided(False))
 
     with strip:
         panel.action(t("console.record.use_this"), use, icon=verbs.ACCEPT)()

@@ -1432,6 +1432,10 @@
     "other": "Recorded {count} files"
   },
   "console.record.recorded_failed": "{recorded}, {failed} failed",
+  "console.record.recording_for": {
+    "one": "Recording, about 1 min",
+    "other": "Recording, about {count} min"
+  },
   "console.record.replace_ask": {
     "one": "Replace 1 file?",
     "other": "Replace {count} files?"

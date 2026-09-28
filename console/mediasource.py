@@ -12,6 +12,7 @@ displaced was named before it went.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import mimetypes
 from collections.abc import Callable
@@ -22,6 +23,8 @@ from typing import Any
 from nicegui import run, ui
 
 from common import i18n, icons
+from common.capture.run import FILL
+from common.capture.session import RECORDABLE
 from common.failures import why
 from common.games.asset_registry import ARCHIVE_EXTENSIONS, spec_for, specs_named
 from common.i18n import t
@@ -42,6 +45,8 @@ from console import (
     media_ownership,
     offload,
     panel,
+    record,
+    recording,
     uploads,
     verbs,
     vps_match,
@@ -139,6 +144,9 @@ class _Sources:
     online = False
     games = False
     keyed = False
+    records = False
+    # The tab the dialog opens on, where it is not the first.
+    first = ""
 
     def __init__(self, library: Any, label: str, done: Callable, current: str = "") -> None:
         self.library = library
@@ -192,6 +200,12 @@ class _Sources:
     async def keyed_tab(self, body: ui.column) -> None:
         return None
 
+    async def record_tab(self, body: ui.column) -> None:
+        return None
+
+    def picked(self, tab: str) -> None:
+        """`tab` was opened."""
+
     def open(self) -> None:
         with frame.opened(self.title(), classes="console-sources-card") as box:
             self.dialog = box
@@ -219,10 +233,13 @@ class _Sources:
                 if self.keyed:
                     ui.tab("keyed", label=t("console.mediasource.without_file"),
                            icon=verbs.WITHOUT_FILE)
+                if self.records:
+                    ui.tab("record", label=t("console.record.record"), icon=verbs.RECORD)
             online_body: ui.column | None = None
             games_body: ui.column | None = None
             keyed_body: ui.column | None = None
-            first = "upload" if self.uploads else "host"
+            record_body: ui.column | None = None
+            first = self.first or ("upload" if self.uploads else "host")
             with ui.tab_panels(tabs, value=first).classes("w-full console-sources-panels"):
                 if self.uploads:
                     with ui.tab_panel("upload"), \
@@ -241,6 +258,9 @@ class _Sources:
                 if self.keyed:
                     with ui.tab_panel("keyed"):
                         keyed_body = ui.column().classes("w-full gap-2 console-source-fill")
+                if self.records:
+                    with ui.tab_panel("record"):
+                        record_body = ui.column().classes("w-full gap-2 console-source-fill")
             with frame.footer():
                 frame.cancel(box.close)
         if self.uploads:
@@ -256,13 +276,15 @@ class _Sources:
         loaded: set[str] = set()
 
         async def load(event: Any) -> None:
+            self.picked(str(event.value))
             if event.value in loaded:
                 return
             loaded.add(event.value)
             reads = {"host": (host_body, self.host_tab),
                      "online": (online_body, self.online_tab),
                      "games": (games_body, self.games_tab),
-                     "keyed": (keyed_body, self.keyed_tab)}
+                     "keyed": (keyed_body, self.keyed_tab),
+                     "record": (record_body, self.record_tab)}
             body, read = reads.get(event.value, (None, None))
             if body is None or read is None:
                 return
@@ -274,6 +296,11 @@ class _Sources:
             loaded.add("host")
             with box:
                 busy.fill(host_body, lambda: self.host_tab(host_body))
+        if first == "record" and record_body is not None:
+            loaded.add("record")
+            self.picked("record")
+            with box:
+                busy.fill(record_body, lambda: self.record_tab(record_body))
 
     async def finish(self, message: str) -> None:
         self.dialog.close()
@@ -445,11 +472,14 @@ class _Slot(_OneFile):
     """A media or asset slot: one file, under the slot's own name."""
 
     def __init__(self, context: dict[str, Any], kind: str, label: str,
-                 done: Callable, target: _Target, current: str = "") -> None:
+                 done: Callable, target: _Target, current: str = "", *,
+                 records: bool = False, first: str = "") -> None:
         super().__init__(context["library"], label, done, target.accept,
                          _on_host(context, current))
         self.target = target
         self.online = target.online
+        self.records = records
+        self.first = first
         self.context = context
         self.kind = kind
         self.game_id = context["game_id"]
@@ -674,6 +704,131 @@ class _Slot(_OneFile):
             if entry.get("file") == name:
                 return t("console.mediasource.already", kind=media_label_map().get(kind, kind))
         return ""
+
+    # --- recorded on this device --------------------------------------------------
+
+    def picked(self, tab: str) -> None:
+        if self.records:
+            made = record.MADE_AS.get(media_family(self.kind), "")
+            self.note_extension(made if tab == "record" else "")
+
+    async def record_tab(self, body: ui.column) -> None:
+        """This kind recorded on its own: Record and what it made, then the settings."""
+        library = self.library
+        try:
+            report, schema, values, playing = await asyncio.gather(
+                offload.io(library.capture_report), offload.io(library.config_schema),
+                offload.io(library.config_values), offload.io(library.play_state))
+        except Exception as exc:  # noqa: BLE001 - the tab says why
+            with body:
+                panel.line(t("console.record.could_not_read"), hint=why(exc))
+            return
+        held = record.Settings(record.options_of(schema),
+                               dict((values or {}).get(recording.SECTION) or {}))
+        running = bool((playing or {}).get("launching"))
+        now: dict[str, Any] = {"asked": 0, "plan": {}, "stop": "", "busy": False}
+        with body:
+            top = ui.column().classes("w-full gap-2")
+            made = ui.column().classes("w-full gap-1")
+            tuning = ui.column().classes("w-full gap-0")
+
+        def draw_top() -> None:
+            top.clear()
+            with top:
+                if now["stop"]:
+                    _attention(now["stop"])
+                with ui.row().classes("items-center gap-2 no-wrap min-w-0"):
+                    panel.action(t("console.record.record"), go, icon=verbs.RECORD,
+                                 enabled=not now["stop"] and not now["busy"])()
+                    if now["plan"].get("recording"):
+                        ui.label(record.about(int(now["plan"].get("estimate_seconds") or 0))) \
+                            .classes("console-help")
+
+        async def replan() -> None:
+            now["asked"] += 1
+            asked = now["asked"]
+            try:
+                plan = await offload.io(library.plan_capture, {
+                    **record.target(self.game_id, self.destination), "kinds": [self.kind],
+                    "review": True, "settings": dict(held.changed)})
+                stop = record.stopped(report, (plan.get("kinds") or [{}])[0], running)
+            except Exception as exc:  # noqa: BLE001 - the refusal is what stops it
+                plan, stop = {}, why(exc)
+            if asked == now["asked"]:
+                now["plan"], now["stop"] = plan, stop
+                draw_top()
+
+        def draw_tuning() -> None:
+            tuning.clear()
+            with tuning:
+                panel.facts(ui, record.setting_rows(held, report, replan, draw_tuning))
+
+        @on_page
+        async def go() -> None:
+            wanted = {**record.wanted(self.game_id, self.destination, FILL, [self.kind],
+                                      {self.kind: True}, held.changed), "review": True}
+            try:
+                job = await offload.io(library.start_capture, wanted)
+            except Exception as exc:  # noqa: BLE001 - said, and nothing was recorded
+                ui.notify(t("console.record.could_not_start"), caption=why(exc),
+                          type="warning")
+                return
+            watch = (self.context.get("state") or {}).get("watch_jobs")
+            if callable(watch):
+                watch()
+            now["busy"] = True
+            self.dialog.props("persistent")
+            draw_top()
+            made.clear()
+            with made:
+                panel.line(record.recording_for(int(now["plan"].get("estimate_seconds") or 0)))
+            with busy.held(made):
+                ran = await record.ended(library, str(job.get("id") or ""))
+            now["busy"] = False
+            name = str(self.context["game"].get("name") or "")
+            if self.dialog.is_deleted or not self.dialog.value:
+                await record.say(library, ran, name, self.done)
+                return
+            self.dialog.props(remove="persistent")
+            draw_top()
+            await shown(ran)
+
+        async def decided(use: bool) -> None:
+            if use:
+                await self.finish(t("console.mediasource.label_saved", label=self.label))
+            else:
+                made.clear()
+
+        async def shown(ran: dict[str, Any]) -> None:
+            made.clear()
+            kept = {str(one.get("id") or "") for one in ran.get("proposed") or []}
+            if kept:
+                try:
+                    listing = await offload.io(library.capture_proposals)
+                except Exception as exc:  # noqa: BLE001 - it still waits on the device
+                    with made:
+                        panel.line(t("console.record.could_not_read_waiting"), hint=why(exc))
+                    return
+                row = next((one for one in listing.get("proposals") or []
+                            if one.get("id") in kept), None)
+                if row is not None:
+                    with made:
+                        record.proposal(library, row, decided, titled=False)
+                    return
+            mine = [one for one in ran.get("failed") or [] if one.get("kind") == self.kind]
+            if mine:
+                said = record.failed_because(mine[0])
+            elif "error" in ran:
+                said = t("console.record.said_detail",
+                         said=t("console.record.could_not_record"), detail=str(ran["error"]))
+            else:
+                said, _level, caption = record.outcome(ran)
+                said = caption or said
+            with made:
+                _attention(said)
+
+        draw_tuning()
+        await replan()
 
     # --- from the online catalogs --------------------------------------------
 
@@ -1242,6 +1397,12 @@ class _Image(_OneFile):
         await self.finish(t("console.mediasource.label_saved", label=self.label))
 
 
+def _attention(said: str) -> None:
+    with ui.element("div").classes("console-attention w-full"):
+        ui.icon("error_outline").classes("console-attention-icon")
+        ui.label(said).classes("console-attention-line")
+
+
 def _on_host(context: dict[str, Any], path: str) -> str:
     """A path in the game's folder, as the host tab lists it."""
     folder = str(context["game"].get("folder") or "")
@@ -1265,13 +1426,26 @@ def _start_name(root: dict[str, Any]) -> str:
             else str(root.get("name") or root.get("path") or ""))
 
 
+def records(library: Any, kind: str) -> dict[str, Any] | None:
+    """The `capture` capability where this install records and `kind` is a recording's;
+    None where it does not."""
+    if canonical_kind(kind) not in RECORDABLE:
+        return None
+    return next((one for one in library.discovery().get("capabilities") or []
+                 if one.get("name") == "capture"), None)
+
+
 def open_sources(context: dict[str, Any], kind: str, label: str,
-                 done: Callable, current: str = "") -> None:
+                 done: Callable, current: str = "", *, recording_it: bool = False) -> None:
     """Open the ways to fill this slot. Returns as soon as the dialog is up.
 
-    `current` is what fills it now, as a path in the game's folder.
+    `current` is what fills it now, as a path in the game's folder. `recording_it` opens
+    it on its Record tab.
     """
-    _Slot(context, kind, label, done, _media(context["library"], kind), current).open()
+    library = context["library"]
+    _Slot(context, kind, label, done, _media(library, kind), current,
+          records=records(library, kind) is not None,
+          first="record" if recording_it else "").open()
 
 
 def open_asset_sources(context: dict[str, Any], kind: str, label: str,
