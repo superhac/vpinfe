@@ -89,6 +89,7 @@ class BrowserPageTests(unittest.IsolatedAsyncioTestCase):
         self.enterContext(patch.object(settings, "page_head"))
         self.facts = self.enterContext(patch.object(panel, "facts"))
         self.action = self.enterContext(patch.object(panel, "action"))
+        self.link = self.enterContext(patch.object(panel, "link"))
         self.offer = self.enterContext(patch.object(undo, "offer"))
 
     def _reported(self, formats: dict[str, bool], browser: str = "Chromium 145.0.7632.0",
@@ -241,6 +242,27 @@ class BrowserPageTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIs(entries[0][0], panel.FULL)
         self.assertIsNone(self._use_google_chrome(entries))
+
+
+    async def test_a_browser_without_h264_is_offered_recording_as_vp9(self) -> None:
+        self._reported(NO_H264)
+        self.ui.label.reset_mock()
+
+        (await self._drawn())[0][1]()
+
+        said = [call.args[0] for call in self.ui.label.call_args_list if call.args]
+        self.assertIn(t("console.recording.or_record_as_vp9"), said)
+        self.assertEqual(self.link.call_args.kwargs["to"],
+                         settings.address_for("capture"))
+
+    async def test_a_browser_that_plays_no_video_is_not_offered_vp9(self) -> None:
+        self._reported(dict.fromkeys(NO_H264, False))
+        self.ui.label.reset_mock()
+
+        (await self._drawn())[0][1]()
+
+        said = [call.args[0] for call in self.ui.label.call_args_list if call.args]
+        self.assertNotIn(t("console.recording.or_record_as_vp9"), said)
 
 
 class TooOldToSayTests(unittest.TestCase):

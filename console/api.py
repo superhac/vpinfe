@@ -1165,6 +1165,36 @@ class ApiClient:
         self._answered(response)
         return response.json()
 
+    def capture_report(self) -> dict:
+        """What this device can record and why not, with VPinFE's own commands. Empty from
+        an install too old to say."""
+        _refuse_the_event_loop("/capture")
+        response = self._session.get(f"{self._base}/capture", timeout=_TIMEOUT)
+        if response.status_code == 404:
+            return {}
+        self._answered(response)
+        return response.json()
+
+    def test_capture(self, settings: dict | None = None) -> dict:
+        """A few seconds of the playfield through the commands, and what came out."""
+        _refuse_the_event_loop("/capture/test")
+        response = self._session.post(f"{self._base}/capture/test",
+                                      json={"settings": settings or {}},
+                                      timeout=_TIMEOUT * 8)
+        self._answered(response)
+        return response.json()
+
+    def capture_proposals(self) -> dict:
+        """The recordings waiting for a decision."""
+        return self._get("/capture/proposals")
+
+    def discard_proposals(self) -> dict:
+        _refuse_the_event_loop("/capture/proposals")
+        response = self._session.delete(f"{self._base}/capture/proposals",
+                                        timeout=_TIMEOUT)
+        self._answered(response)
+        return response.json()
+
     def frontend_browser(self) -> dict:
         """What the frontend's browser can play, with the finding and the fix in words.
         Empty from an install too old to say, never None: `offload.io` reads None as a

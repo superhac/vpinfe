@@ -16,7 +16,7 @@ through one renderer - what differs is only which install answers.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from nicegui import run, ui
@@ -31,7 +31,7 @@ from common import (
 )
 from common.failures import why
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
-from common.host import key_reader, key_simulator, tools
+from common.host import frontend_browser, key_reader, key_simulator, tools
 from common.i18n import t
 from common.labels import humanize
 from common.media_specs import media_label_map
@@ -42,6 +42,7 @@ from console import (
     input_watch,
     offload,
     panel,
+    recording,
     screens,
     theme_picker,
     undo,
@@ -120,6 +121,7 @@ EDITORS: dict[str, Callable[..., Callable[[], None]]] = {
     config_schema.EDITOR_CONSOLE_THEME: theme_picker.tiles,
     config_schema.EDITOR_FRONTEND_THEME: _frontend_theme,
     config_schema.EDITOR_LIST_ART: _list_art,
+    config_schema.EDITOR_CAPTURE_COMMAND: recording.command_editor,
 }
 
 
@@ -274,7 +276,8 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
 
         return panel.field(str(value or ""), save_path, disabled=off, status=state,
                            placeholder=blank, left_empty=str(option.get("left_empty") or ""))
-    return panel.field(str(value or ""), lambda text: save(text), disabled=off)
+    return panel.field(str(value or ""), lambda text: save(text), disabled=off,
+                       placeholder=blank)
 
 
 def _by_group(options: list[dict]) -> list[dict]:
@@ -376,7 +379,8 @@ async def _kind_rows(library: Library, rerender: Callable[[], None],
     return await _fill_kinds(library, rerender, None, note, "", name, items)
 
 
-async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
+async def _vps_foot(library: Library, rerender: Callable[[], None],
+                    **_: Any) -> list[tuple[Any, Any]]:
     """When the catalog was last asked, and the way to ask now.
 
     A schedule is a setting and the schema renders it; "do it now" is not a setting and
@@ -427,7 +431,8 @@ def last_checked(checked_at: str, now: Callable[[], Any]) -> tuple[Any, Any]:
     return (t("console.settings.last_checked"), checked)
 
 
-async def _themes_foot(library: Library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
+async def _themes_foot(library: Library, rerender: Callable[[], None],
+                       **_: Any) -> list[tuple[Any, Any]]:
     try:
         held = await offload.io(library.themes)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
@@ -449,7 +454,8 @@ async def _themes_foot(library: Library, rerender: Callable[[], None]) -> list[t
     return [last_checked(str(held.get("checked") or ""), now)]
 
 
-async def _input_foot(library: Library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
+async def _input_foot(library: Library, rerender: Callable[[], None],
+                      **_: Any) -> list[tuple[Any, Any]]:
     """The input detector, under the bindings that name what it sees.
 
     Here because it is the same question one row up asked backwards. A binding says
@@ -463,7 +469,7 @@ async def _input_foot(library: Library, rerender: Callable[[], None]) -> list[tu
 # section -> what to draw under its settings. Only where a page has an act in it, or a
 # reading that answers a question its settings raise.
 FOOTERS: dict[str, Callable] = {"updates": _vps_foot, "themes": _themes_foot,
-                                 "input": _input_foot}
+                                 "input": _input_foot, recording.SECTION: recording.foot}
 
 
 def _browser_rows(found: dict[str, Any], chosen: str) -> list[tuple[Any, Any]]:
@@ -529,6 +535,12 @@ def _browser_finding(library: Library, rerender: Callable[[], None],
             ui.label(str(found.get("finding") or "")).classes("console-attention-line")
             if found.get("fix_text"):
                 ui.label(str(found["fix_text"])).classes("console-member-table")
+            if found.get("state") == frontend_browser.NO_H264:
+                with ui.row().classes("items-center gap-1 no-wrap min-w-0"):
+                    ui.label(t("console.recording.or_record_as_vp9")) \
+                        .classes("console-member-table")
+                    panel.link(t("console.settings.page_recording"),
+                               to=address_for(recording.SECTION))()
         if fix.get("action") == "use_chrome" and chrome:
             panel.action(t("console.settings.use_google_chrome"),
                          lambda: use(chrome, t("console.settings.using_google_chrome")),
@@ -536,7 +548,7 @@ def _browser_finding(library: Library, rerender: Callable[[], None],
 
 
 async def _browser_head(library: Library, rerender: Callable[[], None],
-                        values: dict) -> list[tuple[Any, Any]]:
+                        values: dict, **_: Any) -> list[tuple[Any, Any]]:
     """What the browser plays, and what is wrong with it, before its settings."""
     try:
         found = await offload.io(library.frontend_browser)
@@ -552,6 +564,16 @@ async def _browser_head(library: Library, rerender: Callable[[], None],
 
 # section -> what to draw above its settings, the counterpart of FOOTERS.
 HEADS: dict[str, Callable] = {"chromium": _browser_head}
+
+# section -> what is wrong with a whole page, drawn with its name, from what the page was
+# offered; None where nothing is.
+FINDINGS: dict[str, Callable[[dict[str, Any]], Callable[[], None] | None]] = {
+    recording.SECTION: recording.finding}
+
+# section -> the lines a setting at its default resolves to on this device, read from what
+# the page was offered: Automatic says what it records here.
+RESOLVES: dict[str, Callable[[dict[str, Any]], dict[str, str]]] = {
+    recording.SECTION: recording.resolved}
 
 # page -> the line under its heading. Optional: a page whose name says the whole thing
 # takes none.
@@ -570,7 +592,7 @@ PAGE_NOTES: dict[str, str] = {
 }
 
 
-def page_head(key: str) -> None:
+def page_head(key: str, findings: Sequence[Callable[[], None]] = ()) -> None:
     """A page's name above its settings, and the line saying what it is for.
 
     `panel.header`'s treatment rather than a heading inside the panel: the cyan one is
@@ -578,7 +600,7 @@ def page_head(key: str) -> None:
     same.
     """
     said = PAGE_NOTES.get(key, "")
-    panel.header(_page_label(key), t(said) if said else "")
+    panel.header(_page_label(key), t(said) if said else "", findings)
 
 
 # The two kind pages are not schema pages. What they switch is a *list* in the config,
@@ -690,6 +712,8 @@ DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
          "frontend"),
         ("hardware.input", "console.settings.page_input", SCHEMA_PAGE, ("input",), "frontend"),
         ("hardware.output", "console.settings.page_output", SCHEMA_PAGE, ("dof",), "frontend"),
+        ("hardware.recording", "console.settings.page_recording", SCHEMA_PAGE, ("capture",),
+         "frontend"),
     )),
     ("console.settings.group_library", (
         ("library.media", "console.settings.page_media", SCHEMA_PAGE, ("media",), "library"),
@@ -994,10 +1018,73 @@ def build_library_page(library: Library, rerender: Callable[[], None], key: str,
     _kind_page(library, rerender, note, "", name, items)
 
 
+def value_words(option: dict, value: Any) -> str:
+    """A value as the control shows it: a choice by its label, a switch On or Off, a
+    number with what it counts."""
+    kind = str(option.get("type") or "")
+    if kind == "bool":
+        return t("word.on") if value else t("word.off")
+    if kind == "choice":
+        return str((option.get("choice_labels") or {}).get(str(value), value))
+    if option.get("unit") == config_schema.UNIT_SECONDS:
+        return t("console.settings.seconds", value=str(value))
+    return str(value)
+
+
+def default_said(option: dict, value: Any, resolved: str = "") -> str:
+    """The reminder of a setting's default, read from the schema's own value: whose it is,
+    and the value where this one is not it. `resolved` is what the default comes to on
+    this device, said instead while the setting is left there."""
+    whose = str(option.get("default_is") or "")
+    if whose not in config_schema.DEFAULTS_ARE:
+        return ""
+    default = value_for(option, option.get("default"))
+    community = whose == config_schema.DEFAULT_COMMUNITY
+    if value_for(option, value) == default:
+        return resolved or (t("console.settings.community_standard") if community
+                            else t("console.settings.vpinfe_default"))
+    shown = value_words(option, default)
+    return (t("console.settings.community_standard_is", value=shown) if community
+            else t("console.settings.vpinfe_default_is", value=shown))
+
+
+def _noted(option: dict, value: Any, save: Callable[[Any], Any],
+           resolved: str) -> tuple[Callable[[Any], Any], tuple[Any, Any] | None]:
+    """The line under a setting - what it does, and its default - and a `save` that keeps
+    the default's half true as the value changes."""
+    described = str(option.get("description") or "")
+
+    def said(now: Any) -> str:
+        reminder = default_said(option, now, resolved)
+        if described and reminder:
+            return t("console.settings.described_default", description=described,
+                     default=reminder)
+        return described or reminder
+
+    first = said(value)
+    if not first:
+        return save, None
+    if not option.get("default_is"):
+        return save, panel.note(first)
+    shown: dict[str, Any] = {}
+
+    def draw() -> None:
+        shown["line"] = panel.line(first)
+
+    async def saved(now: Any) -> bool:
+        done = bool(await save(now))
+        if done and shown.get("line") is not None:
+            shown["line"].set_text(said(now))
+        return done
+
+    return saved, (panel.ASIDE, draw)
+
+
 def section_rows(source: Any, section: str, options: list[dict], values: dict,
                  writable: bool, rerender: Callable[[], None],
                  checks: dict[tuple[str, str], dict] | None = None,
                  suggestions: dict[str, Any] | None = None,
+                 resolved: dict[str, str] | None = None,
                 ) -> list[tuple[Any, Any]]:
     """One section's settings as fact rows, from whatever is serving them.
 
@@ -1027,18 +1114,21 @@ def section_rows(source: Any, section: str, options: list[dict], values: dict,
             entries.append((panel.HEADING, group))
         heading = group
         value = current.get(option["key"], option.get("default"))
+        save, note = _noted(option, value, _saver(source, section, option["key"]),
+                            (resolved or {}).get(option["key"], ""))
         entries.append((option.get("label") or humanize(option["key"]),
                         control_for(
-                            option, value,
-                            _saver(source, section, option["key"]),
+                            option, value, save,
                             writable=writable, rerender=rerender,
                             check=(checks or {}).get((section, option["key"])),
                             suggestions=suggestions,
                             section_values=effective)))
-        if option.get("description"):
-            entries.append(panel.note(option["description"]))
+        if note is not None:
+            entries.append(note)
         for text, fix in option.get("findings") or ():
             entries.append(_finding(text, fix))
+        if option.get("editor") == config_schema.EDITOR_CAPTURE_COMMAND:
+            recording.add_under(entries, option, value, save, rerender, suggestions)
         # Under the last field of a pair, where somebody has just read what it does and
         # is about to type into it.
         if section == "commands" and option["key"] == "on_vpinfe_exit":
@@ -1084,15 +1174,18 @@ async def build_device_page(source: Any, context: dict[str, Any], schema: list[d
         # A page may carry a head or a foot for what on it is a reading or an act rather
         # than a value. Only where this install's own client is what serves the page: these
         # reach for the library, which another machine's client cannot answer for.
+        offered = suggestions or {}
         head = HEADS.get(name)
         if head is not None and source is context.get("library"):
-            entries += await head(source, rerender, values)
+            entries += await head(source, rerender, values, offered=offered)
+        resolves = RESOLVES.get(name)
         entries += section_rows(source, name, block["options"], values,
                                 bool(block.get("writable")), rerender, checks,
-                                suggestions)
+                                suggestions,
+                                resolved=resolves(offered) if resolves else None)
         foot = FOOTERS.get(name)
         if foot is not None and source is context.get("library"):
-            entries += await foot(source, rerender)
+            entries += await foot(source, rerender, offered=offered)
     panel.facts(ui, _spliced(entries, blocks or []))
 
 
@@ -1205,8 +1298,10 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
         rows = await _kind_rows(library, redraw, registry)
         head = [(panel.HEADING, t(heading))] if heading else []
         blocks.append((above, [*head, *rows]))
+    findings = [drawn for name in sections if name in FINDINGS
+                if (drawn := FINDINGS[name](offered)) is not None]
     with body:
-        page_head(key)
+        page_head(key, findings)
         await build_device_page(library, {"library": library, "rebuild": redraw},
                                 schema, values, sections, checks=marks,
                                 suggestions=offered, blocks=blocks)
@@ -1233,6 +1328,13 @@ async def _suggestions(library: Library, schema: list[dict],
     wanted = {str(option.get("suggest") or "") for option in here}
     editors = {str(option.get("editor") or "") for option in here}
     offered: dict[str, Any] = {}
+
+    if config_schema.EDITOR_CAPTURE_COMMAND in editors:
+        try:
+            offered[config_schema.EDITOR_CAPTURE_COMMAND] = await offload.io(
+                library.capture_report)
+        except Exception as exc:  # noqa: BLE001 - the page says it could not read it
+            offered[config_schema.EDITOR_CAPTURE_COMMAND] = {"error": why(exc)}
 
     if config_schema.EDITOR_LIST_ART in editors:
         try:

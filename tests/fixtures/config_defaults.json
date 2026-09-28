@@ -22,7 +22,7 @@
     "record_command": "",
     "size": "1920",
     "sound": "false",
-    "sound_source": "auto",
+    "sound_source": "",
     "video_codec": "auto",
     "wait": "15"
   },

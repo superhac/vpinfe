@@ -42,17 +42,22 @@ GROUP = object()
 RAIL_PX = 152
 
 
-def header(name: str, note: str = "") -> None:
+def header(name: str, note: str = "",
+           findings: Sequence[Callable[[], None]] = ()) -> None:
     """What the content under it is about, where the rail row is too far away to say it.
 
-    `note` is drawn inside the same rule as the name.
+    `note` is drawn inside the same rule as the name, and so is each of `findings`: what is
+    wrong with everything under it, before the first of its headings.
     """
-    if not note:
+    if not note and not findings:
         ui.label(name).classes("text-base console-workbench-title console-panel-heading")
         return
     with ui.element("div").classes("console-panel-heading"):
         ui.label(name).classes("text-base console-workbench-title")
-        ui.label(note).classes("console-help console-panel-note")
+        if note:
+            ui.label(note).classes("console-help console-panel-note")
+        for finding in findings:
+            finding()
 
 
 def facts(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:

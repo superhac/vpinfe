@@ -602,6 +602,20 @@ class Library:
         """Never cached: the frontend reports again each time it opens."""
         return self._client.frontend_browser()
 
+    def capture_report(self) -> dict:
+        """Never cached: it is worked out when asked, and a Tool set a moment ago changes
+        it."""
+        return self._client.capture_report()
+
+    def test_capture(self, settings: dict | None = None) -> dict:
+        return self._client.test_capture(settings)
+
+    def capture_proposals(self) -> dict:
+        return self._client.capture_proposals()
+
+    def discard_proposals(self) -> dict:
+        return self._client.discard_proposals()
+
     def frontend_running(self) -> bool:
         found = self._client.frontend_state()
         return bool(found and found.get("running"))

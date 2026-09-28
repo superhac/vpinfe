@@ -76,6 +76,9 @@ def _describe(option: config_schema.ConfigOption) -> dict[str, Any]:
         # arrives without this renders as a one-line box - which is what a command list
         # did until it was served.
         "lines": option.lines,
+        "default_is": option.default_is,
+        "unit": option.unit,
+        "blank": option.blank,
     }
 
 

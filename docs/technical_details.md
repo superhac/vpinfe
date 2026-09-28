@@ -24,7 +24,7 @@ uses an old spelling both still load.
 | --- | --- | --- | --- |
 | `screen_id` | int | `0` | Screen |
 | `orientation` | choice (landscape, portrait) | `landscape` | How the playfield screen is physically mounted in the cabinet. This rotates nothing by itself - it tells themes what shape to lay out for. |
-| `rotation` | choice (0, 90, 180, 270) | `0` | How far VPinFE turns its own display so it faces the player. Leave at 0 if your operating system already rotates this screen. |
+| `rotation` | choice (0, 90, 180, 270) | `0` | How far VPinFE turns its own display so it faces the player, on top of any turn your operating system already makes |
 
 ### `windows.backglass`
 
@@ -106,13 +106,13 @@ Runtime state written by VPinFE, not shown as a setting.
 | `length` | int | `20` | Seconds of each screen to record |
 | `wait` | int | `15` | Seconds after the table has started before recording begins |
 | `picture_at` | int | `5` | Seconds into the recording that each picture is taken |
-| `fps` | choice (30, 60) | `30` | Frames per second of the stored video |
-| `size` | choice (1920, screen) | `1920` | The stored video's size |
+| `fps` | choice (30, 60) | `30` | Frame Rate |
+| `size` | choice (1920, screen) | `1920` | Size |
 | `video_codec` | choice (auto, h264, vp9) | `auto` | Automatic records a format this device's frontend can play |
-| `playfield_orientation` | choice (bottom_right, bottom_left, upright) | `bottom_right` | Which way round the playfield is stored |
 | `quality` | choice (standard, high) | `standard` | High is sharper, in larger files |
+| `playfield_orientation` | choice (bottom_right, bottom_left, upright) | `bottom_right` | Which way round the playfield is stored |
 | `sound` | bool | `false` | Record the table's sound as a file of its own |
-| `sound_source` | string | `auto` | Where sound is recorded from. Automatic is what this device plays |
+| `sound_source` | string |  | A sound source by name. Left empty, what this device plays |
 | `record_command` | string |  | The command that records each screen. Left empty, VPinFE's own runs |
 | `encode_command` | string |  | Turns each recording into the stored file. Left empty, VPinFE's own runs |
 

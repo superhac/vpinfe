@@ -234,6 +234,25 @@ _REACH = {device_client.ANSWERING: ("console.devices.answering", "on", "positive
 `grid.choice_filter` puts the label on screen through `valueFormatter`. Translating the value
 instead would move what a saved view filters on.
 
+### A default is read from its setting
+
+A number written into prose rots, and so does a default repeated beside the control that
+shows it: the words stay as they were when the default moves. So a default named on screen
+is rendered from the setting's own `default`, through a catalog string with a slot, and is
+never typed into a description.
+
+- A setting declares whose its default is with `default_is` in `common/config_schema.py`:
+  `community` for the community's standard, `vpinfe` where no standard exists. `unit` says
+  what a number counts.
+- Left at the default, the line under the field says only whose it is - *Community
+  standard*, *Default* - because the field already shows the value. Changed, it names the
+  default: *Community standard: 20 s*, and clearing the field puts it back.
+- A default the device resolves, such as Automatic, says what it comes to there: *H.264,
+  the community standard*.
+
+`tests/invariants/test_a_default_is_read_from_its_setting.py` fails on any setting whose
+description holds its default number or text.
+
 ### Naming a key
 
 `<owner>.<module>.<what it says>` — named for what owns the string, never for the screen

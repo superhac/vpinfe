@@ -671,6 +671,14 @@ class ConfigOptionInfo(ApiModel):
     # a list of commands is three. Served because the control is decided from it, and a
     # multi-line setting that arrives without it draws as a single line.
     lines: int = 0
+    # Whose the default is - `community`, or `vpinfe` where no standard exists - for a
+    # client that reminds a person of it; empty where none does. `unit` is what a number
+    # counts: `seconds`, or empty.
+    default_is: str = ""
+    unit: str = ""
+    # What an empty value stands for, in this install's language, for a client to show in
+    # the empty field; empty where it needs no words.
+    blank: str = ""
 
 
 class ConfigSection(ApiModel):

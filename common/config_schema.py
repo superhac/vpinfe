@@ -136,6 +136,10 @@ class ConfigOption:
     # unaffected and a surface with no such editor falls back to the control for its
     # type rather than showing nothing.
     editor: str = ""
+    # One of `DEFAULTS_ARE`, where a surface reminds a person of the default.
+    default_is: str = ""
+    # One of `UNITS`: what the number counts.
+    unit: str = ""
 
     @property
     def keys(self) -> str:
@@ -167,6 +171,12 @@ class ConfigOption:
         return found
 
     @property
+    def blank(self) -> str:
+        """What an empty field reads as, or "" where empty needs no words."""
+        said = t(f"{self.keys}.blank")
+        return "" if said.endswith(".blank") else said
+
+    @property
     def description(self) -> str:
         """One line explaining it, or "" where nobody has written one.
 
@@ -194,7 +204,18 @@ EDITOR_CONSOLE_THEME = "console_theme"
 EDITOR_FRONTEND_THEME = "frontend_theme"
 # The kinds of art the library keeps, which only a running install can say.
 EDITOR_LIST_ART = "list_art"
-EDITORS = (EDITOR_BINDING, EDITOR_CONSOLE_THEME, EDITOR_FRONTEND_THEME, EDITOR_LIST_ART)
+# A Record or Encode Command, which only the device that runs it can check and show
+# VPinFE's own for.
+EDITOR_CAPTURE_COMMAND = "capture_command"
+EDITORS = (EDITOR_BINDING, EDITOR_CONSOLE_THEME, EDITOR_FRONTEND_THEME, EDITOR_LIST_ART,
+           EDITOR_CAPTURE_COMMAND)
+
+# Whose a default is.
+DEFAULT_COMMUNITY = "community"
+DEFAULT_VPINFE = "vpinfe"
+DEFAULTS_ARE = (DEFAULT_COMMUNITY, DEFAULT_VPINFE)
+UNIT_SECONDS = "seconds"
+UNITS = (UNIT_SECONDS,)
 
 # What a `suggest` may name. Closed, so a typo is a setting with no suggestions rather
 # than a surface quietly asking for a list nobody serves.
@@ -509,22 +530,33 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     # Recording this cabinet's own screens into its tables' media.
     *in_section(
         "capture",
-        ConfigOption("length", type="int", default="20", legacy=()),
-        ConfigOption("wait", type="int", default="15", legacy=()),
-        ConfigOption("picture_at", type="int", default="5", legacy=()),
-        ConfigOption("fps", type="choice", default="30", choices=("30", "60"), legacy=()),
+        ConfigOption("length", type="int", default="20", group=setting_groups.TIMING,
+                     default_is=DEFAULT_COMMUNITY, unit=UNIT_SECONDS, legacy=()),
+        ConfigOption("wait", type="int", default="15", group=setting_groups.TIMING,
+                     default_is=DEFAULT_VPINFE, unit=UNIT_SECONDS, legacy=()),
+        ConfigOption("picture_at", type="int", default="5", group=setting_groups.TIMING,
+                     default_is=DEFAULT_VPINFE, unit=UNIT_SECONDS, legacy=()),
+        ConfigOption("fps", type="choice", default="30", choices=("30", "60"),
+                     group=setting_groups.VIDEO, default_is=DEFAULT_COMMUNITY, legacy=()),
         ConfigOption("size", type="choice", default="1920", choices=("1920", "screen"),
-                     legacy=()),
+                     group=setting_groups.VIDEO, default_is=DEFAULT_COMMUNITY, legacy=()),
         ConfigOption("video_codec", type="choice", default="auto",
-                     choices=("auto", "h264", "vp9"), legacy=()),
-        ConfigOption("playfield_orientation", type="choice", default="bottom_right",
-                     choices=("bottom_right", "bottom_left", "upright"), legacy=()),
+                     choices=("auto", "h264", "vp9"), group=setting_groups.VIDEO,
+                     default_is=DEFAULT_COMMUNITY, legacy=()),
         ConfigOption("quality", type="choice", default="standard",
-                     choices=("standard", "high"), legacy=()),
-        ConfigOption("sound", type="bool", default="false", legacy=()),
-        ConfigOption("sound_source", type="string", default="auto", legacy=()),
-        ConfigOption("record_command", type="string", default="", legacy=()),
-        ConfigOption("encode_command", type="string", default="", legacy=()),
+                     choices=("standard", "high"), group=setting_groups.VIDEO,
+                     default_is=DEFAULT_COMMUNITY, legacy=()),
+        ConfigOption("playfield_orientation", type="choice", default="bottom_right",
+                     choices=("bottom_right", "bottom_left", "upright"),
+                     group=setting_groups.VIDEO, default_is=DEFAULT_COMMUNITY, legacy=()),
+        ConfigOption("sound", type="bool", default="false", group=setting_groups.AUDIO,
+                     default_is=DEFAULT_COMMUNITY, legacy=()),
+        ConfigOption("sound_source", type="string", default="",
+                     group=setting_groups.AUDIO, legacy=()),
+        ConfigOption("record_command", type="string", default="",
+                     group=setting_groups.COMMANDS, editor=EDITOR_CAPTURE_COMMAND, legacy=()),
+        ConfigOption("encode_command", type="string", default="",
+                     group=setting_groups.COMMANDS, editor=EDITOR_CAPTURE_COMMAND, legacy=()),
     ),
     # Art a theme or the frontend draws that is not a game's own.
     *in_section(

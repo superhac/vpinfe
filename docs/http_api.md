@@ -235,7 +235,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/metrics` | What this device is doing now. `history_seconds` adds as much of this session as you ask for; 0 means none |
 | GET | `/api/v1/metrics/gpu` | What the graphics cards are doing. Separate because it shells out to nvtop, and says so where nvtop is missing rather than reporting no cards |
 | GET | `/api/v1/about` | What this install and this device *are* - version, build, OS, browser, and where files live. `text` is the same answer as something to paste into a report |
-| GET | `/api/v1/config/schema` | Every setting this install has. An option's `group` is a token (`navigation`, `local_services`...) and `group_label` beside it is the heading in this install's language. A window the active theme declares beyond the three every theme has is a `windows.<name>` section of its own, with the `screen_id` it opens on, after `windows.score_view` |
+| GET | `/api/v1/config/schema` | Every setting this install has. An option's `group` is a token (`navigation`, `local_services`...) and `group_label` beside it is the heading in this install's language. `default_is` says whose the default is, `community` or `vpinfe`, for a client that reminds a person of it from `default`, and `unit` what a number counts (`seconds`). A window the active theme declares beyond the three every theme has is a `windows.<name>` section of its own, with the `screen_id` it opens on, after `windows.score_view` |
 | GET | `/api/v1/config` | What this install is set to, by section and key |
 | PUT | `/api/v1/config` | Change settings, `{section: {key: value}}`. A patch: only what is sent is written |
 | GET | `/api/v1/config/paths` | Whether each path setting finds anything on this device |
