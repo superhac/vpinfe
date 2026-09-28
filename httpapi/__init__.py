@@ -38,6 +38,7 @@ from . import (
     mediasources,
     metrics,
     play,
+    player_accounts,
     players,
     preferences,
     scopes,
@@ -98,6 +99,7 @@ def create_api_app() -> FastAPI:
     # a policy decision for the authorization boundary.
     # Auth first so CORS ends up outermost: a preflight OPTIONS has no identity to
     # stamp and CORSMiddleware answers it before anything else sees it.
+    api.add_middleware(extensions.SecretsStayHere)
     api.add_middleware(auth.ScopeMiddleware)
     api.add_middleware(
         CORSMiddleware,
@@ -120,6 +122,7 @@ def create_api_app() -> FastAPI:
     api.include_router(config.router)
     api.include_router(launchers.router)
     api.include_router(players.router)
+    api.include_router(player_accounts.router)
     api.include_router(locations.router)
     api.include_router(metrics.router)
     api.include_router(themes.router)

@@ -66,8 +66,8 @@ class LoadTests(HostCase):
         found = self.registry.get("sample").as_dict()
 
         self.assertEqual(found["state"], host.LOADED)
-        self.assertEqual(found["scopes"], ["games:read"])
-        self.assertEqual(found["routes"], ["ext:sample:read"])
+        self.assertEqual(found["scopes"], ["games:read", "players:read"])
+        self.assertEqual(found["routes"], ["ext:sample:read", "ext:sample:write"])
         self.assertEqual(found["capabilities"], ["config:own", "ui:mount"])
 
     def test_a_directory_whose_name_is_not_the_manifests_is_refused(self) -> None:

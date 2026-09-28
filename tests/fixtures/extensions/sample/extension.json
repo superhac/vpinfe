@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "description": "Exercises every part of the extension contract and nothing real.",
   "requires_platform": 1,
-  "scopes": ["games:read"],
-  "provides": ["read"],
+  "scopes": ["games:read", "players:read"],
+  "provides": ["read", "write"],
   "capabilities": ["config:own", "ui:mount"],
   "events": ["noticed"]
 }

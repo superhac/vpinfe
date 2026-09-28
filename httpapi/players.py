@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Response
 
 from common import events
+from common.extensions import accounts
 from common.players import get_roster
 
 from . import models, scopes
@@ -76,7 +77,9 @@ def set_up(player_id: str,
 @router.delete("/{player_id}", summary="Remove a player, or sign a guest out",
                status_code=204, dependencies=[requires(scopes.PLAYERS_WRITE)])
 def remove_player(player_id: str) -> Response:
+    """Their accounts go with them, from every extension."""
     get_roster().remove(player_id)
+    accounts.forget(player_id)
     return Response(status_code=204)
 
 

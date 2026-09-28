@@ -104,6 +104,11 @@ def _control(client: Any, base: str, key: str, field: dict,
     if kind == "select":
         choices = {str(one[0]): str(one[1]) for one in field.get("choices") or []}
         return panel.select(choices, str(value or ""), lambda event: save(event.value))
+    if kind == "secret":
+        # Never handed the value. Saving an empty field would clear it.
+        return panel.field("", lambda typed: save(typed) if typed else None,
+                           placeholder=t("console.ext_page.secret_set" if field.get("set")
+                                         else "console.ext_page.secret_not_set"))
     return panel.field(str(value or ""), save,
                        placeholder=str(field.get("placeholder") or ""))
 
@@ -190,6 +195,7 @@ def _row(client: Any, base: str, row: dict, redraw: Callable[[], Awaitable[None]
 PLAINLY = {
     "games:read": "console.ext_page.read_library",
     "games:write": "console.ext_page.add_change_games",
+    "players:read": "console.ext_page.see_players",
     "filesystem:read": "console.ext_page.read_folders_point",
     "ui:mount": "console.ext_page.add_page_console",
     "config:own": "console.ext_page.keep_own_settings",

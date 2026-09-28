@@ -12,7 +12,7 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
-from common import apps
+from common import apps, players, tokens
 from common.host import commands, table_commands
 from common.i18n import t
 
@@ -93,6 +93,23 @@ class ValueTests(unittest.TestCase):
         self.assertEqual(values["launcher_bin"], "/opt/vpx/VPinballX")
         self.assertEqual(values["launcher_ini"], "/cfg/VPinballX.ini")
         self.assertEqual(values["location"], "loc1")
+
+    def test_a_command_names_the_one_player_up(self) -> None:
+        up = [players.Player("p1", initials="ABC")]
+
+        self.assertEqual(table_commands._values(_game(), _playing(), None, up)["player"],
+                         "ABC")
+
+    def test_with_several_up_a_command_names_nobody(self) -> None:
+        """The same rule a score with no initials follows: never somebody who was not
+        the one playing."""
+        up = [players.Player("p1", initials="ABC"), players.Player("p2", initials="OWN")]
+
+        self.assertEqual(table_commands._values(_game(), _playing(), None, up)["player"], "")
+
+    def test_the_player_is_a_name_a_table_command_may_use(self) -> None:
+        self.assertEqual(commands.planned("note {player}", {"player": "ABC"},
+                                          context=tokens.TABLE), [["note", "ABC"]])
 
     def test_what_a_table_never_had_is_empty_rather_than_missing(self) -> None:
         """Every name the context offers has to resolve, or a command that mentions one

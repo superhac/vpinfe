@@ -81,6 +81,8 @@ class Record:
     actions: list[dict] = field(default_factory=list)
     surfaces: dict = field(default_factory=dict)
     community: list[dict] = field(default_factory=list)
+    # {base, label, cards, marker} when a player can hold an account with it.
+    account: dict = field(default_factory=dict)
 
     @property
     def running(self) -> bool:
@@ -141,6 +143,14 @@ class Record:
                 "description": self.said(declared["description"],
                                          f"action.{key}.description")[0]}
 
+    def account_declared(self) -> dict:
+        """Its account, in the language now set. Empty when it offers none."""
+        if not self.account:
+            return {}
+        return {**self.account,
+                "label": self.said(self.account["label"], "account.label",
+                                   self.display_name)[0]}
+
     def _surfaces(self) -> dict:
         found = dict(self.surfaces)
         for which in ("settings", "state"):
@@ -159,7 +169,8 @@ class Record:
                 "actions": ([self._action(one) for one in self.actions]
                             if self.running else []),
                 "surfaces": self._surfaces() if self.running else {},
-                "community": self.lists() if self.running else []}
+                "community": self.lists() if self.running else [],
+                "account": self.account_declared() if self.running else {}}
 
 
 class Registry:
@@ -171,6 +182,11 @@ class Registry:
         self._lock = threading.RLock()
 
     # -- reading -------------------------------------------------------------
+
+    @property
+    def store(self) -> ExtensionStore:
+        """Where the extensions it loaded keep their settings and accounts."""
+        return self._store
 
     def records(self) -> list[Record]:
         with self._lock:
@@ -286,6 +302,7 @@ class Registry:
             "state": context.ui.state_base,
             "state_label": context.ui.state_label,
         }
+        record.account = dict(context.ui.account_offered)
         record.became(LOADED)
         logger.info("Extension %s %s loaded", record.name, record.manifest.version)
         return self._remember(record)

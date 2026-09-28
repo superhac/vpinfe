@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from common import apps, tokens
+from common import apps, players, tokens
 from common.atomic_write import write_atomic
 from common.config_access import cfg_bool, cfg_get, cfg_int
 from common.config_store import ConfigStore
@@ -47,7 +47,8 @@ class Around:
     ran: bool = False
 
 
-def _values(game: Game, playing: apps.Entry, launcher: Launcher | None) -> dict[str, str]:
+def _values(game: Game, playing: apps.Entry, launcher: Launcher | None,
+            up: list[players.Player] | None = None) -> dict[str, str]:
     """What a command about this table may say. Strings, all of them, because they are
     going into an argument list.
 
@@ -59,6 +60,7 @@ def _values(game: Game, playing: apps.Entry, launcher: Launcher | None) -> dict[
     entry = entries.get(playing.entry_id) or {}
     settings = ({one.key: launcher.value(one.key) for one in launcher.fields()}
                 if launcher is not None else {})
+    up = players.get_roster().up() if up is None else up
     built = {
         "game_dir": str(playing.game_dir or ""),
         "table": str(playing.table or ""),
@@ -71,19 +73,20 @@ def _values(game: Game, playing: apps.Entry, launcher: Launcher | None) -> dict[
         "launcher_bin": str(settings.get("bin_path") or ""),
         "launcher_ini": str((launcher.in_effect("ini_path") if launcher else "") or ""),
         "location": str(getattr(game, "location_id", "") or ""),
+        "player": up[0].initials if len(up) == 1 else "",
     }
     return tokens.filled(tokens.TABLE, built)
 
 
 def before(game: Game, playing: apps.Entry, launcher: Launcher | None,
-           ini_config: ConfigStore) -> Around:
+           ini_config: ConfigStore, up: list[players.Player] | None = None) -> Around:
     """The install's commands and then this launcher's, in that order.
 
     A failure stops the launch only where somebody said it should. What that means is a
     share that has to be mounted against an audio route that would be nice to switch,
     and only they know which they wrote.
     """
-    around = Around(values=_values(game, playing, launcher))
+    around = Around(values=_values(game, playing, launcher, up))
     around.timeout = cfg_int(ini_config, "commands", "timeout",
                              commands.DEFAULT_TIMEOUT)
     around.install_after = cfg_get(ini_config, "table_commands", "on_exit", "")

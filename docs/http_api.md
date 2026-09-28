@@ -210,6 +210,13 @@ the documented entry point is a plain 200. Both spellings work.
 | DELETE | `/api/v1/players/{id}` | Remove a player, or sign a guest out. `204`. The owner cannot be removed |
 | PUT | `/api/v1/players/{id}/up` | Put one player up beside whoever is, `{"up": true}`, or take them down. Answers with the whole list |
 | PUT | `/api/v1/players/up` | Say exactly who is up, `{"ids": [...]}`. An id nobody has is a `404` and changes nothing. Answers with the whole list |
+| POST | `/api/v1/players/guests/card` | Add a guest from their card, `{"card": "..."}`: the card file's contents, or the card's text on its own. `201`, up alone. The same card again puts that guest up rather than adding another - see [Accounts and cards](#accounts-and-cards) |
+| GET | `/api/v1/players/{id}/accounts` | Every account this player can hold here, one per running extension that offers one |
+| GET | `/api/v1/players/{id}/accounts/{extension}` | One of them |
+| PUT | `/api/v1/players/{id}/accounts/{extension}` | Change it, `{"values": {...}}`, as the extension's settings are changed. Answers the account |
+| PUT | `/api/v1/players/{id}/accounts/{extension}/share` | Say whether it shares, `{"share": true}`. Answers the account |
+| POST | `/api/v1/players/{id}/accounts/{extension}/acts/{act}` | Do one of the account's acts. Answers what the extension says came of it |
+| GET | `/api/v1/players/{id}/accounts/{extension}/card` | The player's card, an SVG file. `404` while the extension cannot make one |
 | GET | `/api/v1/metrics` | What this device is doing now. `history_seconds` adds as much of this session as you ask for; 0 means none |
 | GET | `/api/v1/metrics/gpu` | What the graphics cards are doing. Separate because it shells out to nvtop, and says so where nvtop is missing rather than reporting no cards |
 | GET | `/api/v1/about` | What this install and this device *are* - version, build, OS, browser, and where files live. `text` is the same answer as something to paste into a report |
@@ -1177,6 +1184,43 @@ is `invalid_request` with the reason as its message. An id nobody has is `not_fo
 
 `players:read` and `players:write` guard them. Every change is announced as
 `players.changed`, carrying the whole list.
+
+### Accounts and cards
+
+A player can hold an account with an extension that offers one - a user id and key at a
+scores site, say. The account is the extension's: its fields, a status line and what can
+be done with it come from the extension, asked with the player's id, and it keeps the
+values. A guest's are held in memory and gone when they are.
+
+```json
+{"accounts": [
+  {"extension": "scores_site", "label": "Scores Site", "share": false,
+   "fields": [{"key": "user_id", "label": "User ID", "type": "string", "value": "jordan"},
+              {"key": "key", "label": "Key", "type": "secret", "set": true}],
+   "status": "Sent 2 minutes ago", "acts": [{"key": "send", "label": "Send Now",
+   "description": ""}], "card": true, "error": ""}
+]}
+```
+
+**A secret is never answered.** A field of type `secret` is accepted on a write and read
+back as `set`, true or false, by this route and by every route an extension serves.
+
+**Share** is whether the account sends what this install records, and it is core's, kept
+per player per extension in `players.json`. It is off until someone turns it on, except for
+a guest who joined with a card, whose account with that card's extension shares.
+
+`error` says why an extension could not answer for its account; the rest is then empty,
+and the other accounts are listed as usual.
+
+A **card** is a player's account as a file they can carry: a QR code of the account's text,
+drawn as an SVG with the text hidden inside it as well - in a comment, a `<metadata>` and a
+`<desc>`. A card is read from that text and never from the picture, so a card file or its
+text on its own is what `POST /players/guests/card` takes. The extension that reads that
+kind of card says who it is for, and the guest keeps the card's initials, one to three
+characters, as they are. A VPinPlay card is the one 2.x's *Download QR Code* saved, and a
+card from either version joins on the other.
+
+Removing a player, or signing a guest out, forgets their accounts with every extension.
 
 ## Jobs
 

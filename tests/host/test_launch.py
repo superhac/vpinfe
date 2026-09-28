@@ -123,7 +123,7 @@ class LifecycleTests(LaunchTests):
         for name in (events.TABLE_LAUNCHING, events.TABLE_EXITED):
             events.subscribe(name, lambda _n=name, **_: seen.append(_n))
 
-        def before(game, table, launcher, ini_config):
+        def before(game, table, launcher, ini_config, up=None):
             seen.append("pre")
             return table_commands.Around(ran=True)
 
@@ -321,8 +321,8 @@ class RecordingTests(LaunchTests):
     def test_a_person_s_own_commands_still_run_around_a_recording(self) -> None:
         seen = []
 
-        def before(game, table, launcher, ini_config):
-            seen.append("pre")
+        def before(game, table, launcher, ini_config, up=None):
+            seen.append(("pre", up))
             return table_commands.Around(ran=True)
 
         with mock.patch.object(table_commands, "before", before), \
@@ -330,7 +330,7 @@ class RecordingTests(LaunchTests):
                                   lambda around, **k: seen.append("post")):
             self._run(source=launch_state.SOURCE_CAPTURE)
 
-        self.assertEqual(seen, ["pre", "post"])
+        self.assertEqual(seen, [("pre", []), "post"], "and they name nobody as playing")
 
     def test_every_table_event_says_who_started_it(self) -> None:
         for source in (launch_state.SOURCE_API, launch_state.SOURCE_CAPTURE):
@@ -550,12 +550,32 @@ class SessionTests(LaunchTests):
         (only,) = recorded["new_entries"]
         self.assertEqual(only["player"], self.owner.as_payload())
 
+    def test_the_table_s_commands_are_told_who_the_game_counts_for(self) -> None:
+        """One reading of who is up, before the commands: a change while the launch is
+        under way cannot leave `{player}` naming somebody the game did not count for."""
+        alex = self._alex()
+        told = []
+        events.subscribe(events.TABLE_LAUNCHING,
+                         lambda **_: self.roster.set_who_is_up([alex.player_id]))
+
+        def before(game, table, launcher, ini_config, up=None):
+            told.append([player.player_id for player in up or []])
+            return table_commands.Around()
+
+        with mock.patch.object(table_commands, "before", before):
+            recorded = self._recorded([(None, None), (None, None)],
+                                      popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
+
+        self.assertEqual(told, [[self.owner.player_id]])
+        self.assertEqual(recorded["up"], [self.owner.as_payload()])
+
     def test_both_events_carry_who_played_as_plain_data(self) -> None:
         heard = {}
         for name in (events.TABLE_LAUNCHED, events.TABLE_PLAY_RECORDED):
             events.subscribe(name, lambda _n=name, **payload: heard.setdefault(_n, payload))
         game = _game()
-        game.meta_config = {"tables": {"t1": {"id": "t1", "filename": "Example.vpx"}}}
+        game.meta_config = {"vpinfe": {"game_id": "g1"},
+                            "tables": {"t1": {"id": "t1", "filename": "Example.vpx"}}}
 
         self._run(game=game, popen=lambda cmd, **k: _FakePopen(["Startup done\n"]),
                   readings=[(_reading(("AAA", 300)), "/nv"),
@@ -565,13 +585,14 @@ class SessionTests(LaunchTests):
         self.assertIs(recorded["game"], game, "what subscribers had before is still there")
         self.assertIn("ini_config", recorded)
         self.assertEqual(launched["up"], [self.owner.as_payload()])
-        self.assertEqual(launched["table_id"], "t1")
+        self.assertEqual((launched["table_id"], launched["game_id"]), ("t1", "g1"))
         plain = {key: value for key, value in recorded.items()
                  if key not in ("game", "ini_config")}
         self.assertEqual(sorted(plain),
-                         ["new_entries", "reading", "seconds", "source", "table_id", "up"])
+                         ["game_id", "new_entries", "reading", "seconds", "source",
+                          "table_id", "up"])
         self.assertEqual(json.loads(json.dumps(plain)), plain)
-        self.assertEqual(plain["table_id"], "t1")
+        self.assertEqual((plain["table_id"], plain["game_id"]), ("t1", "g1"))
         self.assertIsInstance(plain["seconds"], int)
         self.assertEqual(plain["new_entries"][0]["player"]["initials"], "OWN")
 

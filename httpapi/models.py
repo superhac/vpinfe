@@ -492,6 +492,46 @@ class PlayersUpRequest(ApiModel):
     ids: list[str]
 
 
+class AccountAct(ApiModel):
+    key: str
+    label: str = ""
+    description: str = ""
+
+
+class PlayerAccount(ApiModel):
+    """One account a player can hold, with the extension that holds it. `fields` are as
+    an extension's settings are, a secret one carrying `set` and never its value. `card`
+    says whether a card can be made for this player now. `error` is why the extension
+    could not answer, and the rest is then empty."""
+
+    extension: str
+    label: str = ""
+    share: bool = False
+    fields: list[dict[str, Any]] = Field(default_factory=list)
+    status: str = ""
+    acts: list[AccountAct] = Field(default_factory=list)
+    card: bool = False
+    error: str = ""
+
+
+class PlayerAccounts(ApiModel):
+    accounts: list[PlayerAccount]
+
+
+class AccountValuesRequest(ApiModel):
+    values: dict[str, Any]
+
+
+class AccountShareRequest(ApiModel):
+    share: bool
+
+
+class GuestCardRequest(ApiModel):
+    """A card file's contents, or the card's text on its own."""
+
+    card: str = Field(max_length=1_000_000)
+
+
 # --- Games -----------------------------------------------------------------
 
 class AssetFileBinding(ApiModel):

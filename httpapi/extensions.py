@@ -7,17 +7,22 @@ gate, because the extension does not attach one.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
+from urllib.parse import quote
 
+import anyio
 from fastapi import APIRouter, Depends, FastAPI, Request
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from common import extensions
+from common.extensions import accounts
 from common.i18n import t
 
 from . import models, scopes
 from .auth import requires
-from .errors import FeatureUnavailableError, NotFoundError
+from .errors import CODE_INTERNAL_ERROR, ApiError, FeatureUnavailableError, NotFoundError
 
 logger = logging.getLogger("vpinfe.httpapi.extensions")
 
@@ -81,6 +86,114 @@ def mount(api: FastAPI) -> None:
             route.dependencies.extend([_running(record.name), requires(scope)])
         api.include_router(ext_router, prefix=f"{PREFIX}/{record.name}")
         logger.debug("Mounted %s/%s gated on %s", PREFIX, record.name, scope)
+
+
+def _answering_for_an_extension(scope: Scope) -> bool:
+    path = str(scope.get("path") or "")
+    return path[len(str(scope.get("root_path") or "")):].startswith(f"{PREFIX}/")
+
+
+class SecretsStayHere:
+    """Takes the value out of every secret field an extension's route answers with."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or not _answering_for_an_extension(scope):
+            await self.app(scope, receive, send)
+            return
+        started: list[Message] = []
+        body: list[bytes] = []
+
+        async def hold(message: Message) -> None:
+            if message["type"] == "http.response.start" and _is_json(message):
+                started.append(message)
+                return
+            if message["type"] != "http.response.body" or not started:
+                await send(message)
+                return
+            body.append(message.get("body", b""))
+            if message.get("more_body"):
+                return
+            kept = accounts.scrubbed_json(b"".join(body))
+            headers = [(name, value) for name, value in started[0].get("headers", [])
+                       if name.lower() != b"content-length"]
+            await send({**started[0],
+                        "headers": [*headers, (b"content-length", str(len(kept)).encode())]})
+            await send({"type": "http.response.body", "body": kept})
+
+        await self.app(scope, receive, hold)
+
+
+def _is_json(message: Message) -> bool:
+    return any(name.lower() == b"content-type" and b"json" in value.lower()
+               for name, value in message.get("headers", []))
+
+
+async def ask(request: Request, extension: str, method: str, path: str,
+              body: Any = None) -> Any:
+    """What one of an extension's own routes answers, asked in-process through the whole
+    API app, as the caller. An answer that is an error is raised as that error."""
+    root = str(request.scope.get("root_path") or "")
+    where = f"{root}{PREFIX}/{quote(extension, safe='')}{path}"
+    raw = b"" if body is None else json.dumps(body).encode("utf-8")
+    finished = anyio.Event()
+    asked = False
+
+    async def receive() -> Message:
+        nonlocal asked
+        if not asked:
+            asked = True
+            return {"type": "http.request", "body": raw, "more_body": False}
+        await finished.wait()
+        return {"type": "http.disconnect"}
+
+    status, chunks = [500], []
+
+    async def send(message: Message) -> None:
+        if message["type"] == "http.response.start":
+            status[0] = int(message["status"])
+        elif message["type"] == "http.response.body":
+            chunks.append(message.get("body", b""))
+            if not message.get("more_body"):
+                finished.set()
+
+    headers = [(name, value) for name, value in request.scope.get("headers", [])
+               if name.lower() not in (b"content-length", b"content-type",
+                                       b"transfer-encoding")]
+    scope: Scope = {
+        "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+        "method": method, "scheme": request.scope.get("scheme", "http"),
+        "path": where, "raw_path": where.encode("utf-8"), "root_path": root,
+        "query_string": b"", "client": request.scope.get("client"),
+        "server": request.scope.get("server"),
+        "headers": [*headers, (b"content-type", b"application/json"),
+                    (b"content-length", str(len(raw)).encode())],
+    }
+    try:
+        await request.app(scope, receive, send)
+    except Exception:
+        # An error nobody expected is answered with a 500 first and raised after; the
+        # answer is what counts, and the extension has already been blamed for it.
+        logger.debug("%s %s raised after answering", method, where, exc_info=True)
+    return _answered(status[0], b"".join(chunks))
+
+
+def _answered(status: int, body: bytes) -> Any:
+    try:
+        said = json.loads(body) if body else None
+    except ValueError:
+        said = None
+    if status < 400:
+        return said
+    error = (said or {}).get("error") if isinstance(said, dict) else None
+    if isinstance(error, dict):
+        raise ApiError(str(error.get("code") or CODE_INTERNAL_ERROR),
+                       str(error.get("message") or ""), status_code=status,
+                       details=error.get("details"))
+    raise ApiError(CODE_INTERNAL_ERROR, t("error.envelope.internal_server_error"),
+                   status_code=status)
 
 
 def blame(request: Request) -> None:

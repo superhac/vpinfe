@@ -29,6 +29,7 @@ from common.config_store import ConfigStore
 from common.extensions import services as ext_services
 from common.failures import why
 from common.games import (
+    game_identity,
     game_play_service,
     game_repository,
     high_scores,
@@ -389,7 +390,8 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
 
     started_at = None
     folder: Path | None = None
-    up: list[players.Player] = []
+    # The commands' {player} and the session's up are this one reading.
+    up: list[players.Player] = [] if capturing else players.get_roster().up()
     before: dict | None = None
     # Outside everything, including our own hooks. What a person writes here sets the
     # machine up for a table, so "before the table" has to mean before all of it -
@@ -397,7 +399,7 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
     around = table_commands.Around()
     try:
         try:
-            around = table_commands.before(game, playing, launcher, ini_config)
+            around = table_commands.before(game, playing, launcher, ini_config, up=up)
         except commands.CommandRefusedError as exc:
             raise LaunchUnavailableError(why(exc)) from exc
 
@@ -417,10 +419,10 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
             cmd, marker = _plan(playing, binary, launcher, capture=folder,
                                 record_sound=record_sound)
             if not capturing:
-                up = players.get_roster().up()
                 before, _ = game_play_service.parse_score_from_nvram(game, rom, initials="")
             launched = {"game": game, "ini_config": ini_config, "table_id": table_id,
-                        "source": source, "up": [player.as_payload() for player in up]}
+                        "game_id": game_identity.game_id(game), "source": source,
+                        "up": [player.as_payload() for player in up]}
             logger.info("Launching: %s", cmd)
             process = popen(
                 cmd,
@@ -474,7 +476,8 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
         recorded = _record_play(game, max(0.0, time.time() - started_at),
                                 tables.entry_native_key(entry), rom, up, before)
         events.emit(events.TABLE_PLAY_RECORDED, game=game, ini_config=ini_config,
-                    table_id=table_id, source=source, **recorded)
+                    table_id=table_id, game_id=game_identity.game_id(game),
+                    source=source, **recorded)
     game_play_service.delete_nvram_if_configured(game, rom)
 
 

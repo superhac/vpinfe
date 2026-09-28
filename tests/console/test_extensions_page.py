@@ -165,6 +165,41 @@ class SwitchTests(unittest.IsolatedAsyncioTestCase):
                                        type="negative")
 
 
+class SecretSettingTests(unittest.TestCase):
+    """A secret is drawn empty whatever it holds, and leaving it empty keeps it."""
+
+    def _drawn(self, field: dict) -> tuple[str, object, str]:
+        given = {}
+
+        def fake(value, on_save, *, placeholder=""):
+            given.update(value=value, on_save=on_save, placeholder=placeholder)
+            return lambda: None
+
+        client = mock.Mock()
+        with mock.patch.object(ext_page.panel, "field", fake):
+            ext_page._control(client, "/ext/sample/settings", "token", field,
+                              mock.AsyncMock())
+        self.client = client
+        return given["value"], given["on_save"], given["placeholder"]
+
+    def test_a_value_that_arrived_anyway_is_not_drawn(self) -> None:
+        value, _, placeholder = self._drawn({"key": "token", "type": "secret",
+                                             "value": "leaked", "set": True})
+
+        self.assertEqual((value, placeholder), ("", i18n.t("console.ext_page.secret_set")))
+
+    def test_one_not_set_says_so(self) -> None:
+        _, _, placeholder = self._drawn({"key": "token", "type": "secret", "set": False})
+
+        self.assertEqual(placeholder, i18n.t("console.ext_page.secret_not_set"))
+
+    def test_leaving_it_empty_writes_nothing(self) -> None:
+        _, on_save, _ = self._drawn({"key": "token", "type": "secret", "set": True})
+
+        self.assertIsNone(on_save(""))
+        self.client.ext_put.assert_not_called()
+
+
 class LanguageTests(unittest.TestCase):
     def setUp(self) -> None:
         self.addCleanup(i18n.set_language, i18n.language())

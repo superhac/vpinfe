@@ -62,7 +62,8 @@ class MountTests(SeamCase):
                  if path.startswith("/ext/")}
 
         self.assertTrue(gated)
-        self.assertEqual(set(gated.values()), {"ext:sample:read", "ext:bystander:read"})
+        self.assertEqual(set(gated.values()),
+                         {"ext:sample:read", "ext:sample:write", "ext:bystander:read"})
 
     def test_a_running_extension_grants_the_scope_its_routes_need(self) -> None:
         self.registry.load_from(FIXTURES)
@@ -108,7 +109,7 @@ class ListingTests(SeamCase):
 
         self.assertEqual(sample["display_name"], "Sample")
         self.assertEqual(sample["capabilities"], ["config:own", "ui:mount"])
-        self.assertEqual(sample["routes"], ["ext:sample:read"])
+        self.assertEqual(sample["routes"], ["ext:sample:read", "ext:sample:write"])
 
     def test_one_that_did_not_load_is_listed_with_the_reason(self) -> None:
         self.store.set_enabled("sample", False)

@@ -69,6 +69,7 @@ TOKENS: tuple[Token, ...] = (
     Token("launcher_bin", frozenset({TABLE})),
     Token("launcher_ini", frozenset({TABLE})),
     Token("location", frozenset({TABLE})),
+    Token("player", frozenset({TABLE})),
     Token("exit_code", frozenset({TABLE}), after_only=True),
     Token("duration", frozenset({TABLE}), after_only=True),
 )

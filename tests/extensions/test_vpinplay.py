@@ -121,10 +121,10 @@ class ContributionTests(unittest.TestCase):
         self.assertEqual(len(held), 64)
 
     def test_it_offers_the_player_under_its_own_name(self) -> None:
-        offered = {one.name for one in tokens.offered(tokens.TABLE)}
+        offered = {one.name: one.extension for one in tokens.offered(tokens.TABLE)}
 
-        self.assertIn("vpinplay.player", offered)
-        self.assertNotIn("player", offered)
+        self.assertEqual(offered["vpinplay.player"], "vpinplay")
+        self.assertEqual(offered["player"], "", "the bare name is core's own")
 
     def test_the_player_is_offered_where_somebody_can_be_signed_in(self) -> None:
         self.assertEqual(tokens.offered(tokens.VPINFE, after=True), ())

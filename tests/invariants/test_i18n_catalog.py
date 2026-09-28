@@ -167,6 +167,8 @@ READ_FOR = {
     "common/games/table_lens.py": frozenset({"reason"}),
     "common/extensions/contract.py": frozenset({"raise"}),
     "common/extensions/host.py": frozenset({"raise"}),
+    # What it returns is a card file's markup.
+    "common/extensions/cards.py": frozenset({"raise", "refusal"}),
     "common/games/media_placement.py": frozenset({"raise"}),
     "common/games/collection_store.py": frozenset({"raise", "refusal"}),
     "common/games/collections_service.py": frozenset({"refusal"}),

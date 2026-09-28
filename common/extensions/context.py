@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING, Any
 
 from common import events as core_events
 
+from . import accounts
+from . import cards as cards_module
 from .contract import ContractError, Manifest, words
 from .contract import why as worded
 from .games import ExtensionGames
@@ -266,6 +268,7 @@ class ExtensionUI:
         self.state_label = ""
         self.settings_base = ""
         self.state_base = ""
+        self.account_offered: dict = {}
 
     def action(self, key: str, base: str, *, label: str = "",
                description: str = "") -> None:
@@ -379,10 +382,88 @@ class ExtensionUI:
         self.state_base = str(base or "").strip()
         self.state_label = str(label or "").strip()
 
+    def account(self, base: str, *, label: str = "", cards: Iterable[str] = (),
+                marker: str = "") -> None:
+        """Say that a player can hold an account with this extension.
+
+        `base` is a route of this extension's, asked with a player's id as
+        `docs/extensions.md` lists: the fields, a status line, the acts, and the card.
+        `cards` are the `type`s of card it reads. `marker` names where a card it makes
+        hides its text, and is the extension's name unless given.
+        """
+        self._needs_ui("an account")
+        if self.account_offered:
+            raise ContractError(f"{self._name} offers a second account; a player holds "
+                                "one account with an extension")
+        wanted = str(base or "").strip()
+        hidden = str(marker or self._name).strip()
+        read = tuple(dict.fromkeys(str(one or "").strip() for one in cards))
+        if not wanted or not all(read) or not cards_module.MARKER.match(hidden):
+            raise ContractError(f"{self._name} offers an account with no route, a card "
+                                "with no type, or a marker that is not a plain name")
+        self.account_offered = {"base": wanted, "label": str(label or "").strip(),
+                                "cards": list(read), "marker": hidden}
+
     def _needs_ui(self, what: str) -> None:
         if not self._allowed:
             raise ContractError(f"{self._name} offers {what}, which needs the ui:mount "
                                 "capability its manifest does not declare")
+
+
+PLAYERS_READ = "players:read"
+
+
+class ExtensionPlayers:
+    """Who plays here, and the accounts this extension holds for them.
+
+    The roster is read as plain data, the rows `players.changed` carries. Reading it needs
+    `players:read` in the manifest: names and initials are about people. An account's
+    values are this extension's own and need nothing declared.
+    """
+
+    def __init__(self, name: str, scopes: Iterable[str], store: ExtensionStore) -> None:
+        self._name = name
+        self._reads = PLAYERS_READ in frozenset(scopes)
+        self._store = store
+
+    def roster(self) -> list[dict]:
+        """Every player: the owner, the kept players, then the guests as they joined."""
+        self._needs_read()
+        from common import players
+
+        return players.get_roster().state()["players"]
+
+    def get(self, player_id: str) -> dict | None:
+        wanted = str(player_id or "").strip()
+        return next((one for one in self.roster() if one["id"] == wanted), None)
+
+    def up(self) -> list[dict]:
+        """Who the next game counts for."""
+        return [one for one in self.roster() if one["up"]]
+
+    def sharing(self, player_id: str) -> bool:
+        """Whether this player's account here is sharing. Off until someone turns it on."""
+        from common import players
+
+        return players.get_roster().sharing(player_id, self._name)
+
+    def account(self, player_id: str) -> dict[str, str]:
+        """This player's account here, secrets included. Empty when they hold none."""
+        return accounts.values(self._name, player_id, self._store)
+
+    def set_account(self, player_id: str, values: dict[str, Any]) -> None:
+        """Replace this player's account here. Empty values remove it. A guest's is held
+        in memory and never written."""
+        accounts.keep(self._name, player_id, values, self._store)
+
+    def holders(self) -> list[str]:
+        """The ids of every player holding an account here, in roster order."""
+        return accounts.holders(self._name, self._store)
+
+    def _needs_read(self) -> None:
+        if not self._reads:
+            raise ContractError(f"{self._name} reads the players, which needs "
+                                f"{PLAYERS_READ}, and its manifest does not declare it")
 
 
 class ExtensionEntries:
@@ -496,6 +577,7 @@ class ExtensionContext:
         self.files = ExtensionFiles(manifest.name, "fs:read" in manifest.capabilities)
         self.jobs = ExtensionJobs(manifest.name)
         self.ui = ExtensionUI(manifest.name, "ui:mount" in manifest.capabilities)
+        self.players = ExtensionPlayers(manifest.name, manifest.scopes, store)
         self.entries = ExtensionEntries(manifest.name)
         self.catalogs = ExtensionCatalogs(manifest.name)
         self.tokens = ExtensionTokens(manifest.name)

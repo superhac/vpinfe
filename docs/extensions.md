@@ -89,7 +89,8 @@ application, and that is the guarantee the model rests on.
 | `ctx.entries` | `contribute(key, fetch)` — add something to every entry a theme is handed |
 | `ctx.tokens` | `offer(name, contexts, value)` - a name a user may write into a command. Offered as `<extension>.<name>` |
 | `ctx.catalogs` | `contribute(key, name, subject, link)` — say where a game, a table or a file is somewhere else |
-| `ctx.ui` | `action(...)` - offer a verb for the Console to draw; `community(...)` - a list shown under Community; `settings(base)` and `state(base)` - say where its settings and what it is holding can be read. All need `ui:mount` |
+| `ctx.players` | Who plays here, and the accounts it holds for them. See "Players and their accounts" |
+| `ctx.ui` | `action(...)` - offer a verb for the Console to draw; `community(...)` - a list shown under Community; `settings(base)` and `state(base)` - say where its settings and what it is holding can be read; `account(base, ...)` - say a player can hold an account with it. All need `ui:mount` |
 | `ctx.add_router(router, scope=...)` | Serve routes under `/api/v1/ext/<name>/` |
 
 `ctx.games` is not a second implementation of the HTTP API — it calls the API's own route
@@ -132,12 +133,6 @@ launch.
 Routers are collected during `register` and mounted once. One added afterwards would never
 be reachable, so it is refused rather than left to answer nothing.
 
-A table's events - `table.launching`, `table.launched`, `table.exited` and
-`table.play_recorded` - carry `source`, who started it: `frontend`, `remote`, `api`, or
-`capture` for a launch that records the table's media. A recording is not a play. Nobody is
-up for it, it writes no play data, and there is no `table.play_recorded` after it, so an
-extension counting plays counts on that event or leaves out a `capture` launch.
-
 ## Its words
 
 An extension keeps what it says in `i18n/en.json` beside its code, and a translation is the
@@ -150,6 +145,7 @@ what it declared:
 | `action.<key>.label`, `action.<key>.description` | An action |
 | `action.<key>.result.<field>` | A count its run reports, beside the number |
 | `settings.label`, `state.label` | Its settings and what it is holding. Left out, the Console uses its own |
+| `account.label` | The heading over a player's account with it. Left out, its name |
 | `community.<key>.title` | A Community list |
 | `community.<key>.column.<field>.header`, `...help` | One of its columns |
 | `community.<key>.view.<key>.name`, `...help` | One of its views |
@@ -290,22 +286,22 @@ what one of them may say — `{table}`, `{rom}`, `{launcher_bin}` — and an ext
 that list.
 
 ```python
-def player(values):
+def season(values):
     # values is what this context has resolved so far. Answer a string; empty is an
-    # answer, and this must not raise on an install with nobody signed in.
-    profile = guest.get_active_profile()
-    return profile.initials if profile else ""
+    # answer, and this must not raise on an install that has none.
+    return ctx.config.get("season", "")
 
-ctx.tokens.offer("player", (ctx.tokens.TABLE,), player)
+ctx.tokens.offer("season", (ctx.tokens.TABLE,), season)
 ```
 
-What it stands for is `token.player.says` in the extension's `i18n/en.json`. A name with
+What it stands for is `token.season.says` in the extension's `i18n/en.json`. A name with
 nothing saying what it stands for is refused.
 
-**The name carries the extension's id.** You declare `player`; a user writes
-`{vpinplay.player}`. The dotted half is built from the manifest rather than spelled here,
+**The name carries the extension's id.** You declare `season`; a user writes
+`{league.season}`. The dotted half is built from the manifest rather than spelled here,
 so two extensions may offer the same idea without reaching each other — and core's own
-names, which never carry a dot, can grow without reaching either.
+names, which never carry a dot, can grow without reaching either. Who is playing is one of
+core's: `{player}` is the initials of the one player up, and blank with several.
 
 `contexts` says where the command runs: `ctx.tokens.VPINFE` for the pair around VPinFE
 itself, `ctx.tokens.TABLE` for the pair around every table. Declare only the ones the name
@@ -430,6 +426,124 @@ it the same way. The order is read with the tags, on the same schedule, and move
 own from the last good read. While the extension is stopped, a collection in its order
 keeps it and shows its games in title order until it runs again.
 
+## Players and their accounts
+
+Who plays is core's; what a service calls them is the extension's. Core keeps the roster -
+the owner, the other players, the guests, who is up - and an extension holds an account for
+any of them it can: a user id and key at a scores site, a name a leaderboard posts under.
+
+`ctx.players` reads the roster as plain data, the rows `players.changed` carries: `id`,
+`name`, `initials`, `owner`, `guest`, `up`, `shares_initials_with`. Reading it needs
+`players:read` in the manifest's `scopes`, because names and initials are about people.
+
+| call | answers |
+|---|---|
+| `roster()` | Every player: the owner, the kept players, then the guests as they joined |
+| `get(player_id)` | One row, or None |
+| `up()` | The rows of who the next game counts for |
+| `sharing(player_id)` | Whether this player's account here is sharing |
+| `account(player_id)` | Its values for this player, secrets included. Empty when they hold none |
+| `set_account(player_id, values)` | Replace them. Empty values remove the account |
+| `holders()` | The ids of every player holding an account here |
+
+The last four are the extension's own and need nothing declared. Values are strings, kept
+in the extension's own settings file under `accounts`, keyed by player id - which is why
+`accounts` is not a name a setting can take. **A guest's are held in memory and never
+written**, so a visitor leaves nothing on the disk, and they go when the guest does.
+Removing a player forgets their account with every extension.
+
+**Share** is core's and the same on every account: whether this account sends what the
+install records. It is off until somebody turns it on, since what a service is sent is
+often public, except for a guest who joined with a card, whose account shares. Core draws
+the switch; an extension reads it with `sharing` and sends nothing on its own while it is
+off. Something the person asks for by hand - an act - is theirs to have asked.
+
+### Offering an account
+
+```python
+ctx.ui.account("/accounts", cards=("scores_site_card",))
+```
+
+Like settings, an account is declared rather than drawn: core asks the extension's own
+routes under `base`, with the player's id, and draws the answer on every player.
+
+| call | answers |
+|---|---|
+| `GET {base}/{player_id}` | `fields`, `status`, `acts`, `card` |
+| `PUT {base}/{player_id}` | receives `{"values": {…}}`; answers as the `GET` does |
+| `POST {base}/{player_id}/acts/{key}` | what came of it, with an optional `message` |
+| `GET {base}/{player_id}/card` | `{"card": {…}, "filename"}` - the card to draw, or a `404` while there is none |
+| `POST {base}/cards` | receives `{"card": {…}}`; answers `name`, `initials` and the account's `values` |
+
+`fields` are the same as settings' - `{key, label, type, value, help}` - and `status` is
+one line in words: *Sent 2 minutes ago*, or why not. An act is `{key, label, description}`.
+`card` says whether a card can be made for this player now. The words are the
+extension's, from `ctx.t`. Core asks these in-process as whoever asked core, so the
+routes are gated and fail the way any of its routes do. A route answering a `404` or
+an `HTTPException` is an answer, passed on as it was given.
+
+**A `secret` field is accepted on a write and never answered.** Answer one with its
+`value` like any other field: core takes the value out of every answer from an
+extension's routes, its settings included, and puts `set`, true or false, in its place.
+Nothing on a page or across the network ever holds it. Leaving one empty on a write is
+the extension's to decide; the Console only sends one when something was typed.
+
+### Cards
+
+A card is a player's account as a file they can carry to another install: a QR code of
+the card's text, drawn by core as an SVG, with the text also hidden in the file - in a
+comment, a `<metadata>` and a `<desc>`, named for the extension:
+`<!--SCORES_SITE_PAYLOAD:…-->`, `id="scores_site-payload"` and
+`id="scores_site-payload-desc"`. `marker=` names them otherwise. A card is read from that
+text and never from the picture.
+
+The card an extension answers is a JSON object with a `type`, written compact with its keys
+sorted. `cards=` lists the `type`s it reads: a card arriving at `POST
+/api/v1/players/guests/card` goes to the extension that declared its `type`, which answers
+who it is for. The guest joins up alone with the card's initials, one to three characters,
+as they are, and their account shares. The same card again puts that guest up rather than
+adding a second.
+
+VPinPlay's card is the one 2.x's *Download QR Code* saved, byte for byte: the same text,
+the same QR settings, the same hiding places. Cards are on people's phones, so a card
+from either version joins on the other, for good.
+
+## What a game tells you
+
+Two core events say who played, as plain lists and dicts. `game` and `ini_config` ride
+along for core's own subscribers and are not part of this contract.
+
+| event | carries |
+|---|---|
+| `table.launched` | `game_id`, `table_id`, `source`, and `up`: who the game counts for, taken once as it starts, each `{id, name, initials, owner, guest}` |
+| `table.play_recorded` | the same, once the game has ended and its play is written, and `seconds` played; `reading`, the machine's high score table as read after the game, or None; `new_entries`, `[{player, entries}]` for each player with an entry new this game |
+
+A table's events - `table.launching`, `table.launched`, `table.exited` and
+`table.play_recorded` - carry `source`, who started it: `frontend`, `remote`, `api`, or
+`capture` for a launch that records the table's media. A recording is not a play. Nobody is
+up for it, it writes no play data, and there is no `table.play_recorded` after it, so an
+extension counting plays counts on that event or leaves out a `capture` launch.
+
+```python
+def on_played(**payload):
+    for credited in payload["new_entries"]:
+        post_score(credited["player"]["id"], credited["entries"])
+
+ctx.events.subscribe("table.play_recorded", on_played)
+```
+
+**A game counts for who was up; a new score goes to the player whose initials it has**, up
+or not. An entry with no initials, or `???`, goes to the one player up, and with several up
+to nobody. Core matches them once, so no two extensions disagree about whose a score was.
+An entry is new when the table after the game holds it more times than the table before,
+whatever its rank; a machine that keeps one number has a new entry when it changed. A
+game with no reading before it has nothing new. `reading` is `{rom, resolved_rom,
+score_kind}` with either `entries` - each `{section, rank, initials, score, ...}` - or a
+single `value`.
+
+A service that takes one player a game decides for itself what to do with several up, and
+its account's status line says so rather than going quiet.
+
 ## Scopes and the gate
 
 Core attaches the gate. An extension names an action it declared; core turns that into
@@ -503,7 +617,12 @@ answer, not a fault, and changes nothing.
   module of ours an extension imports.
 - `common/extensions/context.py` - what `register(ctx)` is handed.
 - `common/extensions/host.py` - loading, the registry, and the kill switch.
-- `common/extensions/store.py` - `extensions.json`.
-- `httpapi/extensions.py` - the gate, the mount, `GET /api/v1/extensions` and the switch.
+- `common/extensions/store.py` - `extensions.json`, and each extension's own file.
+- `common/extensions/accounts.py` - where an account's values live, and the secret taken
+  out of every answer.
+- `common/extensions/cards.py` - drawing a card and reading one.
+- `httpapi/extensions.py` - the gate, the mount, `GET /api/v1/extensions` and the switch,
+  and asking an extension's route in-process.
+- `httpapi/player_accounts.py` - a player's accounts, Share and cards on the wire.
 
 `tests/fixtures/extensions/sample/` is a worked example that uses all of it.

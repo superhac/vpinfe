@@ -40,6 +40,9 @@ EXTENSIONS_KEY = "extensions"
 ENABLED_KEY = "enabled"
 SETTINGS_KEY = "settings"
 MIGRATIONS_KEY = "migrations"
+# In an extension's own file: the accounts it holds, `{player_id: {key: value}}`. Not a
+# setting, so it is neither read as one nor writable as one.
+ACCOUNTS_KEY = "accounts"
 
 # The one-time move of settings out of the shared file and into a file each.
 SETTINGS_SPLIT = "settings-split"
@@ -86,17 +89,58 @@ class ExtensionStore:
         with self._lock:
             self._split_once()
             raw = self._read_settings(name)
-        return {str(key): str(value) for key, value in raw.items()}
+        return {str(key): str(value) for key, value in raw.items() if key != ACCOUNTS_KEY}
 
     def set_setting(self, name: str, key: str, value: str) -> None:
         wanted = str(key or "").strip()
         if not wanted:
+            return
+        if wanted == ACCOUNTS_KEY:
+            logger.error("Refusing a setting named %r for %s: that is where its accounts "
+                         "are kept", wanted, name)
             return
         with self._lock:
             self._split_once()
             held = self._read_settings(name)
             held[wanted] = str(value)
             self._write_settings(name, held)
+
+    def accounts(self, name: str) -> dict[str, dict[str, str]]:
+        """Every account this extension holds for a kept player, by player id."""
+        with self._lock:
+            self._split_once()
+            return _accounts_in(self._read_settings(name))
+
+    def set_account(self, name: str, player_id: str, values: dict[str, str]) -> None:
+        """Replace one player's account. Empty values remove it."""
+        wanted = str(player_id or "").strip()
+        if not wanted:
+            return
+        with self._lock:
+            self._split_once()
+            held = self._read_settings(name)
+            accounts = _accounts_in(held)
+            if values:
+                accounts[wanted] = {str(key): str(value) for key, value in values.items()}
+            elif accounts.pop(wanted, None) is None:
+                return
+            if accounts:
+                held[ACCOUNTS_KEY] = accounts
+            else:
+                held.pop(ACCOUNTS_KEY, None)
+            self._write_settings(name, held)
+
+    def forget_holder(self, player_id: str) -> list[str]:
+        """Remove a player's account from every extension's file. Answers the extensions
+        that held one."""
+        wanted = str(player_id or "").strip()
+        held_by = []
+        with self._lock:
+            for path in sorted(self.settings_dir.glob("*.json")):
+                if _NAME.match(path.stem) and wanted in self.accounts(path.stem):
+                    self.set_account(path.stem, wanted, {})
+                    held_by.append(path.stem)
+        return held_by
 
     def forget(self, name: str) -> None:
         """Drop everything about an extension that has been removed. Its settings are a
@@ -208,6 +252,14 @@ class ExtensionStore:
         if moved:
             logger.info("Moved settings for %d extension(s) into %s", moved,
                         self.settings_dir)
+
+
+def _accounts_in(held: dict) -> dict[str, dict[str, str]]:
+    raw = held.get(ACCOUNTS_KEY)
+    if not isinstance(raw, dict):
+        return {}
+    return {str(player): {str(key): str(value) for key, value in values.items()}
+            for player, values in raw.items() if isinstance(values, dict)}
 
 
 _store: ExtensionStore | None = None

@@ -510,5 +510,73 @@ class ChangedEventTests(_RosterCase):
         self.assertEqual(self.heard, [])
 
 
+class ShareTests(_RosterCase):
+    """Whether a player's account with an extension shares: core's, per account."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.owner = self.roster.ensure_owner(_config("OWN"))
+
+    def test_nobody_shares_until_somebody_says_so(self) -> None:
+        self.assertFalse(self.roster.sharing(self.owner.player_id, "sample"))
+        self.assertNotIn("share", self._file()["players"][0])
+
+    def test_a_kept_players_share_survives_a_restart(self) -> None:
+        self.roster.set_sharing(self.owner.player_id, "sample", True)
+
+        self.assertTrue(self._restart().sharing(self.owner.player_id, "sample"))
+        self.assertEqual(self._file()["players"][0]["share"], {"sample": True})
+
+    def test_share_is_per_extension(self) -> None:
+        self.roster.set_sharing(self.owner.player_id, "sample", True)
+
+        self.assertFalse(self.roster.sharing(self.owner.player_id, "elsewhere"))
+
+    def test_turned_off_it_says_so(self) -> None:
+        self.roster.set_sharing(self.owner.player_id, "sample", True)
+        self.roster.set_sharing(self.owner.player_id, "sample", False)
+
+        self.assertFalse(self.roster.sharing(self.owner.player_id, "sample"))
+        self.assertEqual(self._file()["players"][0]["share"], {"sample": False})
+
+    def test_a_guests_share_is_never_written(self) -> None:
+        guest = self.roster.add_guest("ABC")
+        before = self.path.read_bytes()
+
+        self.roster.set_sharing(guest.player_id, "sample", True)
+
+        self.assertTrue(self.roster.sharing(guest.player_id, "sample"))
+        self.assertEqual(self.path.read_bytes(), before)
+
+    def test_someone_nobody_has_is_refused(self) -> None:
+        with self.assertRaises(service_errors.NotFoundError):
+            self.roster.set_sharing("Nobody0000", "sample", True)
+
+
+class CardGuestTests(_RosterCase):
+    """A guest joining with a card keeps the card's initials, and shares."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.owner = self.roster.ensure_owner(_config("OWN"))
+
+    def test_a_card_s_initials_are_one_to_three_characters_as_they_are(self) -> None:
+        for initials in ("a", "ab", " abc "):
+            guest = self.roster.add_guest_with_card("sample", initials)
+            self.assertEqual(guest.initials, initials.strip().upper())
+
+    def test_none_or_more_than_three_are_refused(self) -> None:
+        for initials in ("", "ABCD"):
+            with self.assertRaises(service_errors.RefusedError, msg=initials):
+                self.roster.add_guest_with_card("sample", initials)
+
+    def test_they_join_up_alone_sharing_with_the_card_s_extension(self) -> None:
+        guest = self.roster.add_guest_with_card("sample", "AB")
+
+        self.assertEqual(self.roster.up(), [guest])
+        self.assertEqual((self.roster.sharing(guest.player_id, "sample"),
+                          self.roster.sharing(guest.player_id, "elsewhere")), (True, False))
+
+
 if __name__ == "__main__":
     unittest.main()

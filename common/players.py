@@ -29,8 +29,10 @@ SCHEMA = 2
 SCHEMA_KEY = "schema"
 PLAYERS_KEY = "players"
 MIGRATIONS_KEY = "migrations"
+SHARE_KEY = "share"
 
 INITIALS_LENGTH = 3
+CARD_INITIALS_AT_MOST = 3
 
 OWNER_MIGRATION = "owner_from_2x_initials"
 LEGACY_SECTION = "vpinplay"
@@ -64,6 +66,8 @@ class Player:
     initials: str = ""
     owner: bool = False
     guest: bool = False
+    # Whether this player's account with each extension shares. Off unless it says true.
+    share: dict[str, bool] = field(default_factory=dict)
     extra: dict[str, Any] = field(default_factory=dict)
 
     def as_payload(self) -> dict[str, Any]:
@@ -74,19 +78,23 @@ class Player:
     def as_record(self) -> dict[str, Any]:
         """What `players.json` holds for a kept player. A guest has no record."""
         return {"id": self.player_id, "name": self.name, "initials": self.initials,
-                "owner": self.owner, **self.extra}
+                "owner": self.owner, **({SHARE_KEY: dict(self.share)} if self.share else {}),
+                **self.extra}
 
     @classmethod
     def from_record(cls, raw: dict[str, Any]) -> Player | None:
         player_id = str(raw.get("id", "") or "").strip()
         if not player_id:
             return None
-        known = {"id", "name", "initials", "owner"}
+        known = {"id", "name", "initials", "owner", SHARE_KEY}
+        held = raw.get(SHARE_KEY)
         return cls(
             player_id=player_id,
             name=_clean_name(raw.get("name")),
             initials=normalize_initials(raw.get("initials")),
             owner=raw.get("owner") is True,
+            share=({str(key): value is True for key, value in held.items()}
+                   if isinstance(held, dict) else {}),
             # Carried through, so a downgrade does not strip what a newer build filed.
             extra={k: v for k, v in raw.items() if k not in known},
         )
@@ -159,6 +167,11 @@ class Roster:
                                       and same_initials(other.initials, p.initials)]}
             for p in everyone]}
 
+    def sharing(self, player_id: str, extension: str) -> bool:
+        """Whether this player's account with `extension` is sharing."""
+        found = self.get(player_id)
+        return found is not None and found.share.get(extension) is True
+
     def player_state(self, player_id: str) -> dict[str, Any]:
         """One player as `state()` lists them."""
         wanted = (player_id or "").strip()
@@ -203,6 +216,36 @@ class Roster:
             self._guests.append(guest)
             self._up = (guest.player_id,)
             return guest
+
+    def add_guest_with_card(self, extension: str, initials: str, name: str = "") -> Player:
+        """A guest joins with `extension`'s card, and is up alone. The card's initials are
+        taken as they are, one to three characters, and the account shares."""
+        wanted = normalize_initials(initials)
+        if not 0 < len(wanted) <= CARD_INITIALS_AT_MOST:
+            raise service_errors.RefusedError(t("error.players.card_initials"))
+        with self._changing():
+            guest = Player(mint_id(), name=_clean_name(name), initials=wanted, guest=True,
+                           share={extension: True})
+            self._guests.append(guest)
+            self._up = (guest.player_id,)
+            return guest
+
+    def set_sharing(self, player_id: str, extension: str, on: bool) -> None:
+        """Turn one account's Share on or off."""
+        wanted = (player_id or "").strip()
+        with self._lock:
+            kept = self._kept()
+            for index, current in enumerate(kept):
+                if current.player_id == wanted:
+                    kept[index] = _sharing(current, extension, on)
+                    if kept[index] != current:
+                        self._save(kept)
+                    return
+            for index, current in enumerate(self._guests):
+                if current.player_id == wanted:
+                    self._guests[index] = _sharing(current, extension, on)
+                    return
+        raise _no_player(wanted)
 
     def update_player(self, player_id: str, *, name: str | None = None,
                       initials: str | None = None) -> Player:
@@ -342,6 +385,10 @@ class Roster:
 
 def _no_player(player_id: str) -> service_errors.NotFoundError:
     return service_errors.NotFoundError(t("error.players.no_player", player_id=player_id))
+
+
+def _sharing(player: Player, extension: str, on: bool) -> Player:
+    return replace(player, share={**player.share, extension: bool(on)})
 
 
 def _new_initials(raw: Any, held: str) -> str:
