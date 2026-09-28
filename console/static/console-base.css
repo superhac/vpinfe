@@ -184,6 +184,10 @@
 /* The one thing the sheet is for. Everything else on it is a change you can make while
    you are there; this is the reason you opened it. */
 .remote-action--primary.q-btn { font-weight: 600; }
+.remote-toggle {
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface-lift);
+}
+.remote-toggle .q-btn { min-height: var(--target-min); font-size: var(--fs-body); }
 /* The direction pad. A grid rather than three rows, because what makes it readable is
    that the keys sit where they point - a list of five words asks the reader to translate
    a direction into a name every time. */

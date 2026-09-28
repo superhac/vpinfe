@@ -1240,6 +1240,25 @@ class ApiClient:
         """Forget the run in hand."""
         return self._post("/capture/runs/current/discard", {})
 
+    def pause_capture(self) -> dict:
+        """Hold the run at the game in hand, which is recorded again on Resume. The run
+        as it stands; empty where there is none."""
+        return dict(self._post("/capture/runs/current/pause", {}).get("run") or {})
+
+    def stop_capture(self) -> dict:
+        """End the run, keeping what it has done. The run until it has ended; empty
+        once it has."""
+        return dict(self._post("/capture/runs/current/stop", {}).get("run") or {})
+
+    def show_proposal(self, proposal_id: str, showing: str) -> None:
+        """Play a recording waiting for a decision on the frontend, on the screen it
+        belongs to: `showing` is "after" for the recording, "before" for the file it
+        would take the place of."""
+        self._put_empty("/frontend/preview", {"proposal": proposal_id, "showing": showing})
+
+    def end_preview(self) -> None:
+        self._delete("/frontend/preview")
+
     def stop_job(self, link: str) -> dict:
         """Stop a job at the `links.stop` its resource names."""
         _refuse_the_event_loop(link)

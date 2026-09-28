@@ -31,7 +31,7 @@ from common.failures import why
 from common.host.launch_state import SOURCE_CAPTURE
 from common.i18n import t
 from common.labels import humanize
-from console import busy, game_tables, offload, stars, theme, verbs
+from console import busy, game_tables, offload, remote_record, stars, theme, verbs
 from console import dialog as frame
 from console.api import ApiClient, ApiError, local_base_url
 from console.on_page import on_page
@@ -141,6 +141,7 @@ def _read_target(client: ApiClient) -> dict[str, Any]:
         "jobs": client.jobs(),
         "collections": client.collections(),
         "frontend": showing,
+        **remote_record.read(client),
     }
     if mirroring(showing):
         read.update(_narrowed_to(client, str((showing or {}).get("collection") or "")))
@@ -163,8 +164,9 @@ def _narrowed_to(client: ApiClient, collection: str) -> dict[str, Any]:
     return {"collection": collection, "collection_ids": ids}
 
 
-# Both carry the whole state, so a phone that missed one is right after the next.
-FOLLOWED = (events.FRONTEND_STATE_CHANGED, events.PLAY_STATE_CHANGED)
+# Each carries the whole state, so a phone that missed one is right after the next.
+FOLLOWED = (events.FRONTEND_STATE_CHANGED, events.PLAY_STATE_CHANGED,
+            events.CAPTURE_RUN_CHANGED)
 
 RECONNECT_SECONDS = 5.0
 
@@ -271,6 +273,7 @@ async def remote_page(screen: str = "") -> None:
         "play": {}, "games": [], "jobs": [], "collections": [],
         "find": "", "collection": "", "collection_ids": None,
         "frontend": None, "rows": {}, "relist": None,
+        "capture": None, "run": {}, "waiting": [], "reviewing": None,
     }
 
     def client_for_target() -> ApiClient:
@@ -289,7 +292,8 @@ async def remote_page(screen: str = "") -> None:
             logger.info("remote: %s did not answer: %s",
                         target_name(state["target"]), exc)
             state.update({"play": {}, "games": [], "jobs": [], "collections": [],
-                          "frontend": None, "reachable": False})
+                          "frontend": None, "reachable": False, "capture": None,
+                          "run": {}, "waiting": [], "reviewing": None})
         follow()
 
     def draw_strip() -> None:
@@ -351,13 +355,29 @@ async def remote_page(screen: str = "") -> None:
             return False
         return True
 
+    @on_page
     async def changed(name: str, payload: dict) -> None:
+        if name == events.CAPTURE_RUN_CHANGED:
+            was, now = state.get("run") or {}, dict(payload.get("run") or {})
+            state["run"] = now
+            state["run_heard"] = int(state.get("run_heard") or 0) + 1
+            if was and not now:
+                try:
+                    state["waiting"] = await offload.io(remote_record.waiting_of,
+                                                        client_for_target())
+                except Exception as exc:
+                    logger.info("remote: could not read what waits: %s", exc)
+            if was != now and state["screen"] != PLAY:
+                redraw()
+            return
         said = payload.get("state")
         if not isinstance(said, dict):
             return
         if name == events.PLAY_STATE_CHANGED:
             was = state.get("play") or {}
             state["play"] = said
+            if said.get("launching"):
+                state["reviewing"] = None
             if bool(was.get("launching")) != bool(said.get("launching")) \
                     or (bool(was.get("paused")) != bool(said.get("paused"))
                         and state["screen"] != PLAY):
@@ -365,6 +385,7 @@ async def remote_page(screen: str = "") -> None:
             return
         was = state.get("frontend")
         state["frontend"] = said
+        await remote_record.heard(state, said, client_for_target, redraw)
         switched = await adopt(said)
         if mirroring(was) != mirroring(said):
             redraw()
@@ -376,14 +397,15 @@ async def remote_page(screen: str = "") -> None:
         draw_strip()
 
     async def listen() -> None:
-        while True:
-            stop, name, payload = await arriving.get()
-            if stop not in following:
-                continue
-            try:
-                await changed(name, payload)
-            except Exception:
-                logger.exception("remote: could not apply %s", name)
+        with page:
+            while True:
+                stop, name, payload = await arriving.get()
+                if stop not in following:
+                    continue
+                try:
+                    await changed(name, payload)
+                except Exception:
+                    logger.exception("remote: could not apply %s", name)
 
     listening = background_tasks.create(listen(), name="remote-listen")
 
@@ -556,14 +578,26 @@ def _now(state: dict[str, Any],
     apart, this one has nothing to say most of the time.
     """
     play = state.get("play") or {}
+    run_now = state.get("run") or {}
     with ui.column().classes("w-full gap-3 p-3"):
-        if play.get("launching"):
-            _playing(play, state, client_for_target, redraw)
+        if state.get("reviewing"):
+            remote_record.controller(state, client_for_target, redraw)
+        elif remote_record.going(run_now):
+            remote_record.run_card(state, client_for_target, redraw)
         else:
-            if frontend_closed(state.get("frontend")):
+            if play.get("launching"):
+                _playing(play, state, client_for_target, redraw)
+            elif frontend_closed(state.get("frontend")):
                 with ui.column().classes("w-full gap-1 console-card"):
                     ui.label(t("console.remote.frontend_closed")).classes("remote-empty")
-            _idle(state, redraw)
+            if run_now:
+                remote_record.run_card(state, client_for_target, redraw)
+            elif state.get("waiting"):
+                remote_record.waiting_card(
+                    state, client_for_target, redraw,
+                    reviewable=mirroring(state.get("frontend")) and not play.get("launching"))
+            if not play.get("launching"):
+                _idle(state, redraw)
         _running_jobs(state)
 
 
@@ -575,6 +609,10 @@ def takes_pictures(play: dict[str, Any], showing: dict[str, Any] | None) -> bool
 
 def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target: Callable[[], Any],
              redraw: Callable[[], None], note: str = "") -> None:
+    if play.get("source") == SOURCE_CAPTURE and remote_record.going(state.get("run") or {}):
+        remote_record.run_card(state, client_for_target, redraw)
+        return
+
     @on_page
     async def quit_table() -> None:
         try:
@@ -635,7 +673,7 @@ def _running_jobs(state: dict[str, Any]) -> None:
     """Only what is still going. A finished job is not news on a screen this size, and
     a list that keeps yesterday's work is a list nobody reads."""
     for job in state.get("jobs") or []:
-        if str(job.get("state") or "") != "running":
+        if str(job.get("state") or "") != "running" or job.get("kind") == remote_record.KIND:
             continue
         with ui.column().classes("w-full gap-2 console-card"):
             ui.label(t("word.running")).classes("console-card-title")
@@ -851,6 +889,8 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target: 
         made = game_tables.made(game)
         if made:
             ui.label(made).classes("remote-note")
+        lacks = ui.label("").classes("remote-note")
+        lacks.set_visibility(False)
 
         @on_page
         async def write(call: Any, *args: Any) -> bool:
@@ -883,6 +923,14 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target: 
             .props("no-caps flat").classes("remote-action")
 
         _add_to_collection(game, state, sheet, write)
+
+        async def started() -> None:
+            sheet.close()
+            state["screen"] = NOW
+            state["run"] = await offload.io(client_for_target().capture_run)
+            redraw()
+
+        remote_record.sheet_entry(game, state, client_for_target, lacks, started)
         _launch_button(game, state, client_for_target, redraw,
                        cls="remote-action remote-action--primary", then=sheet.close)
     sheet.open()
