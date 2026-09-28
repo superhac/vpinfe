@@ -106,7 +106,7 @@ def unmet(config: ConfigStore, features: Iterable[str] | None = None,
             continue
         for section, key in REQUIREMENTS.get(feature, ()):
             option = _option(section, key)
-            if option is None:
+            if option is None or option.type == "list":
                 continue
             state, reason = path_checks.check(option.path,
                                               cfg_get(config, section, key))

@@ -40,6 +40,7 @@ from console import (
     busy,
     confirm,
     deeplink,
+    folder_picker,
     input_watch,
     offload,
     panel,
@@ -167,12 +168,43 @@ def _fallback_number(option: dict, kind: str) -> Any:
     return int(number) if kind == "int" else number
 
 
+def _browse_path(browse: Callable[..., dict] | None, kind: str,
+                 suffixes: tuple[str, ...]) -> Callable[[str], Any] | None:
+    """`panel.field`'s own `browse`, opening the picker at the field's current value."""
+    if browse is None:
+        return None
+
+    async def browsed(current: str) -> str | None:
+        return await folder_picker.pick_path(browse, current, kind=kind, suffixes=suffixes)
+
+    return browsed
+
+
+def _browse_list(browse: Callable[..., dict] | None, kind: str) -> Callable[[str], Any] | None:
+    """`panel.field`'s own `browse` for a comma-joined list: what is picked is added to
+    the line rather than replacing it."""
+    if browse is None:
+        return None
+
+    async def browsed(current: str) -> str | None:
+        chosen = await folder_picker.pick_path(browse, "", kind=kind)
+        if not chosen:
+            return None
+        items = [p.strip() for p in current.split(",") if p.strip()]
+        if chosen not in items:
+            items.append(chosen)
+        return ", ".join(items)
+
+    return browsed
+
+
 def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
                 writable: bool = True, rerender: Callable[[], None] | None = None,
                 check: dict | None = None,
                 suggestions: dict[str, Any] | None = None,
                 section_values: dict[str, Any] | None = None,
-                varies: bool = False) -> Callable[[], None]:
+                varies: bool = False,
+                browse: Callable[..., dict] | None = None) -> Callable[[], None]:
     """The control a declared value's type asks for.
 
     Driven by the declaration, never by the key's name: something added to the schema -
@@ -185,6 +217,10 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
 
     `varies` draws it holding no value at all, not even the words for a blank one: it
     stands for several values that differ.
+
+    `browse` is the Console's own `library.folders`, offered to whichever field declares
+    a `path` so its control can draw Browse. A call site with nothing path-shaped to draw
+    still passes it - the field, not the caller, decides whether it is used.
     """
     editor = EDITORS.get(str(option.get("editor") or ""))
     if editor is not None:
@@ -266,7 +302,8 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
         return panel.field(
             ", ".join(str(v) for v in (value or [])),
             lambda text: save([p.strip() for p in text.split(",") if p.strip()]),
-            disabled=off)
+            disabled=off,
+            browse=_browse_list(browse, str(option["path"])) if option.get("path") else None)
     if option.get("path"):
         # A path is the one value that can be well-formed and still wrong, and it fails
         # much later - at launch, as a file-not-found. Re-checked after a write rather
@@ -276,7 +313,9 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
                 rerender()
 
         return panel.field(str(value or ""), save_path, disabled=off, status=state,
-                           placeholder=blank, left_empty=str(option.get("left_empty") or ""))
+                           placeholder=blank, left_empty=str(option.get("left_empty") or ""),
+                           browse=_browse_path(browse, str(option["path"]),
+                                              tuple(option.get("suffixes") or ())))
     return panel.field(str(value or ""), lambda text: save(text), disabled=off,
                        placeholder=blank)
 
@@ -1151,6 +1190,7 @@ def section_rows(source: Any, section: str, options: list[dict], values: dict,
                  checks: dict[tuple[str, str], dict] | None = None,
                  suggestions: dict[str, Any] | None = None,
                  resolved: dict[str, str] | None = None,
+                 browse: Callable[..., dict] | None = None,
                 ) -> list[tuple[Any, Any]]:
     """One section's settings as fact rows, from whatever is serving them.
 
@@ -1188,7 +1228,7 @@ def section_rows(source: Any, section: str, options: list[dict], values: dict,
                             writable=writable, rerender=rerender,
                             check=(checks or {}).get((section, option["key"])),
                             suggestions=suggestions,
-                            section_values=effective)))
+                            section_values=effective, browse=browse)))
         if note is not None:
             entries.append(note)
         for text, fix in option.get("findings") or ():
@@ -1208,7 +1248,8 @@ async def build_device_page(source: Any, context: dict[str, Any], schema: list[d
                             values: dict, sections: tuple[str, ...],
                             checks: dict[tuple[str, str], dict] | None = None,
                             suggestions: dict[str, Any] | None = None,
-                            blocks: list[tuple[str, list]] | None = None) -> None:
+                            blocks: list[tuple[str, list]] | None = None,
+                            browse: Callable[..., dict] | None = None) -> None:
     """One page of a device's settings, drawn exactly as this install's are.
 
     Several config sections can make one page - a machine's screens are four of them -
@@ -1219,7 +1260,8 @@ async def build_device_page(source: Any, context: dict[str, Any], schema: list[d
     `checks` is what to draw beside each path field, and only the install being drawn can
     supply it. The machine holding a path answers for it, so asking this one about
     another machine's disk would put a red cross on a file that is perfectly fine over
-    there - which is why a device's pages pass none.
+    there - which is why a device's pages pass none. `browse` is the same story: browsing
+    is always this machine's own disk, so a device's pages pass none of that either.
     """
     def rerender() -> None:
         rebuild = context.get("rebuild")
@@ -1248,7 +1290,8 @@ async def build_device_page(source: Any, context: dict[str, Any], schema: list[d
         entries += section_rows(source, name, block["options"], values,
                                 bool(block.get("writable")), rerender, checks,
                                 suggestions,
-                                resolved=resolves(offered) if resolves else None)
+                                resolved=resolves(offered) if resolves else None,
+                                browse=browse)
         foot = FOOTERS.get(name)
         if foot is not None and source is context.get("library"):
             entries += await foot(source, rerender, offered=offered)
@@ -1370,7 +1413,7 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
         page_head(key, findings)
         await build_device_page(library, {"library": library, "rebuild": redraw},
                                 schema, values, sections, checks=marks,
-                                suggestions=offered, blocks=blocks)
+                                suggestions=offered, blocks=blocks, browse=library.folders)
 
 
 def _with_windows(sections: tuple[str, ...], schema: list[dict]) -> tuple[str, ...]:

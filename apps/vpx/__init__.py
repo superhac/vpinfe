@@ -24,7 +24,7 @@ COMPANION_SUFFIXES: tuple[str, ...] = (".ini", ".vbs", ".directb2s", ".pov", ".s
 # Pinball launcher does not need to say which app it belongs to.
 FIELDS: tuple[Field, ...] = (
     Field("bin_path", path="exe"),
-    Field("ini_path", path="file"),
+    Field("ini_path", path="file", suffixes=(".ini",)),
     Field("launch_env"),
     Field("log_delete_on_start", type="bool", default="false"),
 )

@@ -59,7 +59,7 @@ def _described(launcher: launchers.Launcher) -> dict[str, Any]:
         # surface draws is decided from them - a field declared over three lines that
         # arrives without them renders as a one-line box.
         "fields": [{"key": f.key, **apps.field_words(launcher.app, f), "type": f.type,
-                    "default": f.default, "path": f.path,
+                    "default": f.default, "path": f.path, "suffixes": list(f.suffixes),
                     "lines": f.lines, "choices": dict(f.choices),
                     "min": f.minimum, "max": f.maximum,
                     "blank": apps.field_blank(launcher.app, f) or blanks.get(f.key, ""),

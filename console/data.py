@@ -310,8 +310,9 @@ class Library:
     def browse(self, path: str, asset_kind: str = "", archives: bool = False) -> dict:
         return self._client.browse(path, asset_kind, archives)
 
-    def folders(self, path: str = "") -> dict:
-        return self._client.folders(path)
+    def folders(self, path: str = "", kind: str = "dir",
+               suffixes: Iterable[str] = ()) -> dict:
+        return self._client.folders(path, kind, suffixes)
 
     def browsed_file_url(self, path: str) -> str:
         return self._client.browsed_file_url(path)

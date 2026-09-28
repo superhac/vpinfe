@@ -638,10 +638,14 @@ class ApiClient:
                  **({"archives": "true"} if archives else {})}
         return self._get("/filesystem/entries?" + urlencode(asked))
 
-    def folders(self, path: str = "") -> dict:
-        """One folder on this machine, as its immediate subfolders - unbounded, for a
-        Browse button choosing where a library folder should be."""
-        return self._get("/folders?" + urlencode({"path": path}))
+    def folders(self, path: str = "", kind: str = "dir",
+               suffixes: Iterable[str] = ()) -> dict:
+        """One folder on this machine, as its immediate subfolders and the files `kind`
+        wants - unbounded, for a Browse button filling in a path field."""
+        asked: dict[str, Any] = {"path": path, "kind": kind}
+        if suffixes:
+            asked["suffix"] = list(suffixes)
+        return self._get("/folders?" + urlencode(asked, doseq=True))
 
     def browsed_file_url(self, path: str) -> str:
         """Where the browser can fetch a file it is showing, so it can be looked at."""

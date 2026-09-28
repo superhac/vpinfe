@@ -240,7 +240,8 @@ def state(text: str, level: str, *, beside: str = "",
 def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
           placeholder: str = "", disabled: bool = False,
           status: Callable[[Any], Any] | None = None,
-          refuses: bool = False, left_empty: str = "") -> Callable[[], None]:
+          refuses: bool = False, left_empty: str = "",
+          browse: Callable[[str], Any] | None = None) -> Callable[[], None]:
     """Free text the user can set.
 
     Written when you leave it or when you press Enter, and `debounce=0` is what makes
@@ -260,6 +261,10 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
     empty when it saved, and the answer is the field's error.
 
     With `left_empty`, a one-line field's tooltip holds its value, else `left_empty`.
+
+    `browse` draws beside `status` in the same slot. It takes the field's current value
+    and answers the path chosen, or nothing where browsing was cancelled; a path it
+    answers goes through `leave` exactly as typing and leaving does.
     """
     async def leave(control: ui.input) -> None:
         said = on_save(control.value or "")
@@ -293,9 +298,20 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
                     with control:
                         ui.tooltip().bind_text_from(
                             control, "value", backward=lambda said: said or left_empty)
-                if status is not None:
+                if status is not None or browse is not None:
                     with control.add_slot("append"):
-                        status(control)
+                        if status is not None:
+                            status(control)
+                        if browse is not None:
+                            async def _browsed() -> None:
+                                chosen = await browse(control.value or "")
+                                if chosen:
+                                    control.value = chosen
+                                    await leave(control)
+
+                            ui.button(icon=verbs.BROWSE, on_click=_browsed) \
+                                .props("flat round dense") \
+                                .tooltip(t("console.folder_picker.browse"))
             if disabled:
                 control.disable()
 
@@ -643,7 +659,8 @@ def hint(control: Any, said: str) -> None:
 def path_field(placeholder: str = "", *, wants: str, value: str = "",
                width: str = "w-96",
                on_checked: Callable[[str, str], str] | None = None,
-               browse: Callable[[str], dict] | None = None) -> Any:
+               browse: Callable[[str], dict] | None = None,
+               suffixes: tuple[str, ...] = ()) -> Any:
     """A path typed by hand, saying whether it is there. Returns the input.
 
     `wants` is what should be at the end of it - `dir`, `file` or `exe`, the words
@@ -654,8 +671,8 @@ def path_field(placeholder: str = "", *, wants: str, value: str = "",
     be. It goes in the hint, the row the error message uses, so a field with something
     to say and one without are the same height.
 
-    `browse` draws Browse beside a `dir` field. Opt-in: a `file` or `exe` field has
-    nowhere sensible to start a listing from, so nothing here assumes one.
+    `browse` draws Browse beside the field, whatever `wants` is. `suffixes` narrows a
+    `file` field's picker to those extensions; empty means every file.
 
     `debounce=0` stays on the input and the wait goes on a timer: a debounce here leaves
     the value stale at the moment a button is pressed.
@@ -667,11 +684,12 @@ def path_field(placeholder: str = "", *, wants: str, value: str = "",
     control.props("outlined dense debounce=0 bottom-slots").classes(width)
     with control.add_slot("append"):
         holder = ui.element("div").classes("console-value-state")
-        if wants == "dir" and browse is not None:
+        if browse is not None:
             from console import folder_picker
 
             async def _browsed() -> None:
-                chosen = await folder_picker.pick_folder(browse, control.value or "")
+                chosen = await folder_picker.pick_path(
+                    browse, control.value or "", kind=wants, suffixes=suffixes)
                 if chosen:
                     control.value = chosen
 

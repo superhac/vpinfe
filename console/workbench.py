@@ -5165,7 +5165,7 @@ async def _setting_entries(context: dict[str, Any],
             save(field.key, option["type"] in TYPED), writable=not playing and offered(field),
             check=_unreported(held.get("value"), reported, app_name),
             suggestions={REPORTED: screens.reported(reported, seen)},
-            varies=bool(held.get("varies"))), held, field
+            varies=bool(held.get("varies")), browse=library.folders), held, field
 
     def marks(parts: Sequence[Part], joiner: str = "") -> Callable[[], None] | None:
         return _in_turn(_varies(parts, context.get("tables") or [], app_name, joiner),
@@ -5664,7 +5664,8 @@ async def _launcher_details(context: dict[str, Any]) -> None:
                         settings_page.control_for(
                             field, launcher["settings"].get(field["key"]),
                             save_field(field["key"]),
-                            check=(launcher.get("checks") or {}).get(field["key"]))))
+                            check=(launcher.get("checks") or {}).get(field["key"]),
+                            browse=library.folders)))
         if field.get("description"):
             entries.append(panel.note(field["description"]))
         # Once, under the pair, rather than beside each of them.

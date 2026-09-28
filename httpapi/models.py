@@ -2231,12 +2231,13 @@ class FolderEntry(ApiModel):
 
 
 class FolderListing(ApiModel):
-    """Unbounded, unlike `FilesystemListing`: a Browse button is choosing where a
-    library lives, and `roots` is where it can jump to start again."""
+    """Unbounded, unlike `FilesystemListing`: a Browse button is choosing something on
+    this device's disk, and `roots` is where it can jump to start again."""
 
     path: str
     parent: str
     folders: list[FolderEntry]
+    files: list[FolderEntry]
     roots: list[FolderEntry]
 
 

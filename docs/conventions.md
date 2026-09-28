@@ -670,13 +670,15 @@ or a line about what was typed - declares `bottom-slots` and keeps the row from 
 The error and that line share it, which is right: while something is wrong, the thing that
 is wrong is what the row is for.
 
-**A path the user types says whether it is there.** There is no file browser, so every
-path is typed blind, and the mark is the only thing between a typo and a record that never
-worked. `panel.path_field` is the control: a tick or a cross in the input's own append
-slot, updated as it is typed, the reason on hover, and nothing at all while the box is
-empty. `wants` names what should be at the end of it - `dir`, `file` or `exe` - because
-"that is a folder, and this wants a file" is the useful half of the answer. The same mark
-answers for a stored path once it has been written, from the same vocabulary.
+**A path can be typed, or found with Browse.** Typing stays the answer for a share this
+device cannot see; the mark is what stands between a typo and a record that never worked.
+`panel.path_field` is the control: a tick or a cross in the input's own append slot,
+updated as it is typed, the reason on hover, and nothing at all while the box is empty.
+`wants` names what should be at the end of it - `dir`, `file` or `exe` - because "that is
+a folder, and this wants a file" is the useful half of the answer. Browse opens
+`console/folder_picker.py` on this device's own disk, listing what `wants` asks for and,
+for a `file` field, narrowed to `suffixes`. The same mark answers for a stored path once
+it has been written, from the same vocabulary.
 
 A field that names something *to be created* is not this. The import dialog asks what to
 call a new game's folder, where finding something already there is the failure, not the

@@ -822,6 +822,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "browse_dirs",
             group=setting_groups.LOCAL_SOURCES,
             type="list",
+            path="dir",
             default="",
             legacy=(),
         ),

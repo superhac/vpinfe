@@ -22,7 +22,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common import i18n, icons
+from common import apps, i18n, icons
 from common.capture.run import FILL
 from common.capture.session import RECORDABLE
 from common.failures import why
@@ -1155,7 +1155,9 @@ class _Table(_Folder):
             listed = ui.column().classes("w-full gap-2")
             with ui.row().classes("items-start gap-2 w-full no-wrap"):
                 typed = panel.path_field(placeholder=t("console.workbench.path_table_file"),
-                                         wants="file", width="grow min-w-0")
+                                         wants="file", width="grow min-w-0",
+                                         browse=self.library.folders,
+                                         suffixes=apps.table_suffixes())
                 panel.action(t("word.add"), lambda: self._typed(typed), icon=verbs.ADD)()
             typed.on("keydown.enter", lambda: self._typed(typed))
         await super().host_tab(listed)

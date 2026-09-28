@@ -54,6 +54,8 @@ class Field:
     # guessed from the key: `bin_path` and `ini_path` end the same way and want
     # different answers.
     path: str = ""
+    # For a `path="file"` field, which suffixes it may be. Empty means every file.
+    suffixes: tuple[str, ...] = ()
     # Commonly set for one table rather than for all of them, so offered first there.
     per_table: bool = False
 

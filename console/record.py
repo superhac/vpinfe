@@ -271,7 +271,8 @@ def options_of(schema: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def setting_rows(held: Settings, report: dict[str, Any], changed: Callable[[], Any],
-                 rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
+                 rerender: Callable[[], None],
+                 browse: Callable[..., dict] | None = None) -> list[tuple[Any, Any]]:
     entries: list[tuple[Any, Any]] = []
     heading = ""
     offered = {recording.REPORT: report}
@@ -306,7 +307,7 @@ def setting_rows(held: Settings, report: dict[str, Any], changed: Callable[[], A
             if option.get("type") == "int" else str(option.get("blank") or "")
         entries.append((str(option.get("label") or option["key"]),
                         settings.control_for({**option, "blank": blank}, held.value(option),
-                                             save, suggestions=offered)))
+                                             save, suggestions=offered, browse=browse)))
         entries.append((panel.ASIDE, line))
         if recording.command_of(option):
             recording.add_under(entries, option, held.value(option), save, rerender, offered)
@@ -409,7 +410,7 @@ async def _dialog(library: Any, named: list[Target], title: str,
             (panel.ASIDE, lambda: shown.update(touches=panel.line(""))),
             (t("console.record.estimate"),
              lambda: shown.update(estimate=ui.label("").classes("console-fact-value"))),
-            *setting_rows(held, report, replan, draw),
+            *setting_rows(held, report, replan, draw, browse=library.folders),
         ]
         with body:
             panel.facts(ui, entries)

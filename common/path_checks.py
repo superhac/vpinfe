@@ -71,11 +71,20 @@ def check(kind: str, raw: str) -> tuple[str, str]:
 
 
 def check_option(option: object, value: str) -> tuple[str, str]:
-    """The same, for a schema option that may not be a path at all."""
+    """The same, for a schema option that may not be a path at all.
+
+    A `list` option's `path` names what each entry should be, not what the joined line
+    is - checking the line itself would mark a folder of folders as one file that is
+    missing.
+    """
+    if getattr(option, "type", "") == "list":
+        return UNSET, ""
     return check(getattr(option, "path", ""), value)
 
 
 def path_options() -> tuple:
-    """Every setting that names something on disk, in schema order."""
+    """Every setting that names something on disk, in schema order. A `list` option is
+    left out for the same reason `check_option` refuses one: its `path` says what its
+    entries are, not what the setting itself is."""
     return tuple(option for option in config_schema.CONFIG_OPTIONS
-                 if option.path and not option.internal)
+                 if option.path and option.type != "list" and not option.internal)

@@ -369,7 +369,7 @@ async def settings_section(context: dict[str, Any]) -> None:
         entries: list[tuple[Any, Any]] = []
         if found.get("description"):
             entries.append(panel.intro(str(found["description"])))
-        panel.facts(ui, entries + _rows(options, wanted, keep))
+        panel.facts(ui, entries + _rows(options, wanted, keep, browse=library.folders))
 
 
 @on_page
@@ -426,7 +426,8 @@ async def _uninstall(library: Library, theme: dict[str, Any],
 
 
 def _rows(options: list[dict[str, Any]], wanted: dict[str, Any],
-          keep: Callable[[], Any]) -> list[tuple]:
+          keep: Callable[[], Any],
+          browse: Callable[..., dict] | None = None) -> list[tuple]:
     """The theme's options as settings rows, through the same grammar Settings uses.
 
     A theme's settings are settings. A control vocabulary of their own is a second
@@ -439,7 +440,7 @@ def _rows(options: list[dict[str, Any]], wanted: dict[str, Any],
         key = option["key"]
         rows.append((str(option.get("name") or key),
                      settings.control_for(_as_option(option), _shown(option, wanted),
-                                          _saver(option, wanted, keep))))
+                                          _saver(option, wanted, keep), browse=browse)))
         said = " ".join(part for part in (str(option.get("description") or ""),
                                           _expected(option, _kind(option))) if part)
         rows.append(panel.note(said))
