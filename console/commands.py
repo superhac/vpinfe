@@ -28,7 +28,7 @@ def add_to(entries: list[Any], context: str) -> None:
     def rows() -> None:
         with ui.element("div").classes("console-token-list"):
             for one in available:
-                ui.label("{" + one.name + "}").classes("console-token")
+                ui.label(tokens.written(one.name)).classes("console-token")
                 says = tokens.stands_for(one)
                 if one.after_only:
                     says = t("console.commands.after_finished", says=says)

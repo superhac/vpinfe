@@ -26,6 +26,7 @@ from common.apps.contract import (
     Field,
     Kinds,
     Session,
+    fill_tokens,
 )
 
 # A wheel, a video and a backglass are as true of an emulator or a video game as of a
@@ -57,7 +58,7 @@ class GenericLaunch:
         the same as not handing it one.
         """
         args = shlex.split(str(settings.get("args") or ""))
-        placed = [arg.replace("{table}", entry.table).replace("{key}", entry.key)
+        placed = [fill_tokens(arg, {"table": entry.table, "key": entry.key})
                   for arg in args]
         kept = [arg for arg in placed if arg]
         if placed == args:

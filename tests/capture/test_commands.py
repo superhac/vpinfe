@@ -9,7 +9,7 @@ from pathlib import Path
 from starlette.testclient import TestClient
 
 import httpapi
-from common import config_service, service_errors
+from common import config_service, service_errors, tokens
 from common.capture import commands, pipeline, settings
 from common.capture.adapters import Output
 from common.capture.geometry import Turn
@@ -22,9 +22,9 @@ from tests.capture.test_preflight import found
 # The token table in the design, and the capture input it gives on each platform for a
 # screen laid out at 1080,0 at 1920x1080 and 59.94 Hz, which the capture API numbers 1 or
 # 2: with no hardware encoder, then with the one each platform proves.
-DESIGNED = {"ffmpeg", "recorder", "input", "output", "window", "screen", "monitorIndex",
-            "x", "y", "width", "height", "duration", "fps", "videoFilters", "videoCodec",
-            "hwaccel", "audioDevice"}
+DESIGNED = {"ffmpeg", "recorder", "input", "output", "window", "screen", "monitor_index",
+            "x", "y", "width", "height", "duration", "fps", "video_filters", "video_codec",
+            "hwaccel", "audio_device"}
 NODE = "/dev/dri/renderD128"
 INPUTS = {
     commands.WLR: (1, ["-o", "DP-2"]),
@@ -64,7 +64,7 @@ def _screen(index: int = 1) -> Output:
 
 def _every(command: str) -> str:
     """A template naming every token its command offers, each an argument of its own."""
-    return " ".join(f"[{name}]" for name in commands.OFFERED[command])
+    return " ".join(tokens.written(name) for name in commands.OFFERED[command])
 
 
 def _job(source: Path = Path("raw.mkv")) -> pipeline.Encode:
@@ -117,7 +117,7 @@ class TokenTests(unittest.TestCase):
                                commands.encode_values(FFMPEG, _job(), Path("out.mp4"),
                                                       "playfield", _screen()))
 
-        self.assertFalse([one for one in argv if "[" in one], argv)
+        self.assertFalse([one for one in argv if "{" in one], argv)
         self.assertEqual(argv[:8], ["/usr/bin/ffmpeg", "-ss", "0.500", "-t", "20.000",
                                     "-i", "raw.mkv", "out.mp4"])
         self.assertEqual(argv[8:15], ["playfield", "DP-2", "1920", "1080", "20", "30",
@@ -135,7 +135,7 @@ class TokenTests(unittest.TestCase):
         self.assertEqual((recording["fps"], encoding["fps"]), ("60", "30"))
 
     def test_a_scalar_fills_its_place_inside_an_argument(self) -> None:
-        argv = commands.expand("[ffmpeg] -i ddagrab=output_idx=[monitorIndex] [output]",
+        argv = commands.expand("{ffmpeg} -i ddagrab=output_idx={monitor_index} {output}",
                                commands.RECORD,
                                commands.record_values(commands.DDAGRAB, found(), _screen(3),
                                                       "playfield", Path("o.mkv"), CHOSEN,
@@ -165,9 +165,9 @@ class TokenTests(unittest.TestCase):
 
                 self.assertEqual(values["recorder"], values["ffmpeg"])
 
-    def test_double_brackets_are_the_brackets_themselves(self) -> None:
-        argv = commands.expand("[ffmpeg] [input] -filter_complex [[0:v]]null[[v]] "
-                               "-map [[v]] [output]", commands.ENCODE,
+    def test_an_ffmpeg_filter_label_passes_through_as_written(self) -> None:
+        argv = commands.expand("{ffmpeg} {input} -filter_complex [0:v]null[v] "
+                               "-map [v] {output}", commands.ENCODE,
                                commands.encode_values(FFMPEG, _job(), Path("o.mp4"),
                                                       "playfield", _screen()))
 
@@ -175,7 +175,7 @@ class TokenTests(unittest.TestCase):
         self.assertIn("[v]", argv)
 
     def test_a_path_with_a_space_stays_one_argument(self) -> None:
-        argv = commands.expand('[ffmpeg] [input] -vf "scale=1920:-2" [output]',
+        argv = commands.expand('{ffmpeg} {input} -vf "scale=1920:-2" {output}',
                                commands.ENCODE,
                                commands.encode_values(FFMPEG, _job(Path("/r/a b.mkv")),
                                                       Path("/o/c d.mp4"), "playfield",
@@ -194,37 +194,37 @@ class RefusalTests(unittest.TestCase):
         self.assertEqual(self.said("  "), [])
 
     def test_an_unknown_token_is_refused_by_name(self) -> None:
-        self.assertEqual(self.said("[recorder] -o [monitor] [output]"),
+        self.assertEqual(self.said("{recorder} -o {monitor} {output}"),
                          [t(commands.UNKNOWN, token="monitor")])
 
     def test_a_token_from_the_other_command_is_refused(self) -> None:
-        self.assertEqual(self.said("[ffmpeg] [input] [videoCodec] [output]"),
-                         [t(commands.ELSEWHERE, token="videoCodec",
+        self.assertEqual(self.said("{ffmpeg} {input} {video_codec} {output}"),
+                         [t(commands.ELSEWHERE, token="video_codec",
                             command=t("config.capture.encode_command.label"))])
-        self.assertEqual(self.said("[ffmpeg] [input] [hwaccel] [output]", commands.ENCODE),
+        self.assertEqual(self.said("{ffmpeg} {input} {hwaccel} {output}", commands.ENCODE),
                          [t(commands.ELSEWHERE, token="hwaccel",
                             command=t("config.capture.record_command.label"))])
 
     def test_a_list_token_sharing_an_argument_is_refused(self) -> None:
-        self.assertEqual(self.said("[ffmpeg] x[input] [output]"),
+        self.assertEqual(self.said("{ffmpeg} x{input} {output}"),
                          [t(commands.ALONE, token="input")])
 
     def test_nowhere_to_write_or_nothing_to_read_is_refused(self) -> None:
-        self.assertEqual(self.said("[recorder] [input]"),
+        self.assertEqual(self.said("{recorder} {input}"),
                          [t(commands.NEEDS, token="output")])
-        self.assertEqual(self.said("[ffmpeg] -i raw.mkv [output]", commands.ENCODE),
+        self.assertEqual(self.said("{ffmpeg} -i raw.mkv {output}", commands.ENCODE),
                          [t(commands.NEEDS, token="input")])
 
     def test_an_unclosed_quote_is_refused(self) -> None:
-        self.assertEqual(self.said('[recorder] "[input] [output]'), [t(commands.QUOTE)])
+        self.assertEqual(self.said('{recorder} "{input} {output}'), [t(commands.QUOTE)])
 
     def test_expanding_what_cannot_run_raises(self) -> None:
         with self.assertRaises(commands.CommandError):
-            commands.expand("[recorder] [nope] [output]", commands.RECORD, {})
+            commands.expand("{recorder} {nope} {output}", commands.RECORD, {})
 
     def test_a_runs_own_command_is_refused_before_anything_runs(self) -> None:
         with self.assertRaises(service_errors.RefusedError) as refused:
-            settings.read(None, {"encode_command": "[ffmpeg] [input] [hwaccel] [output]"})
+            settings.read(None, {"encode_command": "{ffmpeg} {input} {hwaccel} {output}"})
 
         self.assertTrue(str(refused.exception).startswith(
             t("config.capture.encode_command.label")))
@@ -233,13 +233,13 @@ class RefusalTests(unittest.TestCase):
         import configparser
 
         held = configparser.ConfigParser()
-        held["capture"] = {"record_command": "[recorder] [nope] [output]",
-                           "encode_command": "[ffmpeg] [input] -an [output]"}
+        held["capture"] = {"record_command": "{recorder} {nope} {output}",
+                           "encode_command": "{ffmpeg} {input} -an {output}"}
 
         chosen = settings.read(held)
 
         self.assertEqual((chosen.record_command, chosen.encode_command),
-                         ("", "[ffmpeg] [input] -an [output]"))
+                         ("", "{ffmpeg} {input} -an {output}"))
 
 
 class OwnCommandTests(unittest.TestCase):
@@ -250,21 +250,21 @@ class OwnCommandTests(unittest.TestCase):
             tools.Probe(True, "0.5", {tools.OPTIONS: frozenset({"-D"})}))
 
         self.assertEqual(commands.own_record(commands.WLR, with_d, "/dev/dri/renderD128"),
-                         "[recorder] -D [input] [hwaccel] -f [output]")
+                         "{recorder} -D {input} {hwaccel} -f {output}")
         self.assertEqual(commands.own_record(commands.WLR, found(), ""),
-                         "[recorder] [input] -c libx264 -p preset=ultrafast -p crf=18 "
-                         "-f [output]")
+                         "{recorder} {input} -c libx264 -p preset=ultrafast -p crf=18 "
+                         "-f {output}")
 
     def test_everywhere_else_it_is_ffmpeg_reading_the_platforms_input(self) -> None:
         for adapter_id in commands.FFMPEG_GRABS:
             with self.subTest(adapter_id):
                 self.assertEqual(commands.own_record(adapter_id, found(), "h264_nvenc"),
-                                 "[ffmpeg] -hide_banner -loglevel error -y [input] "
-                                 "[hwaccel] -f matroska [output]")
+                                 "{ffmpeg} -hide_banner -loglevel error -y {input} "
+                                 "{hwaccel} -f matroska {output}")
                 self.assertEqual(commands.own_record(adapter_id, found(), ""),
-                                 "[ffmpeg] -hide_banner -loglevel error -y [input] "
+                                 "{ffmpeg} -hide_banner -loglevel error -y {input} "
                                  "-c:v libx264 -preset ultrafast -crf 18 -f matroska "
-                                 "[output]")
+                                 "{output}")
 
     def test_the_portals_is_gstreamer_to_a_near_lossless_file_it_finishes_on_ctrl_c(
             self) -> None:
@@ -301,15 +301,15 @@ class ConfigRouteTests(unittest.TestCase):
 
     def test_a_command_that_cannot_run_is_refused_at_the_field(self) -> None:
         response = self.client.put("/config", json={
-            "capture": {"record_command": "[recorder] [input] [videoCodec] [output]"}})
+            "capture": {"record_command": "{recorder} {input} {video_codec} {output}"}})
 
         self.assertEqual(response.status_code, 400, response.text)
-        self.assertIn("[videoCodec]", response.json()["error"]["message"])
+        self.assertIn("{video_codec}", response.json()["error"]["message"])
         self.assertEqual(self.store.saves, 0)
 
     def test_one_that_can_is_written(self) -> None:
         response = self.client.put("/config", json={
-            "capture": {"encode_command": "[ffmpeg] [input] [videoFilters] -an [output]"}})
+            "capture": {"encode_command": "{ffmpeg} {input} {video_filters} -an {output}"}})
 
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(self.store.saves, 1)

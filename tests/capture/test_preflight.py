@@ -193,7 +193,7 @@ class ReportTests(unittest.TestCase):
         with_hardware = report()["commands"]
         without = report(FakeAdapter(hardware=False))["commands"]
 
-        self.assertEqual(with_hardware["record"], "[recorder] [input] [hwaccel] -f [output]")
+        self.assertEqual(with_hardware["record"], "{recorder} {input} {hwaccel} -f {output}")
         self.assertIn("libx264", without["record"])
         self.assertEqual(with_hardware["encode"], commands.OWN_ENCODE)
 

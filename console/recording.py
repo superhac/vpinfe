@@ -13,7 +13,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common import config_schema
+from common import config_schema, tokens
 from common.capture import adapters, commands, preflight, trial
 from common.failures import why
 from common.i18n import size, t
@@ -93,7 +93,7 @@ def add_under(entries: list[Any], option: dict, value: Any,
                         .classes("console-help")
                     with ui.element("div").classes("console-token-list"):
                         for name in names:
-                            ui.label(f"[{name}]").classes("console-token")
+                            ui.label(tokens.written(name)).classes("console-token")
                             ui.label(says(name, command)).classes("console-help")
 
     entries.append((panel.ASIDE, draw))

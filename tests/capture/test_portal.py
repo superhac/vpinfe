@@ -548,7 +548,7 @@ class ReportTests(_Kept):
                            reason=t(adapters.NOT_CHOSEN, desktop="KDE Plasma"),
                            remedy=t("capture.portal.not_chosen.remedy")))
         self.assertEqual({row["id"] for row in said["tools"]}, {"ffmpeg", "gstreamer"})
-        self.assertTrue(said["commands"]["record"].startswith("[recorder] -q -e [input] !"))
+        self.assertTrue(said["commands"]["record"].startswith("{recorder} -q -e {input} !"))
 
     def test_chosen_it_records_one_screen_after_another_with_sound(self) -> None:
         said = report(self.adapter(token="kept"))

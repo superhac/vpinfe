@@ -906,8 +906,8 @@ is asked of that device.
                       "remedy": null}},
  "video_codec": "h264", "at_once": true,
  "tools": [{"id": "ffmpeg", "state": "found", ...}],
- "commands": {"record": "[recorder] -D [input] [hwaccel] -f [output]",
-              "encode": "[ffmpeg] -hide_banner ... [input] -map 0:v:0 -an [videoFilters] ..."}}
+ "commands": {"record": "{recorder} -D {input} {hwaccel} -f {output}",
+              "encode": "{ffmpeg} -hide_banner ... {input} -map 0:v:0 -an {video_filters} ..."}}
 ```
 
 - `adapter` is how this session's screens are reached, read off its variables: `wlr` for
@@ -958,26 +958,26 @@ in on its own, so a path with a space in it stays one argument.
 
 | Token | Record | Encode |
 |---|---|---|
-| `[ffmpeg]` | the FFmpeg the Tools found | the same |
-| `[recorder]` | the program that records a screen: wf-recorder on wlroots, GStreamer's `gst-launch-1.0` on KDE Plasma and GNOME, FFmpeg elsewhere | - |
-| `[input]` | the screen's capture input, at its refresh and without the pointer: `-o DP-1` on wlroots, `-f lavfi -i ddagrab=output_idx=1:framerate=60:draw_mouse=0,hwdownload,format=bgra` (without the download where the hardware encoder takes the frames on the graphics card), `-f gdigrab -framerate 60 -draw_mouse 0 -offset_x 1080 -offset_y 0 -video_size 1920x1080 -i desktop`, `-f x11grab -framerate 60 -draw_mouse 0 -video_size 1920x1080 -i :0.0+1080,0`, `-f avfoundation -framerate 60 -capture_cursor 0 -i "Capture screen 1:none"`, `pipewiresrc fd=21 path=64 do-timestamp=true keepalive-time=1000` (the portal's stream through a PipeWire remote of the recorder's own, the last frame sent again each second of a still screen) | the recording, cut to the moment every screen shares: `-ss 0.412 -t 20.000 -i <file>` |
-| `[output]` | the file to write | the same |
-| `[window]` | `playfield`, `backglass`, `scoreview` or `topper` | the same |
-| `[screen]` | the output's name, `DP-1` | the same |
-| `[monitorIndex]` | the capture API's own number for the screen: the portal's PipeWire node on KDE Plasma and GNOME | - |
-| `[x]`, `[y]` | where the screen is on the desktop | - |
-| `[width]`, `[height]` | the screen's size | the same |
-| `[duration]` | Length, in seconds | the same |
-| `[fps]` | the screen's refresh | Frame Rate |
-| `[hwaccel]` | the hardware encoder's arguments, or nothing: VA-API on Linux, NVENC or AMF on Windows, VideoToolbox on macOS, each proved by encoding one frame | - |
-| `[audioDevice]` | the sound source | - |
-| `[videoFilters]` | - | `-vf` and VPinFE's filters: the turn to the stored orientation, the constant rate and the size |
-| `[videoCodec]` | - | VPinFE's arguments for the Video Format and Quality |
+| `{ffmpeg}` | the FFmpeg the Tools found | the same |
+| `{recorder}` | the program that records a screen: wf-recorder on wlroots, GStreamer's `gst-launch-1.0` on KDE Plasma and GNOME, FFmpeg elsewhere | - |
+| `{input}` | the screen's capture input, at its refresh and without the pointer: `-o DP-1` on wlroots, `-f lavfi -i ddagrab=output_idx=1:framerate=60:draw_mouse=0,hwdownload,format=bgra` (without the download where the hardware encoder takes the frames on the graphics card), `-f gdigrab -framerate 60 -draw_mouse 0 -offset_x 1080 -offset_y 0 -video_size 1920x1080 -i desktop`, `-f x11grab -framerate 60 -draw_mouse 0 -video_size 1920x1080 -i :0.0+1080,0`, `-f avfoundation -framerate 60 -capture_cursor 0 -i "Capture screen 1:none"`, `pipewiresrc fd=21 path=64 do-timestamp=true keepalive-time=1000` (the portal's stream through a PipeWire remote of the recorder's own, the last frame sent again each second of a still screen) | the recording, cut to the moment every screen shares: `-ss 0.412 -t 20.000 -i <file>` |
+| `{output}` | the file to write | the same |
+| `{window}` | `playfield`, `backglass`, `scoreview` or `topper` | the same |
+| `{screen}` | the output's name, `DP-1` | the same |
+| `{monitor_index}` | the capture API's own number for the screen: the portal's PipeWire node on KDE Plasma and GNOME | - |
+| `{x}`, `{y}` | where the screen is on the desktop | - |
+| `{width}`, `{height}` | the screen's size | the same |
+| `{duration}` | Length, in seconds | the same |
+| `{fps}` | the screen's refresh | Frame Rate |
+| `{hwaccel}` | the hardware encoder's arguments, or nothing: VA-API on Linux, NVENC or AMF on Windows, VideoToolbox on macOS, each proved by encoding one frame | - |
+| `{audio_device}` | the sound source | - |
+| `{video_filters}` | - | `-vf` and VPinFE's filters: the turn to the stored orientation, the constant rate and the size |
+| `{video_codec}` | - | VPinFE's arguments for the Video Format and Quality |
 
-- `[input]`, `[videoFilters]`, `[videoCodec]` and `[hwaccel]` are several arguments, so each
-  is an argument on its own. `[[name]]` is the brackets themselves, for an FFmpeg filter
-  label such as `[[v]]`.
-- A Record Command needs `[output]`; an Encode Command needs `[input]` and `[output]`.
+- `{input}`, `{video_filters}`, `{video_codec}` and `{hwaccel}` are several arguments, so each
+  is an argument on its own. Tokens are `{name}`, as in a launcher's arguments and the
+  table commands, so an FFmpeg filter label such as `[v]` is written as it is.
+- A Record Command needs `{output}`; an Encode Command needs `{input}` and `{output}`.
 - `PUT /api/v1/config` refuses a command with a name no token has, a token from the other
   command, a list token sharing an argument or a quotation mark never closed, as a `400`
   naming the command and the problem; so does a run whose `settings` carry one. A command

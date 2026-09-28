@@ -21,6 +21,8 @@ import shlex
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
 
+from common import tokens
+
 if TYPE_CHECKING:
     from common.apps.contract import App, Entry, Session
 
@@ -71,7 +73,7 @@ def _generic_command(entry: Entry, settings: Mapping[str, Any]) -> list[str]:
     """What a launcher runs when its extension did not say. Deliberately the generic
     app's rule, because that is the answer somebody already reads in the settings help."""
     args = shlex.split(str(settings.get("args") or ""))
-    placed = [one.replace("{table}", entry.table).replace("{key}", entry.key)
+    placed = [tokens.fill(one, {"table": entry.table, "key": entry.key})
               for one in args]
     kept = [one for one in placed if one]
     if placed == args:

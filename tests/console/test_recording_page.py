@@ -197,14 +197,14 @@ class RecordingPageTests(unittest.IsolatedAsyncioTestCase):
         keep = next(call.args[1] for call in self.field.call_args_list
                     if call.kwargs.get("placeholder") == self.report["commands"]["record"])
 
-        refused = await keep("[recorder] [input] [videoCodec] [output]")
-        kept = await keep("[recorder] -o [screen] -f [output]")
+        refused = await keep("{recorder} {input} {video_codec} {output}")
+        kept = await keep("{recorder} -o {screen} -f {output}")
 
-        self.assertEqual(refused, t(commands.ELSEWHERE, token="videoCodec",
+        self.assertEqual(refused, t(commands.ELSEWHERE, token="video_codec",
                                     command=t("config.capture.encode_command.label")))
         self.assertEqual(kept, "")
         self.assertEqual(self.served.config_values()["capture"]["record_command"],
-                         "[recorder] -o [screen] -f [output]")
+                         "{recorder} -o {screen} -f {output}")
 
     async def test_copy_vpinfes_command_puts_it_in_the_field_to_edit(self) -> None:
         entries = await self._drawn()

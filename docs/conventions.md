@@ -105,6 +105,21 @@ importing the other, and the second had fallen seven kinds behind before anythin
 - which cost a KeyError on upload and an empty filename on lookup, in the two kinds people
 replace most. There is one list now.
 
+### A token in a command a person writes is `{name}`
+
+Wherever a person writes a command line that VPinFE fills in - a launcher's arguments, the
+table commands, a recording's Record and Encode Commands - a token is written `{name}`,
+`snake_case`, and an extension's own is `{extension.name}`. One syntax, so a token learned
+on one page works on the next.
+
+- **`common/tokens.py` holds it**: `TOKEN` finds a token, `fill` puts values in,
+  `resolve` refuses a name its context does not offer, and `written` is how a page shows
+  one. An app reaches `fill` through the app contract.
+- **Braces, not square brackets**: FFmpeg names its filter streams `[v]`, and a bracket
+  syntax would have to escape them in the very commands it is for.
+- `tests/invariants/test_one_token_syntax.py` fails on a token pattern or a token replace
+  written anywhere else.
+
 ## Things we version
 
 Three, each versioning a different kind of thing, each with its own word:

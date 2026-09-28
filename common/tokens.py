@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import re
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 from common import i18n
@@ -203,6 +203,17 @@ def resolve(argument: str, values: dict[str, str], *, context: str,
         return str(values.get(name, ""))
 
     return TOKEN.sub(swap, argument)
+
+
+def written(name: str) -> str:
+    """A token as a person writes it."""
+    return "{" + name + "}"
+
+
+def fill(argument: str, values: Mapping[str, str]) -> str:
+    """`argument` with each name `values` holds filled in, and any other left as written.
+    For a surface that decides for itself which names are allowed."""
+    return TOKEN.sub(lambda found: values.get(found.group(1), found.group(0)), argument)
 
 
 def unknown_names(text: str, *, context: str, after: bool = False) -> list[str]:

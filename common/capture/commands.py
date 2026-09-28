@@ -9,12 +9,12 @@ one argument. A token standing for several arguments has to be an argument of it
 from __future__ import annotations
 
 import os
-import re
 import shlex
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from common import tokens
 from common.host import tools
 from common.i18n import t
 
@@ -33,14 +33,14 @@ SETTINGS = {RECORD: "record_command", ENCODE: "encode_command"}
 
 # Which tokens each command offers, in the order they are listed to a person.
 OFFERED: dict[str, tuple[str, ...]] = {
-    RECORD: ("ffmpeg", "recorder", "input", "output", "window", "screen", "monitorIndex",
-             "x", "y", "width", "height", "duration", "fps", "hwaccel", "audioDevice"),
+    RECORD: ("ffmpeg", "recorder", "input", "output", "window", "screen", "monitor_index",
+             "x", "y", "width", "height", "duration", "fps", "hwaccel", "audio_device"),
     ENCODE: ("ffmpeg", "input", "output", "window", "screen", "width", "height",
-             "duration", "fps", "videoFilters", "videoCodec"),
+             "duration", "fps", "video_filters", "video_codec"),
 }
 TOKENS = tuple(dict.fromkeys(OFFERED[RECORD] + OFFERED[ENCODE]))
 # Several arguments each.
-LISTS = frozenset({"input", "videoFilters", "videoCodec", "hwaccel"})
+LISTS = frozenset({"input", "video_filters", "video_codec", "hwaccel"})
 # Without these a command has nothing to read or nowhere to write that VPinFE can find.
 NEEDED = {RECORD: ("output",), ENCODE: ("input", "output")}
 
@@ -49,8 +49,6 @@ ELSEWHERE = "capture.command.elsewhere"
 ALONE = "capture.command.alone"
 QUOTE = "capture.command.quote"
 NEEDS = "capture.command.needs"
-
-_TOKEN = re.compile(r"\[\[([^\[\]]*)\]\]|\[([A-Za-z][A-Za-z0-9]*)\]")
 
 # The adapters' ids, as `adapters.resolve` answers them.
 WLR = "wlr"
@@ -82,8 +80,8 @@ HARDWARE = {
     "h264_videotoolbox": ["-c:v", "h264_videotoolbox", "-realtime", "1", "-b:v", "25M"],
 }
 
-OWN_ENCODE = ("[ffmpeg] -hide_banner -nostdin -loglevel error -y [input] -map 0:v:0 -an "
-              "[videoFilters] [videoCodec] -movflags +faststart [output]")
+OWN_ENCODE = ("{ffmpeg} -hide_banner -nostdin -loglevel error -y {input} -map 0:v:0 -an "
+              "{video_filters} {video_codec} -movflags +faststart {output}")
 
 
 class CommandError(ValueError):
@@ -119,10 +117,8 @@ def problems(template: str, command: str) -> list[dict[str, Any]]:
     named: set[str] = set()
     other = next(one for one in COMMANDS if one != command)
     for argument in argv:
-        for match in _TOKEN.finditer(argument):
-            name = match.group(2)
-            if name is None:
-                continue
+        for match in tokens.TOKEN.finditer(argument):
+            name = match.group(1)
             named.add(name)
             if name not in TOKENS:
                 found.append(_said(UNKNOWN, token=name))
@@ -141,18 +137,14 @@ def expand(template: str, command: str,
     if wrong:
         raise CommandError(wrong[0])
 
-    def swap(match: re.Match[str]) -> str:
-        if match.group(1) is not None:
-            return f"[{match.group(1)}]"
-        return str(values[match.group(2)])
-
     argv: list[str] = []
     for argument in shlex.split(template):
-        whole = _TOKEN.fullmatch(argument)
-        if whole and whole.group(2) in LISTS:
-            argv += [str(one) for one in values[whole.group(2)]]
+        whole = tokens.TOKEN.fullmatch(argument)
+        if whole and whole.group(1) in LISTS:
+            argv += [str(one) for one in values[whole.group(1)]]
         else:
-            argv.append(_TOKEN.sub(swap, argument))
+            argv.append(tokens.fill(argument, {name: str(value) for name, value
+                                               in values.items() if name not in LISTS}))
     return argv
 
 
@@ -216,18 +208,18 @@ def _every_refresh(recorder: tools.Found | None) -> bool:
 def own_record(adapter_id: str, found: Mapping[str, tools.Found], hardware: str) -> str:
     """VPinFE's Record Command on this device, or "" where it has none yet."""
     if adapter_id in FFMPEG_GRABS:
-        return " ".join(["[ffmpeg] -hide_banner -loglevel error -y [input]",
-                         "[hwaccel]" if hardware else _FFMPEG_SOFTWARE,
-                         "-f matroska [output]"])
+        return " ".join(["{ffmpeg} -hide_banner -loglevel error -y {input}",
+                         "{hwaccel}" if hardware else _FFMPEG_SOFTWARE,
+                         "-f matroska {output}"])
     if adapter_id == PORTAL:
-        return ("[recorder] -q -e [input] ! videoconvert ! videorate ! "
-                f"video/x-raw,framerate=[fps]/1 ! {_GSTREAMER_SOFTWARE} ! matroskamux ! "
-                "filesink location=[output]")
+        return ("{recorder} -q -e {input} ! videoconvert ! videorate ! "
+                f"video/x-raw,framerate={{fps}}/1 ! {_GSTREAMER_SOFTWARE} ! matroskamux ! "
+                "filesink location={output}")
     if adapter_id != WLR:
         return ""
-    return " ".join(["[recorder]",
+    return " ".join(["{recorder}",
                      *(["-D"] if _every_refresh(found.get(tools.WF_RECORDER.id)) else []),
-                     "[input]", "[hwaccel]" if hardware else _SOFTWARE, "-f", "[output]"])
+                     "{input}", "{hwaccel}" if hardware else _SOFTWARE, "-f", "{output}"])
 
 
 def _path(found: Mapping[str, tools.Found], tool: tools.Tool) -> str:
@@ -249,12 +241,12 @@ def record_values(adapter_id: str, found: Mapping[str, tools.Found], output: Out
             "recorder": _path(found, recorder) if recorder is not None else ffmpeg,
             "input": inputs(adapter_id, output, display, hardware), "output": str(dest),
             "window": window,
-            "screen": output.name, "monitorIndex": str(output.index),
+            "screen": output.name, "monitor_index": str(output.index),
             "x": str(output.x), "y": str(output.y),
             "width": str(output.width), "height": str(output.height),
             "duration": str(chosen.length), "fps": str(rate(output)),
             "hwaccel": hwaccel(adapter_id, hardware),
-            "audioDevice": pipeline.sound_source(chosen.sound_source)}
+            "audio_device": pipeline.sound_source(chosen.sound_source)}
 
 
 def record(adapter_id: str, found: Mapping[str, tools.Found], output: Output,
@@ -273,8 +265,8 @@ def encode_values(ffmpeg: Path, job: pipeline.Encode, dest: Path, window: str,
             "output": str(dest), "window": window, "screen": output.name,
             "width": str(output.width), "height": str(output.height),
             "duration": str(job.length), "fps": str(job.fps),
-            "videoFilters": ["-vf", pipeline.video_filters(job.turn, job.fps, job.cap)],
-            "videoCodec": pipeline.codec_args(job.codec, job.quality)}
+            "video_filters": ["-vf", pipeline.video_filters(job.turn, job.fps, job.cap)],
+            "video_codec": pipeline.codec_args(job.codec, job.quality)}
 
 
 def encode(template: str, ffmpeg: Path, job: pipeline.Encode, dest: Path, *,

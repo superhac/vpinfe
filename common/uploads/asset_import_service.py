@@ -15,6 +15,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 
+from common import tokens
 from common.atomic_write import naming_folder, staged_for, write_atomic
 from common.failures import why
 from common.games import media_placement
@@ -178,7 +179,7 @@ def folder_for(kind: str, game_dir: str | Path, rom: str = "") -> Path | None:
     wanted = str(rom or "").strip()
     if any("{rom}" in one for one in parts) and not wanted:
         return None
-    return Path(game_dir).joinpath(*(one.replace("{rom}", wanted) for one in parts))
+    return Path(game_dir).joinpath(*(tokens.fill(one, {"rom": wanted}) for one in parts))
 
 
 def folder_kinds() -> tuple[str, ...]:

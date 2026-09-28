@@ -121,7 +121,7 @@ class TrialTests(_Device):
 
     def test_an_encode_command_that_fails_says_what_ffmpeg_said(self) -> None:
         said = self.tried(Playfield(encodes=False),
-                            encode_command="[ffmpeg] [input] -x [output]")
+                            encode_command="{ffmpeg} {input} -x {output}")
 
         self.assertEqual((said["ok"], said["step"], said["detail"]),
                          (False, "encode", "Unrecognized option 'x'."))
@@ -130,7 +130,7 @@ class TrialTests(_Device):
     def test_the_commands_asked_for_are_the_ones_run(self) -> None:
         playfield = Playfield()
 
-        self.tried(playfield, record_command="[recorder] -o [screen] -f [output]")
+        self.tried(playfield, record_command="{recorder} -o {screen} -f {output}")
 
         self.assertEqual(playfield.spawned[0][1:3], ["-o", "DP-1"])
 
@@ -138,7 +138,7 @@ class TrialTests(_Device):
         playfield = Playfield()
 
         with self.assertRaises(service_errors.RefusedError):
-            self.tried(playfield, record_command="[recorder] [output] [nope]")
+            self.tried(playfield, record_command="{recorder} {output} {nope}")
         self.assertEqual(playfield.spawned, [])
 
     def test_it_waits_for_a_table_or_a_run_to_finish(self) -> None:

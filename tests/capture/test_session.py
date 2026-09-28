@@ -374,7 +374,7 @@ class SessionTests(_Sessions):
     def test_with_a_persons_encode_command_the_picture_is_cut_from_what_it_wrote(
             self) -> None:
         cabinet = Cabinet()
-        chosen = replace(QUICK, encode_command="[ffmpeg] [input] -vf hflip [output]")
+        chosen = replace(QUICK, encode_command="{ffmpeg} {input} -vf hflip {output}")
 
         self.record(cabinet, ("playfield", "playfield_video"), chosen=chosen)
 

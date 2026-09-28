@@ -21,6 +21,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
+# How an app fills `{name}` in an argument a person wrote: the one token syntax.
+from common.tokens import fill as fill_tokens  # noqa: F401
+
 
 @dataclass(frozen=True)
 class Availability:
