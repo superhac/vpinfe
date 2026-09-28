@@ -20,7 +20,7 @@ VERB = re.compile(
     re.IGNORECASE | re.DOTALL)
 
 ALLOWED = {
-    "error.uploads.rar_tool.mac": "a shell command, brew install unar",
+    "tools.rar.hint.darwin": "a shell command, brew install unar",
 }
 
 

@@ -499,6 +499,10 @@ until then the chain reports `required: null`.
   are loaded through `common/third_party.py`. They are neither extensions (no manifest,
   nothing declared) nor plugins (that word belongs to VPX standalone), so say "third-party"
   and not "integration" or "external service".
+- **Tool** - a program on a device that VPinFE runs but neither ships nor plays tables
+  with: unar, ffmpeg. The person installs it, and `common/host/tools.py` finds it. Not
+  *third-party*, which is what VPinFE bundles, and not *dependency*, which is what a table
+  declares.
 
 A catalog string that says *cabinet*, *machine* or *build* fails
 `tests/invariants/test_screen_words.py` unless its key is listed there with what the word

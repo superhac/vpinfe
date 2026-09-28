@@ -10,7 +10,6 @@ import fnmatch
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import zipfile
 from dataclasses import dataclass, replace
@@ -24,6 +23,7 @@ from common.games.asset_registry import (
     match_media_kind,
     spec_for,
 )
+from common.host import tools
 from common.i18n import t
 
 try:
@@ -156,6 +156,8 @@ class RarSource:
         self.name = path.name
         self.kind = "rar"
         self._path = path
+        # Before rarfile falls back to a search of its own.
+        rar_tool_available()
         self._rar = rarfile.RarFile(path)
         self._raw_by_path: dict[str, str] = {}
         for info in self._rar.infolist():
@@ -286,35 +288,34 @@ class SingleFileSource:
         return None
 
 
-def configure_rar_tool(path: str) -> None:
-    """Point rarfile at a specific unar/unrar/bsdtar binary.
+# rarfile's `tool_setup` switch for each of its backends.
+_SETUP_SWITCHES = {"UNRAR": "unrar", "UNAR": "unar", "SEVENZIP": "sevenzip",
+                   "SEVENZIP2": "sevenzip2", "BSDTAR": "bsdtar"}
 
-    An empty path leaves rarfile's default behavior, which searches PATH for the tool.
-    A value is useful when the tool is installed somewhere off PATH (common on locked-down
-    cabs launched from a frontend or service with a minimal environment).
-    """
-    if rarfile is None or not path:
-        return
-    name = Path(path).name.lower()
-    if "unrar" in name:
-        rarfile.UNRAR_TOOL = path
-    elif "unar" in name:
-        rarfile.UNAR_TOOL = path
-    elif "bsdtar" in name:
-        rarfile.BSDTAR_TOOL = path
-    else:
-        rarfile.UNRAR_TOOL = path   # assume an unrar-compatible binary
+# The program rarfile was last pointed at. Pointing it runs the program.
+_pointed_at: Path | None = None
 
 
 def rar_tool_available() -> bool:
-    """True if rarfile can find a working extraction tool (unrar, unar, or bsdtar)."""
+    """Whether the registry finds a RAR tool that runs, with rarfile pointed at that one
+    and no other."""
+    global _pointed_at
     if rarfile is None:
         return False
-    try:
-        rarfile.tool_setup(force=True)
-        return True
-    except Exception:
+    found = tools.resolve(tools.RAR)
+    if found.state is not tools.State.FOUND or found.path is None:
         return False
+    if found.path == _pointed_at:
+        return True
+    backend = tools.rar_backend(found.path)
+    setattr(rarfile, f"{backend}_TOOL", str(found.path))
+    try:
+        rarfile.tool_setup(force=True, **{switch: name == backend
+                                          for name, switch in _SETUP_SWITCHES.items()})
+    except rarfile.RarCannotExec:
+        return False
+    _pointed_at = found.path
+    return True
 
 
 def _files(picked: list) -> str:
@@ -322,18 +323,7 @@ def _files(picked: list) -> str:
 
 
 def rar_tool_hint() -> str:
-    """Platform-appropriate guidance for installing a RAR extraction tool.
-
-    Deliberately avoids naming a specific package manager, since Linux distributions differ,
-    and points at the configurable path setting as the alternative to a PATH install.
-    """
-    setting = t("config.tools.rar_path.label")
-    section = t("console.section.settings")
-    if sys.platform.startswith("win"):
-        return t("error.uploads.rar_tool.windows", setting=setting, section=section)
-    if sys.platform == "darwin":
-        return t("error.uploads.rar_tool.mac", setting=setting, section=section)
-    return t("error.uploads.rar_tool.linux", setting=setting, section=section)
+    return tools.hint(tools.RAR)
 
 
 def open_source(path: Path) -> AssetSource:

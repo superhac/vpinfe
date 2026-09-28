@@ -469,7 +469,7 @@ There are three places to drop:
 
 A confirmation dialog always shows what was detected and where each piece will go before anything is written. Files keep their original names; only a new table's folder is named (from VPS when matched). If you drop a whole table folder copied from another machine, its `.info` comes along too — for a new table it is used as-is, and for a table you already have, your play stats and per-table settings are kept and merged, never overwritten.
 
-`.zip` and `.7z` work out of the box. `.rar` needs an `unrar`, `unar`, or `bsdtar` tool installed (macOS already ships `bsdtar`); on Linux install `unar` or `unrar` with your package manager. If the tool is not on your PATH, set **RAR Tool Path** on the Configuration page.
+`.zip` and `.7z` work out of the box. `.rar` needs `unrar`, `unar`, 7-Zip or `bsdtar` installed (macOS already ships `bsdtar`); on Linux install `unar` or `unrar` with your package manager. VPinFE looks on your PATH, in `/opt/homebrew/bin` and `/usr/local/bin`, and on Windows in WinRAR's and 7-Zip's own folders. If it finds none there, set **RAR Tool Path** on the Configuration page.
 
 ### Pinball Primer tutorial overlay
 

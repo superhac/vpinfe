@@ -183,29 +183,39 @@ class AssetAnalyzerTests(unittest.TestCase):
             self.assertEqual(kinds(result), ["media"])
             self.assertEqual(result.assets[0].media_kind, "wheel")
 
-    def test_rar_tool_hint_is_platform_aware(self):
+    def test_rar_tool_hint_is_the_registrys(self):
+        from common.host import tools, vpinos
         from common.uploads.asset_analyzer_service import rar_tool_hint
-        with mock.patch.object(asset_analyzer_service.sys, "platform", "win32"):
-            self.assertIn("UnRAR.exe", rar_tool_hint())
-        with mock.patch.object(asset_analyzer_service.sys, "platform", "darwin"):
-            self.assertIn("brew install unar", rar_tool_hint())
-        with mock.patch.object(asset_analyzer_service.sys, "platform", "linux"):
-            hint = rar_tool_hint()
-            self.assertIn("package manager", hint)
-            self.assertNotIn("apt", hint)   # never assume a specific distro's tool
-        self.assertIn("RAR Tool Path", rar_tool_hint())   # points at the configurable path
+        with mock.patch.object(vpinos, "detected", return_value=False):
+            for here, says in ((tools.WINDOWS, "7-Zip"), (tools.DARWIN, "brew install unar"),
+                               (tools.LINUX, "package manager")):
+                with mock.patch.object(tools, "here", return_value=here):
+                    self.assertIn(says, rar_tool_hint())
+                    self.assertIn("RAR Tool Path", rar_tool_hint())
 
-    def test_configure_rar_tool_targets_right_global(self):
-        from common.uploads.asset_analyzer_service import configure_rar_tool
+    def test_rarfile_runs_the_program_the_registry_found(self):
+        from pathlib import Path
+
+        from common.host import tools
         fake = mock.Mock()
-        with mock.patch.object(asset_analyzer_service, "rarfile", fake):
-            configure_rar_tool("/opt/bin/unar")
-            self.assertEqual(fake.UNAR_TOOL, "/opt/bin/unar")
-            configure_rar_tool("/usr/bin/unrar")
-            self.assertEqual(fake.UNRAR_TOOL, "/usr/bin/unrar")
-        # empty path is a no-op (keeps rarfile's PATH auto-detect)
-        with mock.patch.object(asset_analyzer_service, "rarfile", None):
-            configure_rar_tool("")   # must not raise when rarfile is absent
+        found = tools.Found(tools.RAR, tools.State.FOUND, Path("/opt/bin/7zz"))
+        with (mock.patch.object(asset_analyzer_service, "rarfile", fake),
+              mock.patch.object(tools, "resolve", return_value=found),
+              mock.patch.object(asset_analyzer_service, "_pointed_at", None)):
+            self.assertTrue(asset_analyzer_service.rar_tool_available())
+        self.assertEqual(fake.SEVENZIP2_TOOL, "/opt/bin/7zz")
+        fake.tool_setup.assert_called_once_with(
+            force=True, unrar=False, unar=False, sevenzip=False, sevenzip2=True,
+            bsdtar=False)
+
+    def test_nothing_found_is_not_available(self):
+        from common.host import tools
+        fake = mock.Mock()
+        with (mock.patch.object(asset_analyzer_service, "rarfile", fake),
+              mock.patch.object(tools, "resolve",
+                                return_value=tools.Found(tools.RAR, tools.State.MISSING))):
+            self.assertFalse(asset_analyzer_service.rar_tool_available())
+        fake.tool_setup.assert_not_called()
 
     def test_missing_rar_tool_reported_before_dialog(self):
         from pathlib import Path
