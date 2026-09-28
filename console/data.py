@@ -1126,6 +1126,10 @@ class Library:
     def has_asset_rows(self) -> bool:
         return self._asset_rows is not None and self._holds_list_art()
 
+    def high_scores(self, game_id: str, table_id: str = "") -> dict[str, Any]:
+        """Asked each time the panel opens: that is when a newer score file is read."""
+        return self._client.high_scores(game_id, table_id)
+
     def tables_for(self, game_id: str) -> list[dict[str, Any]]:
         """Fetched when something asks, not with the library.
 

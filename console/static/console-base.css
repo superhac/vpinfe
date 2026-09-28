@@ -305,7 +305,8 @@ body::before {
    beside it supports it. grid.identifier() puts this class on that column, and a
    collection's list on each row's name. */
 .ag-cell.console-cell-identifier,
-.console-member-name.console-cell-identifier { color: var(--ink); }
+.console-member-name.console-cell-identifier,
+.console-score-initials.console-cell-identifier { color: var(--ink); }
 
 /* AG Grid derives a cell's line height from this and it does not follow the row-height
    option, so a taller row needs both set or its single-line cells sit high. */
@@ -2648,6 +2649,29 @@ a.console-tag:hover { background: var(--wash-hover); }
   .console-slot-art { min-height: 200px; }
   .console-slot-art img, .console-slot-art video { max-height: min(52vh, 520px); }
 }
+
+/* --- a machine's high score table, in a game's Play section -------------- */
+
+/* Each entry is its own fact row, so the columns are held by width rather than by a
+   shared grid: the rank a fixed two digits, the initials after it, and the score taking
+   the rest of the line, right-aligned, so every row's score ends at one edge. */
+.console-score-row {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  min-height: var(--fact-row);
+  font-size: var(--fs-body); color: var(--ink-2);
+}
+.console-score-rank {
+  flex: 0 0 2ch; text-align: right; font-variant-numeric: tabular-nums;
+}
+/* `pre`: a machine's initials can hold a space, `J K`, and it is theirs to keep. */
+.console-score-initials { flex: 0 0 auto; white-space: pre; }
+.console-score-value {
+  flex: 1 1 auto; min-width: 0; text-align: right; font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Held on a row without New once another row has it, or that row's score ends a chip
+   further right than the rest. */
+.console-score-new--held { visibility: hidden; }
 
 /* --- who owns a file, wherever a file is shown -------------------------- */
 

@@ -345,28 +345,42 @@ class FrontendServiceTests(unittest.TestCase):
             self.assertEqual(saved["HighScores"]["vpx_rom"]["entries"], reading["entries"])
             self.assertNotIn("Score", saved)
 
-    def test_delete_nvram_if_configured_deletes_the_rom_it_is_given(self) -> None:
+    def _nvram(self, tmp: str, *, folder: bool, table: bool | None) -> tuple:
+        """A folder with two ROMs' NVRAM, Clear NVRAM on Exit set for the folder and,
+        where `table` is not None, for the table on `vpx_rom` itself."""
+        game_dir = Path(tmp) / "Example"
+        nvram_dir = game_dir / "pinmame" / "nvram"
+        nvram_dir.mkdir(parents=True)
+        played, other = nvram_dir / "vpx_rom.nv", nvram_dir / "info_rom.nv"
+        played.write_bytes(b"vpx")
+        other.write_bytes(b"info")
+        entry = {"id": "t2", "filename": "Mod.vpx", "rom": "vpx_rom",
+                 **({"vpinfe": {"delete_nvram_on_close": table}} if table is not None else {})}
+        game = types.SimpleNamespace(
+            full_path_game=str(game_dir), game_dir_name="Example",
+            meta_config={"tables": {"t1": {"id": "t1", "filename": "Example.vpx",
+                                           "rom": "info_rom"}, "t2": entry},
+                         "vpinfe": {"delete_nvram_on_close": folder}})
+        return game, entry, played, other
+
+    def test_delete_nvram_if_configured_deletes_the_played_tables_rom(self) -> None:
         with TemporaryDirectory() as tmp:
-            game_dir = Path(tmp) / "Example"
-            nvram_dir = game_dir / "pinmame" / "nvram"
-            nvram_dir.mkdir(parents=True)
-            vpx_nvram = nvram_dir / "vpx_rom.nv"
-            info_nvram = nvram_dir / "info_rom.nv"
-            vpx_nvram.write_bytes(b"vpx")
-            info_nvram.write_bytes(b"info")
-            game = types.SimpleNamespace(
-                full_path_game=str(game_dir),
-                game_dir_name="Example",
-                meta_config={
-                    "tables": {"Example.vpx": {"rom": "info_rom"}},
-                    "vpinfe": {"delete_nvram_on_close": True},
-                },
-            )
+            game, entry, played, other = self._nvram(tmp, folder=True, table=None)
 
-            game_play_service.delete_nvram_if_configured(game, "vpx_rom")
+            game_play_service.delete_nvram_if_configured(game, entry)
 
-            self.assertFalse(vpx_nvram.exists())
-            self.assertTrue(info_nvram.exists())
+            self.assertFalse(played.exists())
+            self.assertTrue(other.exists())
+
+    def test_a_tables_own_clear_nvram_setting_comes_before_the_folders(self) -> None:
+        """What the Console's switch under a table writes."""
+        for folder, table, cleared in ((False, True, True), (True, False, False)):
+            with self.subTest(folder=folder, table=table), TemporaryDirectory() as tmp:
+                game, entry, played, _other = self._nvram(tmp, folder=folder, table=table)
+
+                game_play_service.delete_nvram_if_configured(game, entry)
+
+                self.assertEqual(not played.exists(), cleared)
 
 
 class PerTablePlayStatsTests(unittest.TestCase):

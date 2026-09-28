@@ -178,13 +178,15 @@ def build_runtime_submission_meta(game: Game, user_state: dict) -> dict:
     return config
 
 
-def delete_nvram_if_configured(game: Game, rom: str) -> None:
-    """Delete `rom`'s NVRAM where the game asks for it on close."""
+def delete_nvram_if_configured(game: Game, entry: dict) -> None:
+    """Delete the NVRAM of `entry`'s ROM where Clear NVRAM on Exit is on for that table."""
+    from common.games.table_lens import table_overrides
+
     config = normalize_meta(getattr(game, "meta_config", {}))
-    vpinfe = vpinfe_section(config)
-    if not vpinfe.get("delete_nvram_on_close", False):
+    if not table_overrides(entry, vpinfe_section(config))["delete_nvram_on_close"]:
         return
 
+    rom = high_scores.rom_of(entry)
     if not rom:
         logger.warning("No ROM name found for table, skipping NVRAM deletion")
         return

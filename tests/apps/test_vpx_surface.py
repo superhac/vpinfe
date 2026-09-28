@@ -92,7 +92,7 @@ BASELINE: dict[str, int] = {
     "console/settings.py": 2,
     "console/table_features.py": 1,
     "console/theme.py": 2,
-    "console/workbench.py": 31,
+    "console/workbench.py": 32,
     "httpapi/core_capabilities.py": 5,
     "httpapi/filesystem.py": 1,
     "httpapi/games.py": 4,

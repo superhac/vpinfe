@@ -19,6 +19,7 @@ import time
 from collections import Counter
 from collections.abc import Awaitable, Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from functools import partial
 from itertools import groupby
 from pathlib import Path, PurePosixPath
@@ -28,7 +29,7 @@ from urllib.parse import urlencode, urlparse
 
 from nicegui import run, ui
 
-from common import apps, config_schema, icons, path_checks, tokens
+from common import apps, config_schema, i18n, icons, path_checks, tokens
 from common.failures import why
 from common.games import asset_registry, tag_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
@@ -2413,8 +2414,7 @@ def _table_play_rows(context: dict[str, Any],
 
 def _play_entries(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     """Under a table both levels show, each under its own heading."""
-    chosen = next((row for row in context["tables"]
-                   if row.get("id") == context["lens"]), None)
+    chosen = _chosen_table(context)
     if chosen is None:
         return _game_play_rows(context)
     return [(HEADING, t("console.workbench.game_details")),
@@ -2423,10 +2423,136 @@ def _play_entries(context: dict[str, Any]) -> list[tuple[Any, Any]]:
             *_table_play_rows(context, chosen)]
 
 
+def _chosen_table(context: dict[str, Any]) -> dict[str, Any] | None:
+    return next((row for row in context["tables"] if row.get("id") == context["lens"]),
+                None)
+
+
 async def _play_block(context: dict[str, Any]) -> None:
-    """What has been done with this."""
+    """What has been done with this, and the machine's high score table after it."""
+    scores = await _high_scores(context)
     with ui.column().classes("gap-0 console-form"):
-        _rows(ui, _play_entries(context))
+        _rows(ui, [*_play_entries(context), *_high_score_rows(context, scores)])
+
+
+async def _high_scores(context: dict[str, Any]) -> dict[str, Any]:
+    chosen = _chosen_table(context)
+    try:
+        return await offload.io(context["library"].high_scores, context["game_id"],
+                                str((chosen or {}).get("id") or ""))
+    except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
+        return {"state": "unreadable", "reason": why(exc), "sections": []}
+
+
+def _high_score_rows(context: dict[str, Any],
+                     scores: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """The High Scores group, or nothing where the table has no ROM and no score file."""
+    if not scores:
+        return []
+    tables = context["tables"]
+    table: dict[str, Any] = next(
+        (row for row in tables if row.get("id") == scores.get("table_id")), {})
+    lines: list[tuple[str, str]] = []
+    roms = {str(((row.get("dependencies") or {}).get("pinmame") or {}).get("declared") or "")
+            for row in tables} - {""}
+    if not context["lens"] and table and len(roms) > 1:
+        lines.append((t("console.workbench.high_scores_from",
+                        table=_table_line(table, tables)), ""))
+    said = HIGH_SCORE_STATES.get(str(scores.get("state") or ""))
+    if said is not None:
+        text, why_key = said
+        lines.append((t(text), t(why_key, rom=str(scores.get("rom") or "")) if why_key
+                      else str(scores.get("reason") or "")))
+    else:
+        clears = bool((table.get("overrides") or {}).get("delete_nvram_on_close"))
+        lines.append(_high_scores_read(str(scores.get("read_at") or ""), clears))
+    rows: list[tuple[Any, Any]] = [(HEADING, t("console.workbench.high_scores")),
+                                   (panel.LEDE, partial(_high_scores_aside, lines))]
+    return rows if said is not None else [*rows, *_high_score_entries(scores)]
+
+
+def _high_scores_aside(lines: list[tuple[str, str]]) -> None:
+    with ui.column().classes("gap-0"):
+        for text, hint in lines:
+            panel.line(text, hint=hint)
+
+
+# Each state with nothing to list: its line, and the key of its detail. None for the detail
+# the answer carries itself.
+HIGH_SCORE_STATES: dict[str, tuple[str, str | None]] = {
+    "none": ("console.workbench.high_scores_none", "console.workbench.high_scores_none_why"),
+    "unsupported": ("console.workbench.high_scores_unsupported",
+                    "console.workbench.high_scores_unsupported_why"),
+    "unreadable": ("console.workbench.high_scores_unreadable", None),
+}
+
+
+def _high_scores_read(read_at: str, clears: bool) -> tuple[str, str]:
+    """(line, detail)."""
+    at = when.parsed(read_at)
+    if clears:
+        text, hint = t("console.workbench.high_scores_cleared"), ""
+    elif at is None:
+        text, hint = t("console.workbench.high_scores_read_undated"), ""
+    elif (datetime.now(UTC) - at).total_seconds() < 60:
+        text, hint = t("console.workbench.high_scores_read_now"), when.local(read_at)
+    else:
+        text = t("console.workbench.high_scores_read", when=when.ago(read_at, inline=True))
+        hint = when.local(read_at)
+    return text, hint
+
+
+def _high_score_entries(scores: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """Rank and New are a column on every row or on none: a row without one would end its
+    score somewhere else."""
+    sections = scores.get("sections") or []
+    entries = [entry for section in sections for entry in section.get("entries") or []]
+    columns = {"ranked": any(entry.get("rank") is not None for entry in entries),
+               "marked": any(entry.get("new") for entry in entries)}
+    at = when.parsed(scores.get("read_at"))
+    day = when.day(at.astimezone()) if at else ""
+    rows: list[tuple[Any, Any]] = []
+    for section in sections:
+        for place, entry in enumerate(section.get("entries") or []):
+            first, *rest = _score_lines(entry)
+            rows.append((str(section.get("name") or "") if place == 0 else "",
+                         _score_row(entry, first, day, **columns)))
+            rows.extend((panel.ASIDE, partial(_score_caption, line)) for line in rest)
+    return rows
+
+
+def _score_lines(entry: dict[str, Any]) -> list[str]:
+    """A number the machine writes its own way - hex - is left as `text` has it."""
+    score, text = entry.get("score"), str(entry.get("text") or "")
+    prefix, suffix = str(entry.get("prefix") or ""), str(entry.get("suffix") or "")
+    if isinstance(score, int) and text == f"{prefix}{score:,}{suffix}":
+        return [f"{prefix}{i18n.number(score)}{suffix}"]
+    return text.split("\n") or [""]
+
+
+def _score_row(entry: dict[str, Any], value: str, day: str, *, ranked: bool,
+               marked: bool) -> Callable[[], None]:
+    def draw() -> None:
+        with ui.element("div").classes("console-score-row"):
+            if ranked:
+                rank = entry.get("rank")
+                ui.label("" if rank is None else str(rank)).classes("console-score-rank")
+            ui.label(str(entry.get("initials") or "")) \
+                .classes("console-score-initials console-cell-identifier")
+            ui.label(value).classes("console-score-value")
+            if marked:
+                chip = ui.label(t("console.workbench.high_scores_new")) \
+                    .classes("console-tier console-tier--off console-score-new")
+                if entry.get("new"):
+                    chip.tooltip(t("console.workbench.high_scores_new_after", day=day))
+                else:
+                    chip.classes(add="console-score-new--held")
+
+    return draw
+
+
+def _score_caption(line: str) -> None:
+    ui.label(line).classes("console-help")
 
 
 HELD_HOW = {"added": "console.workbench.held_added",

@@ -213,7 +213,7 @@ class PlayDataTests(LaunchTests):
         play.add_play_time.assert_called_once()
         play.keep_high_scores.assert_called_once_with(game, "", after, before,
                                                       "/nv/example.nv")
-        play.delete_nvram_if_configured.assert_called_once_with(game, "")
+        play.delete_nvram_if_configured.assert_called_once()
 
     def test_the_played_tables_rom_is_read_and_cleared(self) -> None:
         """A game whose tables declare different ROMs: the default's is not the one a
@@ -236,7 +236,7 @@ class PlayDataTests(LaunchTests):
         self.assertEqual([call.args[1] for call in play.parse_score_from_nvram.call_args_list],
                          ["abc_mod", "abc_mod"])
         self.assertEqual(play.keep_high_scores.call_args.args[1], "abc_mod")
-        play.delete_nvram_if_configured.assert_called_once_with(game, "abc_mod")
+        self.assertEqual(play.delete_nvram_if_configured.call_args.args[1]["rom"], "abc_mod")
 
     def test_the_table_that_was_launched_is_the_one_credited(self) -> None:
         """A folder can hold several tables, and the API can launch any of them."""

@@ -278,6 +278,11 @@ def date(when: dt.date) -> str:
     return t("date.short", day=when.day, month=month, year=when.year)
 
 
+def number(value: int) -> str:
+    """A whole number with its digits grouped as this language groups them."""
+    return f"{value:,}".replace(",", t("number.group"))
+
+
 _SIZE_UNITS = ("bytes", "kilobytes", "megabytes", "gigabytes", "terabytes")
 
 

@@ -478,7 +478,7 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
         events.emit(events.TABLE_PLAY_RECORDED, game=game, ini_config=ini_config,
                     table_id=table_id, game_id=game_identity.game_id(game),
                     source=source, **recorded)
-    game_play_service.delete_nvram_if_configured(game, rom)
+    game_play_service.delete_nvram_if_configured(game, entry)
 
 
 # ---------------------------------------------------------------------------
