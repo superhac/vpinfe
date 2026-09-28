@@ -41,7 +41,7 @@ A recording kept for a decision is best judged where it will play, so Review pla
 
 The target picker sits in the header on every screen, because every action's meaning depends on which install it is aimed at. It is not drawn when only one device is registered.
 
-Changing the target re-reads everything below the header. The library has to come from the target as well as the commands, since a list read from this install offers ids the target has never heard of.
+Changing the target re-reads everything below the header. The library has to come from the target as well as the commands, since a list read from this install offers ids the target has never heard of. Writes go there too: a rating, a favorite or an add to a collection lands on the install the phone is aimed at.
 
 A target is shown as reachable by asking it, not by reading `last_reachable`. A device recorded a moment ago carries a fresh timestamp whether or not it is switched on.
 

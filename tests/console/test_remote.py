@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import unittest
+from pathlib import Path
 
 from console import remote
 from console.api import _lines, read_frames
 from httpapi import events
+from tests.support import trees
 
 
 def _device(device_id: str, **rest) -> dict:
@@ -266,3 +269,29 @@ class ReadsTheEventStreamTests(unittest.TestCase):
         crlf = "".join(self._stream()).replace("\n", "\r\n").encode()
 
         self.assertEqual(self._read([crlf]), self._read(["".join(self._stream()).encode()]))
+
+
+class WritesGoToTheTargetTests(unittest.TestCase):
+    """A client with no base URL is this install. The Remote may use one only to read
+    what this install knows about the network; everything else goes to the target."""
+
+    ALLOWED = {("console/remote.py", "_read_here")}
+
+    def _unaimed_clients(self, relative: str) -> list[tuple[str, int]]:
+        tree = trees.tree_for(Path(__file__).resolve().parents[2] / relative)
+        found = set()
+        for function in ast.walk(tree):
+            if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for node in ast.walk(function):
+                if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                        and node.func.id == "ApiClient" and not node.args
+                        and not node.keywords
+                        and (relative, function.name) not in self.ALLOWED):
+                    found.add((function.name, node.lineno))
+        return sorted(found)
+
+    def test_the_remote_writes_through_the_target(self) -> None:
+        for relative in ("console/remote.py", "console/remote_record.py"):
+            with self.subTest(relative):
+                self.assertEqual(self._unaimed_clients(relative), [])

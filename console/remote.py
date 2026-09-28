@@ -597,7 +597,7 @@ def _now(state: dict[str, Any],
                     state, client_for_target, redraw,
                     reviewable=mirroring(state.get("frontend")) and not play.get("launching"))
             if not play.get("launching"):
-                _idle(state, redraw)
+                _idle(state, client_for_target, redraw)
         _running_jobs(state)
 
 
@@ -639,7 +639,8 @@ def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target: Cal
         .props("no-caps flat").classes("remote-action remote-action--danger")
 
 
-def _idle(state: dict[str, Any], redraw: Callable[[], None]) -> None:
+def _idle(state: dict[str, Any], client_for_target: Callable[[], Any],
+          redraw: Callable[[], None]) -> None:
     """Nothing is playing, so this offers the one thing worth doing about that.
 
     The last game played, with its rating. That is the moment somebody has an opinion
@@ -655,7 +656,7 @@ def _idle(state: dict[str, Any], redraw: Callable[[], None]) -> None:
     @on_page
     async def rate(value: int) -> None:
         try:
-            await run.io_bound(ApiClient().rate, game["id"], value)
+            await run.io_bound(client_for_target().rate, game["id"], value)
         except Exception as exc:
             ui.notify(t("console.stars.could_not_save_rating"), caption=why(exc),
                       type="negative")
@@ -902,7 +903,7 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target: 
             return True
 
         async def rate(value: int) -> None:
-            if await write(ApiClient().rate, game["id"], value):
+            if await write(client_for_target().rate, game["id"], value):
                 game.setdefault("user", {})["rating"] = value
                 sheet.close()
                 redraw()
@@ -912,7 +913,7 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target: 
         held = bool((game.get("user") or {}).get("favorite"))
 
         async def favor() -> None:
-            if await write(ApiClient().set_favorite, game["id"], not held):
+            if await write(client_for_target().set_favorite, game["id"], not held):
                 game.setdefault("user", {})["favorite"] = not held
                 sheet.close()
                 redraw()
@@ -922,7 +923,7 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target: 
                   on_click=favor) \
             .props("no-caps flat").classes("remote-action")
 
-        _add_to_collection(game, state, sheet, write)
+        _add_to_collection(game, state, sheet, write, client_for_target)
 
         async def started() -> None:
             sheet.close()
@@ -958,7 +959,7 @@ def _launch_button(game: dict[str, Any], state: dict[str, Any],
 
 
 def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet: Any,
-                       write: Any) -> None:
+                       write: Any, client_for_target: Callable[[], Any]) -> None:
     """Put it in a list you keep.
 
     Shown disabled with the reason rather than hidden when there is nowhere to put it:
@@ -974,7 +975,7 @@ def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet: Any,
 
     @on_page
     async def add(name: str) -> None:
-        if await write(ApiClient().add_to_collection, name, game["id"]):
+        if await write(client_for_target().add_to_collection, name, game["id"]):
             ui.notify(t("console.remote.added", name=(name)), type="positive")
             sheet.close()
 
