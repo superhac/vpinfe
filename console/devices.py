@@ -12,7 +12,7 @@ from nicegui import run, ui
 from common import device_client, device_registry
 from common.i18n import t
 from common.labels import humanize
-from console import offload, verbs
+from console import offload, renderers, verbs
 from console.on_page import on_page
 
 from . import confirm, grid, panel, views, when
@@ -343,6 +343,19 @@ KIND_LABELS = {"vpinfe": "VPinFE", "vpx_mobile": "VPX Mobile"}
 _KIND_CHOICES = [{"value": label, "label": label} for label in KIND_LABELS.values()]
 _STATE_CHOICES = [{"value": text, "label": t(text)} for text, _l, _c in _REACH.values()]
 
+# What a device's browser plays, where it is worth noticing. `plays` is not here: the
+# normal case draws nothing.
+BROWSER_STATES = {
+    "no_h264": {"label": t("console.devices.browser_no_h264"), "tier": "warn",
+                "why": t("frontend_browser.finding.no_h264")},
+    "no_video": {"label": t("console.devices.browser_cannot_play_video"), "tier": "bad",
+                 "why": t("frontend_browser.finding.no_video")},
+    "no_browser": {"label": t("console.devices.browser_no_browser"), "tier": "bad",
+                   "why": t("frontend_browser.finding.no_browser")},
+    "unknown": {"label": t("console.devices.browser_not_checked"), "tier": "unknown",
+                "why": t("console.devices.browser_checked_when")},
+}
+
 COLUMNS: list[dict[str, Any]] = [
     # Never shown - it exists so every built-in view can sort this device to the top.
     # A column has to be declared to be sorted on, and this one is a fact about the row
@@ -357,6 +370,12 @@ COLUMNS: list[dict[str, Any]] = [
                 help=t("console.devices.whether_answered_last_asked.help")),
     grid.column("what", t("word.running"), 160,
                 help=t("console.devices.what_answered_vpinfe_install.help")),
+    grid.column("browser", t("console.devices.browser"), 150,
+                help=t("console.devices.browser.help"),
+                **grid.choice_filter([{"value": key, "label": one["label"]}
+                                      for key, one in BROWSER_STATES.items()],
+                                     formatted=True),
+                **renderers.drawable("state", states=BROWSER_STATES)),
     grid.column("address", t("console.devices.address"), 150,
                 help=t("console.devices.where_reached_read_off.help")),
     grid.column("last_seen", t("word.last_seen"), 170,
@@ -376,13 +395,13 @@ _SELF_FIRST = {"colId": "self", "sort": "desc", "sortIndex": 0}
 
 VIEWS: dict[str, list[str] | views.Preset] = {
     "console.devices.all_devices": views.Preset(
-        columns=("name", "kind", "state", "what", "last_seen"),
+        columns=("name", "kind", "state", "what", "browser", "last_seen"),
         sort=(_SELF_FIRST,
               {"colId": "state", "sort": "asc", "sortIndex": 1},
               {"colId": "name", "sort": "asc", "sortIndex": 2}),
         help=t("console.devices.every_device_known_here.help")),
     "console.view.answering": views.Preset(
-        columns=("name", "kind", "what", "address", "features"),
+        columns=("name", "kind", "what", "browser", "address", "features"),
         sort=(_SELF_FIRST, {"colId": "name", "sort": "asc", "sortIndex": 1}),
         filters={"state": {"values": [_REACH[device_client.ANSWERING][0]]}},
         help=t("console.devices.what_switched_reachable_right.help")),
@@ -422,11 +441,34 @@ def rows(devices: list[dict[str, Any]],
             # grid filter over "Checking" is a filter over how fast the page loaded.
             "state": state[0] if state else "",
             "what": str(probe.get("what") or ""),
+            "browser": str(_browser_of(device, probe).get("state") or ""),
             "address": str(device.get("address") or ""),
             "last_seen": str(device.get("last_reachable") or ""),
             "features": settings_page.features_said(device.get("features")),
         })
     return [when.said(row, "last_seen") for row in out]
+
+
+def _browser_of(device: dict[str, Any], probe: dict[str, Any] | None) -> dict[str, Any]:
+    return dict((probe or {}).get("browser") or device.get("browser") or {})
+
+
+def _browser_rows(device: dict[str, Any],
+                  probe: dict[str, Any] | None) -> list[tuple[Any, Any]]:
+    found = _browser_of(device, probe)
+    if not found:
+        return []
+    name = str(found.get("name") or "")
+    limited = BROWSER_STATES.get(str(found.get("state") or ""))
+    rows: list[tuple[Any, Any]] = [(
+        t("console.devices.browser"),
+        (name or t("console.devices.not_known")) if limited is None
+        else panel.state(limited["label"], limited["tier"], beside=name, hint=limited["why"]))]
+    checked = str(found.get("checked_at") or "")
+    if checked and (probe or {}).get("state") != device_client.ANSWERING:
+        rows.append(panel.note(t("console.devices.last_checked",
+                                 when=when.ago(checked, inline=True))))
+    return rows
 
 
 def _when(stamp: str, missing: str) -> Any:
@@ -860,8 +902,9 @@ async def software_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
                         device_label(device), exc_info=True)
             update, why = None, _why(exc)
         context["update"] = update
-    return _software_rows(device, is_local(context), client, update,
-                          _check_now(context, ask) if ask is not None else None, why)
+    return [*_software_rows(device, is_local(context), client, update,
+                            _check_now(context, ask) if ask is not None else None, why),
+            *_browser_rows(device, context.get("reach"))]
 
 
 def _check_now(context: dict[str, Any], ask: Callable[..., Any]) -> Callable[[], Any]:
