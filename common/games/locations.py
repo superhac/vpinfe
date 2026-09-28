@@ -140,8 +140,7 @@ def _look(raw_path: str, recorded: mounts.Origin | None = None) -> LocationState
     where = mounts.where(str(path), recorded)
     origin = where.origin
     if origin is not None and not where.connected:
-        return LocationState(NOT_CONNECTED, t("error.locations.not_connected",
-                                              share=origin.source), origin)
+        return LocationState(NOT_CONNECTED, t("error.locations.not_connected"), origin)
     if not there:
         return LocationState(NOT_FOUND, t("error.locations.nothing_at_path"), origin)
     if not path.is_dir():

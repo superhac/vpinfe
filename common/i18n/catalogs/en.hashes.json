@@ -864,6 +864,7 @@
   "console.locations.actions_selected_locations": "6b65cbef7e0e",
   "console.locations.add_location": "ae2ffdf4cbc3",
   "console.locations.could_not_read_locations": "4fd3549b4ebc",
+  "console.locations.device_or_server_whose.help": "596c33ca43a8",
   "console.locations.folder_location_last_two.help": "7046653ea7b3",
   "console.locations.folder_of_games": "4ee678d7eb8f",
   "console.locations.full_path": "834a09cf782e",
@@ -2090,7 +2091,7 @@
   "error.locations.none_locations_device": "eb037dbd4574",
   "error.locations.not_a_folder": "7f5155aaceba",
   "error.locations.not_answering": "620980986d18",
-  "error.locations.not_connected": "aff0295db08e",
+  "error.locations.not_connected": "8dc016cba767",
   "error.locations.not_reachable": "721024cd2984",
   "error.locations.nothing_at_path": "a5827a8a7280",
   "error.locations.nothing_can_be_written": "ede44c1358c0",
@@ -2707,6 +2708,7 @@
   "word.state": "077ab647cf4f",
   "word.status": "7eeef5d98649",
   "word.table_count": "68d7b3272d64",
+  "word.this_device": "b3c2cb2eb770",
   "word.tutorial": "c4ba75cf54e5",
   "word.undo": "675036bd3758",
   "word.uninstall": "dcd97fe36c74",
@@ -2718,6 +2720,7 @@
   "word.used_by": "e942cf974379",
   "word.version": "6a0ad2bedc57",
   "word.view": "a5a22c78e84a",
+  "word.where": "411ed77afa45",
   "word.year": "643c767acca0",
   "word.yes": "184fda5c980b"
 }

@@ -639,7 +639,7 @@ class LocationNotConnectedTests(LaunchTests):
                       popen=lambda cmd, **kwargs: started.append(cmd) or _FakePopen())
 
         self.assertEqual(started, [])
-        self.assertIn(self.origin.source, str(caught.exception))
+        self.assertIn("launch-nas/tables", str(caught.exception))
 
     def test_the_check_before_a_launch_refuses_it_too(self) -> None:
         with self.assertRaises(launch.ReferenceUnreachableError):

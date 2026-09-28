@@ -14,8 +14,12 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 import httpapi
+from common import mounts
 from common.games import locations
+from tests.support.hung_folder import never_answering
 from tests.support.skips import needs_posix_permissions
+
+NAS = mounts.Origin(mounts.NFS, "nas.lan", "/export/pinball", "/mnt/nas")
 
 
 def _client() -> TestClient:
@@ -120,6 +124,31 @@ class LocationApiTests(unittest.TestCase):
 
         self.assertEqual(self.client.delete("/locations/one").status_code, 200)
         self.assertEqual(self.client.get("/locations").json()["locations"], [])
+
+    def test_a_folder_on_this_device_says_so(self) -> None:
+        self._put("one", self._folder("share"))
+
+        row = self.client.get("/locations").json()["locations"][0]
+
+        self.assertEqual((row["where"], row["origin"]), ("local", None))
+
+    def test_a_folder_on_a_share_names_it(self) -> None:
+        self._put("one", self._folder("share"))
+        with patch.object(mounts, "where", return_value=mounts.Where(NAS)):
+            row = self.client.get("/locations").json()["locations"][0]
+
+        self.assertEqual(row["where"], "system")
+        self.assertEqual(row["origin"], {**NAS.as_dict(), "source": NAS.source})
+
+    def test_a_share_that_is_not_answering_is_still_named(self) -> None:
+        folder = self._folder("share")
+        self.store.put(locations.Location("one", folder, origin=NAS))
+        with patch.object(locations, "PROBE_SECONDS", 0.2), \
+                patch.object(locations, "MOUNT_SECONDS", 0.2), never_answering(folder):
+            row = self.client.get("/locations").json()["locations"][0]
+
+        self.assertEqual(row["state"], locations.NOT_ANSWERING)
+        self.assertEqual(row["origin"]["server"], "nas.lan")
 
 
 if __name__ == "__main__":

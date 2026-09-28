@@ -230,7 +230,7 @@ class ShareTests(_WithStore, unittest.TestCase):
 
         self.assertEqual(state.state, locations.NOT_CONNECTED)
         self.assertFalse(state.reachable)
-        self.assertIn(NAS.source, state.reason)
+        self.assertEqual(state.origin, NAS)
 
     def test_the_share_a_folder_is_seen_on_is_kept_for_when_it_is_down(self) -> None:
         folder = self._location("share")

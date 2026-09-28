@@ -5624,6 +5624,8 @@ async def _location_details(context: dict[str, Any]) -> None:
         (t("word.contains"), panel.select(
             {kind: t(key) for kind, key in locations_page.KIND_LABELS.items()},
             row["kind"], save_kind)),
+        (t("word.where"), (row.get("origin") or {}).get("source")
+         or locations_page.where_of(row)),
         (t("word.state"), _location_state(row)),
         (t("console.workbench.new_games"), _location_write_to(context, row)),
     ]

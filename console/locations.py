@@ -48,6 +48,8 @@ COLUMNS = [
     grid.column("contains", t("word.contains"), 140,
             **grid.choice_filter(_KIND_CHOICES),
                 help=t("console.locations.game_folders_children_games.help")),
+    grid.column("where", t("word.where"), 160, tooltipField="where_tip",
+                help=t("console.locations.device_or_server_whose.help")),
     grid.column("state", t("word.state"), 140,
                 help=t("console.locations.what_disk_says_right.help")),
     grid.column("new_games", t("console.locations.new_games"), 120,
@@ -64,7 +66,7 @@ COLUMNS = [
 
 LOCATION_VIEWS: dict[str, list[str] | views.Preset] = {
     "console.view.overview": views.Preset(
-        columns=("name", "contains", "state", "new_games", "shadowed", "path"),
+        columns=("name", "contains", "where", "state", "new_games", "shadowed", "path"),
         help=t("console.view.locations.help")),
     # Its own view rather than more columns on Overview: this one is read when
     # something is wrong, and the question is which location beats which.
@@ -87,6 +89,11 @@ def state_of(row: dict[str, Any]) -> str:
     return t(word) if word else ""
 
 
+def where_of(row: dict[str, Any]) -> str:
+    origin = row.get("origin")
+    return origin["server"] if origin else t("word.this_device")
+
+
 def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """One row per location, with the wire's flags turned into words a column shows."""
     return [{
@@ -94,6 +101,8 @@ def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
         "name": one["name"],
         "path": one["path"],
         "contains": t(KIND_LABELS.get(one["kind"], one["kind"])),
+        "where": where_of(one),
+        "where_tip": (one.get("origin") or {}).get("source", ""),
         "state": state_of(one),
         # Blank on every other row rather than "No": a column that says the same thing
         # everywhere but once is a column about the exception.

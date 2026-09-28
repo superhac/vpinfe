@@ -1023,6 +1023,7 @@
   "console.locations.actions_selected_locations": "Àçţîöñš ƒöř ţĥè šèŀèçţèđ ŀöçàţîöñš",
   "console.locations.add_location": "Àđđ à ŀöçàţîöñ",
   "console.locations.could_not_read_locations": "Çöûŀđ ñöţ řèàđ ţĥè ŀöçàţîöñš",
+  "console.locations.device_or_server_whose.help": "Ţĥîš đèṽîçè, öř ţĥè šèřṽèř ŵĥöšè šĥàřè ĥöŀđš ţĥè ƒöŀđèř",
   "console.locations.folder_location_last_two.help": "Ţĥè ƒöŀđèř ţĥîš ŀöçàţîöñ îš",
   "console.locations.folder_of_games": "À ƒöŀđèř öƒ ĝàɱèš",
   "console.locations.full_path": "Ƒûŀŀ Þàţĥ",
@@ -2411,7 +2412,7 @@
   "error.locations.none_locations_device": "Ñöñè öƒ ţĥöšè àřè ŀöçàţîöñš ţĥîš đèṽîçè ĥàš",
   "error.locations.not_a_folder": "Ţĥîš îš à ƒîŀè, ñöţ à ƒöŀđèř",
   "error.locations.not_answering": "Ñö àñšŵèř îñ ţîɱè. Çĥèçķ ţĥàţ ţĥè šèřṽèř öř đřîṽè ĥöŀđîñĝ îţ îš öñ.",
-  "error.locations.not_connected": "{share} îš ñöţ ɱöûñţèđ öñ ţĥîš đèṽîçè",
+  "error.locations.not_connected": "Îţš šĥàřè îš ñöţ ɱöûñţèđ öñ ţĥîš đèṽîçè",
   "error.locations.not_reachable": "{name} îš ñöţ řèàçĥàƀŀè: {reason}",
   "error.locations.nothing_at_path": "Ñöţĥîñĝ îš àţ ţĥîš þàţĥ",
   "error.locations.nothing_can_be_written": "Ñöţĥîñĝ çàñ ƀè ŵřîţţèñ ĥèřè",
@@ -3043,6 +3044,7 @@
   "word.state": "Šţàţè",
   "word.status": "Šţàţûš",
   "word.table_count": "Ţàƀŀè Çöûñţ",
+  "word.this_device": "Ţĥîš đèṽîçè",
   "word.tutorial": "Ţûţöřîàŀ",
   "word.undo": "Ûñđö",
   "word.uninstall": "Ûñîñšţàŀŀ",
@@ -3054,6 +3056,7 @@
   "word.used_by": "Ûšèđ ƀý",
   "word.version": "Ṽèřšîöñ",
   "word.view": "Ṽîèŵ",
+  "word.where": "Ŵĥèřè",
   "word.year": "Ýèàř",
   "word.yes": "Ýèš"
 }

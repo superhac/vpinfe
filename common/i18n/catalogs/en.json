@@ -1023,6 +1023,7 @@
   "console.locations.actions_selected_locations": "Actions for the selected locations",
   "console.locations.add_location": "Add a location",
   "console.locations.could_not_read_locations": "Could not read the locations",
+  "console.locations.device_or_server_whose.help": "This device, or the server whose share holds the folder",
   "console.locations.folder_location_last_two.help": "The folder this location is",
   "console.locations.folder_of_games": "A folder of games",
   "console.locations.full_path": "Full Path",
@@ -2411,7 +2412,7 @@
   "error.locations.none_locations_device": "None of those are locations this device has",
   "error.locations.not_a_folder": "This is a file, not a folder",
   "error.locations.not_answering": "No answer in time. Check that the server or drive holding it is on.",
-  "error.locations.not_connected": "{share} is not mounted on this device",
+  "error.locations.not_connected": "Its share is not mounted on this device",
   "error.locations.not_reachable": "{name} is not reachable: {reason}",
   "error.locations.nothing_at_path": "Nothing is at this path",
   "error.locations.nothing_can_be_written": "Nothing can be written here",
@@ -3043,6 +3044,7 @@
   "word.state": "State",
   "word.status": "Status",
   "word.table_count": "Table Count",
+  "word.this_device": "This device",
   "word.tutorial": "Tutorial",
   "word.undo": "Undo",
   "word.uninstall": "Uninstall",
@@ -3054,6 +3056,7 @@
   "word.used_by": "Used by",
   "word.version": "Version",
   "word.view": "View",
+  "word.where": "Where",
   "word.year": "Year",
   "word.yes": "Yes"
 }

@@ -22,14 +22,21 @@ from common.paths import get_ini_config
 
 logger = logging.getLogger("vpinfe.common.games.location_ops")
 
+# On this device, or on a share the OS mounted.
+WHERE_LOCAL = "local"
+WHERE_SYSTEM = "system"
+
 
 def _described(location: locations.Location, write_to: str,
                state: locations.LocationState, shadowed: int = 0) -> dict[str, Any]:
+    origin = state.origin or location.origin
     return {
         "location_id": location.location_id,
         "path": location.path,
         "name": location.name,
         "kind": location.kind,
+        "where": WHERE_SYSTEM if origin else WHERE_LOCAL,
+        "origin": {**origin.as_dict(), "source": origin.source} if origin else None,
         "state": state.state,
         "reachable": state.reachable,
         "writable": state.writable,
