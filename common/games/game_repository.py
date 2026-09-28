@@ -51,8 +51,6 @@ _LOCK = threading.Lock()
 _PARSERS: dict[tuple[str, str], GameParser] = {}
 # Locations that could not be reached at the last read, left alone until the next reload.
 _AWAY: set[tuple[str, str]] = set()
-# Not the Console's two seconds: an automounted share answers only once it is up.
-SCAN_WAIT_SECONDS = 30.0
 logger = logging.getLogger("vpinfe.common.games.game_repository")
 
 
@@ -71,7 +69,7 @@ def _held(reload: bool) -> tuple[list[Any], bool]:
 
     unread = [one for one in wanted if reload
               or (one.path, one.kind) not in _PARSERS and (one.path, one.kind) not in _AWAY]
-    states = locations.states_of(unread, wait=SCAN_WAIT_SECONDS) if unread else {}
+    states = locations.states_of(unread, wait=locations.MOUNT_SECONDS) if unread else {}
 
     games: list[Any] = []
     read = False

@@ -119,6 +119,7 @@ class TestApiInputMapping(unittest.TestCase):
                 meta_config={},
                 game_dir_name="Example",
                 full_path_game=str(Path(tmp)),
+                location_id="",
             )
             mock_games.return_value = [game]
             from common.games.launchers import Launcher

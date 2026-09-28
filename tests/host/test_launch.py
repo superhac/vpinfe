@@ -17,8 +17,9 @@ from dataclasses import asdict
 from pathlib import PurePath
 from unittest import mock
 
-from common import events, players
+from common import events, mounts, players
 from common.games import tables
+from common.games.locations import Location, LocationStore
 from common.games.score_parser import ParsedEntry
 from common.host import commands, launch, launch_state, table_commands
 
@@ -42,6 +43,7 @@ def _game(name="Example"):
         full_path_game=f"/games/{name}",
         game_dir_name=name,
         meta_config={},
+        location_id="",
     )
 
 
@@ -476,6 +478,7 @@ def _keyed_game(app="generic", key="mm"):
         full_path_game="/games/Medieval Madness",
         game_dir_name="Medieval Madness",
         meta_config={"tables": {"t9": {"id": "t9", "app": app, "key": key}}},
+        location_id="",
     )
 
 
@@ -556,7 +559,8 @@ class ReferencedEntryTests(LaunchTests):
     def _game_with(self, reference: str):
         return types.SimpleNamespace(
             full_path_vpx_file="", full_path_game=self.game_dir, game_dir_name="AFM",
-            meta_config={"tables": {"r1": {"id": "r1", "path": reference}}})
+            meta_config={"tables": {"r1": {"id": "r1", "path": reference}}},
+            location_id="")
 
     def _check(self, game, table=None):
         found = _launcher()
@@ -608,6 +612,38 @@ class ReferencedEntryTests(LaunchTests):
         cmd, _marker = launch._plan(entry, "/opt/x", found)
 
         self.assertEqual(cmd, ["/opt/x", self.elsewhere])
+
+
+class LocationNotConnectedTests(LaunchTests):
+    def setUp(self) -> None:
+        super().setUp()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        store = LocationStore(pathlib.Path(tmp.name) / "locations.json")
+        store.put(Location("nas", "/mnt/launch-nas/tables"))
+        self.origin = mounts.Origin(mounts.NFS, "nas.lan", "/export", "/mnt/launch-nas")
+        for patcher in (
+                mock.patch.object(launch.locations, "get_location_store",
+                                  return_value=store),
+                mock.patch.object(mounts, "where",
+                                  return_value=mounts.Where(self.origin, connected=False))):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.game = _game()
+        self.game.location_id = "nas"
+
+    def test_the_frontend_s_launch_is_refused_before_anything_starts(self) -> None:
+        started = []
+        with self.assertRaises(launch.ReferenceUnreachableError) as caught:
+            self._run(game=self.game,
+                      popen=lambda cmd, **kwargs: started.append(cmd) or _FakePopen())
+
+        self.assertEqual(started, [])
+        self.assertIn(self.origin.source, str(caught.exception))
+
+    def test_the_check_before_a_launch_refuses_it_too(self) -> None:
+        with self.assertRaises(launch.ReferenceUnreachableError):
+            launch.check_launchable(self.game, types.SimpleNamespace(config={}))
 
 
 if __name__ == "__main__":

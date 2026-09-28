@@ -6,6 +6,7 @@ import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import Any
 from unittest import mock
 
 from common.games import locations
@@ -19,10 +20,10 @@ def never_answering(path: str) -> Iterator[mock.MagicMock]:
     release = threading.Event()
     real = locations._look
 
-    def look(raw_path: str) -> locations.LocationState:
+    def look(raw_path: str, recorded: Any = None) -> locations.LocationState:
         if raw_path == path:
             release.wait()
-        return real(raw_path)
+        return real(raw_path, recorded)
 
     with mock.patch.object(locations, "_look", side_effect=look) as looked:
         try:

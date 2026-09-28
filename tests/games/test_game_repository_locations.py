@@ -8,6 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
+from common import mounts
 from common.games import game_repository
 from common.games.locations import KIND_GAME, KIND_ROOT, Location
 from tests.support.hung_folder import never_answering
@@ -83,13 +84,27 @@ class ManyLocationTests(unittest.TestCase):
 
     def test_a_location_that_does_not_answer_is_skipped_within_the_bound(self) -> None:
         with self._with(self.first, self.second), never_answering(str(self.first)), \
-                mock.patch.object(game_repository, "SCAN_WAIT_SECONDS", 0.2):
+                mock.patch.object(game_repository.locations, "MOUNT_SECONDS", 0.2):
             started = time.monotonic()
             games = game_repository.all_games()
             took = time.monotonic() - started
 
         self.assertEqual([g.game_dir_name for g in games], ["Two (Gottlieb 1975)"])
         self.assertLess(took, 1.0)
+
+    def test_a_location_whose_share_is_not_mounted_is_not_read_as_empty(self) -> None:
+        share = mounts.Origin(mounts.NFS, "nas.lan", "/export", str(self.first))
+
+        def where(path: str, recorded: mounts.Origin | None) -> mounts.Where:
+            return mounts.Where(share, connected=False) \
+                if path.startswith(str(self.first)) else mounts.Where()
+
+        with self._with(self.first, self.second), \
+                mock.patch.object(mounts, "where", side_effect=where):
+            games = game_repository.all_games()
+
+        self.assertEqual([g.game_dir_name for g in games], ["Two (Gottlieb 1975)"])
+        self.assertIn((str(self.first), KIND_ROOT), game_repository._AWAY)
 
     def test_a_location_found_away_is_asked_again_on_reload_and_not_before(self) -> None:
         later = self.root / "mounted-later"

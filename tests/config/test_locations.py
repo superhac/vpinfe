@@ -11,6 +11,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from common import mounts
 from common.games import locations
 from common.games.locations import (
     KIND_GAME,
@@ -211,6 +212,82 @@ class FolderThatDoesNotAnswerTests(_WithStore, unittest.TestCase):
 
         self.assertEqual(chosen, here)
         self.assertLess(took, 1.0)
+
+
+NAS = mounts.Origin(mounts.NFS, "nas.lan", "/export/pinball", "/mnt/nas")
+
+
+class ShareTests(_WithStore, unittest.TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        patch.object(locations, "get_location_store", return_value=self.store).start()
+        self.addCleanup(patch.stopall)
+
+    def test_a_folder_whose_share_is_not_mounted_reads_not_connected(self) -> None:
+        with patch.object(mounts, "where",
+                          return_value=mounts.Where(NAS, connected=False)):
+            state = state_of(Location("id", "/mnt/nas/not-connected"))
+
+        self.assertEqual(state.state, locations.NOT_CONNECTED)
+        self.assertFalse(state.reachable)
+        self.assertIn(NAS.source, state.reason)
+
+    def test_the_share_a_folder_is_seen_on_is_kept_for_when_it_is_down(self) -> None:
+        folder = self._location("share")
+        with patch.object(mounts, "where", return_value=mounts.Where(NAS)):
+            self.assertEqual(state_of(folder).state, locations.READY)
+        recorded = self.store.get(folder.location_id)
+        asked = []
+
+        def down(path: str, origin: mounts.Origin | None) -> mounts.Where:
+            asked.append(origin)
+            return mounts.Where(origin, connected=False)
+
+        with patch.object(mounts, "where", side_effect=down):
+            state = state_of(recorded)
+
+        self.assertEqual(asked, [NAS])
+        self.assertEqual(state.state, locations.NOT_CONNECTED)
+
+    def test_the_folder_is_touched_before_the_mount_table_is_read(self) -> None:
+        """Touching an automounted share is what mounts it."""
+        order = []
+        real_exists = Path.exists
+
+        def exists(path: Path) -> bool:
+            order.append("touched")
+            return real_exists(path)
+
+        def where(path: str, origin: mounts.Origin | None) -> mounts.Where:
+            order.append("table")
+            return mounts.Where()
+
+        with patch.object(Path, "exists", exists), \
+                patch.object(mounts, "where", side_effect=where):
+            state_of(Location("id", str(self.root)))
+
+        self.assertEqual(order[:2], ["touched", "table"])
+
+    def test_a_folder_on_this_device_records_no_share(self) -> None:
+        folder = self._location("share")
+        with patch.object(mounts, "where", return_value=mounts.Where()):
+            state_of(folder)
+
+        self.assertIsNone(self.store.get(folder.location_id).origin)
+
+    def test_changing_what_a_location_holds_keeps_its_share(self) -> None:
+        held = self.store.put(Location("id", str(self.root / "share"), origin=NAS))
+        again = self.store.put(Location(locations.mint_location_id(), held.path,
+                                        kind=KIND_GAME))
+
+        self.assertEqual(again.origin, NAS)
+
+    def test_a_share_is_kept_in_the_file(self) -> None:
+        self.store.put(Location("id", str(self.root / "share"), origin=NAS))
+        payload = json.loads(self.store.path.read_text())
+
+        self.assertEqual(payload["schema"], 2)
+        self.assertEqual(LocationStore(self.store.path).locations()[0].origin, NAS)
 
 
 class CanonicalTests(unittest.TestCase):

@@ -32,6 +32,7 @@ from common.games import (
     game_repository,
     info_file,
     launchers,
+    locations,
     score_parser,
     tables,
 )
@@ -287,6 +288,7 @@ def check_launchable(game: Game, ini_config: ConfigStore,
     # now is a good time, then whether this machine can do it at all. Checking the
     # launcher first would answer a malformed request with a configuration error.
     table_id, entry = _resolve_entry(game, table)
+    _location_is_reachable(game)
     _reference_is_reachable(game, entry)
     if launch_state.current().launching:
         raise LaunchBusyError(t("error.launch.already_launching"))
@@ -301,6 +303,17 @@ class ReferenceUnreachableError(LaunchUnavailableError):
     media are here and nothing is lost, so a surface should say the location is
     unreachable rather than offer to forget the entry.
     """
+
+
+def _location_is_reachable(game: Game) -> None:
+    location = locations.get_location_store().get(game.location_id)
+    if location is None:
+        return
+    state = locations.states_of([location], wait=locations.MOUNT_SECONDS)[
+        location.location_id]
+    if not state.reachable:
+        raise ReferenceUnreachableError(t("error.locations.not_reachable",
+                                          name=location.name, reason=state.reason))
 
 
 def _reference_is_reachable(game: Game, entry: dict) -> None:
@@ -330,6 +343,7 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
     # The table first: which launcher plays it is a question about the file, so there is
     # nothing to resolve until the file is known.
     table_id, entry = _resolve_entry(game, table)
+    _location_is_reachable(game)
     vpx_path = _path_of(game, entry)
     launcher, asked_for = _launcher_for(table_id, entry)
     binary = _binary_of(launcher)

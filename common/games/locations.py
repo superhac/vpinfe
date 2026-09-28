@@ -22,9 +22,11 @@ import logging
 import os
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
+from common import mounts
 from common.atomic_write import write_atomic
 from common.config_access import cfg_get
 from common.config_store import ConfigStore
@@ -36,7 +38,7 @@ from common.paths import CONFIG_DIR
 logger = logging.getLogger("vpinfe.common.games.locations")
 
 LOCATIONS_PATH = CONFIG_DIR / "locations.json"
-SCHEMA = 1
+SCHEMA = 2
 SCHEMA_KEY = "schema"
 LOCATIONS_KEY = "locations"
 WRITE_TO_KEY = "write_to"
@@ -68,6 +70,8 @@ class Location:
     location_id: str
     path: str
     kind: str = KIND_ROOT
+    # The share it was last seen on.
+    origin: mounts.Origin | None = None
 
     @property
     def name(self) -> str:
@@ -79,8 +83,12 @@ class Location:
         parts = [p for p in Path(self.path).parts if p not in ("/", "\\")]
         return "/".join(parts[-2:]) if len(parts) > 1 else (parts[0] if parts else self.path)
 
-    def as_dict(self) -> dict[str, str]:
-        return {"location_id": self.location_id, "path": self.path, "kind": self.kind}
+    def as_dict(self) -> dict[str, Any]:
+        held: dict[str, Any] = {"location_id": self.location_id, "path": self.path,
+                                "kind": self.kind}
+        if self.origin is not None:
+            held["origin"] = self.origin.as_dict()
+        return held
 
     @classmethod
     def from_dict(cls, raw: dict) -> Location | None:
@@ -90,16 +98,20 @@ class Location:
             return None
         kind = str(raw.get("kind", "") or "").strip() or KIND_ROOT
         return cls(location_id=location_id, path=path,
-                   kind=kind if kind in KINDS else KIND_ROOT)
+                   kind=kind if kind in KINDS else KIND_ROOT,
+                   origin=mounts.Origin.from_dict(raw.get("origin")))
 
 
 READY = "ready"
 READ_ONLY = "read_only"
+NOT_CONNECTED = "not_connected"
 NOT_FOUND = "not_found"
 NOT_ANSWERING = "not_answering"
 
 # How long a caller waits for the disk before calling a location Not answering.
 PROBE_SECONDS = 2.0
+# How long the scan and a launch wait for a folder.
+MOUNT_SECONDS = 30.0
 
 
 @dataclass(frozen=True)
@@ -108,6 +120,8 @@ class LocationState:
 
     state: str
     reason: str = ""
+    # The share it is on, or None on this device or when it did not answer.
+    origin: mounts.Origin | None = None
 
     @property
     def reachable(self) -> bool:
@@ -118,29 +132,37 @@ class LocationState:
         return self.state == READY
 
 
-def _look(raw_path: str) -> LocationState:
+def _look(raw_path: str, recorded: mounts.Origin | None = None) -> LocationState:
     # Resolved the same way `canonical` resolves it. Reading the raw string would call
     # `~/tables` unreachable while the scan happily walked it.
     path = Path(canonical(raw_path) or raw_path)
-    if not path.exists():
-        return LocationState(NOT_FOUND, t("error.locations.nothing_at_path"))
+    there = path.exists()
+    where = mounts.where(str(path), recorded)
+    origin = where.origin
+    if origin is not None and not where.connected:
+        return LocationState(NOT_CONNECTED, t("error.locations.not_connected",
+                                              share=origin.source), origin)
+    if not there:
+        return LocationState(NOT_FOUND, t("error.locations.nothing_at_path"), origin)
     if not path.is_dir():
-        return LocationState(NOT_FOUND, t("error.locations.not_a_folder"))
+        return LocationState(NOT_FOUND, t("error.locations.not_a_folder"), origin)
     if not os.access(path, os.W_OK):
-        return LocationState(READ_ONLY, t("error.locations.nothing_can_be_written"))
-    return LocationState(READY)
+        return LocationState(READ_ONLY, t("error.locations.nothing_can_be_written"),
+                             origin)
+    return LocationState(READY, origin=origin)
 
 
 class _Probe:
-    def __init__(self, raw_path: str) -> None:
+    def __init__(self, raw_path: str, recorded: mounts.Origin | None) -> None:
         self.raw_path = raw_path
+        self.recorded = recorded
         self.started = time.monotonic()
         self.done = threading.Event()
         self.answer = LocationState(NOT_ANSWERING, t("error.locations.not_answering"))
 
     def run(self) -> None:
         try:
-            self.answer = _look(self.raw_path)
+            self.answer = _look(self.raw_path, self.recorded)
         except (OSError, ValueError) as exc:
             self.answer = LocationState(NOT_FOUND, why(exc, self.raw_path))
         finally:
@@ -154,13 +176,13 @@ _PROBES: dict[str, _Probe] = {}
 _PROBES_LOCK = threading.Lock()
 
 
-def _probe(raw_path: str) -> _Probe:
+def _probe(location: Location) -> _Probe:
     """The question in flight for this path, or a new one. Nothing cancels a stat on a
     dead mount, so a second question would be a second thread lost to it."""
     with _PROBES_LOCK:
-        probe = _PROBES.get(raw_path)
+        probe = _PROBES.get(location.path)
         if probe is None:
-            probe = _PROBES[raw_path] = _Probe(raw_path)
+            probe = _PROBES[location.path] = _Probe(location.path, location.origin)
             threading.Thread(target=probe.run, daemon=True,
                              name="location-probe").start()
     return probe
@@ -174,10 +196,16 @@ def states_of(held: list[Location],
     question already out that long answers Not answering at once.
     """
     limit = PROBE_SECONDS if wait is None else wait
-    probes = {one.location_id: _probe(one.path) for one in held}
+    probes = {one.location_id: _probe(one) for one in held}
     for probe in probes.values():
         probe.done.wait(max(0.0, probe.started + limit - time.monotonic()))
-    return {location_id: probe.answer for location_id, probe in probes.items()}
+    answers = {location_id: probe.answer for location_id, probe in probes.items()}
+    seen = {one.location_id: origin for one in held
+            if (origin := answers[one.location_id].origin) is not None
+            and answers[one.location_id].state != NOT_CONNECTED and origin != one.origin}
+    if seen:
+        get_location_store().record_origins(seen)
+    return answers
 
 
 def state_of(location: Location) -> LocationState:
@@ -239,9 +267,20 @@ class LocationStore:
             existing = next((one for one in held if canonical(one.path) == wanted), None)
             if existing is not None:
                 location = Location(location_id=existing.location_id,
-                                    path=location.path, kind=location.kind)
+                                    path=location.path, kind=location.kind,
+                                    origin=existing.origin)
             self._write([*kept, location], write_to)
         return location
+
+    def record_origins(self, origins: dict[str, mounts.Origin]) -> None:
+        """Note the share each location was just seen on. Ids it does not hold are
+        ignored, and nothing is written when nothing changed."""
+        with self._lock:
+            held, write_to = self._load()
+            updated = [replace(one, origin=origins[one.location_id])
+                       if one.location_id in origins else one for one in held]
+            if updated != held:
+                self._write(updated, write_to)
 
     def remove(self, location_id: str) -> bool:
         """Forget a location. The records inside it go with it, because a contained

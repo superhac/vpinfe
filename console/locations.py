@@ -75,6 +75,7 @@ LOCATION_VIEWS: dict[str, list[str] | views.Preset] = {
 
 
 STATE_WORDS = {model.READY: "word.ready", model.READ_ONLY: "word.read_only",
+               model.NOT_CONNECTED: "word.not_connected",
                model.NOT_FOUND: "word.not_found", model.NOT_ANSWERING: "word.not_answering"}
 # What each state costs, for its chip. Anything not listed is a location that cannot be read.
 STATE_TIERS = {model.READY: "on", model.READ_ONLY: "warn"}
