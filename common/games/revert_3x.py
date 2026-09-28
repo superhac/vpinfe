@@ -33,8 +33,8 @@ logger = logging.getLogger("vpinfe.common.games.revert_3x")
 # for anything backup-shaped also eats the hand-made .bak-repro files kept beside them.
 # `watching.json` is 3.0 data with no 2.x original: a reset library that kept it would
 # measure new findings against an install that no longer exists.
-CONFIG_FILES = ("vpinfe.json", COLLECTIONS_NAME, "devices.json", "manager-ui-state.json",
-                "watching.json")
+CONFIG_FILES = ("vpinfe.json", COLLECTIONS_NAME, "devices.json", "players.json",
+                "manager-ui-state.json", "watching.json")
 CONFIG_DIRS = ("theme_user_options",)
 
 # Whose `.vpinfe-*` copies are ours to remove. The ini pair is what the conversion to
@@ -45,8 +45,10 @@ BACKED_UP_NAMES = ("vpinfe.ini", "vpinfe.json", COLLECTIONS_NAME_INI, COLLECTION
 # outlives the reset. Everything else here is regenerable or has a 2.x original to fall
 # back on; the device registry has neither once it holds a device that cannot announce
 # itself. A phone is entered by hand, nothing re-announces it, and the [mobile] import
-# that could have rebuilt one is marker-guarded and has already run.
-KEPT_BEFORE_REMOVAL = ("devices.json",)
+# that could have rebuilt one is marker-guarded and has already run. The roster is the
+# same: every player but the owner is entered by hand, and anything held for a player
+# is filed under their id.
+KEPT_BEFORE_REMOVAL = ("devices.json", "players.json")
 
 # Which of the two baselines the reset produced, reported rather than left to infer.
 RESTORED_FROM_2X = "restored_from_2x"

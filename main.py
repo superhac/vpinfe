@@ -327,6 +327,14 @@ try:
 except Exception:
     logger.exception("Mobile device import failed; [mobile] left as it was")
 
+# The owner is the one player every install has, and the one up until somebody else is.
+try:
+    from common.paths import get_ini_config
+    from common.players import get_roster
+    get_roster().ensure_owner(get_ini_config())
+except Exception:
+    logger.exception("Could not make the owner; the roster has none until the next start")
+
 shutdown.exit_if_requested(logger)
 
 # The catalog everything VPS-shaped reads from - matching, release lists, what a kind is

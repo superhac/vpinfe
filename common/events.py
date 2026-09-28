@@ -41,6 +41,10 @@ PLAY_STATE_CHANGED = "play.state_changed"
 # the wheel. Carries the whole state, like play.state_changed.
 FRONTEND_STATE_CHANGED = "frontend.state_changed"
 
+# Who plays here, or who is up, changed. Carries the whole roster, like
+# play.state_changed.
+PLAYERS_CHANGED = "players.changed"
+
 # Something is starting, stopping or restarting. Announced after it is confirmed, so a
 # surface that did not ask can say what is about to happen. Subscribers only - a
 # confirmation is asked for on the surface that asked, not on this.

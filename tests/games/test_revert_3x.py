@@ -280,6 +280,24 @@ class ConfigTests(RevertTestCase):
         self.assertEqual(saved["devices"][0]["address"], "192.168.1.50",
                          "the phone is recoverable by hand")
 
+    def test_the_roster_is_copied_aside_before_it_goes(self):
+        self._migrate()
+        (self.config_dir / "players.json").write_text(
+            json.dumps({"schema": 2, "players": [
+                {"id": "Pppp111111", "name": "", "initials": "OWN", "owner": True},
+                {"id": "Pppp222222", "name": "Alex", "initials": "ABC", "owner": False}]}),
+            encoding="utf-8")
+
+        result = self._reset()
+
+        self.assertIn("players.json", result["config_removed"])
+        self.assertFalse((self.config_dir / "players.json").exists())
+        kept = list(self.config_dir.glob("players.json.vpinfe-*"))
+        self.assertEqual(len(kept), 1, f"expected one copy, found {kept}")
+        self.assertIn(kept[0].name, result["config_kept"])
+        saved = json.loads(kept[0].read_text(encoding="utf-8"))
+        self.assertEqual(saved["players"][1]["name"], "Alex")
+
     def test_nothing_is_kept_when_there_is_no_registry(self):
         self._migrate()
 
