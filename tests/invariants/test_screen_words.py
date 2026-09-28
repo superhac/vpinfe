@@ -45,6 +45,7 @@ BUILD = {
     "console.devices.why_not.no_published_build_matches": "a VPinFE build",
     "console.media.every_row_nothing_hidden.help": "the verb",
     "console.sections.build": "this VPinFE build",
+    "console.settings.browser_slim_build": "this VPinFE build",
     "console.sections.newer_build": "this VPinFE build",
     "console.sections.written_later_version_vpinfe": "this VPinFE build",
     "console.sections.written_older_build_can": "an older VPinFE build",

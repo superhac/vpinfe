@@ -253,6 +253,16 @@ def google_chrome_path() -> str | None:
     return next((path for path in candidates if os.path.isfile(path)), None)
 
 
+_BUNDLED = {"Windows": "chromium/windows/chrome-win/chrome.exe",
+            "Darwin": "chromium/Chromium.app/Contents/MacOS/Chromium"}
+
+
+def has_bundled_browser() -> bool:
+    """Whether this build ships a browser of its own: a full build, not a slim one."""
+    return os.path.isfile(resource_path(
+        _BUNDLED.get(platform.system(), "chromium/linux/chrome/chrome")))
+
+
 def get_chromium_path(configured: str | None = None) -> ChromiumPath:
     """Get the platform-specific path to the Chromium binary.
 

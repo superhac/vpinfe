@@ -444,6 +444,8 @@ class FrontendBrowser(ApiModel):
     browser: str
     path: str
     bundled: bool
+    # `full` where this build ships a browser of its own, `slim` where it does not.
+    variant: str = ""
     formats: dict[str, bool | None]
     plays: list[str]
     does_not_play: list[str]

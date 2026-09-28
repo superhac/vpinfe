@@ -1860,6 +1860,7 @@
   "console.settings.browser_in_use": "In use",
   "console.settings.browser_not_checked": "Not checked yet",
   "console.settings.browser_plays": "Plays",
+  "console.settings.browser_slim_build": "A slim build, with no browser of its own",
   "console.settings.change_on_themes": "Change on the Themes page",
   "console.settings.check_now": "Check now",
   "console.settings.checking_themes": "Reading theme sources...",

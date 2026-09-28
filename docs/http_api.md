@@ -851,6 +851,7 @@ frontend's controller window found when it last opened with that browser:
 ```
 {"state": "no_h264", "browser": "Chromium 145.0.7632.0",
  "path": "/opt/vpinfe/_internal/chromium/linux/chrome/chrome", "bundled": true,
+ "variant": "full",
  "formats": {"h264": false, "hevc": false, "vp9": true, "av1": true,
              "aac": false, "mp3": true, "vorbis": true, "opus": true},
  "plays": ["VP9", "AV1", "MP3", "Vorbis", "Opus"],
@@ -863,6 +864,8 @@ frontend's controller window found when it last opened with that browser:
 
 - `state` is `plays`, `no_h264`, `no_video`, `no_browser`, or `unknown`: nothing has
   reported since this browser was chosen. Unknown is never a no.
+- `bundled` is whether the browser in use is the one VPinFE ships; `variant` is whether this
+  build ships one at all, `full` or `slim`.
 - A format is `true`, `false`, or `null` where the probe could not tell. H.264 and VP9 are
   decoded from a real file, not only asked of `canPlayType`, because a file can load with no
   picture.

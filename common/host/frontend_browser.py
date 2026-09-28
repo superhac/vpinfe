@@ -54,6 +54,10 @@ UNKNOWN = "unknown"
 
 USE_CHROME = "use_chrome"
 
+# Whether this build ships a browser of its own.
+FULL = "full"
+SLIM = "slim"
+
 _FINDINGS = {NO_H264: "frontend_browser.finding.no_h264",
              NO_VIDEO: "frontend_browser.finding.no_video",
              NO_BROWSER: "frontend_browser.finding.no_browser"}
@@ -102,6 +106,12 @@ def _in_use() -> tuple[str, bool]:
     from common import device_client
 
     return device_client.local().browser_in_use()
+
+
+def _variant() -> str:
+    from common import device_client
+
+    return FULL if device_client.local().has_bundled_browser() else SLIM
 
 
 def _google_chrome() -> str:
@@ -225,6 +235,7 @@ def current(held: dict[str, Any] | None = None) -> dict[str, Any]:
         "browser": str((held or {}).get("browser") or ""),
         "path": path,
         "bundled": bundled,
+        "variant": _variant(),
         "formats": formats,
         "plays": [one.name for one in FORMATS if formats[one.id]],
         "does_not_play": [one.name for one in FORMATS if formats[one.id] is False],

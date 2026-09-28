@@ -84,6 +84,16 @@ class LocalDevice:
         except Exception:
             return "", False
 
+    def has_bundled_browser(self) -> bool:
+        """Whether this build ships a browser of its own. False on an install with no
+        frontend."""
+        try:
+            from frontend.chromium_manager import has_bundled_browser
+
+            return has_bundled_browser()
+        except Exception:
+            return False
+
     def google_chrome_path(self) -> str | None:
         """Where Google Chrome is installed on this machine, or None."""
         try:

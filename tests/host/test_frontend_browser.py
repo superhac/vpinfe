@@ -12,7 +12,7 @@ from unittest import mock
 from starlette.testclient import TestClient
 
 import httpapi
-from common import device_registry, install_identity
+from common import device_client, device_registry, install_identity
 from common.host import frontend_browser as fb
 
 BUNDLED = "/opt/vpinfe/chromium/linux/chrome/chrome"
@@ -124,6 +124,14 @@ class BrowserNameTests(unittest.TestCase):
 
     def test_nothing_readable_is_blank(self) -> None:
         self.assertEqual(fb._browser_name("junk", "curl/8"), "")
+
+
+class VariantTests(_Isolated):
+    def test_a_build_says_whether_it_ships_a_browser(self) -> None:
+        for ships, variant in ((True, fb.FULL), (False, fb.SLIM)):
+            with mock.patch.object(device_client.LocalDevice, "has_bundled_browser",
+                                   return_value=ships):
+                self.assertEqual(fb.current()["variant"], variant)
 
 
 class RecordTests(_Isolated):

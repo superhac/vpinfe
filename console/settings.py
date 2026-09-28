@@ -480,7 +480,9 @@ def _browser_rows(found: dict[str, Any], chosen: str) -> list[tuple[Any, Any]]:
     def came_from() -> None:
         shown = ui.label(t("console.settings.browser_bundled") if found.get("bundled")
                          else path).classes("console-fact-value truncate min-w-0")
-        if path:
+        if found.get("variant") == "slim":
+            shown.tooltip(t("console.settings.browser_slim_build"))
+        elif path:
             shown.tooltip(path)
 
     source = [] if path and path == chosen.strip() else \
