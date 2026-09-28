@@ -10,7 +10,7 @@ from starlette.testclient import TestClient
 
 import httpapi
 from common import events, jobs, service_errors
-from common.capture import placing, run, session
+from common.capture import adapters, placing, run, session
 from common.capture.run import Request
 from common.games import asset_origin
 from common.host import launch_state
@@ -114,6 +114,17 @@ class PlanTests(_Library):
 
         self.assertEqual(planned["kinds"][0]["does"], "leave")
         self.assertEqual(planned["kinds"][0]["reason"]["key"], "capture.screen.none")
+        self.assertEqual(planned["launches"], 0)
+
+    def test_a_device_that_records_nothing_says_why_for_every_kind_named(self) -> None:
+        self.report = report(adapters.Unsupported("avfoundation", adapters.NOT_YET,
+                                                  {"desktop": "macOS"}))
+
+        planned = self.plan(kinds=["playfield", "backglass_video", "audio"])
+
+        self.assertEqual({row["does"] for row in planned["kinds"]}, {"leave"})
+        self.assertEqual({row["reason"]["key"] for row in planned["kinds"]},
+                         {adapters.NOT_YET})
         self.assertEqual(planned["launches"], 0)
 
     def test_the_estimate_is_one_launch_with_every_screen_at_once(self) -> None:

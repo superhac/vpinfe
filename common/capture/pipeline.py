@@ -77,12 +77,6 @@ class Encode:
     quality: str
 
 
-def encode(ffmpeg: Path, job: Encode, dest: Path) -> list[str]:
-    return [*_quiet(ffmpeg), *_window(job.skip, job.length), "-i", str(job.source),
-            "-map", "0:v:0", "-an", "-vf", video_filters(job.turn, job.fps, job.cap),
-            *codec_args(job.codec, job.quality), "-movflags", "+faststart", str(dest)]
-
-
 def picture(ffmpeg: Path, source: Path, turn: Turn, cap: int | None, dest: Path,
             at: float | None = None) -> list[str]:
     """One frame, `at` seconds into a recording, or the whole of a still where None."""
@@ -91,14 +85,16 @@ def picture(ffmpeg: Path, source: Path, turn: Turn, cap: int | None, dest: Path,
             "-vf", ",".join([*turn.filters, scale(cap)]), str(dest)]
 
 
+def sound_source(chosen: str) -> str:
+    """Sound From as PulseAudio names it: a source's name, or Automatic for the default
+    output's monitor."""
+    return DEFAULT_MONITOR if chosen in ("", settings.AUTO) else chosen
+
+
 def sound(ffmpeg: Path, chosen: str, dest: Path) -> list[str]:
-    """What the device plays, from PulseAudio or PipeWire's stand-in, until stopped.
-    `chosen` is Sound From: a source's name, or Automatic for the default output's."""
-    source = DEFAULT_MONITOR if chosen in ("", settings.AUTO) else chosen
-    return [*_quiet(ffmpeg), "-f", "pulse", "-i", source, "-ac", "2", "-ar", "48000",
-            "-c:a", "pcm_s16le", str(dest)]
-
-
+    """What the device plays, from PulseAudio or PipeWire's stand-in, until stopped."""
+    return [*_quiet(ffmpeg), "-f", "pulse", "-i", sound_source(chosen), "-ac", "2",
+            "-ar", "48000", "-c:a", "pcm_s16le", str(dest)]
 
 
 def mp3(ffmpeg: Path, source: Path, skip: float, length: float, dest: Path) -> list[str]:
@@ -118,13 +114,32 @@ def frames(ffmpeg: Path, source: Path) -> list[str]:
             "-f", "null", "-"]
 
 
+def describe(ffmpeg: Path, source: Path) -> list[str]:
+    """FFmpeg reading a file and writing nothing, which says what is in it and exits 1."""
+    return [str(ffmpeg), "-hide_banner", "-nostdin", "-i", str(source)]
+
+
 _FRAME = re.compile(r"^frame=\s*(\d+)", re.MULTILINE)
 _PEAK = re.compile(r"max_volume:\s*(-?[\d.]+|-inf) dB")
+_VIDEO = re.compile(r"Stream #\S+.*?: Video: (.*)")
+_SIZE = re.compile(r"(?<![\w.])(\d{2,5})x(\d{2,5})(?![\w.])")
+_RATE = re.compile(r"([\d.]+) fps")
 
 
 def frames_in(said: str) -> int:
     counts = _FRAME.findall(said or "")
     return int(counts[-1]) if counts else 0
+
+
+def video_in(said: str) -> tuple[tuple[int, int] | None, float | None]:
+    """The first video stream's size and rate, from what `describe` printed."""
+    stream = _VIDEO.search(said or "")
+    if not stream:
+        return None, None
+    size = _SIZE.search(stream.group(1))
+    rate = _RATE.search(stream.group(1))
+    return ((int(size.group(1)), int(size.group(2))) if size else None,
+            float(rate.group(1)) if rate else None)
 
 
 def peak_in(said: str) -> float:

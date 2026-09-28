@@ -18,7 +18,7 @@ from common.failures import why
 from common.games import asset_origin
 from common.host import launch, launch_state, tools
 
-from . import adapters, geometry, pipeline, placing
+from . import adapters, commands, geometry, pipeline, placing
 from .adapters import Output, Recording
 from .placing import Placing
 from .settings import Settings
@@ -91,6 +91,12 @@ class Target:
     # game's default.
     table: str | None
     kinds: tuple[str, ...]
+
+
+def playfield_turn(config: Any, base: geometry.Turn, orientation: str) -> geometry.Turn:
+    """The playfield's buffer to its stored orientation, under this device's rotation."""
+    raw = str(cfg_get(config, "windows.playfield", "rotation") or "0")
+    return geometry.playfield(base, int(raw) if raw.isdigit() else 0, orientation)
 
 
 def _place(game_id: str, kind: str, table_id: str, source: Path, origin: str,
@@ -200,7 +206,8 @@ class Session:
 
     def _start(self, window: str) -> Recording:
         dest = self.work / f"{window}.mkv"
-        argv = self.adapter.record(self.found, self.screens[window], dest, self.hardware)
+        argv = commands.record(self.adapter.id, self.found, self.screens[window], window,
+                               dest, self.chosen, self.hardware)
         return Recording(window, dest, self._spawn(argv), self.kit.clock())
 
     def _start_sound(self) -> Recording:
@@ -310,14 +317,9 @@ class Session:
 
     # --- after the table has closed -----------------------------------------------------
 
-    def _rotation(self) -> int:
-        raw = str(cfg_get(self.config, "windows.playfield", "rotation") or "0")
-        return int(raw) if raw.isdigit() else 0
-
     def _turn(self, window: str, base: geometry.Turn) -> geometry.Turn:
         if window == adapters.PLAYFIELD:
-            return geometry.playfield(base, self._rotation(),
-                                      self.chosen.playfield_orientation)
+            return playfield_turn(self.config, base, self.chosen.playfield_orientation)
         return geometry.screen(base)
 
     def _made(self, kind: str, argv: list[str], dest: Path,
@@ -330,6 +332,13 @@ class Session:
             made[kind] = dest
         else:
             self._fail(kind, said(NOT_WRITTEN))
+
+    def _quietly(self, argv: list[str]) -> None:
+        """A step whose file the next one reads, and which fails through it."""
+        try:
+            pipeline.run(argv, self.kit.runner)
+        except (OSError, subprocess.SubprocessError):
+            logger.warning("Recording: %s did not finish", argv[0], exc_info=True)
 
     def _fail(self, kind: str, reason: dict[str, Any]) -> None:
         self.result.failed.append({"kind": kind, "reason": reason})
@@ -350,16 +359,24 @@ class Session:
                         self._fail(kind, said(NO_FRAMES, window=window))
                 continue
             turn = self._turn(window, self.adapter.recording_turn(self.screens[window]))
-            if video in wanted:
+            theirs = bool(self.chosen.encode_command)
+            encoded = self.work / f"{video}.mp4"
+            if video in wanted or (picture in wanted and theirs):
                 job = pipeline.Encode(one.path, skip, self.chosen.length, turn,
                                       self.chosen.fps, cap, self.codec, self.chosen.quality)
-                self._made(video, pipeline.encode(ffmpeg, job, self.work / f"{video}.mp4"),
-                           self.work / f"{video}.mp4", made)
+                argv = commands.encode(self.chosen.encode_command, ffmpeg, job, encoded,
+                                       window=window, output=self.screens[window])
+                if video in wanted:
+                    self._made(video, argv, encoded, made)
+                else:
+                    self._quietly(argv)
             if picture in wanted:
                 dest = self.work / f"{picture}.png"
-                self._made(picture, pipeline.picture(ffmpeg, one.path, turn, cap, dest,
-                                                     at=skip + self.chosen.picture_at),
-                           dest, made)
+                cut = (pipeline.picture(ffmpeg, encoded, geometry.NONE, None, dest,
+                                        at=self.chosen.picture_at) if theirs
+                       else pipeline.picture(ffmpeg, one.path, turn, cap, dest,
+                                             at=skip + self.chosen.picture_at))
+                self._made(picture, cut, dest, made)
         for window in self.stills:
             picture = KINDS[window][0]
             still = self.work / f"{window}.png"

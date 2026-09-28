@@ -12,6 +12,7 @@ from typing import Any
 from fastapi import APIRouter, Body
 
 from common import config_service
+from common.capture import settings as capture_settings
 from common.failures import why
 from common.host import tools
 from common.i18n import t
@@ -66,6 +67,9 @@ def get_values() -> models.ConfigValues:
             dependencies=[requires(scopes.CONFIG_WRITE)])
 def put_values(values: dict[str, dict[str, Any]] = Body(...)) -> models.ConfigValues:
     """A patch: only the sections and keys sent are written."""
+    refused = capture_settings.refused(values)
+    if refused:
+        raise InvalidRequestError(refused)
     try:
         return models.ConfigValues.model_validate(
             config_service.set_values(values, _windows()))

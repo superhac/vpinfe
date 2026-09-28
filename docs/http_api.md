@@ -48,6 +48,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/frontend/browser` | What this device's frontend browser can play, and how to fix what it cannot. `state` is `unknown` until the frontend has reported since this browser was chosen |
 | GET | `/api/v1/capture` | What this device can record of its own screens, and exactly why not. See [Recording](#recording) |
 | POST | `/api/v1/capture/plan` | What recording one game or table would fill and replace, by whose file, and about how long it takes. Nothing happens |
+| POST | `/api/v1/capture/test` | Record 3 s of the playfield with the Record and Encode Commands, launching nothing, and say what came out: size, rate, frames and a small picture, or which command failed and what it said |
 | POST | `/api/v1/capture/runs` | Record one game or table. 202 with the job; 409 while a table runs or a recording or art fill is under way, 501 where this device records nothing |
 | PUT | `/api/v1/frontend/collection` | Show a collection on the frontend, `""` being the whole library. 202, and the switch arrives as the next `frontend.state_changed`. 409 when the frontend is not running, or when this install reads its library from another that cannot be reached; 404 when there is no collection by that name |
 | PUT | `/api/v1/frontend/game` | Move the frontend's wheel to a game. 202; 409 when the frontend is not running, 404 when the collection on screen does not hold that game |
@@ -841,7 +842,9 @@ is asked of that device.
            "reason": {"key": "capture.sound.no_server", "params": {}, "fix": "none",
                       "remedy": null}},
  "video_codec": "h264", "at_once": true,
- "tools": [{"id": "ffmpeg", "state": "found", ...}]}
+ "tools": [{"id": "ffmpeg", "state": "found", ...}],
+ "commands": {"record": "[recorder] -D [input] [hwaccel] -f [output]",
+              "encode": "[ffmpeg] -hide_banner ... [input] -map 0:v:0 -an [videoFilters] ..."}}
 ```
 
 - `adapter` is how this session's screens are reached, read off its variables: `wlr` for
@@ -865,6 +868,63 @@ is asked of that device.
   encoder; without one they record one after another in the same launch.
 - The `capture` capability is this report reduced to one answer, whether anything can be
   recorded, with the first reason nothing can, remedy included.
+- `commands` are VPinFE's own Record and Encode Commands on this device, their tokens
+  unexpanded; `record` is empty where it has none.
+
+### The Record and Encode Commands
+
+`capture.record_command` records one screen, once per screen; `capture.encode_command`
+turns one recording into the stored file. Empty is VPinFE's own. Each is one command line,
+split the way a shell splits it and nothing else a shell does, and each argument is filled
+in on its own, so a path with a space in it stays one argument.
+
+| Token | Record | Encode |
+|---|---|---|
+| `[ffmpeg]` | the FFmpeg the Tools found | the same |
+| `[recorder]` | the program that records a screen: wf-recorder on wlroots, FFmpeg elsewhere | - |
+| `[input]` | the screen's capture input: `-o DP-1` on wlroots, `-f lavfi -i ddagrab=output_idx=1`, `-f x11grab -video_size 1920x1080 -i :0.0+1080,0`, `-f avfoundation -i 2:none` | the recording, cut to the moment every screen shares: `-ss 0.412 -t 20.000 -i <file>` |
+| `[output]` | the file to write | the same |
+| `[window]` | `playfield`, `backglass`, `scoreview` or `topper` | the same |
+| `[screen]` | the output's name, `DP-1` | the same |
+| `[monitorIndex]` | the capture API's own number for the screen | - |
+| `[x]`, `[y]` | where the screen is on the desktop | - |
+| `[width]`, `[height]` | the screen's size | the same |
+| `[duration]` | Length, in seconds | the same |
+| `[fps]` | the screen's refresh | Frame Rate |
+| `[hwaccel]` | the hardware encoder's arguments, or nothing | - |
+| `[audioDevice]` | the sound source | - |
+| `[videoFilters]` | - | `-vf` and VPinFE's filters: the turn to the stored orientation, the constant rate and the size |
+| `[videoCodec]` | - | VPinFE's arguments for the Video Format and Quality |
+
+- `[input]`, `[videoFilters]`, `[videoCodec]` and `[hwaccel]` are several arguments, so each
+  is an argument on its own. `[[name]]` is the brackets themselves, for an FFmpeg filter
+  label such as `[[v]]`.
+- A Record Command needs `[output]`; an Encode Command needs `[input]` and `[output]`.
+- `PUT /api/v1/config` refuses a command with a name no token has, a token from the other
+  command, a list token sharing an argument or a quotation mark never closed, as a `400`
+  naming the command and the problem; so does a run whose `settings` carry one. A command
+  in the settings file that cannot run is set aside, and VPinFE's own runs.
+- VPinFE still keeps time: every recorder is stopped by the wall clock after Length and its
+  frames counted, whatever the command says.
+- Where the Encode Command is a person's own, the pictures are cut from what it wrote, so its
+  geometry and size carry through.
+
+`POST /api/v1/capture/test` records 3 s of the playfield with the commands, launching
+nothing, and encodes it. The body is `{"settings": {...}}`, Recording settings in place of
+this device's as a run takes them. It answers when done:
+
+```
+{"ok": true, "step": null, "reason": null, "detail": "",
+ "size": [1920, 1080], "fps": 30.0, "frames": 90, "seconds": 3.0,
+ "picture": "data:image/jpeg;base64,...",
+ "record": "/usr/bin/wf-recorder -D -o DP-1 ...", "encode": "/usr/bin/ffmpeg ..."}
+```
+
+`size`, `fps` and `frames` are the stored file's, and `picture` a small JPEG of it that
+shows which way up the playfield came out. A command that records or writes nothing is an
+answer, not an error: `ok` false, `step` `record` or `encode`, a `reason` key, and in
+`detail` the last thing the program said. A device that records nothing answers `501`, and a
+table or a recording already running `409`.
 
 `POST /api/v1/capture/runs` records one game, `{"games": [id]}`, or one table,
 `{"tables": [{"game": id, "table": table_id}]}`, and answers `202` with the job
@@ -888,7 +948,8 @@ nothing:
 - A run that replaces anything carries `confirmed.count` equal to the plan's `replacing`,
   and is refused with `details.replacing` otherwise - the confirm a person sees, by count.
 - `settings` are Recording settings for this run only: `length`, `wait`, `picture_at`,
-  `fps`, `size`, `video_codec`, `playfield_orientation`, `quality`, `sound_source`.
+  `fps`, `size`, `video_codec`, `playfield_orientation`, `quality`, `sound_source`,
+  `record_command`, `encode_command`.
 - A game's slot is the file its tables share, and the recording lands there; a table's
   slot is whatever serves it - its own file, else the shared one - and the recording lands
   as the table's own.
@@ -896,7 +957,8 @@ nothing:
 
 The plan answers per kind what it `does` (`fill`, `replace` or `leave`), the `source` of a
 file it replaces (`vpinmediadb`, `user`, `capture`, `unknown`), and a `reason` where this
-device cannot record the kind; then `recording`, `replacing`, `replacing_by_source`,
+device cannot record the kind - on a device that records nothing, the report's own reason
+for every kind named; then `recording`, `replacing`, `replacing_by_source`,
 `launches` and an `estimate_seconds` that is always approximate.
 
 The job's `result` has one entry in `tables`: `state` is `recorded`, `failed`, `closed` (the

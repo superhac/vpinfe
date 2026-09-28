@@ -10,7 +10,7 @@ from common.host import display_service, tools
 from common.i18n import t
 from common.timestamps import utc_now_iso
 
-from . import adapters, placing, settings
+from . import adapters, commands, placing, settings
 
 NEEDS_TOOL = "capture.tool.needed"
 NO_ENCODER = "capture.encoder.missing"
@@ -131,7 +131,8 @@ def report(*, adapter: adapters.Adapter | adapters.Unsupported | None = None,
     if isinstance(adapter, adapters.Unsupported):
         why = reason(adapter.reason, adapter.params)
         return {**head, "available": False, "reason": why, "screens": [],
-                "sound": _able(why), "at_once": False, "tools": []}
+                "sound": _able(why), "at_once": False, "tools": [],
+                "commands": commands.own(adapter.id, {}, "")}
 
     found = {tool.id: tools.resolve(tool) for tool in adapter.requirements()} \
         if found is None else found
@@ -145,6 +146,8 @@ def report(*, adapter: adapters.Adapter | adapters.Unsupported | None = None,
                              placing.shown() if shown is None else shown)
     screens = [_screen(screen, found, codec, unreadable)
                for screen in placed.screens().values()]
+    ffmpeg = found[tools.FFMPEG.id]
+    hardware = adapter.hardware(ffmpeg) if probe_hardware else ""
     able = [one for one in screens if one["picture"]["available"]
             or one["video"]["available"]]
     first = next((one[kind]["reason"] for one in screens
@@ -154,8 +157,9 @@ def report(*, adapter: adapters.Adapter | adapters.Unsupported | None = None,
             "reason": None if able else first,
             "screens": screens,
             "sound": _sound(found, env),
-            "at_once": bool(probe_hardware and adapter.at_once(found[tools.FFMPEG.id])),
-            "tools": [tools.row(found[tool.id]) for tool in adapter.requirements()]}
+            "at_once": bool(probe_hardware and adapter.at_once(ffmpeg)),
+            "tools": [tools.row(found[tool.id]) for tool in adapter.requirements()],
+            "commands": commands.own(adapter.id, found, hardware)}
 
 
 def available() -> bool | tuple[bool, str]:

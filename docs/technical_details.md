@@ -113,6 +113,8 @@ Runtime state written by VPinFE, not shown as a setting.
 | `quality` | choice (standard, high) | `standard` | High is sharper, in larger files |
 | `sound` | bool | `false` | Record the table's sound as a file of its own |
 | `sound_source` | string | `auto` | Where sound is recorded from. Automatic is what this device plays |
+| `record_command` | string |  | The command that records each screen. Left empty, VPinFE's own runs |
+| `encode_command` | string |  | Turns each recording into the stored file. Left empty, VPinFE's own runs |
 
 ### `assets`
 

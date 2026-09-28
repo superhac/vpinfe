@@ -83,14 +83,15 @@ def _kinds(request: Request, report: Mapping[str, Any], chosen: settings.Setting
 
 
 def _blocked(kind: str, report: Mapping[str, Any]) -> dict[str, Any] | None:
-    """Why this device cannot record `kind`, or None where it can."""
+    """Why this device cannot record `kind`, or None where it can. A kind with no screen
+    row is one a device that records nothing was asked for."""
     if kind == session.AUDIO:
         return report["sound"]["reason"]
     for screen in report["screens"]:
         picture, video = session.KINDS[screen["window"]]
         if kind in (picture, video):
             return screen["picture" if kind == picture else "video"]["reason"]
-    return None
+    return report["reason"]
 
 
 def before(game_id: str, table_id: str, kind: str) -> str | None:
@@ -159,6 +160,35 @@ def _plan(request: Request, report: Mapping[str, Any],
             if doing else 0}
 
 
+@dataclass(frozen=True)
+class Device:
+    """This device's screens as a recording reaches them."""
+
+    adapter: adapters.Adapter
+    found: Mapping[str, tools.Found]
+    config: Any
+    screens: Mapping[str, adapters.Output]
+    placed: placing.Placing
+
+
+def reach(report: Mapping[str, Any], game: Any = None, table: str | None = None) -> Device:
+    """Where each window of this table would be recorded from, or of the default
+    launcher's with no game. Raises UnavailableError where this session has no way to
+    record."""
+    adapter = adapters.resolve()
+    if isinstance(adapter, adapters.Unsupported):
+        raise service_errors.UnavailableError(preflight.words(report["reason"]))
+    from common.host import display_service
+    from common.paths import get_ini_config
+
+    config = get_ini_config()
+    placed = placing.Placing(adapter.outputs(), config, display_service.get_display_monitors(),
+                             placing.shown(game, table))
+    return Device(adapter, {tool.id: tools.resolve(tool) for tool in adapter.requirements()},
+                  config, {window: screen.output for window, screen in placed.screens().items()
+                           if screen.output}, placed)
+
+
 def plan(request: Request, report: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """What `start` would do with the same request, doing nothing."""
     report = preflight.report() if report is None else report
@@ -190,19 +220,8 @@ def start(request: Request, kit: session.Kit | None = None) -> jobs.Job:
         game = launch.this_devices_copy(game)
     except launch.LaunchUnavailableError as exc:
         raise service_errors.UnavailableError(why(exc)) from exc
-    adapter = adapters.resolve()
-    if isinstance(adapter, adapters.Unsupported):
-        raise service_errors.UnavailableError(preflight.words(report["reason"]))
-    found = {tool.id: tools.resolve(tool) for tool in adapter.requirements()}
-    from common.host import display_service
-    from common.paths import get_ini_config
-
-    config = get_ini_config()
     key = _launch_key(game, planned["table_id"])
-    placed = placing.Placing(adapter.outputs(), config, display_service.get_display_monitors(),
-                             placing.shown(game, key))
-    screens = {window: screen.output for window, screen in placed.screens().items()
-               if screen.output}
+    device = reach(report, game, key)
     target = session.Target(planned["game_id"], game, planned["table_id"], key,
                             tuple(planned["recording"]))
     codec = settings.video_codec(chosen.video_codec)
@@ -210,9 +229,9 @@ def start(request: Request, kit: session.Kit | None = None) -> jobs.Job:
     def work(job: jobs.Job) -> dict[str, Any]:
         job.progress(0, 1, t("capture.progress.recording", game=planned["name"]))
         result = session.Session(
-            target, chosen, adapter=adapter, screens=screens, found=found,
-            at_once=planned["at_once"], codec=codec, work=WORK, config=config,
-            kit=kit, placed=placed).run()
+            target, chosen, adapter=device.adapter, screens=device.screens,
+            found=device.found, at_once=planned["at_once"], codec=codec, work=WORK,
+            config=device.config, kit=kit, placed=device.placed).run()
         return {"tables": [{"game_id": target.game_id, "table_id": target.table_id,
                             **result.as_dict()}],
                 "at_once": result.at_once}

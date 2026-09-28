@@ -36,7 +36,7 @@ NO_SESSION = "capture.unsupported.no_session"
 class Output:
     """One of the compositor's outputs. `x`, `y`, `width` and `height` are where the
     desktop lays it out; `mode` is its own pixels before `transform`, which turns them
-    into what the screen shows."""
+    into what the screen shows. `index` is the capture API's own number for it."""
 
     name: str
     x: int
@@ -46,6 +46,7 @@ class Output:
     mode: tuple[int, int]
     refresh: float
     transform: Turn
+    index: int = 0
 
     @property
     def surface(self) -> str:
@@ -116,9 +117,6 @@ class Adapter(Protocol):
 
     def still(self, found: Mapping[str, tools.Found], output: Output,
               dest: Path) -> list[str]: ...
-
-    def record(self, found: Mapping[str, tools.Found], output: Output, dest: Path,
-               hardware: str) -> list[str]: ...
 
     def still_turn(self, output: Output) -> Turn: ...
 

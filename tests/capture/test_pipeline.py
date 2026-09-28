@@ -9,10 +9,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from common.capture import geometry, pipeline, settings
+from common.capture import commands, geometry, pipeline, settings
+from common.capture.adapters import Output
 from common.capture.geometry import Turn
 
 FFMPEG = Path("/usr/bin/ffmpeg")
+PLAYFIELD = Output("DP-1", 0, 0, 1080, 1920, (1920, 1080), 60.0, Turn(ccw=270))
+
+
+def _encode(ffmpeg: Path, job: pipeline.Encode, dest: Path) -> list[str]:
+    """VPinFE's own Encode Command."""
+    return commands.encode("", ffmpeg, job, dest, window="playfield", output=PLAYFIELD)
 
 
 def _value(argv: list[str], flag: str) -> str:
@@ -45,7 +52,7 @@ class CommandTests(unittest.TestCase):
         job = pipeline.Encode(Path("raw.mkv"), 0.25, 20, Turn(ccw=90), 30, 1920,
                               settings.H264, settings.STANDARD)
 
-        argv = pipeline.encode(FFMPEG, job, Path("out.mp4"))
+        argv = _encode(FFMPEG, job, Path("out.mp4"))
 
         self.assertEqual((_value(argv, "-ss"), _value(argv, "-t")), ("0.250", "20.000"))
         self.assertLess(argv.index("-ss"), argv.index("-i"))
@@ -126,13 +133,19 @@ class RealFfmpegTests(unittest.TestCase):
                 job = pipeline.Encode(self.raw, 0.5, 1.0, Turn(ccw=270), 30, 1920, codec,
                                       settings.STANDARD)
 
-                pipeline.run(pipeline.encode(self.ffmpeg, job, dest))
+                pipeline.run(_encode(self.ffmpeg, job, dest))
 
                 streams = self._probe(dest)
                 self.assertEqual([one["codec_type"] for one in streams], ["video"])
                 self.assertEqual((streams[0]["codec_name"], streams[0]["width"],
                                   streams[0]["height"], streams[0]["r_frame_rate"]),
                                  (name, 1080, 1920, "30/1"))
+
+    def test_a_files_size_and_rate_are_read_from_what_ffmpeg_says_of_it(self) -> None:
+        done = subprocess.run(pipeline.describe(self.ffmpeg, self.raw), capture_output=True,
+                              text=True, timeout=60, check=False)
+
+        self.assertEqual(pipeline.video_in(done.stderr), ((1920, 1080), 60.0))
 
     def test_a_smaller_screen_is_never_scaled_up(self) -> None:
         dest = self.tmp / "own.png"

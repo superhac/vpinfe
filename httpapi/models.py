@@ -795,6 +795,14 @@ class CaptureScreen(ApiModel):
     video: CaptureAbility
 
 
+class CaptureCommands(ApiModel):
+    """VPinFE's own Record and Encode Commands on this device, tokens unexpanded. `record`
+    is empty where this device has none."""
+
+    record: str
+    encode: str
+
+
 class CaptureReport(ApiModel):
     """What this device can record, computed when asked. `adapter` is how it reaches its
     screens; `reason` is the first thing stopping it where nothing can be recorded;
@@ -810,6 +818,38 @@ class CaptureReport(ApiModel):
     video_codec: str
     at_once: bool
     tools: list[ConfigTool]
+    commands: CaptureCommands
+
+
+class CaptureTestRequest(ApiModel):
+    """Recording settings to test with, in place of this device's, as a run takes
+    them."""
+
+    settings: dict[str, Any] = {}
+
+
+class CaptureTestReason(ApiModel):
+    key: str
+    params: dict[str, str] = {}
+
+
+class CaptureTest(ApiModel):
+    """What the commands made of a few seconds of the playfield. Where `ok` is false,
+    `step` is the command that failed, `record` or `encode`, and `detail` the last thing
+    it said. `size`, `fps` and `frames` are the stored file's; `picture` is a small JPEG of
+    it as a data URL. `record` and `encode` are the commands as run."""
+
+    ok: bool
+    step: str | None = None
+    reason: CaptureTestReason | None = None
+    detail: str = ""
+    size: list[int] | None = None
+    fps: float | None = None
+    frames: int
+    seconds: float
+    picture: str
+    record: str
+    encode: str
 
 
 class CaptureTable(ApiModel):

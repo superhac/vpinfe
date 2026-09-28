@@ -13,11 +13,13 @@
     "startup_collection": ""
   },
   "capture": {
+    "encode_command": "",
     "fps": "30",
     "length": "20",
     "picture_at": "5",
     "playfield_orientation": "bottom_right",
     "quality": "standard",
+    "record_command": "",
     "size": "1920",
     "sound": "false",
     "sound_source": "auto",

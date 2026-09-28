@@ -170,6 +170,8 @@ READ_FOR = {
     "common/extensions/host.py": frozenset({"raise"}),
     # What it returns is a card file's markup.
     "common/extensions/cards.py": frozenset({"raise", "refusal"}),
+    # What it returns is a command line.
+    "common/capture/commands.py": frozenset({"reason", "raise", "refusal"}),
     "common/games/media_placement.py": frozenset({"raise"}),
     "common/games/collection_store.py": frozenset({"raise", "refusal"}),
     "common/games/collections_service.py": frozenset({"refusal"}),

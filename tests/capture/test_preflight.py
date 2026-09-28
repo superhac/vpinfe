@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
-from common.capture import adapters, placing, preflight, settings
+from common.capture import adapters, commands, placing, preflight, settings
 from common.capture.adapters import wlr
 from common.host import frontend_browser, tools
 from common.i18n import t
@@ -188,6 +188,15 @@ class ReportTests(unittest.TestCase):
                          ("portal", [], []))
         self.assertEqual(preflight.words(said["reason"]),
                          t(adapters.NOT_YET, desktop="KDE Plasma"))
+        self.assertEqual(said["commands"]["record"], "")
+
+    def test_vpinfes_own_commands_are_this_devices(self) -> None:
+        with_hardware = report()["commands"]
+        without = report(FakeAdapter(hardware=False))["commands"]
+
+        self.assertEqual(with_hardware["record"], "[recorder] [input] [hwaccel] -f [output]")
+        self.assertIn("libx264", without["record"])
+        self.assertEqual(with_hardware["encode"], commands.OWN_ENCODE)
 
 
 class SoundTests(unittest.TestCase):

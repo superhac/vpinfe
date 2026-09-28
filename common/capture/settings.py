@@ -3,6 +3,7 @@ values in place of any it names."""
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
 from typing import Any
@@ -11,6 +12,8 @@ from common import config_schema, service_errors
 from common.config_access import cfg_get
 from common.host import frontend_browser
 from common.i18n import t
+
+logger = logging.getLogger("vpinfe.common.capture.settings")
 
 SECTION = "capture"
 
@@ -37,6 +40,9 @@ class Settings:
     quality: str
     sound: bool
     sound_source: str
+    # Empty is VPinFE's own.
+    record_command: str = ""
+    encode_command: str = ""
 
 
 def _options() -> dict[str, config_schema.ConfigOption]:
@@ -66,6 +72,29 @@ def _refused(key: str, raw: Any = "") -> service_errors.RefusedError:
                                          value=raw))
 
 
+def command_refused(key: str, raw: Any) -> str:
+    """Why a command setting cannot hold `raw`, naming the command; "" where it can."""
+    from . import commands
+
+    command = next((one for one, setting in commands.SETTINGS.items() if setting == key),
+                   None)
+    if command is None:
+        return ""
+    wrong = commands.problems(str(raw or ""), command)
+    return t("capture.command.in", command=commands.label(command),
+             problem=commands.words(wrong[0])) if wrong else ""
+
+
+def refused(wanted: Mapping[str, Mapping[str, Any]]) -> str:
+    """Why a settings write cannot take what it holds for this section; "" where it
+    can."""
+    for key, raw in (wanted.get(SECTION) or {}).items():
+        said = command_refused(key, raw)
+        if said:
+            return said
+    return ""
+
+
 def read(config: Any = None, overrides: Mapping[str, Any] | None = None) -> Settings:
     """A value the device's file holds that the setting does not take reads as its
     default; one in `overrides` is refused."""
@@ -79,6 +108,10 @@ def read(config: Any = None, overrides: Mapping[str, Any] | None = None) -> Sett
             values[key] = _value(option, cfg_get(config, SECTION, key, option.default))
         except ValueError:
             values[key] = _value(option, option.default)
+        if command_refused(key, values[key]):
+            logger.warning("The %s setting cannot run, so VPinFE's own is used: %s", key,
+                           values[key])
+            values[key] = _value(option, option.default)
     for key, raw in (overrides or {}).items():
         if key not in options:
             raise _refused(key, raw)
@@ -86,6 +119,9 @@ def read(config: Any = None, overrides: Mapping[str, Any] | None = None) -> Sett
             values[key] = _value(options[key], raw)
         except (TypeError, ValueError) as exc:
             raise _refused(key, raw) from exc
+        said = command_refused(key, values[key])
+        if said:
+            raise service_errors.RefusedError(said)
     if values["length"] < 1 or values["picture_at"] >= values["length"]:
         if overrides and {"length", "picture_at"} & set(overrides):
             raise _refused("picture_at", values["picture_at"])

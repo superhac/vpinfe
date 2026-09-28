@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Response
 
-from common.capture import preflight, run
+from common.capture import preflight, run, trial
 
 from . import jobs as jobs_api
 from . import models, scopes
@@ -39,3 +39,9 @@ def start_capture(body: models.CaptureRequest, response: Response) -> models.Job
     job = run.start(_request(body))
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
     return models.JobResource(**jobs_api.resource(job))
+
+
+@router.post("/test", summary="Record a few seconds of the playfield with the commands",
+             dependencies=[requires(scopes.CAPTURE_RUN)])
+def test_capture(body: models.CaptureTestRequest) -> models.CaptureTest:
+    return models.CaptureTest.model_validate(trial.test(body.settings))

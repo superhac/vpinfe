@@ -81,7 +81,7 @@ def hyprland_socket(env: Mapping[str, str]) -> str:
 def sway_outputs(said: Any) -> list[Output]:
     """`rect` is the layout's; `current_mode` is the buffer's, refresh in millihertz."""
     found = []
-    for one in said if isinstance(said, list) else []:
+    for index, one in enumerate(said if isinstance(said, list) else []):
         if not isinstance(one, dict) or not one.get("active", True):
             continue
         rect, mode = one.get("rect") or {}, one.get("current_mode") or {}
@@ -91,7 +91,7 @@ def sway_outputs(said: Any) -> list[Output]:
             width=int(rect.get("width") or 0), height=int(rect.get("height") or 0),
             mode=(int(mode.get("width") or 0), int(mode.get("height") or 0)),
             refresh=int(mode.get("refresh") or 0) / 1000,
-            transform=geometry.sway_transform(one.get("transform"))))
+            transform=geometry.sway_transform(one.get("transform")), index=index))
     return found
 
 
@@ -110,7 +110,7 @@ def hyprland_outputs(said: Any) -> list[Output]:
             x=int(one.get("x") or 0), y=int(one.get("y") or 0),
             width=round(width / scale), height=round(height / scale),
             mode=mode, refresh=float(one.get("refreshRate") or 0),
-            transform=transform))
+            transform=transform, index=int(one.get("id") or 0)))
     return found
 
 
@@ -228,20 +228,6 @@ class WlrAdapter:
     def still(self, found: Mapping[str, tools.Found], output: Output,
               dest: Path) -> list[str]:
         return [str(found[tools.GRIM.id].path), "-o", output.name, str(dest)]
-
-    def record(self, found: Mapping[str, tools.Found], output: Output, dest: Path,
-               hardware: str) -> list[str]:
-        """Every refresh copied, `-D`, where this wf-recorder has it: a static screen
-        otherwise gives one frame and a stop that waits for the next forever. Near
-        lossless, since the pipeline encodes it again."""
-        recorder = found[tools.WF_RECORDER.id]
-        every = recorder.probe is not None and (
-            recorder.probe.has(tools.OPTIONS, "-D")
-            or recorder.probe.has(tools.OPTIONS, "--no-damage"))
-        codec = (["-c", "h264_vaapi", "-d", hardware, "-p", "qp=18"] if hardware
-                 else ["-c", "libx264", "-p", "preset=ultrafast", "-p", "crf=18"])
-        return [str(recorder.path), *(["-D"] if every else []), "-o", output.name,
-                *codec, "-f", str(dest)]
 
     def still_turn(self, output: Output) -> geometry.Turn:
         """grim draws the output as the screen shows it."""

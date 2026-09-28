@@ -523,6 +523,8 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                      choices=("standard", "high"), legacy=()),
         ConfigOption("sound", type="bool", default="false", legacy=()),
         ConfigOption("sound_source", type="string", default="auto", legacy=()),
+        ConfigOption("record_command", type="string", default="", legacy=()),
+        ConfigOption("encode_command", type="string", default="", legacy=()),
     ),
     # Art a theme or the frontend draws that is not a game's own.
     *in_section(
