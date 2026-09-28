@@ -7,6 +7,7 @@ is asked rather than stored, and what a phone is carrying is asked of the phone.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from typing import Any
 
@@ -14,6 +15,8 @@ from common import device_client, device_registry, discovery, install_identity, 
 from common.device_registry import Device, get_device_registry
 from common.i18n import t
 from common.paths import get_ini_config
+
+logger = logging.getLogger("vpinfe.common.device_ops")
 
 
 def _resource(device: Device) -> dict:
@@ -127,8 +130,30 @@ def probe_one(device: Device) -> dict[str, Any]:
     client = device_client.for_device(device.as_dict(), local_id)
     found = device_client.probe(client)
     if found.get("state") == device_client.ANSWERING:
-        registry.record_reachable(device.device_id)
+        held = registry.record_reachable(device.device_id,
+                                         browser=_browser_of(client, device, found))
+        if held is not None and held.browser:
+            found = {**found, "browser": held.browser}
     return {"device_id": device.device_id, **found}
+
+
+def _browser_of(client: Any, device: Device, found: dict[str, Any]) -> dict[str, Any] | None:
+    """What an answering device's frontend browser plays, `{}` where it runs no frontend,
+    None where it did not say.
+
+    This install is never asked here: its frontend writes its own entry as it reports.
+    """
+    ask = getattr(client, "frontend_browser", None)
+    if ask is None:
+        return None
+    if install_identity.FRONTEND not in (found.get("features") or []):
+        return {}
+    try:
+        return device_registry.browser_said(ask()) or None
+    except Exception:  # noqa: BLE001 - one unanswered question keeps the last answer
+        logger.debug("Could not ask %s what its browser plays", device.device_id,
+                     exc_info=True)
+        return None
 
 
 def all_devices() -> list:

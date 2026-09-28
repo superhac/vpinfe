@@ -295,6 +295,17 @@ class RemoteDevice:
             raise
         return list(said.get("actions") or [])
 
+    def frontend_browser(self) -> dict[str, Any]:
+        """What that device's frontend browser plays."""
+        from common import http_client
+
+        try:
+            return dict(http_client.get_json(self._url("/frontend/browser")) or {})
+        except Exception as exc:
+            if _absent(exc):
+                raise TooOldError(t(TOO_OLD)) from exc
+            raise
+
     def logs(self, limit: int = 200, level: str = "",
              contains: str = "") -> dict[str, Any]:
         """Recent records from that machine's own log. Answered by the install holding

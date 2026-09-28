@@ -279,6 +279,93 @@ class DeviceRegistryApiTests(TempTree):
         self.assertEqual(device["port"], 8001)
 
 
+class _Answering:
+    """A device that answers its probe, running `features`, with `report` for what its
+    browser plays - or raising it, where it is an exception."""
+
+    def __init__(self, features: list[str], report: dict | Exception) -> None:
+        self.features = features
+        self.report = report
+        self.asked = 0
+
+    def probe(self) -> dict:
+        return {"state": device_client.ANSWERING, "what": "VPinFE 3.0.0", "reason": "",
+                "features": self.features}
+
+    def frontend_browser(self) -> dict:
+        self.asked += 1
+        if isinstance(self.report, Exception):
+            raise self.report
+        return self.report
+
+
+NO_H264 = {"state": "no_h264", "browser": "Chromium 145.0.7632.0"}
+
+
+@unittest.skipIf(TestClient is None, "starlette test client unavailable")
+class ProbeAsksTheBrowserTests(TempTree):
+    """The probe asks an answering frontend device what its browser plays, and the
+    registry keeps the answer for when it is switched off."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        registry = registry_module.DeviceRegistry(self.root / "devices.json")
+        self.enterContext(patch.object(registry_module, "get_device_registry",
+                                       lambda: registry))
+        self.enterContext(patch("common.device_ops.get_device_registry", lambda: registry))
+        self.device = _Answering(["library", "frontend"], NO_H264)
+        self.enterContext(patch.object(device_client, "for_device",
+                                       side_effect=lambda *_: self.device))
+        self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
+        self.client.put("/devices", json={**CAB, "port": 8001})
+
+    def _probed(self) -> dict:
+        return self.client.post(f"/devices/{CAB['device_id']}/probe").json()
+
+    def _held(self) -> dict | None:
+        return self.client.get(f"/devices/{CAB['device_id']}").json()["browser"]
+
+    def test_what_it_plays_comes_back_with_the_probe_and_is_kept(self) -> None:
+        probed = self._probed()["browser"]
+
+        self.assertEqual((probed["state"], probed["name"]),
+                         ("no_h264", "Chromium 145.0.7632.0"))
+        self.assertTrue(probed["checked_at"])
+        self.assertEqual(self._held(), probed)
+
+    def test_a_device_switched_off_keeps_the_last_answer(self) -> None:
+        kept = self._probed()["browser"]
+        self.device = _Failing(requests.ConnectionError("off"))  # type: ignore[assignment]
+
+        self._probed()
+
+        self.assertEqual(self._held(), kept)
+
+    def test_one_too_old_to_say_keeps_what_was_held(self) -> None:
+        kept = self._probed()["browser"]
+        self.device = _Answering(["frontend"],
+                                 device_client.TooOldError(t(device_client.TOO_OLD)))
+
+        self.assertEqual(self._probed()["browser"], kept)
+        self.assertEqual(self._held(), kept)
+
+    def test_one_that_no_longer_runs_the_frontend_has_it_cleared(self) -> None:
+        self._probed()
+        self.device = _Answering(["library"], NO_H264)
+
+        probed = self._probed()
+
+        self.assertIsNone(probed["browser"])
+        self.assertIsNone(self._held())
+        self.assertEqual(self.device.asked, 0)
+
+    def test_this_install_is_not_asked_by_its_own_probe(self) -> None:
+        kept = self._probed()["browser"]
+        self.device = device_client.LocalDevice()  # type: ignore[assignment]
+
+        self.assertEqual(self._probed()["browser"], kept)
+
+
 class _Failing:
     def __init__(self, exc: Exception) -> None:
         self.exc = exc

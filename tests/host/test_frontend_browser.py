@@ -12,6 +12,7 @@ from unittest import mock
 from starlette.testclient import TestClient
 
 import httpapi
+from common import device_registry, install_identity, paths
 from common.host import frontend_browser as fb
 
 BUNDLED = "/opt/vpinfe/chromium/linux/chrome/chrome"
@@ -43,6 +44,8 @@ class _Isolated(unittest.TestCase):
         self.store = Path(tmp.name) / "cache" / "frontend_browser.json"
         self.browser = Path(tmp.name) / "chrome"
         self.browser.write_text("")
+        device_registry.reset_for_tests(Path(tmp.name) / "devices.json")
+        self.addCleanup(device_registry.reset_for_tests)
         for patch in (mock.patch.object(fb.paths, "FRONTEND_BROWSER_PATH", self.store),
                       mock.patch.object(fb, "_in_use", return_value=(str(self.browser), True)),
                       mock.patch.object(fb, "_google_chrome", return_value=""),
@@ -146,6 +149,17 @@ class RecordTests(_Isolated):
 
     def test_something_that_is_not_a_report_is_unknown(self) -> None:
         self.assertEqual(fb.record("not a report")["state"], fb.UNKNOWN)
+
+    def test_this_install_s_own_device_entry_keeps_it(self) -> None:
+        registry = device_registry.get_device_registry()
+        own = install_identity.install_id(paths.get_ini_config())
+        registry.record(own)
+
+        fb.record(BUNDLED_145)
+
+        kept = registry.get(own).browser
+        self.assertEqual((kept["state"], kept["name"]), (fb.NO_H264, "Chromium 145.0.7632.0"))
+        self.assertTrue(kept["checked_at"])
 
     def test_a_report_from_another_browser_is_no_answer(self) -> None:
         fb.record(BUNDLED_145)

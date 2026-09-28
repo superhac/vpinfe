@@ -198,6 +198,50 @@ class LastReachableTests(unittest.TestCase):
         self.assertEqual(self._at("Aaaa111111"), "")
 
 
+class BrowserTests(unittest.TestCase):
+    """What a device's frontend browser plays, as a probe last heard it."""
+
+    SAID = {"state": "no_h264", "name": "Chromium 145.0.7632.0",
+            "checked_at": "2026-09-27T12:00:00Z"}
+
+    def setUp(self) -> None:
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.registry = DeviceRegistry(Path(self.tmp.name) / "devices.json")
+        self.registry.record("Aaaa111111")
+
+    def _held(self) -> dict:
+        return self.registry.get("Aaaa111111").browser
+
+    def test_a_probe_keeps_what_the_browser_said(self) -> None:
+        self.registry.record_reachable("Aaaa111111", browser=self.SAID)
+
+        self.assertEqual(DeviceRegistry(self.registry.path).get("Aaaa111111").browser,
+                         self.SAID)
+
+    def test_a_probe_that_heard_nothing_about_it_keeps_the_last_answer(self) -> None:
+        self.registry.record_reachable("Aaaa111111", browser=self.SAID)
+
+        self.registry.record_reachable("Aaaa111111")
+
+        self.assertEqual(self._held(), self.SAID)
+
+    def test_an_empty_answer_clears_it(self) -> None:
+        self.registry.record_reachable("Aaaa111111", browser=self.SAID)
+
+        self.registry.record_reachable("Aaaa111111", browser={})
+
+        self.assertEqual(self._held(), {})
+        self.assertNotIn("browser", self.registry.get("Aaaa111111").as_dict())
+
+    def test_announcing_again_keeps_it(self) -> None:
+        self.registry.record_reachable("Aaaa111111", browser=self.SAID)
+
+        self.registry.record("Aaaa111111", display_name="cab")
+
+        self.assertEqual(self._held(), self.SAID)
+
+
 class DeviceRegistryStorageTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = TemporaryDirectory()
@@ -248,7 +292,9 @@ class DeviceTests(unittest.TestCase):
     def test_a_device_round_trips_through_its_dict(self) -> None:
         device = Device(device_id="Aaaa111111", display_name="cab",
                         features=("library", "frontend"), address="192.168.1.10",
-                        first_seen="2026-01-01T00:00:00Z", last_seen="2026-01-02T00:00:00Z")
+                        first_seen="2026-01-01T00:00:00Z", last_seen="2026-01-02T00:00:00Z",
+                        browser={"state": "plays", "name": "Google Chrome 154.0.8037.58",
+                                 "checked_at": "2026-01-02T00:00:00Z"})
 
         self.assertEqual(Device.from_dict(device.as_dict()), device)
 

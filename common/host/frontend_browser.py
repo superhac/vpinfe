@@ -15,7 +15,7 @@ import threading
 from dataclasses import dataclass
 from typing import Any
 
-from common import paths
+from common import device_registry, install_identity, paths
 from common.atomic_write import write_atomic
 from common.i18n import t, t_source
 from common.timestamps import utc_now_iso
@@ -189,7 +189,19 @@ def record(raw: Any) -> dict[str, Any]:
     answer = current(held)
     _log(answer["state"], browser, path, bundled, formats,
          Fix(**answer["fix"]) if answer["fix"] else None)
+    _record_self(answer)
     return answer
+
+
+def _record_self(answer: dict[str, Any]) -> None:
+    """Into this install's own registry entry, which no probe of it asks about."""
+    try:
+        device_registry.get_device_registry().record_reachable(
+            install_identity.install_id(paths.get_ini_config()),
+            browser=device_registry.browser_said(answer))
+    except Exception:
+        logger.debug("Could not keep the browser report in this install's registry entry",
+                     exc_info=True)
 
 
 def current(held: dict[str, Any] | None = None) -> dict[str, Any]:

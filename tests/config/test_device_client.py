@@ -112,6 +112,8 @@ class RemoteRefusalTests(unittest.TestCase):
                 self.device.actions()
             with self.assertRaises(device_client.TooOldError):
                 self.device.logs()
+            with self.assertRaises(device_client.TooOldError):
+                self.device.frontend_browser()
 
     def test_a_real_failure_is_still_a_real_failure(self) -> None:
         """Only a missing route is translated. A machine that broke while answering has

@@ -97,6 +97,15 @@ class DeviceLinks(ApiModel):
     self_: str = Field(alias="self")
 
 
+class DeviceBrowser(ApiModel):
+    """What a device's frontend browser plays, as it said when last asked. `state` is one
+    of `GET /frontend/browser`'s."""
+
+    state: str
+    name: str = ""
+    checked_at: str = ""
+
+
 class DeviceResource(ApiModel):
     """One device this install has seen. `display_name` and `features` are what that
     install last
@@ -117,6 +126,7 @@ class DeviceResource(ApiModel):
     # When it was last known to be there, by either route - it announced, or this install
     # asked and got an answer. This is the one that means "available".
     last_reachable: str = ""
+    browser: DeviceBrowser | None = None
     links: DeviceLinks
 
 
@@ -321,6 +331,7 @@ class DeviceProbe(ApiModel):
     # What it said it can do, from the same response its name came in. Absent - rather
     # than empty - from anything that did not answer, and from a build too old to say.
     capabilities: list[str] | None = None
+    browser: DeviceBrowser | None = None
 
 
 class DeviceProbeList(ApiModel):

@@ -102,7 +102,7 @@ the documented entry point is a plain 200. Both spellings work.
 | PUT | `/api/v1/devices` | Record a device (idempotent). For a phone, or a device mDNS cannot reach. `port` is declared by the caller — the address is read off the socket, which never says what that device listens on |
 | GET | `/api/v1/devices/discovered` | Installs announcing themselves on this network right now. Announcements, not records: nothing here has been decided about |
 | GET | `/api/v1/devices/{id}` | One device |
-| POST | `/api/v1/devices/probe` | Ask every device whether it is there, and record the ones that answer. `unaskable` means there was nothing to dial, which is not the same as down. One that did not answer carries `reason`, in this install's language, and `reason_key`, the catalog key it was read from |
+| POST | `/api/v1/devices/probe` | Ask every device whether it is there, and record the ones that answer, with what a frontend device's browser plays as `browser` (see Devices). `unaskable` means there was nothing to dial, which is not the same as down. One that did not answer carries `reason`, in this install's language, and `reason_key`, the catalog key it was read from |
 | POST | `/api/v1/devices/{id}/probe` | Ask one device the same, answering with that one probe. For showing each device as it answers rather than all of them once the slowest has |
 | DELETE | `/api/v1/devices/{id}` | Forget one |
 | GET | `/api/v1/devices/{id}/games` | What a VPX Mobile device is carrying, asked of the device every time |
@@ -1092,6 +1092,14 @@ id of its own rather than one derived from an address they will both change.
 
 An install records itself at startup, so it appears in its own registry like anything
 else.
+
+Probing a device that answers and runs the frontend also asks it `GET /frontend/browser`,
+and its entry keeps what it said as `browser`: `state`, one of that route's; `name`, the
+browser and its version; and `checked_at`. It is the last known answer, so a device that is
+switched off still has one. A device that no longer runs the frontend has it cleared, and one
+too old to serve the route, or that fails to answer it, keeps what was held. The probe's
+answer carries the same field. An install's own entry is written by its frontend as it
+reports, rather than by probing itself.
 
 An install upgrading from 2.x brings its `[mobile]` address across once, as a
 `vpx_mobile` entry with a minted id. Those keys stay readable and keep their 2.x

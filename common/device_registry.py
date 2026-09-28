@@ -55,6 +55,15 @@ def mint_device_id() -> str:
     return mint_id()
 
 
+def browser_said(report: dict[str, Any]) -> dict[str, Any]:
+    """What an entry keeps of a `GET /frontend/browser` answer: `state`, `name` and
+    `checked_at`. Empty where the answer has no state."""
+    if not report.get("state"):
+        return {}
+    return {"state": str(report["state"]), "name": str(report.get("browser") or ""),
+            "checked_at": utc_now_iso()}
+
+
 def _as_port(raw: Any) -> int:
     try:
         return max(0, int(raw))
@@ -93,6 +102,9 @@ class Device:
     # asked and got an answer. The one that means "available", and the only one of the
     # three that a device being switched off ever stops advancing.
     last_reachable: str = ""
+    # What its frontend's browser plays, as `browser_said` keeps it. Empty where it runs no
+    # frontend or has never said.
+    browser: dict[str, Any] = field(default_factory=dict)
     extra: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
@@ -101,6 +113,7 @@ class Device:
                 "features": list(self.features), "address": self.address, "port": self.port,
                 "first_seen": self.first_seen, "last_seen": self.last_seen,
                 "last_reachable": self.last_reachable,
+                **({"browser": dict(self.browser)} if self.browser else {}),
                 **self.extra}
 
     @classmethod
@@ -109,7 +122,8 @@ class Device:
         if not device_id:
             return None
         known = {"device_id", "kind", "display_name", "features", "roles", "address", "port",
-                 "first_seen", "last_seen", "last_reachable"}
+                 "first_seen", "last_seen", "last_reachable", "browser"}
+        browser = raw.get("browser")
         # `roles` is what entries written before the feature model called this. Read
         # rather than migrated: the words differ too - one that said `hub` meant the
         # library and the device list - and this is a cache the install refreshes itself,
@@ -128,6 +142,7 @@ class Device:
             first_seen=str(raw.get("first_seen", "") or ""),
             last_seen=str(raw.get("last_seen", "") or ""),
             last_reachable=str(raw.get("last_reachable", "") or ""),
+            browser=dict(browser) if isinstance(browser, dict) else {},
             # Anything a newer build wrote is carried through rather than dropped, so a
             # downgrade does not silently strip fields it does not understand.
             extra={k: v for k, v in raw.items() if k not in known},
@@ -197,6 +212,7 @@ class DeviceRegistry:
                 # timestamps differ in what moves them, not in what they prove: this one
                 # advances from either direction, and `last_seen` only when it pushed.
                 last_reachable=now,
+                browser=existing.browser if existing else {},
                 extra=existing.extra if existing else {},
             )
             self._save(list(devices.values()))
@@ -204,7 +220,8 @@ class DeviceRegistry:
                 logger.info("DeviceRegistry: new device %s (%s)", wanted, display_name or "unnamed")
             return devices[wanted]
 
-    def record_reachable(self, device_id: str, *, when: str = "") -> Device | None:
+    def record_reachable(self, device_id: str, *, when: str = "",
+                         browser: dict[str, Any] | None = None) -> Device | None:
         """Note that this install got an answer out of that device just now.
 
         The pull half. A device announcing itself is the push half and `record` writes
@@ -212,6 +229,8 @@ class DeviceRegistry:
         differs is who asked: an install announces itself, and this one can ask
         any time it wants to know, which is what stops the answer aging for a week while
         the machine sits there running.
+
+        `browser` replaces what is held, `{}` clearing it; None keeps it.
         """
         wanted = (device_id or "").strip()
         if not wanted:
@@ -223,7 +242,9 @@ class DeviceRegistry:
                 # Probing something not in the registry is a caller bug, not a discovery
                 # path: an entry is created by announcing or by a person adding one.
                 return None
-            devices[wanted] = replace(existing, last_reachable=when or utc_now_iso())
+            devices[wanted] = replace(
+                existing, last_reachable=when or utc_now_iso(),
+                browser=existing.browser if browser is None else dict(browser))
             self._save(list(devices.values()))
             return devices[wanted]
 
