@@ -73,7 +73,7 @@ def _hidden(svg: str, said: str, marker: str) -> str:
         return svg
     shown = escape(said)
     # A comment cannot hold `--`. JSON reads the escape back, so the text is unchanged.
-    commented = said.replace("--", r"--")
+    commented = said.replace("--", r"\u002d\u002d")
     return (f"{svg[:end + 1]}"
             f"<!--{marker.upper()}_PAYLOAD:{commented}-->"
             f'<metadata id="{marker}-payload" data-type="application/json">{shown}</metadata>'

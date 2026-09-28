@@ -64,7 +64,7 @@ def _embed_payload_in_svg(svg: str, payload: str) -> str:
         return svg
 
     escaped_payload = escape(payload)
-    comment_payload = payload.replace("--", r"--")
+    comment_payload = payload.replace("--", r"\u002d\u002d")
     embedded = (
         f"{svg[:svg_tag_end + 1]}"
         f"<!--VPINPLAY_PAYLOAD:{comment_payload}-->"
@@ -119,6 +119,13 @@ class TheFileIs2x(unittest.TestCase):
         said, saved = _2x_card(user_id="a--b<&>\"c'")
 
         self.assertEqual(cards.drawn(json.loads(said), "vpinplay"), saved)
+
+    def test_a_card_whose_text_holds_two_hyphens_is_well_formed(self) -> None:
+        said, _ = _2x_card(user_id="a--b")
+
+        drawn = ElementTree.fromstring(cards.drawn(json.loads(said), "vpinplay"))
+
+        self.assertEqual(drawn.tag.split("}", 1)[-1], "svg")
 
     def test_its_text_is_2x_s_compact_sorted_form(self) -> None:
         said, _ = _2x_card()
