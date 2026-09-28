@@ -196,3 +196,67 @@ html[data-vpinfe-launching] body {
   font-size: clamp(0.9rem, 2vw, 1.35rem);
   text-align: center;
 }
+
+/* ---------------------------------------------------------------------------
+   While this device records a run, one line at the top of the controller window.
+
+   Core's, on every theme, and read from across a room: large, and nothing to answer.
+   The surface is turned like .vpinfe-upright, from an attribute core sets on the line
+   itself, so it faces the player whether or not the theme opted into core's layout.
+   --------------------------------------------------------------------------- */
+
+.vpinfe-recording {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 100vw;
+  height: 100vh;
+  box-sizing: border-box;
+  padding-top: 4vmin;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  transform-origin: center center;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2147483645;      /* under the notice and the confirm, over any overlay */
+}
+
+.vpinfe-recording[data-upright="90"],
+.vpinfe-recording[data-upright="270"] {
+  width: 100vh;
+  height: 100vw;
+}
+
+.vpinfe-recording[hidden] {
+  display: none;
+}
+
+.vpinfe-recording-text {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.5em 1.1em;
+  border-radius: 999px;
+  background: rgba(20, 20, 24, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-family: sans-serif;
+  font-size: clamp(1.1rem, 3.2vmin, 2.4rem);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.vpinfe-recording-text::before {
+  content: "";
+  flex: none;
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  background: #e53935;
+  animation: vpinfe-recording-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes vpinfe-recording-pulse {
+  50% { opacity: 0.3; }
+}

@@ -63,4 +63,14 @@ describe("a launch started somewhere else", () => {
     assert.deepEqual(sent.filter((m) => m.type === "RemoteLaunching"), [],
                      "a launch from the wheel would raise the remote overlay twice");
   });
+
+  test("a recording's launch is not a remote one", async () => {
+    const { vpin, browser } = await started();
+
+    const sent = launching(vpin, browser,
+                           { launching: true, game_name: "Taxi", source: "capture" });
+
+    assert.deepEqual(sent.filter((m) => m.type === "RemoteLaunching"), [],
+                     "the themes' remote overlay would say Remote Launching over a recording");
+  });
 });

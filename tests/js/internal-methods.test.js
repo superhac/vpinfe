@@ -35,6 +35,7 @@ describe("vpin.call refuses core's own methods", () => {
       "keep_filter_collection",
       "report_browser",
       "resume_play",
+      "stop_recording",
       "take_picture",
     ]);
   });

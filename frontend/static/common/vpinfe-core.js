@@ -398,6 +398,7 @@ const INTERNAL_METHODS = new Set([
   "report_browser",
   "take_picture",
   "resume_play",
+  "stop_recording",
 ]);
 
 // By the ids `common/host/frontend_browser.py` knows.
@@ -641,6 +642,12 @@ class VPinFECore {
 
   // The notice currently on screen, so a second one replaces it rather than stacking.
   #lifecycleNotice = null;
+
+  // The recording run this device is doing, while it is running, as the event stream
+  // last said; null otherwise. Its line, once drawn.
+  #recording = null;
+  #recordingLine = null;
+  #recordingText = null;
 
   constructor() {
     this.tableData = {};
@@ -1624,9 +1631,12 @@ class VPinFECore {
   async #confirmLifecycle(scope, action) {
     const asking = await this.call("lifecycle_needs_confirmation", scope, action);
     if (!asking || !asking.confirm) return true;
+    return this.#ask(asking.description);
+  }
 
-    // Built node by node rather than from innerHTML: the description is wording from
-    // the bridge, and textContent cannot become markup.
+  // Select answers yes and Back no. Built node by node rather than from innerHTML: the
+  // question may be wording from the bridge, and textContent cannot become markup.
+  async #ask(what) {
     const root = document.createElement("div");
     root.className = "vpinfe-confirm";
     const card = document.createElement("div");
@@ -1635,8 +1645,7 @@ class VPinFECore {
     question.className = "vpinfe-confirm-question";
     // One entry, so the question mark is the translator's - Spanish opens with
     // an inverted one and French puts a space before it.
-    question.textContent = this.t("frontend.confirm.question", "{what}?",
-                                  { what: asking.description });
+    question.textContent = this.t("frontend.confirm.question", "{what}?", { what });
     const hint = document.createElement("p");
     hint.className = "vpinfe-confirm-hint";
     hint.textContent = this.t("frontend.confirm.select_confirm_back_cancel",
@@ -2246,7 +2255,10 @@ class VPinFECore {
     } else if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
       this._launchInputSuppressedByLifecycle = false;
       this.#setFrontendInputEnabled(true);
+    } else {
+      return;
     }
+    this.#drawRecording();
   }
 
   async #handleCorePaging(action) {
@@ -2815,7 +2827,7 @@ class VPinFECore {
       // nothing focuses the iframe - so this used to quit VPinFE from inside a menu.
       // Closing the overlay is what every overlay's own map already meant by it.
       if (overlay) this.#toggleOverlay(overlay);
-      else this.requestLifecycle("vpinfe", "stop");
+      else this.#leave();
     }
     else if (action === "menu") this.#toggleOverlay("menu");
     else if (action === "collection_menu") this.#toggleOverlay("collectionMenu");
@@ -2842,9 +2854,22 @@ class VPinFECore {
     else if (action === "back" && this.inputMode === "navigation"
              && this.contract >= CURRENT_CONTRACT
              && this.enabled("core_navigation") && !overlay && this.isController()) {
-      this.requestLifecycle("vpinfe", "stop");
+      this.#leave();
     }
     else this.#triggerInputAction(action);
+  }
+
+  // Quit VPinFE, or while this device is recording a run, ask to stop the run instead:
+  // between two recordings the wheel is on screen, and leaving would end the run with it.
+  async #leave() {
+    if (!this.#recording) return this.requestLifecycle("vpinfe", "stop");
+    if (!await this.#ask(this.t("frontend.recording.stop", "Stop recording"))) return false;
+    try {
+      await this.callInternal("stop_recording");
+    } catch (err) {
+      this.call("console_out", `Stop recording: ${err.message}`);
+    }
+    return true;
   }
 
   // True when core moves the selection itself rather than handing the action to the
@@ -3141,7 +3166,8 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     // The theme page loads over http://, where this works.
     if (window.location.protocol === 'file:') return;
 
-    const streamUrl = `${this.endpoints.device}/api/v1/events?events=play.state_changed`;
+    const streamUrl = `${this.endpoints.device}/api/v1/events`
+      + "?events=play.state_changed,capture.run_changed";
     console.log("[RemoteLaunch] Subscribing to:", streamUrl);
 
     const source = new EventSource(streamUrl);
@@ -3153,7 +3179,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
 
       // Our own launches arrive as TableLaunching over the bridge. Acting on them
       // here as well would raise the remote overlay on a launch from the wheel.
-      if (state.source === "frontend") return;
+      if (state.source === "frontend" || state.source === "capture") return;
 
       if (state.launching && !this.remoteLaunchActive) {
         this.remoteLaunchActive = true;
@@ -3178,6 +3204,13 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
       }
     });
 
+    source.addEventListener("capture.run_changed", (message) => {
+      reportedOffline = false;
+      const run = JSON.parse(message.data).run || null;
+      this.#recording = run && run.state === "running" ? run : null;
+      this.#drawRecording();
+    });
+
     // EventSource reconnects on its own, and the stream sends the current state on
     // connect, so a manager UI that is down or restarting needs nothing here beyond
     // not filling the log with it.
@@ -3186,6 +3219,37 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
       reportedOffline = true;
       console.log("[RemoteLaunch] Event stream unavailable (manager UI may not be running)");
     };
+  }
+
+  // One line at the top of the controller window while this device records a run.
+  // Hidden, not removed, while a table is up.
+  #drawRecording() {
+    const run = this.#recording;
+    if (!run || !this.isController()) {
+      this.#recordingLine?.remove();
+      this.#recordingLine = this.#recordingText = null;
+      return;
+    }
+    if (!this.#recordingLine) {
+      const line = document.createElement("div");
+      line.className = "vpinfe-recording";
+      const text = document.createElement("p");
+      text.className = "vpinfe-recording-text";
+      line.appendChild(text);
+      document.body.appendChild(line);
+      this.#recordingLine = line;
+      this.#recordingText = text;
+    }
+    const line = this.#recordingLine;
+    const turn = this.layout.uprightRotation || 0;
+    line.setAttribute("data-upright", String(turn));
+    line.style.transform = `translate(-50%, -50%) rotate(${turn}deg)`;
+    line.hidden = !!this._launchInputSuppressedByLifecycle;
+    this.#recordingText.textContent = Number(run.of) > 1
+      ? this.t("frontend.recording.line_of", "Recording media - {at} of {of}",
+               { at: Number(run.done) + 1, of: run.of })
+      : this.t("frontend.recording.line", "Recording “{game}”",
+               { game: run.game?.name || "" });
   }
 
   // override console and send them to the python console instead

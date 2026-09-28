@@ -370,6 +370,11 @@ configures, and core toggles the matching overlay when one fires.
 All nine old names keep working — the booleans read the string, and the methods call the
 new pair with the overlay's name filled in.
 
+While the device records its own screens into a run of games' media, core draws one line at
+the top of the controller window, *Recording media - 3 of 24*, turned to face the player,
+and hides it while each table is up. It is not an overlay and takes no input; a theme does
+nothing for it. Exit asks *Stop recording?* for as long as the run goes.
+
 #### Optional HTML Elements
 
 | Element | Purpose |
@@ -1013,7 +1018,7 @@ window.receiveEvent = (message) => {
   else moveWheelTo(message.index);
 };
 ```
-| `RemoteLaunching` | `game_name`, `table_name` | The manager UI triggered a remote game launch. Both names carry the same value; `table_name` is the 2.x spelling. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. |
+| `RemoteLaunching` | `game_name`, `table_name` | The manager UI triggered a remote game launch. Both names carry the same value; `table_name` is the 2.x spelling. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. Not sent for a launch that records a table's media: `TableLaunching` arrives for it, as for every launch, and core says what is happening itself (see Overlays). |
 | `RemoteLaunchComplete` | — | The remote-launched game has exited and frontend input routing is restored. Hide the overlay. |
 | `TableDataChange` | `index`, `collection?`, `filters?`, `sort?` | Game data changed (collection switch, filter/sort update, a finished game's play data, a Manager UI edit). Handled automatically by `vpin.handleEvent()`. |
 
@@ -1178,7 +1183,7 @@ The following actions are handled internally by VPinFECore and do **not** reach 
 | `joymenu` | Mapped button | `[Input] keymenu` (default `m`) | Toggles the main menu overlay |
 | `joycollectionmenu` | Mapped button | `[Input] keycollectionmenu` (default `c`) | Toggles the collection menu overlay |
 | `joytutorial` | Mapped button | `[Input] keytutorial` (default `t`) | Toggles the Pinball Primer tutorial overlay |
-| `joyexit` | Mapped button | `[Input] keyexit` (default `Escape,q`) | Closes the application |
+| `joyexit` | Mapped button | `[Input] keyexit` (default `Escape,q`) | Closes the application; while this device is recording a run, asks *Stop recording?* instead |
 | `joypageup` / `joypagedown` | Mapped button | `[Input] keypageup`/`keypagedown` (defaults `PageUp`/`PageDown`) | Pages the game wheel (see below) |
 | `take_picture` | Mapped button | `[input] take_picture` (unbound) | While a table runs: pauses it, and a second press takes a picture of every screen |
 

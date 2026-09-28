@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from common import events, lifecycle
 from common.capture import freeze
+from common.capture import run as capture_run
 from common.config_access import cfg_get
 from common.deprecations import announce
 from common.extensions import services as ext_services
@@ -34,7 +35,7 @@ from common.games.game_metadata import game_rating, normalize_meta, set_game_rat
 from common.games.game_repository import all_games
 from common.host import frontend_browser, frontend_state, launch, launch_state
 from common.host.display_service import monitors_as_dicts
-from common.service_errors import ServiceError
+from common.service_errors import NotFoundError, ServiceError
 from frontend import (
     config_api,
     game_state,
@@ -160,6 +161,9 @@ API_INTERNAL_METHODS = {
     # nobody asked to pause.
     'take_picture',
     'resume_play',
+    # Exit's Stop recording? on the cabinet. A theme calling it would end a recording
+    # run nobody at the cabinet asked to end.
+    'stop_recording',
 }
 
 
@@ -673,6 +677,13 @@ class API:
     def resume_play(self) -> dict[str, Any]:
         """Back pressed while a table runs: resumes it where it is frozen."""
         return freeze.resume()
+
+    def stop_recording(self) -> dict[str, Any]:
+        """Ends the recording run, keeping what earlier games placed."""
+        try:
+            return {"run": capture_run.stop()}
+        except NotFoundError:
+            return {"run": None}
 
     def console_out(self, output: Any, frame: str = "") -> Any:
         """A line from the browser. `frame` names an overlay within this window.

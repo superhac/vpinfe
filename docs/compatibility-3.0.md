@@ -1457,6 +1457,16 @@ not also move the wheel, and a gamepad button bound to Take Picture still has to
 Covered by `tests/js/take-picture.test.js`, `tests/js/internal-methods.test.js`,
 `tests/capture/test_freeze.py` and `tests/invariants/test_theme_api_surface.py`.
 
+**PAR-100 - Exit stops a recording run on the cabinet.**
+One WebSocket method, `stop_recording`, ends the recording run this device is doing, as the
+Console's Stop does. Core's own page calls it when Exit is answered *Stop recording?*, which
+it asks in place of quitting while a run is going. Refused to themes, like
+`get_paging_state`. Nothing a theme reads changes, and a recording's launch no longer raises
+`RemoteLaunching`: `TableLaunching` still arrives for it, as for every launch.
+*Why:* between two recordings the wheel is on screen, and quitting there would end the run
+with VPinFE. Covered by `tests/js/recording.test.js`, `tests/js/remote-launch.test.js`,
+`tests/js/internal-methods.test.js` and `tests/invariants/test_theme_api_surface.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and
