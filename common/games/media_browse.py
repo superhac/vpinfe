@@ -21,7 +21,7 @@ from common.i18n import t
 from common.media_specs import AUDIO_FAMILY, DOC_FAMILY, IMAGE_FAMILY, VIDEO_FAMILY
 from common.paths import get_ini_config
 
-logger = logging.getLogger("vpinfe.common.media_browse")
+logger = logging.getLogger("vpinfe.common.games.media_browse")
 
 _FAMILIES = {"image": IMAGE_FAMILY, "video": VIDEO_FAMILY,
              "audio": AUDIO_FAMILY, "doc": DOC_FAMILY}

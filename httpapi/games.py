@@ -20,7 +20,6 @@ from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse, Response
 
-from common import media_browse
 from common.games import (
     archive_service,
     asset_lens,
@@ -29,6 +28,7 @@ from common.games import (
     game_lens,
     game_ops,
     library_vps_state,
+    media_browse,
     media_ops,
     outside_links,
     table_ops,

@@ -169,7 +169,7 @@ class CheckTests(WizardCase):
     def test_choosing_the_folder_here_is_what_lets_core_read_it(self) -> None:
         """It is set at the check rather than at the end, because there is nothing to
         summarize until core may read the folder at all."""
-        from common import media_browse as filesystem
+        from common.games import media_browse as filesystem
 
         self._check(FIXTURE)
 

@@ -1,7 +1,7 @@
 """Walking this machine's directories over the wire, so artwork can be picked from where
 it landed.
 
-`common/media_browse.py` decides what may be read and lists it. Reading a directory over
+`common/games/media_browse.py` decides what may be read and lists it. Reading a directory over
 HTTP is a real capability, so it is bounded rather than trusted: the game library, plus
 whatever folders the owner listed, and nothing else.
 """
@@ -11,8 +11,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Query
 from starlette.responses import FileResponse
 
-from common import media_browse, service_errors
-from common.games import game_repository
+from common import service_errors
+from common.games import game_repository, media_browse
 from common.games.asset_registry import extensions_listed
 from common.i18n import t
 

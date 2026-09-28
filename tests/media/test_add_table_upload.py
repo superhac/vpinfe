@@ -25,7 +25,7 @@ class AddTableRouteTests(TempTree):
         (incoming / "Foo 1.2.vpx").write_bytes(b"new")
         (incoming / "Foo 1.2.directb2s").write_bytes(b"new-b2s")
         roots = [{"path": str(self.root.resolve()), "name": "root", "source": "library"}]
-        for patched in (mock.patch("common.media_browse.roots", return_value=roots),
+        for patched in (mock.patch("common.games.media_browse.roots", return_value=roots),
                         mock.patch.object(asset_import_service, "refresh_game"),
                         mock.patch("common.games.library_enrichment.read_one",
                                    return_value={})):

@@ -27,7 +27,7 @@ class APlanUnderANewFolderName(TempTree):
         games = self.root / "games"
         games.mkdir()
         roots = [{"path": str(self.root.resolve()), "name": "root", "source": "library"}]
-        for patcher in (mock.patch("common.media_browse.roots", return_value=roots),
+        for patcher in (mock.patch("common.games.media_browse.roots", return_value=roots),
                         mock.patch.object(asset_import_service, "_new_games_under",
                                           return_value=str(games))):
             patcher.start()

@@ -25,7 +25,7 @@ class _Here(TempTree):
         (self.incoming / "MyPup" / "s1" / "a.mp4").write_bytes(b"x" * 16)
         (self.incoming / "wheel.png").write_bytes(b"x" * 16)
         roots = [{"path": str(self.root.resolve()), "name": "root", "source": "library"}]
-        patcher = mock.patch("common.media_browse.roots", return_value=roots)
+        patcher = mock.patch("common.games.media_browse.roots", return_value=roots)
         patcher.start()
         self.addCleanup(patcher.stop)
 

@@ -12,9 +12,9 @@ from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 from typing import IO, Any
 
-from common import media_browse, service_errors
+from common import service_errors
 from common.failures import why
-from common.games import identity_claims, media_placement, media_service
+from common.games import identity_claims, media_browse, media_placement, media_service
 from common.games.asset_registry import spec_for
 from common.games.game_metadata import made_from
 from common.games.table_lens import table_settings

@@ -124,7 +124,7 @@ class AssetWrites(TempTree):
         elsewhere = self.root / "downloads" / "AFM.pov"
         elsewhere.parent.mkdir()
         elsewhere.write_bytes(b"pov")
-        with patch("common.media_browse.within_roots", return_value=elsewhere):
+        with patch("common.games.media_browse.within_roots", return_value=elsewhere):
             said = self.client.post(f"/games/{GAME_ID}/assets/pov/import",
                                     json={"path": str(elsewhere), "table": "vr"}).json()
 
