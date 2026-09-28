@@ -2536,6 +2536,8 @@
   "error.players.no_card": "{extension} cannot make this player a card yet",
   "error.players.no_player": "No player with id {player_id}",
   "error.players.owner_not_removable": "The owner cannot be removed",
+  "error.players.owner_record_is_the_library": "The owner's plays and ratings are the library's",
+  "error.players.record_id_unusable": "No record can be kept for a player with the id {player_id}",
   "error.table_commands.every_table_command_failed": "A command run before every table did not work",
   "error.table_commands.launcher_command_failed": "A command the {launcher_name} launcher runs before a table did not work",
   "error.tags.derived": "{tag} comes from an extension, which decides where it goes",

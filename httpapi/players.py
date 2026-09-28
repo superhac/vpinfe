@@ -10,6 +10,8 @@ from fastapi import APIRouter, Body, Response
 
 from common import events
 from common.extensions import accounts
+from common.games import game_lens
+from common.games.player_records import get_records
 from common.players import get_roster
 
 from . import models, scopes
@@ -74,12 +76,31 @@ def set_up(player_id: str,
     return _roster()
 
 
+@router.get("/{player_id}/record", summary="What a player has done with each game",
+            dependencies=[requires(scopes.PLAYERS_READ)])
+def get_record(player_id: str) -> models.PlayerRecord:
+    """Not the owner's, which is the library's."""
+    return models.PlayerRecord.model_validate(
+        get_records().view(get_roster().player(player_id)))
+
+
+@router.put("/{player_id}/ratings/{game_id}", summary="A player's rating of a game",
+            dependencies=[requires(scopes.PLAYERS_WRITE)])
+def put_rating(player_id: str, game_id: str,
+               payload: models.RatingRequest = Body(...)) -> models.Rating:
+    """Not the owner's, which `PUT /games/{id}/rating` writes."""
+    player = get_roster().player(player_id)
+    game_lens.game_or_refuse(game_id)
+    return models.Rating(rating=get_records().set_rating(player, game_id, payload.rating))
+
+
 @router.delete("/{player_id}", summary="Remove a player, or sign a guest out",
                status_code=204, dependencies=[requires(scopes.PLAYERS_WRITE)])
 def remove_player(player_id: str) -> Response:
-    """Their accounts go with them, from every extension."""
+    """Their accounts go with them, from every extension, and so does their record."""
     get_roster().remove(player_id)
     accounts.forget(player_id)
+    get_records().forget(player_id)
     return Response(status_code=204)
 
 

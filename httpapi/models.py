@@ -532,6 +532,40 @@ class GuestCardRequest(ApiModel):
     card: str = Field(max_length=1_000_000)
 
 
+class PlayerBestScore(ApiModel):
+    """A player's best entry on a game's high score table, shaped as `HighScoreEntry`,
+    with the ROM whose table it was on and when it was made."""
+
+    rom: str = ""
+    # The machine's own words, `GRAND CHAMPION` - data, not a label.
+    section: str = ""
+    scored_at: str | None = None
+    rank: int | None = None
+    initials: str = ""
+    score: int | None = None
+    prefix: str = ""
+    suffix: str = ""
+    text: str = ""
+
+
+class PlayerGameRecord(ApiModel):
+    game_id: str
+    play_count: int = 0
+    play_time_seconds: int = 0
+    last_played: str | None = None
+    best_score: PlayerBestScore | None = None
+    # 0-5, 0 unrated.
+    rating: int = 0
+
+
+class PlayerRecord(ApiModel):
+    """What a player other than the owner has done with each game they played or rated,
+    most recently played first."""
+
+    player: str
+    games: list[PlayerGameRecord]
+
+
 # --- Games -----------------------------------------------------------------
 
 class AssetFileBinding(ApiModel):

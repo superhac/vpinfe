@@ -2215,6 +2215,8 @@
   "error.players.no_card": "2a7c46bccb43",
   "error.players.no_player": "dc2a45f32a4c",
   "error.players.owner_not_removable": "4fc9b51ebee9",
+  "error.players.owner_record_is_the_library": "3c76a271abf0",
+  "error.players.record_id_unusable": "cf76ac07e239",
   "error.table_commands.every_table_command_failed": "bfad52c999df",
   "error.table_commands.launcher_command_failed": "1a0ff47ce91a",
   "error.tags.derived": "6119c29fa428",

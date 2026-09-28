@@ -160,7 +160,7 @@ def sections(held: dict[str, Any]) -> list[dict[str, Any]]:
     new = set(held.get("new") or [])
     if "value" in held:
         return [{"name": str(held.get("score_kind") or ""),
-                 "entries": [_entry({"score": held["value"]}, 0 in new)]}]
+                 "entries": [shown_entry({"score": held["value"]}, 0 in new)]}]
     grouped: list[dict[str, Any]] = []
     for position, entry in enumerate(held.get("entries") or []):
         if not isinstance(entry, dict):
@@ -168,13 +168,14 @@ def sections(held: dict[str, Any]) -> list[dict[str, Any]]:
         name = str(entry.get("section") or "")
         if not grouped or grouped[-1]["name"] != name:
             grouped.append({"name": name, "entries": []})
-        grouped[-1]["entries"].append(_entry(entry, position in new))
+        grouped[-1]["entries"].append(shown_entry(entry, position in new))
     return grouped
 
 
-def _entry(entry: dict[str, Any], new: bool) -> dict[str, Any]:
-    """`prefix` and `suffix` carry their own spacing, so `text` is exactly the three
-    joined; `text` alone is the entry's lines where it holds no number."""
+def shown_entry(entry: dict[str, Any], new: bool = False) -> dict[str, Any]:
+    """One entry as the wire carries it. `prefix` and `suffix` carry their own spacing, so
+    `text` is exactly the three joined; `text` alone is the entry's lines where it holds
+    no number."""
     rank = entry.get("rank")
     score = entry.get("score") if _is_number(entry.get("score")) else None
     prefix = str(entry.get("value_prefix") or "")

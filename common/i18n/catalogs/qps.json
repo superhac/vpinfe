@@ -2536,6 +2536,8 @@
   "error.players.no_card": "{extension} çàññöţ ɱàķè ţĥîš þŀàýèř à çàřđ ýèţ",
   "error.players.no_player": "Ñö þŀàýèř ŵîţĥ îđ {player_id}",
   "error.players.owner_not_removable": "Ţĥè öŵñèř çàññöţ ƀè řèɱöṽèđ",
+  "error.players.owner_record_is_the_library": "Ţĥè öŵñèř'š þŀàýš àñđ řàţîñĝš àřè ţĥè ŀîƀřàřý'š",
+  "error.players.record_id_unusable": "Ñö řèçöřđ çàñ ƀè ķèþţ ƒöř à þŀàýèř ŵîţĥ ţĥè îđ {player_id}",
   "error.table_commands.every_table_command_failed": "À çöɱɱàñđ řûñ ƀèƒöřè èṽèřý ţàƀŀè đîđ ñöţ ŵöřķ",
   "error.table_commands.launcher_command_failed": "À çöɱɱàñđ ţĥè {launcher_name} ŀàûñçĥèř řûñš ƀèƒöřè à ţàƀŀè đîđ ñöţ ŵöřķ",
   "error.tags.derived": "{tag} çöɱèš ƒřöɱ àñ èẋţèñšîöñ, ŵĥîçĥ đèçîđèš ŵĥèřè îţ ĝöèš",

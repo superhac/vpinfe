@@ -18,7 +18,7 @@ from pathlib import PurePath
 from unittest import mock
 
 from common import events, mounts, players
-from common.games import tables
+from common.games import player_records, tables
 from common.games.locations import Location, LocationStore
 from common.games.score_parser import ParsedEntry
 from common.host import commands, launch, launch_state, table_commands
@@ -72,6 +72,9 @@ class LaunchTests(unittest.TestCase):
         self.addCleanup(folder.cleanup)
         players.reset_for_tests(pathlib.Path(folder.name) / "players.json")
         self.addCleanup(players.reset_for_tests)
+        self.records_dir = pathlib.Path(folder.name) / "player_records"
+        player_records.reset_for_tests(self.records_dir)
+        self.addCleanup(player_records.reset_for_tests)
         self.roster = players.get_roster()
         made = self.roster.ensure_owner(ConfigParser())
         assert made is not None
@@ -597,6 +600,107 @@ class SessionTests(LaunchTests):
         self.assertEqual(plain["new_entries"][0]["player"]["initials"], "OWN")
         self.assertIs(launched["private"], False)
         self.assertIs(plain["private"], False)
+
+
+class RecordTests(LaunchTests):
+    """A session's play and scores in the record of each player who is not the owner."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.kept = self.roster.add_player("Jordan", "ABC")
+        self.game = _game()
+        self.game.meta_config = {"vpinfe": {"game_id": "g1"}, "tables": {
+            "t1": {"id": "t1", "filename": "Example.vpx", "rom": "example"}}}
+
+    def _play(self, readings=None, game=None, **run):
+        return self._run(game=game or self.game, readings=readings, **run)
+
+    def _theirs(self, player: players.Player) -> dict:
+        return player_records.get_records().game(player, "g1")
+
+    def test_a_player_s_session_lands_in_their_record_and_not_the_library(self) -> None:
+        self.roster.set_who_is_up([self.kept.player_id])
+
+        play = self._play()
+
+        self.assertFalse(play.increment_start_count.called)
+        self.assertFalse(play.add_play_time.called)
+        record = self._theirs(self.kept)
+        self.assertEqual(record["play_count"], 1)
+        self.assertIsNotNone(record["last_played"])
+        self.assertTrue((self.records_dir / f"{self.kept.player_id}.json").exists())
+
+    def test_up_beside_the_owner_both_records_move(self) -> None:
+        self.roster.set_who_is_up([self.owner.player_id, self.kept.player_id])
+
+        play = self._play()
+
+        play.increment_start_count.assert_called_once()
+        play.add_play_time.assert_called_once()
+        self.assertEqual(self._theirs(self.kept)["play_count"], 1)
+
+    def test_the_owner_alone_leaves_every_other_record_alone(self) -> None:
+        self._play()
+
+        self.assertFalse(self.records_dir.exists())
+
+    def test_a_score_made_by_a_player_who_was_not_up_is_their_best(self) -> None:
+        self._play(readings=[(_reading(("AAA", 300)), "/nv"),
+                             (_reading(("ABC", 450), ("AAA", 300)), "/nv")])
+
+        record = self._theirs(self.kept)
+        self.assertEqual(record["play_count"], 0, "a score is not a play")
+        self.assertEqual((record["best_score"]["initials"], record["best_score"]["score"],
+                          record["best_score"]["rom"]), ("ABC", 450, "example"))
+
+    def test_a_guest_s_session_is_held_and_gone_once_they_sign_out(self) -> None:
+        guest = self.roster.add_guest("GST")
+
+        self._play(readings=[(_reading(("AAA", 300)), "/nv"),
+                             (_reading(("AAA", 300), ("", 200)), "/nv")])
+
+        record = self._theirs(guest)
+        self.assertEqual((record["play_count"], record["best_score"]["initials"]),
+                         (1, "GST"))
+        self.assertFalse(self.records_dir.exists())
+        self.roster.remove(guest.player_id)
+        player_records.get_records().forget(guest.player_id)
+        self.assertEqual(player_records.get_records().games(guest), {})
+
+    def test_a_player_removed_during_the_game_is_not_written_back(self) -> None:
+        self.roster.set_who_is_up([self.kept.player_id])
+
+        def leaves(**_launched) -> None:
+            self.roster.remove(self.kept.player_id)
+            player_records.get_records().forget(self.kept.player_id)
+        events.subscribe(events.TABLE_LAUNCHED, leaves)
+        heard = []
+        events.subscribe(events.TABLE_PLAY_RECORDED, lambda **payload: heard.append(payload))
+
+        self._play(popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
+
+        self.assertFalse((self.records_dir / f"{self.kept.player_id}.json").exists())
+        self.assertEqual(len(heard), 1, "the game is still announced")
+
+    def test_a_game_with_no_id_records_nothing_for_them_and_still_ends(self) -> None:
+        self.roster.set_who_is_up([self.kept.player_id])
+        heard = []
+        events.subscribe(events.TABLE_PLAY_RECORDED, lambda **payload: heard.append(payload))
+
+        self._play(game=_game())
+
+        self.assertFalse(self.records_dir.exists())
+        self.assertEqual(len(heard), 1)
+
+    def test_a_guest_signed_in_through_an_extension_takes_the_session(self) -> None:
+        self.roster.set_who_is_up([self.kept.player_id])
+        answers = {"guest.record_start": True, "guest.active": object()}
+
+        with mock.patch.object(launch.ext_services, "ask",
+                               lambda name, *args: answers.get(name)):
+            self._play(readings=[(None, None), (_reading(("ABC", 400)), "/nv")])
+
+        self.assertFalse(self.records_dir.exists())
 
 
 class PrivateTests(LaunchTests):

@@ -129,6 +129,13 @@ class Roster:
         wanted = (player_id or "").strip()
         return next((p for p in self.players() if p.player_id == wanted), None)
 
+    def player(self, player_id: str) -> Player:
+        """One player. Raises NotFoundError for an id nobody has."""
+        found = self.get(player_id)
+        if found is None:
+            raise _no_player((player_id or "").strip())
+        return found
+
     def owner(self) -> Player | None:
         return next((p for p in self.players() if p.owner), None)
 

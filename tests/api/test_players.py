@@ -6,18 +6,22 @@ install looks like once `main.py` has made its owner.
 
 from __future__ import annotations
 
+import json
 import unittest
 from configparser import ConfigParser
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
 from starlette.testclient import TestClient
 
 import httpapi
 from common import events, players
+from common.games import player_records
 from common.i18n import t
 from httpapi import auth, scopes
 from httpapi import events as event_stream
+from tests.support.library import fake_game, write_game
 
 
 def _owner_config() -> ConfigParser:
@@ -221,6 +225,88 @@ class UpTests(_PlayersCase):
     def test_putting_an_unknown_player_up_is_a_404(self) -> None:
         self.assertEqual(self.client.put("/players/Nobody0000/up",
                                          json={"up": True}).status_code, 404)
+
+
+class RecordTests(_PlayersCase):
+    """A player's own record and rating, beside the library's, which stays the owner's."""
+
+    GAME = "RateMe0001"
+
+    def setUp(self) -> None:
+        super().setUp()
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.records_dir = Path(tmp.name) / "player_records"
+        player_records.reset_for_tests(self.records_dir)
+        self.addCleanup(player_records.reset_for_tests)
+        info = {"Info": {"Name": "Example"}, "VPinFE": {"game_id": self.GAME}}
+        folder = write_game(Path(tmp.name) / "library", "Example", info=info)
+        self.info_path = folder / "Example.info"
+        patcher = mock.patch("common.games.game_repository.catalog",
+                             return_value={self.GAME: fake_game(folder, meta=info)})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _rate(self, player: str, rating, game: str = GAME):
+        return self.client.put(f"/players/{player}/ratings/{game}", json={"rating": rating})
+
+    def _record(self, player: str) -> dict:
+        response = self.client.get(f"/players/{player}/record")
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def test_a_player_s_rating_is_theirs_and_not_the_library_s(self) -> None:
+        kept = self._add("Jordan", "ABC")
+
+        response = self._rate(kept, 4)
+
+        self.assertEqual((response.status_code, response.json()), (200, {"rating": 4}))
+        (game,) = self._record(kept)["games"]
+        self.assertEqual((game["game_id"], game["rating"], game["play_count"]),
+                         (self.GAME, 4, 0))
+        self.assertNotIn("User", json.loads(self.info_path.read_text(encoding="utf-8")))
+
+    def test_the_rating_takes_the_library_route_s_scale(self) -> None:
+        kept = self._add("Jordan", "ABC")
+
+        for rating in (6, -1, "great"):
+            with self.subTest(rating=rating):
+                self.assertEqual(self._rate(kept, rating).status_code, 422)
+        self.assertEqual(self._record(kept)["games"], [])
+
+    def test_a_game_or_a_player_nobody_has_is_not_found(self) -> None:
+        kept = self._add("Jordan", "ABC")
+
+        self.assertEqual(self._rate(kept, 3, game="nosuchgame").status_code, 404)
+        self.assertEqual(self._rate("nobody", 3).status_code, 404)
+        self.assertEqual(self.client.get("/players/nobody/record").status_code, 404)
+
+    def test_the_owner_s_are_the_library_s(self) -> None:
+        said = t("error.players.owner_record_is_the_library")
+
+        self._refused(self._rate(self.owner, 3), 400, "invalid_request", said)
+        self._refused(self.client.get(f"/players/{self.owner}/record"), 400,
+                      "invalid_request", said)
+
+    def test_a_kept_player_s_record_goes_when_they_do(self) -> None:
+        kept = self._add("Jordan", "ABC")
+        self._rate(kept, 4)
+        self.assertTrue((self.records_dir / f"{kept}.json").exists())
+
+        self.assertEqual(self.client.delete(f"/players/{kept}").status_code, 204)
+
+        self.assertFalse((self.records_dir / f"{kept}.json").exists())
+
+    def test_a_guest_s_record_goes_when_they_sign_out(self) -> None:
+        guest = self._guest("GST")
+        self._rate(guest, 5)
+        self.assertEqual(len(self._record(guest)["games"]), 1)
+        held = players.get_roster().player(guest)
+
+        self.client.delete(f"/players/{guest}")
+
+        self.assertEqual(player_records.get_records().games(held), {})
+        self.assertFalse(self.records_dir.exists())
 
 
 class ContractTests(_PlayersCase):

@@ -214,9 +214,11 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/players` | Add a player, `{"name", "initials"}`. `201`. Not put up |
 | POST | `/api/v1/players/guests` | Add a guest from their initials, `{"initials"}`, and put them up alone. `201` |
 | PATCH | `/api/v1/players/{id}` | Rename a player or change their initials, `{"name", "initials"}`. A field left out is left alone |
-| DELETE | `/api/v1/players/{id}` | Remove a player, or sign a guest out. `204`. The owner cannot be removed |
+| DELETE | `/api/v1/players/{id}` | Remove a player, or sign a guest out. `204`. Their accounts and record go with them. The owner cannot be removed |
 | PUT | `/api/v1/players/{id}/up` | Put one player up beside whoever is, `{"up": true}`, or take them down. Answers with the whole list |
 | PUT | `/api/v1/players/up` | Say exactly who is up, `{"ids": [...]}`. An id nobody has is a `404` and changes nothing. Answers with the whole list |
+| GET | `/api/v1/players/{id}/record` | What a player other than the owner has done with each game - see [Records](#records) |
+| PUT | `/api/v1/players/{id}/ratings/{game_id}` | A player's rating of a game, `{"rating": 3}`, 0-5 as `PUT /games/{id}/rating` takes it. Answers `{"rating"}`. Not the owner's, which is the library's |
 | POST | `/api/v1/players/guests/card` | Add a guest from their card, `{"card": "..."}`: the card file's contents, or the card's text on its own. `201`, up alone. The same card again puts that guest up rather than adding another - see [Accounts and cards](#accounts-and-cards) |
 | GET | `/api/v1/players/{id}/accounts` | Every account this player can hold here, one per running extension that offers one |
 | GET | `/api/v1/players/{id}/accounts/{extension}` | One of them |
@@ -1278,13 +1280,42 @@ the number changed, and it goes the same way. `table.play_recorded` says who eac
 to.
 
 The library's own counts - how often a game was played, for how long, and its score - are
-the owner's. They move only for a game the owner was up for.
+the owner's. They move only for a game the owner was up for. Every other player's are in a
+record of their own - see [Records](#records).
 
 A refusal - removing the owner, initials taken or not three characters, a guest with none -
 is `invalid_request` with the reason as its message. An id nobody has is `not_found`.
 
 `players:read` and `players:write` guard them. Every change is announced as
 `players.changed`, carrying the whole list.
+
+### Records
+
+Every player but the owner has a record of their own: per game, how often they played it,
+for how long, when they last did, their best entry on its high score table, and their
+rating. A kept player's is written to `player_records/<id>.json` in the config directory;
+a guest's is held in memory and is gone when they sign out or VPinFE closes. Removing a
+player removes their record.
+
+```json
+{"player": "Hc4Rt8Wv1N", "games": [
+  {"game_id": "Tq3Nx8Kd2P", "play_count": 2, "play_time_seconds": 1520,
+   "last_played": "2026-09-28T20:14:02Z", "rating": 4,
+   "best_score": {"rom": "example", "section": "HIGH SCORES",
+                  "scored_at": "2026-09-28T20:39:11Z", "rank": 2, "initials": "ABC",
+                  "score": 12500000, "prefix": "", "suffix": "", "text": "12,500,000"}}
+]}
+```
+
+A game counts for each player up as it starts, when the library's count moves for the
+owner, and its time is added as it ends. A new entry goes to the best score of the player
+it went to, up or not. The best is the entry with the highest number, and a later equal one
+leaves it be; `best_score` is shaped as a high score entry, with the ROM whose table it was
+on and when it was made. Games are listed most recently played first, then the ones only
+rated.
+
+Both routes refuse the owner with `invalid_request`: the owner's record is the library's,
+read from a game's `user`, and their rating is written by `PUT /games/{id}/rating`.
 
 ### Accounts and cards
 

@@ -24,7 +24,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from common import apps, events, players
+from common import apps, events, players, service_errors
 from common.config_store import ConfigStore
 from common.extensions import services as ext_services
 from common.failures import why
@@ -36,6 +36,7 @@ from common.games import (
     info_file,
     launchers,
     locations,
+    player_records,
     score_parser,
     tables,
 )
@@ -52,6 +53,7 @@ from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
 from common.i18n import t
 from common.launcher_path import resolve_launcher_path
 from common.paths import CONFIG_DIR, PLUGIN_PROFILES_DIR
+from common.timestamps import utc_now_iso
 
 logger = logging.getLogger("vpinfe.common.host.launch")
 
@@ -252,6 +254,30 @@ def _counts_in_the_library(up: list[players.Player]) -> bool:
     return not up or any(player.owner for player in up)
 
 
+def _in_their_records(game: Game, whose: list[players.Player],
+                      write: Callable[[player_records.PlayerRecords, players.Player, str],
+                                      None]) -> None:
+    """Hand `write` the record of each player in `whose` who is not the owner. Never
+    raises."""
+    theirs = [player for player in whose if not player.owner]
+    game_id = game_identity.game_id(game)
+    if theirs and not game_id:
+        logger.warning("Not recording %s for its players: the game has no id yet",
+                       game.game_dir_name)
+    if not theirs or not game_id:
+        return
+    records = player_records.get_records()
+    for player in theirs:
+        try:
+            write(records, player, game_id)
+        except service_errors.NotFoundError:
+            logger.info("Not recording %s for %s, who has left since it started",
+                        game.game_dir_name, player.initials or player.player_id)
+        except Exception:
+            logger.exception("Could not record %s for %s", game.game_dir_name,
+                             player.initials or player.player_id)
+
+
 def _record_play(game: Game, elapsed_seconds: float, table: str, rom: str,
                  up: list[players.Player], before: dict | None) -> dict[str, Any]:
     """Play data for a finished session, and what `table.play_recorded` says about it.
@@ -266,6 +292,7 @@ def _record_play(game: Game, elapsed_seconds: float, table: str, rom: str,
         game_play_service.keep_high_scores(game, rom, after, before, score_path)
     one = up[0] if len(up) == 1 else None
     reading = _with_initials(after, one.initials if one else "")
+    credited = _whose_new_entries(before, after, up)
 
     if ext_services.ask("guest.active") is not None:
         game_key = str(game.full_path_game or game.game_dir_name or "")
@@ -276,13 +303,23 @@ def _record_play(game: Game, elapsed_seconds: float, table: str, rom: str,
             if reading:
                 logger.info("Captured a guest's score for %s from %s",
                             game.game_dir_name, score_path)
-    elif _counts_in_the_library(up):
-        game_play_service.add_play_time(game, elapsed_seconds, table)
+    else:
+        if _counts_in_the_library(up):
+            game_play_service.add_play_time(game, elapsed_seconds, table)
+        _in_their_records(game, up, lambda records, player, game_id: records.add_time(
+            player, game_id, elapsed_seconds))
+        scored_at = utc_now_iso()
+        entries_of = {player.player_id: entries for player, entries in credited}
+        _in_their_records(game, [player for player, _ in credited],
+                          lambda records, player, game_id: records.offer_scores(
+                              player, game_id, rom, entries_of[player.player_id],
+                              scored_at))
 
     return {"up": [player.as_payload() for player in up],
             "seconds": int(round(elapsed_seconds)),
             "reading": reading,
-            "new_entries": _whose_new_entries(before, after, up)}
+            "new_entries": [{"player": player.as_payload(), "entries": entries}
+                            for player, entries in credited]}
 
 
 def _with_initials(reading: dict | None, initials: str) -> dict | None:
@@ -293,15 +330,15 @@ def _with_initials(reading: dict | None, initials: str) -> dict | None:
 
 
 def _whose_new_entries(before: dict | None, after: dict | None,
-                       up: list[players.Player]) -> list[dict[str, Any]]:
+                       up: list[players.Player]
+                       ) -> list[tuple[players.Player, list[dict[str, Any]]]]:
     roster = players.get_roster()
     credited: dict[str, tuple[players.Player, list[dict]]] = {}
     for entry in score_parser.new_entries(before, after):
         player = roster.whose_score(str(entry.get("initials") or ""), up)
         if player is not None:
             credited.setdefault(player.player_id, (player, []))[1].append(entry)
-    return [{"player": player.as_payload(),
-             "entries": score_parser.entries_with_initials(entries, player.initials)}
+    return [(player, score_parser.entries_with_initials(entries, player.initials))
             for player, entries in credited.values()]
 
 
@@ -450,9 +487,13 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
                 started = ext_services.ask(
                     "guest.record_start",
                     str(game.full_path_game or game.game_dir_name or ""))
-                if not started and _counts_in_the_library(up):
-                    game_play_service.increment_start_count(
-                        game, tables.entry_native_key(entry))
+                if not started:
+                    if _counts_in_the_library(up):
+                        game_play_service.increment_start_count(
+                            game, tables.entry_native_key(entry))
+                    begun = utc_now_iso()
+                    _in_their_records(game, up, lambda records, player, game_id:
+                                      records.count_start(player, game_id, begun))
 
             # An app that cannot say when it is up is up as soon as it is spawned.
             # Waiting for a marker that will never come would leave the table launched

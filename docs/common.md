@@ -53,6 +53,7 @@ something. `docs/extensions.md` is the contract an author reads.
 - `game_identity.py`: the stable per-install game id that addresses a game everywhere.
 - `tables.py`: which table in a game folder plays when nobody names one. Every caller resolves through `default_entry()` or `offered_tables()`.
 - `metadata_service.py`, `game_report_service.py`, `game_play_service.py`: workflows over games and metadata.
+- `player_records.py`: what each player other than the owner has done with each game - plays, time, best score and rating. A kept player's is `player_records/<id>.json` in the config directory, a guest's is held in memory. The owner's is the library's `.info`, which nothing here writes.
 - `collections_service.py`, `collection_store.py`, `collection_filters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
 - `vpx_parser.py`, `standalone_scripts.py`: reading and patching the .vpx itself.
 - `score_parser.py`: PinMAME NVRAM score extraction.
