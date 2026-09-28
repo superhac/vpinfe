@@ -70,6 +70,7 @@ LEDGER_ALLOWS = {
     "PAR-100": {"stop_recording"},
     "PAR-101": {"recording_offer", "record_media", "switch_preview", "decide_preview",
                 "end_preview"},
+    "PAR-102": {"library_waiting"},
     # New media kinds add theme-payload keys. Additive only: every key master
     # had must still be present and equal.
     "PAR-11": {"InstructionCardImagePath", "TopperPath", "TopperVideoPath",
@@ -180,7 +181,8 @@ class ParityTests(unittest.TestCase):
             | LEDGER_ALLOWS["PAR-48"] | LEDGER_ALLOWS["PAR-63"]
             | LEDGER_ALLOWS["PAR-88"] | LEDGER_ALLOWS["PAR-95"]
             | LEDGER_ALLOWS["PAR-96"] | LEDGER_ALLOWS["PAR-97"] | LEDGER_ALLOWS["PAR-99"]
-            | LEDGER_ALLOWS["PAR-100"] | LEDGER_ALLOWS["PAR-101"],
+            | LEDGER_ALLOWS["PAR-100"] | LEDGER_ALLOWS["PAR-101"]
+            | LEDGER_ALLOWS["PAR-102"],
             "only PAR-04's, PAR-21's and PAR-27's additions are permitted")
 
     def test_legacy_endpoints_served_on_master_and_do_not_serve_here(self) -> None:

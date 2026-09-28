@@ -117,6 +117,21 @@ def all_games(reload: bool = False) -> list[Any]:
     return games
 
 
+def waiting_for() -> list[str]:
+    """What an empty library is waiting on: each of its folders, by server where it is on
+    one, while none of them can be reached. Empty once one answers, the library read
+    again."""
+    wanted = locations.configured()
+    if not wanted or all_games():
+        return []
+    states = locations.states_of(wanted)
+    if any(state.reachable for state in states.values()):
+        all_games(reload=True)
+        return []
+    named = ((states[one.location_id].origin or one.origin, one.name) for one in wanted)
+    return list(dict.fromkeys(origin.server if origin else name for origin, name in named))
+
+
 def catalog() -> dict[str, Any]:
     """Every game keyed by id. Writes a .info for any game that lacks one, so it is a
     no-op once the library has been through it."""

@@ -40,6 +40,7 @@ async function playing({ answers = {} } = {}) {
   vpin.call = (method) => Promise.resolve(method in boot ? boot[method] : null);
   const asked = [];
   vpin.callInternal = (method) => {
+    if (method === "library_waiting") return Promise.resolve([]);
     asked.push(method);
     return Promise.resolve(answers[method] || { state: "ignored" });
   };

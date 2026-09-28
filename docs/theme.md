@@ -1252,6 +1252,7 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 | `vpin.themeAssetsPort` | `number` | File server port (default `8000`). Prefer `vpin.endpoints.files`, which is the whole base URL. |
 | `vpin.endpoints` | `object` | Where the things this page talks to are — `{ library, device, files, frontend_channel }`. The first three are addresses you add a path to: `library` is the catalog and what's known about it, `device` is this machine (launching, play state, hardware), `files` is the files themselves (theme packages, table media, manufacturer logos). `frontend_channel` is not an address but a line held open — how this page and VPinFE talk to each other, both ways — so nothing is appended to it. Build URLs from these rather than assuming a host or a port: the halves can be separate machines, and only this knows where they are. |
 | `vpin.menuUP` | `boolean` | Whether the main menu overlay is currently visible. |
+| `vpin.libraryWaiting` | `string[]` | While the library is empty because every folder it reads from is away - a NAS asleep or down - the servers or folders it is waiting on; empty otherwise. Core covers every window with them (`core_waiting`, on by default) and loads the list the moment one answers, raising `TableDataChange`. A theme that draws its own waiting state sets `waiting.enabled` false and reads this after an empty `getTableData()`. |
 | `vpin.capabilities` | `object` | What this build does on your behalf, and whether each is on — `{ core_paging: true, core_audio: false, core_preload: false }`. A name that is absent is a behavior this build does not have, so check before relying on it. Reading it gives you a copy; use `enableCorePaging()` / `enableCoreAudio()` to change anything. At contract 2 `core_navigation` covers stepping *and* paging, so `enableCorePaging(false)` turns off both — a page is a bigger step, not a separate feature. |
 | `vpin.contract` | `number` | Which contract you are being served. |
 | `vpin.windowName` | `string` | This window's name — which page it loaded, and its media kind when it has one. Known before the socket opens, so there is nothing to await. |
@@ -1285,6 +1286,7 @@ of:
 | key | English |
 |---|---|
 | `frontend.theme.no_tables_found` | No tables found |
+| `frontend.theme.waiting_for_tables` | Waiting for your tables |
 | `frontend.theme.loading_table` | Loading Table... |
 | `frontend.theme.launching` | Launching... |
 | `frontend.theme.unknown_table` | Unknown Table |

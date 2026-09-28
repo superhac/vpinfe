@@ -115,6 +115,11 @@ const CAPABILITIES = {
     config: ["media_window.enabled"],
     describe: "Core shows each display window the media named for it.",
   },
+  core_waiting: {
+    default: true,
+    config: ["waiting.enabled"],
+    describe: "Core covers each window with what an empty library is waiting for.",
+  },
   core_preload: {
     // Off by default: every published theme preloads for itself, so turning this on
     // without deleting the theme's own loop just doubles the requests.
@@ -148,6 +153,7 @@ const MISSING_MEDIA_URL = "/core/images/file_missing.png";
 // what this file assumes until the bridge answers: the compatibility layer below is
 // installed up front and taken away again at contract 2, so a theme that touches vpin.*
 // before the bridge is up still finds its names.
+const WAITING_POLL_MS = 5000;
 const OLDEST_CONTRACT = 1;
 const CURRENT_CONTRACT = 2;
 
@@ -395,6 +401,7 @@ const INTERNAL_METHODS = new Set([
   "get_current_order_state",
   "get_paging_state",
   "keep_filter_collection",
+  "library_waiting",
   "report_browser",
   "take_picture",
   "resume_play",
@@ -660,6 +667,9 @@ class VPinFECore {
 
   constructor() {
     this.tableData = {};
+    // The folders an empty library is waiting on, by server where they are on one.
+    this.libraryWaiting = [];
+    this._watchingLibrary = false;
     // What the running theme declared. Contract 1 until the bridge says otherwise.
     this.contract = OLDEST_CONTRACT;
     // The theme's windows, controller first. Replaced once the bridge answers; until
@@ -1359,6 +1369,7 @@ class VPinFECore {
     }
     const maxIndex = Math.max(0, this.tableData.length - 1);
     if (this._currentTableIndex > maxIndex) this._currentTableIndex = maxIndex;
+    if (!this.tableData.length) this.#watchForLibrary();
     if (this.isController()) {
       if (this.tableData.length > 0) {
         if (!this._initialGameRestored) {
@@ -1821,6 +1832,37 @@ class VPinFECore {
       } catch (err) {
         console.warn("vpinfe: a selection listener failed", err);
       }
+    }
+  }
+
+  /**
+   * Ask what an empty library is waiting on, and ask again until nothing. The backend
+   * sends every window the library once a folder answers.
+   */
+  async #watchForLibrary() {
+    if (this._watchingLibrary) return;
+    this._watchingLibrary = true;
+    try {
+      for (;;) {
+        const waiting = await this.callInternal("library_waiting").catch(() => []);
+        this.libraryWaiting = Array.isArray(waiting) ? waiting : [];
+        this.#showWaiting();
+        if (!this.libraryWaiting.length) return;
+        await new Promise((resolve) => setTimeout(resolve, WAITING_POLL_MS));
+      }
+    } finally {
+      this._watchingLibrary = false;
+    }
+  }
+
+  #showWaiting() {
+    const root = document.documentElement;
+    if (!root) return;
+    if (this.enabled("core_waiting") && this.libraryWaiting.length) {
+      root.dataset.vpinfeWaiting = `${this.t("frontend.theme.waiting_for_tables",
+        "Waiting for your tables")}\n${this.libraryWaiting.join(" · ")}`;
+    } else {
+      delete root.dataset.vpinfeWaiting;
     }
   }
 

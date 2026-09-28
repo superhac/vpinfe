@@ -144,6 +144,7 @@ API_PUBLISHED_METHODS = {
 # dispatchable while `vpin.call` refuses them.
 API_INTERNAL_METHODS = {
     'apply_filters',
+    'library_waiting',
     'get_collection_picker_items',
     'apply_sort',
     'get_current_filter_state',
@@ -233,6 +234,7 @@ class API:
         self.window_name = window_name          # whatever the theme declared
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
         self.frontend_browser = frontend_browser  # ChromiumManager instance
+        self._waited = False
         # The wheel's state, shared with every other window onto the same library.
         # Given one when the frontend builds the windows; a caller that constructs an
         # API on its own - a test, the gamepad diagnostic - gets a view of its own.
@@ -771,6 +773,19 @@ class API:
     def set_button_mapping(self, button_name: str, button_index: int) -> dict[str, Any]:
         """Set a gamepad button mapping and save to config."""
         return input_api.set_button_mapping(self._ini_config, button_name, button_index)
+
+    def library_waiting(self) -> list[str]:
+        """The folders an empty library on this device is waiting on, or none."""
+        from common.games import game_repository
+        from frontend import play_events
+
+        if self.library.remote:
+            return []
+        waiting = game_repository.waiting_for()
+        if self._waited and not waiting:
+            play_events.library_arrived()
+        self._waited = bool(waiting)
+        return waiting
 
     def launch_table(self, index: Any) -> dict[str, Any]:
         """Launch what the wheel is sitting on.

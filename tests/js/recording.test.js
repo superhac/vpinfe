@@ -25,7 +25,11 @@ async function controller({ rotation = 0 } = {}) {
     return method in boot ? boot[method] : null;
   };
   const internal = [];
-  vpin.callInternal = async (method) => { internal.push(method); return { run: null }; };
+  vpin.callInternal = async (method) => {
+    if (method === "library_waiting") return [];
+    internal.push(method);
+    return { run: null };
+  };
   vpin.init();
   await browser.WebSocket.instances.at(-1).onopen();
   const stream = browser.EventSource.instances.at(-1);

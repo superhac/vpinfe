@@ -106,6 +106,37 @@ class ManyLocationTests(unittest.TestCase):
         self.assertEqual([g.game_dir_name for g in games], ["Two (Gottlieb 1975)"])
         self.assertIn((str(self.first), KIND_ROOT), game_repository._AWAY)
 
+    def test_an_empty_library_says_what_it_is_waiting_on(self) -> None:
+        away = self.root / "not-mounted"
+        with self._with(away):
+            self.assertEqual(game_repository.all_games(), [])
+            self.assertEqual(game_repository.waiting_for(), [Location("loc0", str(away)).name])
+
+    def test_once_a_folder_answers_the_library_is_read_and_nothing_is_waited_on(
+            self) -> None:
+        later = self.root / "mounted-later"
+        with self._with(later):
+            game_repository.all_games()
+            _game_folder(later, "Three (Stern 2016)")
+            waiting = game_repository.waiting_for()
+            games = game_repository.all_games()
+
+        self.assertEqual(waiting, [])
+        self.assertEqual([g.game_dir_name for g in games], ["Three (Stern 2016)"])
+
+    def test_a_library_with_games_waits_on_nothing(self) -> None:
+        with self._with(self.second, self.root / "not-mounted"):
+            game_repository.all_games()
+            self.assertEqual(game_repository.waiting_for(), [])
+
+    def test_a_folder_on_a_share_is_waited_on_by_its_server(self) -> None:
+        share = mounts.Origin(mounts.NFS, "nas.lan", "/export", str(self.root / "nas"))
+        with self._with(self.root / "nas" / "a", self.root / "nas" / "b"), \
+                mock.patch.object(mounts, "where",
+                                  return_value=mounts.Where(share, connected=False)):
+            game_repository.all_games()
+            self.assertEqual(game_repository.waiting_for(), ["nas.lan"])
+
     def test_a_location_found_away_is_asked_again_on_reload_and_not_before(self) -> None:
         later = self.root / "mounted-later"
         with self._with(later, self.second):

@@ -21,7 +21,7 @@ function coreOnASocket() {
 }
 
 describe("vpin.call refuses core's own methods", () => {
-  test("the collection menu's and the browser probe's are the refused set", () => {
+  test("the collection menu's, the browser probe's and the library watch's are the refused set", () => {
     const { internal } = coreOnASocket();
 
     assert.deepEqual([...internal].sort(), [
@@ -35,6 +35,7 @@ describe("vpin.call refuses core's own methods", () => {
       "get_current_sort_state",
       "get_paging_state",
       "keep_filter_collection",
+      "library_waiting",
       "record_media",
       "recording_offer",
       "report_browser",

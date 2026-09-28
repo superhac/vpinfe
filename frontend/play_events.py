@@ -124,6 +124,11 @@ def on_play_recorded(**_payload: Any) -> None:
     _broadcast({"type": "TableDataChange"})
 
 
+def library_arrived() -> None:
+    """A library that was waiting on its folders has been read: every window reads it."""
+    on_game_changed()
+
+
 def on_game_changed(**_payload: Any) -> None:
     """A game or the collections file changed. Coalesced, never immediate."""
     global _change_timer

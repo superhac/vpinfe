@@ -3089,6 +3089,7 @@
   "frontend.theme.no_tables_found": "No tables found",
   "frontend.theme.unknown_author": "Unknown Author",
   "frontend.theme.unknown_table": "Unknown Table",
+  "frontend.theme.waiting_for_tables": "Waiting for your tables",
   "frontend.tutorial.left_scroll_right_scroll": "Up/Left scroll up, Down/Right scroll down, T or Back to close",
   "frontend.tutorial.pinball_primer_tutorial": "Pinball Primer Tutorial",
   "frontend_browser.finding.no_browser": "VPinFE found no browser",

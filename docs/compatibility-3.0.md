@@ -1478,6 +1478,16 @@ theme reads changes.
 playfield video. Covered by `tests/js/preview.test.js`, `tests/js/internal-methods.test.js`,
 `tests/theming/test_frontend_recording.py` and `tests/invariants/test_theme_api_surface.py`.
 
+**PAR-102 - An empty library says what it is waiting for.** One WebSocket method,
+`library_waiting`, refused to themes like `get_paging_state`: core asks it after an empty
+`getTableData()` and every five seconds after that while the answer names anything. While
+it does, core covers each window with *Waiting for your tables* and the servers or folders
+it names (`core_waiting`, on by default), and a theme reads the same list as
+`vpin.libraryWaiting`. A folder answering sends every window `TableDataChange`.
+*Why:* a cabinet whose NAS is asleep at boot drew *No tables found*, which reads as a
+library with nothing in it. Covered by `tests/js/waiting.test.js`,
+`tests/theming/test_library_waiting.py` and `tests/games/test_game_repository_locations.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

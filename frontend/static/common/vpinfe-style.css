@@ -130,6 +130,27 @@ html[data-vpinfe-launching] body {
 }
 
 /* ---------------------------------------------------------------------------
+   Waiting for the library's folders (core_waiting). The words are the attribute
+   core sets, so this draws on any theme without a line of its own.
+   --------------------------------------------------------------------------- */
+
+html[data-vpinfe-waiting]::after {
+  content: attr(data-vpinfe-waiting);
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5vmin;
+  white-space: pre-line;
+  text-align: center;
+  background: #000;
+  color: #fff;
+  font: 600 5vmin/1.5 system-ui, sans-serif;
+}
+
+/* ---------------------------------------------------------------------------
    Confirm before quitting, restarting or powering off.
 
    Core draws it rather than the theme, so turning the setting on works on a theme

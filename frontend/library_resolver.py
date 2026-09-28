@@ -159,6 +159,10 @@ class LibraryResolver:
             raise BlockedError(t("error.frontend.library_unreachable",
                                  url=self._library_url)) from exc
 
+    @property
+    def remote(self) -> bool:
+        return self._remote
+
     def reload(self) -> list[Any]:
         """The library again. A library that has gone quiet leaves the list alone: a
         stale wheel beats a screen emptying because one request failed."""
