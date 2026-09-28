@@ -108,6 +108,17 @@ def refresh(descriptor: dict) -> dict:
     return found
 
 
+def forget_answers(extension: str, key: str) -> None:
+    """Drop every answer held under one key, so each game is asked again. Only the
+    extension contributing the key can drop it."""
+    with _lock:
+        held = _contributors.get(key)
+        if held is None or held.extension != extension:
+            return
+        for one in [answer for answer in _answers if answer[0] == key]:
+            _answers.pop(one, None)
+
+
 def forget_game(game_id: str) -> None:
     """Drop what is known about one game, so the next ask goes out again.
 

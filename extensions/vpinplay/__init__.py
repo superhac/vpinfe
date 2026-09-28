@@ -1,18 +1,21 @@
 """VPinPlay's cumulative rating, contributed to every entry, and each sharing player's
 games sent as they are played.
 
-Core makes the rating call. Leaving it to the browser hands the endpoint to the page, and
-every window on a cabinet then asks the same question about the same game and loses the
-answer on each reload. A theme reads `entry.ext.vpinplay`, and `item.vpinplay` is still
-written from it for the themes that were built before there was an `ext` slot.
+The rating is answered from VPinPlay's table list, the one its Community list shows, never
+asked of the service per game. A theme reads `entry.ext.vpinplay`, and `item.vpinplay` is
+still written from it for the themes that were built before there was an `ext` slot.
 """
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlencode
 
 from . import accounts, client, community, sending, settings
+
+RATING_KEY = "vpinplay"
+LIST_KEY = "tables"
 
 # What the setting is called here. Core handed it over from its own configuration when
 # this extension first loaded, so an install that was already using VPinPlay finds it
@@ -32,18 +35,21 @@ def register(ctx: Any) -> None:
     def endpoint() -> str:
         return str(ctx.config.get(ENDPOINT_KEY, "") or DEFAULT_ENDPOINT)
 
+    ratings = client.Ratings()
+    kept = ctx.ui.kept(LIST_KEY)
+    if kept is not None:
+        ratings.load(kept["rows"], kept["read_at"])
+
     def rating_for(game: Any) -> Any:
-        """What VPinPlay says about one game, or None.
+        """VPinPlay's answer for the game's catalog id, or None."""
+        return ratings.answer(str(game.get("vps_id") or "").strip())
 
-        Keyed on the catalog id, because that is what VPinPlay knows a table by. A game
-        no catalog has matched has nothing to ask about, which is not a failure.
-        """
-        vps_id = str(game.get("vps_id") or "").strip()
-        if not vps_id:
-            return None
-        return client.fetch(endpoint(), vps_id)
+    def read(rows: list) -> None:
+        ratings.load(rows, datetime.now(UTC).isoformat(timespec="seconds")
+                     .replace("+00:00", "Z"))
+        ctx.entries.stale(RATING_KEY)
 
-    ctx.entries.contribute("vpinplay", rating_for)
+    ctx.entries.contribute(RATING_KEY, rating_for)
 
     def page_for(game: Any) -> str:
         vps_id = str(game.get("vps_id") or "").strip()
@@ -65,8 +71,8 @@ def register(ctx: Any) -> None:
     ctx.add_router(writing, scope=ctx.scope("write"))
     ctx.ui.account("/accounts", cards=(accounts.CARD_TYPE,))
 
-    ctx.add_router(community.router(endpoint), scope=ctx.scope("read"))
-    ctx.ui.community("tables", "/community/tables", title="VPinPlay",
+    ctx.add_router(community.router(endpoint, read), scope=ctx.scope("read"))
+    ctx.ui.community(LIST_KEY, "/community/tables", title="VPinPlay",
                      columns=community.COLUMNS, views=community.VIEWS,
                      relation=community.RELATION)
 

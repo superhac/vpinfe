@@ -1,34 +1,14 @@
-"""Asking VPinPlay what its players have rated a table.
+"""What VPinPlay's players have rated a table, in the shape themes read.
 
-One call, and it is the only thing this reaches outside for. The shape returned is the
-shape themes already read, because they read it today - twelve published ones call for
-it by name, and an import that changed the shape would break them all to no purpose.
+Answered from VPinPlay's table list, never asked of the service per table. The shape is the
+one published themes already read by name, and does not change.
 """
 
 from __future__ import annotations
 
-import json
-import logging
-import urllib.error
-import urllib.parse
-import urllib.request
+import threading
 from datetime import UTC, datetime
 from typing import Any
-
-logger = logging.getLogger(__name__)
-
-# Long enough for a slow answer, short enough that the wheel is not held by one. Core
-# calls this off the wheel's thread, so this bounds a background wait rather than a
-# player's.
-TIMEOUT_SECONDS = 8
-
-
-def rating_url(endpoint: str, vps_id: str) -> str:
-    base = str(endpoint or "").strip().rstrip("/")
-    wanted = str(vps_id or "").strip()
-    if not base or not wanted:
-        return ""
-    return f"{base}/api/v1/tables/{urllib.parse.quote(wanted)}/cumulative-rating"
 
 
 def _number(value: Any, fallback: Any = None) -> Any:
@@ -90,21 +70,42 @@ def normalize(vps_id: str, payload: Any) -> dict | None:
     }
 
 
-def fetch(endpoint: str, vps_id: str) -> dict | None:
-    """What its players have said about one table, or None.
+def from_row(row: dict, read_at: str = "") -> dict | None:
+    """One table's answer from a row of VPinPlay's list. A table nobody has rated has no
+    rating, where the list says 0."""
+    vps_id = str(row.get("vps_id") or "").strip()
+    if not vps_id:
+        return None
+    count = row.get("ratings")
+    found = normalize(vps_id, {
+        "vpsId": vps_id,
+        "cumulativeRating": row.get("average") if count else None,
+        "ratingCount": count,
+        "vpsdb": {"name": row.get("name"), "authors": row.get("authors"),
+                  "manufacturer": row.get("manufacturer"), "year": row.get("year")},
+    })
+    if found is not None and read_at:
+        found["fetchedAt"] = read_at
+    return found
 
-    None for every way of not knowing - no endpoint, no catalog id, a table it has never
-    heard of, a server that is down. A caller showing a rating cannot act on the
-    difference, and treating "down" as an error would make a connector's bad day into
-    something the player sees.
-    """
-    url = rating_url(endpoint, vps_id)
-    if not url:
-        return None
-    try:
-        with urllib.request.urlopen(url, timeout=TIMEOUT_SECONDS) as answer:
-            payload = json.loads(answer.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
-        logger.debug("No rating for %s: %s", vps_id, exc)
-        return None
-    return normalize(vps_id, payload)
+
+class Ratings:
+    """Every table's answer from the latest list, by VPS id."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._by_id: dict[str, dict] = {}
+
+    def load(self, rows: Any, read_at: str = "") -> None:
+        found = {}
+        for row in rows if isinstance(rows, list) else []:
+            one = from_row(row, read_at) if isinstance(row, dict) else None
+            if one is not None:
+                found[one["vpsId"]] = one
+        with self._lock:
+            self._by_id = found
+
+    def answer(self, vps_id: str) -> dict | None:
+        with self._lock:
+            held = self._by_id.get(str(vps_id or "").strip())
+        return None if held is None else {**held, "vpsdb": dict(held["vpsdb"])}

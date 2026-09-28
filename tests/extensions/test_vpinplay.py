@@ -10,7 +10,6 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from common import tokens
 from common.config_store import ConfigStore
@@ -87,15 +86,6 @@ class ShapeTests(unittest.TestCase):
     def test_an_answer_that_is_not_an_object_is_nothing(self) -> None:
         self.assertIsNone(self.client.normalize("vps-1", "down for maintenance"))
 
-    def test_the_url_is_the_one_the_page_used_to_build(self) -> None:
-        self.assertEqual(
-            self.client.rating_url("https://api.example.com:8888/", "abc-1"),
-            "https://api.example.com:8888/api/v1/tables/abc-1/cumulative-rating")
-
-    def test_nothing_to_ask_about_is_no_url(self) -> None:
-        self.assertEqual(self.client.rating_url("", "abc"), "")
-        self.assertEqual(self.client.rating_url("https://x", ""), "")
-
 
 class ContributionTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -120,13 +110,9 @@ class ContributionTests(unittest.TestCase):
         self.assertEqual([one.name for one in tokens.offered(tokens.TABLE)
                           if one.extension == "vpinplay"], [])
 
-    def test_a_game_no_catalog_matched_is_never_asked_about(self) -> None:
+    def test_a_game_no_catalog_matched_has_no_rating(self) -> None:
         """It has no id VPinPlay knows it by, which is not a failure."""
-        with patch("vpinfe_ext_vpinplay.client.fetch") as asked:
-            found = contributions.refresh({"game_id": "abc", "vps_id": ""})
-
-        asked.assert_not_called()
-        self.assertEqual(found, {})
+        self.assertEqual(contributions.refresh({"game_id": "abc", "vps_id": ""}), {})
 
     def test_a_matched_game_links_to_its_page(self) -> None:
         self.assertEqual([("VPinPlay", "https://www.vpinplay.com/tables?vpsid=vps-1")],
@@ -136,12 +122,6 @@ class ContributionTests(unittest.TestCase):
     def test_an_unmatched_game_has_no_page(self) -> None:
         self.assertEqual([], catalogs.links("game", {"game_id": "abc", "vps_id": ""}))
 
-    def test_the_catalog_id_is_what_it_asks_about(self) -> None:
-        with patch("vpinfe_ext_vpinplay.client.fetch",
-                   return_value={"vpsId": "vps-1"}) as asked:
-            contributions.refresh({"game_id": "abc", "vps_id": "vps-1"})
-
-        self.assertEqual(asked.call_args.args[1], "vps-1")
 
 
 class HandoverTests(unittest.TestCase):

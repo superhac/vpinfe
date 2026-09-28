@@ -374,6 +374,17 @@ class ExtensionUI:
         self.account_offered = {"base": wanted, "label": str(label or "").strip(),
                                 "cards": list(read), "marker": hidden}
 
+    def kept(self, key: str) -> dict | None:
+        """The last good read core keeps of one of this extension's Community lists:
+        `{"rows", "read_at"}`, or None where there has been none."""
+        from common.games import community_lists
+
+        self._needs_ui("a kept list")
+        said = community_lists.kept(self._name, str(key or "").strip())
+        if said["rows"] is None:
+            return None
+        return {"rows": said["rows"], "read_at": said["read_at"]}
+
     def _needs_ui(self, what: str) -> None:
         if not self._allowed:
             raise ContractError(f"{self._name} offers {what}, which needs the ui:mount "
@@ -473,6 +484,13 @@ class ExtensionEntries:
         if not wanted:
             raise ContractError(f"{self._name} contributes under no key")
         contributions.register(self._name, wanted, fetch)
+
+    def stale(self, key: str) -> None:
+        """What this extension answered under `key` is out of date: core drops what it
+        holds, and asks again the next time each game is reached."""
+        from . import contributions
+
+        contributions.forget_answers(self._name, str(key or "").strip())
 
 class ExtensionCatalogs:
     """Outside places a game, a table or a file can be reached, which core draws."""

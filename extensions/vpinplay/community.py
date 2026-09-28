@@ -54,10 +54,15 @@ def _utc(stamp: Any) -> str:
 
 def _row(item: dict[str, Any]) -> dict[str, Any]:
     minutes = item.get("runTimeTotal") or 0
+    authors = item.get("authors")
+    if isinstance(authors, str):
+        authors = [authors] if authors.strip() else []
     return {"name": str(item.get("name") or ""),
             "manufacturer": str(item.get("manufacturer") or ""),
             "year": item.get("year") if isinstance(item.get("year"), int) else None,
             "rating": round(float(item.get("avgRating") or 0), 1) or None,
+            "average": item.get("avgRating"),
+            "authors": [str(one) for one in authors] if isinstance(authors, list) else [],
             "ratings": int(item.get("ratingCount") or 0),
             "plays": int(item.get("startCountTotal") or 0),
             "hours": round(float(minutes) / 60, 1) if minutes else 0,
@@ -106,14 +111,15 @@ def _host(endpoint: str) -> str:
         return endpoint
 
 
-def router(endpoint_of: Any) -> APIRouter:
+def router(endpoint_of: Any, on_read: Any = None) -> APIRouter:
+    """`on_read(rows)` is told of every list read whole, and of no failed one."""
     reading = APIRouter()
 
     @reading.get("/community/tables")
     def community_tables() -> dict:
         endpoint = endpoint_of()
         try:
-            return {"rows": tables(endpoint)}
+            rows = tables(endpoint)
         except OSError as exc:
             logger.warning("VPinPlay did not answer at %s: %s", endpoint, exc)
             raise HTTPException(status_code=502, detail=why(exc, at=endpoint)) from exc
@@ -121,5 +127,8 @@ def router(endpoint_of: Any) -> APIRouter:
             logger.warning("VPinPlay's answer at %s could not be read: %s", endpoint, exc)
             raise HTTPException(status_code=502,
                                 detail=t("error.unreadable", host=_host(endpoint))) from exc
+        if on_read is not None:
+            on_read(rows)
+        return {"rows": rows}
 
     return reading

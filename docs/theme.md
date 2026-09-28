@@ -1701,12 +1701,12 @@ read as `vpin.expanded`. A theme does not have to do anything differently either
 
 ### VPinPlay Rating
 
-`vpinfe-core.js` can fetch the selected game's VPinPlay cumulative rating from the address VPinPlay is set up with.
+While the VPinPlay extension runs, each game carries VPinPlay's cumulative rating. VPinFE answers it from VPinPlay's table list, which it reads every 30 minutes and keeps between runs, so a theme never waits on VPinPlay and a rating is never more than half an hour old. A game VPinPlay does not list has none.
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `await vpin.getVPinPlayRating(index?)` | `object\|null` | Returns the cached rating for the table or fetches it from VPinPlay. |
-| `await vpin.refreshVPinPlayRating(index?)` | `object\|null` | Forces a fresh fetch from VPinPlay. |
+| `await vpin.getVPinPlayRating(index?)` | `object\|null` | Returns the rating already attached to the table. |
+| `await vpin.refreshVPinPlayRating(index?)` | `object\|null` | Asks VPinFE again, which answers from the latest list. |
 | `vpin.getCachedVPinPlayRating(index?)` | `object\|null` | Returns only the cached value already attached to the table. |
 
 The returned object matches the API payload shape and is also stored on the table entry as `table.vpinplay`:

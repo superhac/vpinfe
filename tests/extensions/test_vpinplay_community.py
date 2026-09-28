@@ -44,7 +44,8 @@ class Rows(unittest.TestCase):
         row = self.community._row(_item("AFM"))
 
         self.assertEqual({"name": "AFM", "manufacturer": "Bally", "year": 1995,
-                          "rating": 4.5, "ratings": 12, "plays": 40, "hours": 1.5,
+                          "rating": 4.5, "average": 4.5, "authors": [],
+                          "ratings": 12, "plays": 40, "hours": 1.5,
                           "players": 7, "last_played": "2026-09-22T23:49:46Z",
                           "vps_id": "id-AFM"}, row)
 

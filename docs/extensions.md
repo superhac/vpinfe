@@ -86,11 +86,11 @@ application, and that is the guarantee the model rests on.
 | `ctx.apps` | `provide(...)` — add a way to play a table. `suffixes`, `plays`, `names` say what this build can play. Providing needs `apps:provide` |
 | `ctx.games.launch_game(...)` | Start a game on this play host. Needs `launch:invoke`, which `games:write` does not grant |
 | `ctx.scope(action)` | The scope name for one of its declared actions |
-| `ctx.entries` | `contribute(key, fetch)` — add something to every entry a theme is handed |
+| `ctx.entries` | `contribute(key, fetch)` — add something to every entry a theme is handed; `stale(key)` - drop what core holds under it |
 | `ctx.tokens` | `offer(name, contexts, value)` - a name a user may write into a command. Offered as `<extension>.<name>` |
 | `ctx.catalogs` | `contribute(key, name, subject, link)` — say where a game, a table or a file is somewhere else |
 | `ctx.players` | Who plays here, and the accounts it holds for them. See "Players and their accounts" |
-| `ctx.ui` | `action(...)` - offer a verb for the Console to draw; `community(...)` - a list shown under Community; `settings(base)` and `state(base)` - say where its settings and what it is holding can be read; `account(base, ...)` - say a player can hold an account with it. All need `ui:mount` |
+| `ctx.ui` | `action(...)` - offer a verb for the Console to draw; `community(...)` - a list shown under Community, and `kept(key)` - its last good read; `settings(base)` and `state(base)` - say where its settings and what it is holding can be read; `account(base, ...)` - say a player can hold an account with it. All need `ui:mount` |
 | `ctx.add_router(router, scope=...)` | Serve routes under `/api/v1/ext/<name>/` |
 
 `ctx.games` is not a second implementation of the HTTP API — it calls the API's own route
@@ -266,6 +266,15 @@ The slot is always present and empty at library load — a list of four hundred 
 wait on four hundred calls to somebody else's server. A theme written as
 `if (entry.ext.rating)` is correct throughout without knowing there is a waiting state.
 
+An answer is held for the rest of the run. When what an extension knows changes - a
+fresh list read, say - `ctx.entries.stale("rating")` drops what core holds under that key,
+and each game is asked again the next time it is reached. Only the extension that
+contributes a key can drop it.
+
+An extension that answers from one of its own Community lists makes no call per game at
+all: it holds the rows its list route last answered, and reads them back at start with
+`ctx.ui.kept(key)` (below). VPinPlay's rating works that way.
+
 ## Adding an outside link
 
 A game, a table or a file can have a page somewhere else, and an extension can say where.
@@ -407,6 +416,10 @@ with the whole list as it is now rather than holding a copy of its own. The rail
 when the Console loads, so a list can still be opened after its extension is switched off
 or stops; then the route is not asked at all, and in place of Refresh the page says Off, or
 Stopped with the reason.
+
+`ctx.ui.kept(key)` reads that copy back: `{"rows", "read_at"}`, or None before the first
+good read. It is how an extension has its list at start, before core's first read and
+whether or not the service answers.
 
 With `tag="Weekly Challenge"` as well, the list puts that tag on what this library holds
 from it: the game for a `vps_entry` relation, the table for a `vps_release` one, so a
