@@ -1214,9 +1214,21 @@ class ApiClient:
         self._answered(response)
         return response.json()
 
+    def plan_capture(self, body: dict) -> dict:
+        """What a recording of one game or table would fill and replace, doing nothing."""
+        return self._post("/capture/plan", body)
+
+    def start_capture(self, body: dict) -> dict:
+        """Record one game or table. Returns the job to watch."""
+        return self._post("/capture/runs", body)
+
     def capture_proposals(self) -> dict:
         """The recordings waiting for a decision."""
         return self._get("/capture/proposals")
+
+    def use_proposal(self, proposal_id: str, use: bool) -> dict:
+        """Place a recording waiting for a decision, or throw it away."""
+        return self._post(f"/capture/proposals/{quote(proposal_id)}", {"use": use})
 
     def discard_proposals(self) -> dict:
         _refuse_the_event_loop("/capture/proposals")

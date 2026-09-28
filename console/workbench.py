@@ -84,6 +84,7 @@ from console import devices as devices_page
 from console import dialog as frame
 from console import launchers as launchers_page
 from console import locations as locations_page
+from console import record as recorder
 from console import settings as settings_page
 from console import themes as themes_page
 from console.data import Library, config_groups, read_state, tag_source
@@ -879,7 +880,7 @@ def _loose_media(context: dict[str, Any]) -> None:
     with ui.column().classes("w-full gap-1 console-slot p-2"):
         with ui.element("div").classes("console-slot-art"):
             if folder and path:
-                _preview("/api/v1/filesystem/file?" + urlencode(
+                mediaview.preview("/api/v1/filesystem/file?" + urlencode(
                     {"path": str(PurePosixPath(folder) / path)}), kind,
                     str(row.get("label") or kind))
         with ui.column().classes("w-full gap-0 console-slot-facts"):
@@ -1711,38 +1712,39 @@ async def _media_block(context: dict[str, Any]) -> None:
 
     context["redraws"].append(written)
     await draw()
-    if context["lens"]:
+    recording = _record_media(context, placed)
+    if context["lens"] and recording is None:
         return
     with ui.element("div").classes("console-slot-actions px-3"):
-        panel.action(t("console.art_fill.get_missing"),
-                     lambda: art_fill.ask([game_id], context["state"], placed,
-                                          name=str(context["game"].get("name") or "")),
-                     icon=verbs.FETCH)()
+        if not context["lens"]:
+            panel.action(t("console.art_fill.get_missing"),
+                         lambda: art_fill.ask([game_id], context["state"], placed,
+                                              name=str(context["game"].get("name") or "")),
+                         icon=verbs.FETCH)()
+        if recording is not None:
+            recording()
 
 
-def _preview(src: str, kind: str, label: str) -> None:
-    """Present the file with an element that can actually play it.
-
-    An <img> pointing at a .mp4 downloads the whole file and paints nothing - the slot
-    reads as empty for a video that is there, and on a library that is not local the
-    fetch is long enough to read as the page having stopped. `preload="metadata"` is
-    what keeps the poster frame cheap: enough to show it, not the whole video.
-    """
-    family = media_family(kind)
-    if family == "video":
-        # `#t=0.1` for the same reason the map tiles use it: metadata alone can leave
-        # the frame blank, and an empty box behind a play button says nothing about
-        # what is in the file.
-        ui.html(f'<video src="{src}#t=0.1" preload="metadata" controls '
-                f'playsinline></video>')
-    elif family == "audio":
-        ui.html(f'<audio src="{src}" preload="metadata" controls></audio>')
-    elif family == "image":
-        ui.html(f'<img src="{src}">')
-    else:
-        # A rule sheet is a document; there is no element that previews one usefully
-        # in a panel this size, and a broken <img> would say it is missing.
-        panel.link_out(t("console.workbench.open", kind=label), to=src)()
+def _record_media(context: dict[str, Any],
+                  placed: Callable[[], Any]) -> Callable[[], None] | None:
+    """Record Media for the game or the table in view, dimmed with why where this install
+    records nothing; None where recording is not something it does."""
+    able = next((one for one in context["library"].discovery().get("capabilities") or []
+                 if one.get("name") == "capture"), None)
+    if able is None:
+        return None
+    table = next((one for one in context["tables"] if one.get("id") == context["lens"]),
+                 None)
+    name = str(context["game"].get("name") or "")
+    title = t("console.record.title_table", name=name,
+              table=_table_line(table, context["tables"])) if table is not None \
+        else t("console.record.title", name=name)
+    return panel.action(t("console.record.record_media"),
+                        lambda: recorder.ask(context["library"], context["game_id"],
+                                             context["lens"] or "", name, title,
+                                             context["state"], placed),
+                        icon=verbs.RECORD, enabled=bool(able.get("available")),
+                        hint=str(able.get("reason") or ""))
 
 
 def _kept_kinds(context: dict[str, Any], family: str) -> set[str] | None:
@@ -1915,7 +1917,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
         with ui.element("div").classes("console-slot-art"):
             if present:
                 version = entry.get("version")
-                _preview(art.media(game_id, kind, table_id or "", version=version,
+                mediaview.preview(art.media(game_id, kind, table_id or "", version=version,
                                    size=art.PANEL), kind, label)
                 # On the picture, where the map puts it. Images only: a video keeps its
                 # native controls here, and those carry a full-screen button already.

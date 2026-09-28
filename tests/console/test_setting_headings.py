@@ -25,14 +25,14 @@ def _rows(entries: list) -> list[str]:
 
 class OrderTests(unittest.TestCase):
     def test_the_ungrouped_come_last(self) -> None:
-        ordered = settings_page._by_group(
+        ordered = settings_page.by_group(
             [_option("loose"), _option("named", "Named"), _option("also_loose")])
 
         self.assertEqual([one["key"] for one in ordered],
                          ["named", "loose", "also_loose"])
 
     def test_a_group_keeps_its_declaration_order(self) -> None:
-        ordered = settings_page._by_group(
+        ordered = settings_page.by_group(
             [_option("first", "A"), _option("other", "B"), _option("second", "A")])
 
         self.assertEqual([one["key"] for one in ordered],

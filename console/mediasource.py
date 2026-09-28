@@ -93,18 +93,6 @@ def _suffix(item: dict[str, Any]) -> str:
     return PurePosixPath(str(item.get("name") or "")).suffix.lower()
 
 
-async def confirm_replace(label: str, going: list[str]) -> bool:
-    """Name what a write would replace, and wait for a yes.
-
-    The files are listed rather than counted because the surprising case is the one a
-    count hides: a whole family goes at this tier, so a .mp4 arriving over a .png takes
-    the .png with it and the user never named that file.
-    """
-    return await confirm.ask(t("console.mediasource.replace", kind=label),
-                             detail=t("console.mediasource.replaced_files_deleted_not"),
-                             lines=going, confirm=t("word.replace"), icon=verbs.REPLACE)
-
-
 @dataclass(frozen=True)
 class _Target:
     """What the dialog fills: the calls that fill it, and which files on disk can."""
@@ -634,7 +622,7 @@ class _Slot(_OneFile):
             ui.notify(t("console.mediasource.could_not_check_slot"), caption=why(exc),
                       type="negative")
             return False
-        return not going or await confirm_replace(self.label, going)
+        return not going or await confirm.replace(self.label, going)
 
     def candidate(self, src: str, name: str, meta: str, tag: str,
                   take: Callable, current: bool = False) -> None:

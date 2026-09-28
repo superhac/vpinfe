@@ -110,7 +110,11 @@ def finding(offered: dict[str, Any]) -> Callable[[], None] | None:
     found = report_of(offered)
     if found.get("error"):
         failed = str(found["error"])
-        return lambda: panel.line(t("console.recording.could_not_read"), hint=failed)
+
+        def unread() -> None:
+            panel.line(t("console.recording.could_not_read"), hint=failed)
+
+        return unread
     if not found or found.get("available") or not found.get("reason"):
         return None
     said = preflight.words(found["reason"])

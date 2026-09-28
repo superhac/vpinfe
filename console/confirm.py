@@ -37,3 +37,15 @@ async def ask(question: str, *, detail: str = "", lines: Iterable[str] = (),
             frame.cancel(lambda: box.submit(False))
             frame.answer(confirm, lambda: box.submit(True), icon=icon, danger=danger)
     return bool(await box)
+
+
+async def replace(label: str, going: list[str]) -> bool:
+    """Name what a write would replace in a slot, and wait for a yes.
+
+    The files are listed rather than counted because the surprising case is the one a
+    count hides: a whole family goes at this tier, so a .mp4 arriving over a .png takes
+    the .png with it and the user never named that file.
+    """
+    return await ask(t("console.mediasource.replace", kind=label),
+                     detail=t("console.mediasource.replaced_files_deleted_not"),
+                     lines=going, confirm=t("word.replace"), icon=verbs.REPLACE)

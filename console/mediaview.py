@@ -218,6 +218,31 @@ _VIEW = f"""
 """
 
 
+def preview(src: str, kind: str, label: str) -> None:
+    """Present the file with an element that can actually play it.
+
+    An <img> pointing at a .mp4 downloads the whole file and paints nothing - the slot
+    reads as empty for a video that is there, and on a library that is not local the
+    fetch is long enough to read as the page having stopped. `preload="metadata"` is
+    what keeps the poster frame cheap: enough to show it, not the whole video.
+    """
+    family = media_family(kind)
+    if family == "video":
+        # `#t=0.1` for the same reason the map tiles use it: metadata alone can leave
+        # the frame blank, and an empty box behind a play button says nothing about
+        # what is in the file.
+        ui.html(f'<video src="{src}#t=0.1" preload="metadata" controls '
+                f'playsinline></video>')
+    elif family == "audio":
+        ui.html(f'<audio src="{src}" preload="metadata" controls></audio>')
+    elif family == "image":
+        ui.html(f'<img src="{src}">')
+    else:
+        # A rule sheet is a document; there is no element that previews one usefully
+        # in a panel this size, and a broken <img> would say it is missing.
+        panel.link_out(t("console.workbench.open", kind=label), to=src)()
+
+
 # An action in the viewer's bar: its icon, its tooltip, and what it does once the viewer
 # has closed.
 Act = tuple[str, str, Callable[[], Awaitable[Any]]]

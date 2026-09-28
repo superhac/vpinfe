@@ -90,6 +90,7 @@ FROM_FOLDER = "drive_folder_upload"
 FROM_HOST = "devices"
 FROM_ONLINE = "cloud_download"
 WITHOUT_FILE = "tag"
+RECORD = "fiber_manual_record"
 ADD_ART = "add_photo_alternate"
 ADD_TO_LIST = "playlist_add"
 

@@ -7,7 +7,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
-from console import mediamap, mediasource
+from console import confirm, mediamap, mediasource
 
 LIBRARY = SimpleNamespace(placements=None, displaced_by=None, place_media=None,
                           import_media=None)
@@ -19,8 +19,8 @@ async def _nothing() -> None:
 
 class KindNamesInSentences(unittest.TestCase):
     def test_the_replace_question(self) -> None:
-        with patch.object(mediasource.confirm, "ask", AsyncMock(return_value=True)) as ask:
-            asyncio.run(mediasource.confirm_replace("Real DMD", ["old.png"]))
+        with patch.object(confirm, "ask", AsyncMock(return_value=True)) as ask:
+            asyncio.run(confirm.replace("Real DMD", ["old.png"]))
 
         self.assertEqual(ask.call_args.args[0], "Replace the Real DMD that is there?")
 

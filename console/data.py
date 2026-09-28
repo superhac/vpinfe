@@ -610,8 +610,20 @@ class Library:
     def test_capture(self, settings: dict | None = None) -> dict:
         return self._client.test_capture(settings)
 
+    def plan_capture(self, body: dict) -> dict:
+        return self._client.plan_capture(body)
+
+    def start_capture(self, body: dict) -> dict:
+        return self._client.start_capture(body)
+
+    def capture_job(self, job_id: str) -> dict:
+        return self._client.job(job_id)
+
     def capture_proposals(self) -> dict:
         return self._client.capture_proposals()
+
+    def use_proposal(self, proposal_id: str, use: bool) -> dict:
+        return self._client.use_proposal(proposal_id, use)
 
     def discard_proposals(self) -> dict:
         return self._client.discard_proposals()
