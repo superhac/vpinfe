@@ -15,7 +15,7 @@ from pathlib import Path
 
 from common import apps, i18n
 from common import events as core_events
-from common.extensions import contract, host, provided_apps, services, store
+from common.extensions import contract, host, provided_apps, store
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "extensions"
 
@@ -557,14 +557,12 @@ class WithdrawTests(HostCase):
 
     OFFERS = ('def register(ctx):\n'
               '    ctx.events.subscribe("game.selected", lambda **_: ctx.events.publish("heard"))\n'
-              '    ctx.apps.provide(id="fp", name="Future Pinball", suffixes=(".fpt",))\n'
-              '    ctx.serves.answer("offers.state", lambda: "somebody")\n')
+              '    ctx.apps.provide(id="fp", name="Future Pinball", suffixes=(".fpt",))\n')
     MANIFEST = {"scopes": [provided_apps.APPS_PROVIDE], "events": ["heard"]}
 
     def setUp(self) -> None:
         super().setUp()
         self.addCleanup(apps.withdraw_all)
-        self.addCleanup(services.forget_all)
 
     def heard(self) -> list[dict]:
         heard: list[dict] = []
@@ -572,16 +570,14 @@ class WithdrawTests(HostCase):
         core_events.emit("game.selected", game_id="abc")
         return heard
 
-    def test_a_stopped_one_takes_back_its_app_and_its_answers(self) -> None:
+    def test_a_stopped_one_takes_back_its_app(self) -> None:
         self.registry.load(self.make("offers", self.MANIFEST, self.OFFERS))
         self.assertEqual(apps.app_for("Big Bang Bar.fpt").id, "fp")
-        self.assertEqual(services.ask("offers.state"), "somebody")
 
         with self.assertLogs(self.LOG, "ERROR"):
             self.registry.disable("offers", "asked to")
 
         self.assertIsNone(apps.app_for("Big Bang Bar.fpt"))
-        self.assertIsNone(services.ask("offers.state"))
         self.assertEqual(self.heard(), [])
 
     def test_its_apps_words_go_with_it(self) -> None:
@@ -606,7 +602,6 @@ class WithdrawTests(HostCase):
 
         self.assertEqual(record.state, host.FAILED)
         self.assertIsNone(apps.app_for("Big Bang Bar.fpt"))
-        self.assertIsNone(services.ask("offers.state"))
         self.assertEqual(self.heard(), [])
 
 

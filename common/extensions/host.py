@@ -20,7 +20,7 @@ from common import events as core_events
 from common import i18n, install_identity, tokens
 from common.paths import CONFIG_DIR, bundled, get_ini_config
 
-from . import catalogs, contributions, services
+from . import catalogs, contributions
 from .context import ExtensionApps, ExtensionContext
 from .contract import MANIFEST_NAME, Manifest, ManifestError, read_manifest
 from .store import ExtensionStore, get_extension_store
@@ -379,7 +379,6 @@ def _withdraw(name: str, subscriptions: list[tuple[str, Any]],
     contributions.forget(name)
     catalogs.forget(name)
     tokens.forget(name)
-    services.forget(name)
     if apps is not None:
         apps.withdraw()
 
