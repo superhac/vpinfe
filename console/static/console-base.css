@@ -1715,8 +1715,9 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 /* NiceGUI wraps raw HTML in a plain div, and a percentage height resolves against
    that - which has none. `display: contents` takes it out of layout so the media is
-   the flex child and 100% means the box it is actually in. */
-.console-mediatile-art > div { display: contents; }
+   the flex child and 100% means the box it is actually in. The wrapper only: a chip or
+   a bar drawn over the art is a div too, and keeps its box. */
+.console-mediatile-art > .console-mediatile-media { display: contents; }
 .console-mediatile-art img, .console-mediatile-art video {
   width: 100%; height: 100%; object-fit: contain;
 }
@@ -2740,6 +2741,11 @@ a.console-tag:hover { background: var(--wash-hover); }
   background: var(--scrim-media);
 }
 .console-mediatile-tier.console-tier--table { background: var(--scrim-media-warm); }
+/* Bottom left, clear of the badge above it and the differs bar below it. */
+.console-mediatile-plays {
+  position: absolute; bottom: 6px; left: 3px;
+  background: var(--scrim-media-warm);
+}
 
 /* The view has drifted from what it says it is, said on the control that names it.
    Quiet - a modified view is an ordinary thing to be in, not a warning - but it has to

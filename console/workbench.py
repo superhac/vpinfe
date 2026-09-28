@@ -68,6 +68,7 @@ from console import (
     offload,
     panel,
     pictures,
+    plays_on,
     row_drag,
     screens,
     stars,
@@ -855,6 +856,7 @@ async def _media_file_block(context: dict[str, Any]) -> None:
         return
     entries = await offload.io(library.media_for, game_id, table_id or None)
     context["media"] = entries
+    context["devices"] = await offload.io(library.known_devices)
     try:
         detail = await offload.io(library.media_detail, game_id, table_id or None, kind)
     except Exception:
@@ -1690,12 +1692,15 @@ async def _media_block(context: dict[str, Any]) -> None:
                      await run.io_bound(library.media_overrides, game_id))
         offered = await offload.io(_offered_media, context)
         kept = _kept_kinds(context, "media")
+        context["devices"] = await offload.io(library.known_devices)
+        wont_play = await _wont_play(context)
         holder.clear()
         with holder:
             mediamap.build(entries, game_id, table_id or "",
                            on_pick=lambda kind: _pick_slot(context, kind, draw),
                            selected=context["slot"]["kind"],
-                           overrides=overrides, offered=offered, kept=kept)
+                           overrides=overrides, offered=offered, kept=kept,
+                           wont_play=wont_play)
             # A slot arrived at by link can be anywhere in a map of twenty tiles,
             # including below the fold - and a selection you cannot see is not one.
             # `nearest` moves the least that makes it visible, so a tile already on
@@ -1794,6 +1799,27 @@ def _record_media(context: dict[str, Any],
                                              title, context["state"], placed),
                         icon=verbs.RECORD, enabled=bool(able.get("available")),
                         hint=str(able.get("reason") or ""))
+
+
+def _local_id(context: dict[str, Any]) -> str:
+    return str(context["library"].discovery().get("install_id") or "")
+
+
+async def _wont_play(context: dict[str, Any]) -> dict[str, list[str]]:
+    """Each video in the lens that some device won't play, and those devices in words."""
+    devices = context["devices"]
+    if not plays_on.asks_codecs(devices):
+        return {}
+    try:
+        codecs = await offload.io(context["library"].video_codecs, context["game_id"],
+                                  context["lens"] or None)
+    except Exception:  # noqa: BLE001 - a codec not read is no warning
+        logger.debug("No codecs for %s", context["game_id"], exc_info=True)
+        return {}
+    local = _local_id(context)
+    found = {kind: [one.label for one in plays_on.refusals(codec, devices, local)]
+             for kind, codec in codecs.items()}
+    return {kind: labels for kind, labels in found.items() if labels}
 
 
 def _kept_kinds(context: dict[str, Any], family: str) -> set[str] | None:
@@ -1987,6 +2013,13 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                 with ui.row().classes("items-start gap-2 w-full no-wrap"):
                     ui.label(file_name).classes("console-slot-file grow min-w-0")
                     media_ownership.badge(detail.get("via") or entry.get("via"))
+                refused = plays_on.refusals(detail.get("video_codec"),
+                                            context.get("devices") or [], _local_id(context))
+                if refused:
+                    with ui.row().classes("items-center gap-1 w-full"):
+                        for one in refused:
+                            ui.label(one.label) \
+                                .classes("console-tier console-tier--warn").tooltip(one.why)
                 spec = _spec(detail)
                 if spec:
                     ui.label(spec).classes("console-help")

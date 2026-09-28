@@ -73,7 +73,8 @@ def _tile(context: dict[str, Any], shot: dict[str, Any], table: str) -> None:
             art_box.style(f"aspect-ratio:{width}/{height}")
         with art_box:
             ui.html(f'<img src="{html.escape(src)}" loading="lazy"'
-                    f' alt="{html.escape(when.local(taken))}">')
+                    f' alt="{html.escape(when.local(taken))}">') \
+                .classes("console-mediatile-media")
         ui.label(when.ago(taken)).classes("console-mediatile-cap")
         if table:
             ui.label(table).classes("console-mediatile-cap")

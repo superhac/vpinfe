@@ -10,7 +10,7 @@ grouped after it rather than pretended into the stack.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from nicegui import ui
@@ -125,7 +125,7 @@ def _state(entry: dict[str, Any]) -> str:
 
 def _tile(game_id: str, table_id: str, kind: str, entry: dict[str, Any],
           on_pick: Callable[[str], None] | None, selected: str | None,
-          differing: int = 0, offered: int = 0) -> None:
+          differing: int = 0, offered: int = 0, wont_play: Sequence[str] = ()) -> None:
     state = _state(entry)
     version = entry.get("version")
     src = art.media(game_id, kind, table_id, version=version, size=art.PANEL)
@@ -152,9 +152,9 @@ def _tile(game_id: str, table_id: str, kind: str, entry: dict[str, Any],
             elif glyph is not None:
                 ui.icon(glyph, size="18px").classes("text-primary opacity-80")
             elif media_family(kind) == "video":
-                ui.html(_TILE_VIDEO.format(src=src))
+                ui.html(_TILE_VIDEO.format(src=src)).classes("console-mediatile-media")
             else:
-                ui.html(f'<img src="{src}" loading="lazy">')
+                ui.html(f'<img src="{src}" loading="lazy">').classes("console-mediatile-media")
             # Only where a file is genuinely a table's own. Marking the other twenty
             # tiles "All tables" would put a badge on every one of them and make the
             # map harder to read than it is without any.
@@ -167,6 +167,9 @@ def _tile(game_id: str, table_id: str, kind: str, entry: dict[str, Any],
             if differing:
                 ui.element("div").classes("console-mediatile-differs") \
                     .tooltip(t("console.mediamap.table_use_something_else", count=differing))
+            if state != "missing" and wont_play:
+                ui.label(t("console.plays_on.wont_play")) \
+                    .classes("console-tier console-tier--warn console-mediatile-plays")
             if state != "missing" and media_family(kind) in ("image", "video"):
                 # click.stop, or enlarging would also pick the tile and redraw the
                 # panel out from under the dialog.
@@ -178,14 +181,15 @@ def _tile(game_id: str, table_id: str, kind: str, entry: dict[str, Any],
                         media_label_map().get(kind, kind))) \
                     .tooltip(t("word.enlarge"))
         ui.label(media_label_map().get(kind, kind)).classes("console-mediatile-cap")
-    tile.tooltip(_tooltip(kind, entry))
+    tile.tooltip(_tooltip(kind, entry, wont_play))
 
 
-def _tooltip(kind: str, entry: dict[str, Any]) -> str:
-    """The file, and who uses it."""
+def _tooltip(kind: str, entry: dict[str, Any], wont_play: Sequence[str] = ()) -> str:
+    """The file, who uses it, and where it won't play."""
     if not entry.get("present"):
         return t("console.mediamap.no_kind", kind=media_label_map().get(kind, kind))
-    parts = [str(entry.get("file") or ""), t(media_ownership.phrase(entry.get("via")))]
+    parts = [str(entry.get("file") or ""), t(media_ownership.phrase(entry.get("via"))),
+             *wont_play]
     return "  ·  ".join(part for part in parts if part)
 
 
@@ -194,7 +198,8 @@ def build(entries: dict[str, dict[str, Any]], game_id: str, table_id: str = "",
           selected: str | None = None,
           overrides: dict[str, list[dict[str, Any]]] | None = None,
           offered: dict[str, int] | None = None,
-          kept: set[str] | None = None) -> None:
+          kept: set[str] | None = None,
+          wont_play: dict[str, list[str]] | None = None) -> None:
     """Draw the map into the current container.
 
     `table_id` is the lens: empty for the game's shared media, or one table's. The map
@@ -207,6 +212,8 @@ def build(entries: dict[str, dict[str, Any]], game_id: str, table_id: str = "",
     `kept` is the kinds this library collects. A kind switched off is not drawn at all -
     not as an empty tile, which is the map saying "you are missing this" about something
     nobody wants.
+
+    `wont_play` is, by kind, each device that won't play that kind's file, in words.
     """
     if kept is not None:
         entries = {kind: entry for kind, entry in entries.items() if kind in kept}
@@ -225,7 +232,7 @@ def build(entries: dict[str, dict[str, Any]], game_id: str, table_id: str = "",
                 for kind in kinds:
                     _tile(game_id, table_id, kind, entries[kind], on_pick, selected,
                           len((overrides or {}).get(kind) or []),
-                          (offered or {}).get(kind, 0))
+                          (offered or {}).get(kind, 0), (wont_play or {}).get(kind, ()))
         extras = [kind for kind in EXTRAS if kind in entries]
         if extras:
             # A rule, not a heading: the cabinet stack and everything else are
@@ -235,7 +242,7 @@ def build(entries: dict[str, dict[str, Any]], game_id: str, table_id: str = "",
                 for kind in extras:
                     _tile(game_id, table_id, kind, entries[kind], on_pick, selected,
                           len((overrides or {}).get(kind) or []),
-                          (offered or {}).get(kind, 0))
+                          (offered or {}).get(kind, 0), (wont_play or {}).get(kind, ()))
     ui.run_javascript(_HOVER)
 
 

@@ -863,6 +863,14 @@ def _page_holding(section: str) -> str:
                  if section in page[3]), "")
 
 
+def place_of(section: str) -> list[str]:
+    """Settings, the group and the page that draw a config section, in the rail's words;
+    Settings alone where no page does."""
+    return [t("console.section.settings"),
+            *next(([t(group), t(page[1])] for group, pages in DEVICE_INDEX
+                   for page in pages if section in page[3]), [])]
+
+
 def address_for(section: str) -> str:
     """Settings, open at the page that draws a config section."""
     return "/console?" + deeplink.query({"view": "settings",

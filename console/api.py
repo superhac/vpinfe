@@ -237,6 +237,12 @@ class ApiClient:
         return self._get(
             f"/games/{game_id}/tables/{table_id}/media").get("media", {})
 
+    def media_codecs(self, game_id: str, table_id: str) -> dict[str, dict]:
+        """One lens's media with each video's codec read, which the lists above skip."""
+        base = f"/games/{game_id}/tables/{table_id}/media" if table_id \
+            else f"/games/{game_id}/media"
+        return self._get(f"{base}?codecs=true").get("media", {})
+
     def preferences(self, scope: str) -> dict:
         return self._get(f"/preferences/{scope}").get("value", {})
 

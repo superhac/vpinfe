@@ -289,6 +289,21 @@ class Library:
         someone has just changed the thing it describes."""
         return self._client.media_detail(game_id, table_id or "", kind)
 
+    def video_codecs(self, game_id: str, table_id: str | None) -> dict[str, str]:
+        """Each video's codec in one lens, by kind, where its header says. Never cached,
+        for the reason `media_detail` is not."""
+        return {kind: str(entry["video_codec"]) for kind, entry
+                in self._client.media_codecs(game_id, table_id or "").items()
+                if entry.get("video_codec")}
+
+    def known_devices(self) -> list[dict]:
+        """`devices`, or none where the registry cannot be read."""
+        try:
+            return self._client.devices()
+        except Exception:  # noqa: BLE001 - no answer draws no warning
+            logger.debug("Could not read the devices", exc_info=True)
+            return []
+
     def browse_roots(self, game_id: str = "") -> list[dict]:
         return self._client.browse_roots(game_id)
 
