@@ -132,6 +132,12 @@ launch.
 Routers are collected during `register` and mounted once. One added afterwards would never
 be reachable, so it is refused rather than left to answer nothing.
 
+A table's events - `table.launching`, `table.launched`, `table.exited` and
+`table.play_recorded` - carry `source`, who started it: `frontend`, `remote`, `api`, or
+`capture` for a launch that records the table's media. A recording is not a play. Nobody is
+up for it, it writes no play data, and there is no `table.play_recorded` after it, so an
+extension counting plays counts on that event or leaves out a `capture` launch.
+
 ## Its words
 
 An extension keeps what it says in `i18n/en.json` beside its code, and a translation is the

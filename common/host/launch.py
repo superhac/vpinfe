@@ -337,9 +337,13 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
     Callers that must not block run this on a thread; the API and the Remote page
     both do. Raises LaunchUnavailableError before anything is announced if the table
     cannot be launched at all.
+
+    A `SOURCE_CAPTURE` launch is a recording: nobody is up for it, it writes no play
+    data, and `table.play_recorded` is not announced.
     """
     # Looked up here rather than in the signature so a test can patch it.
     popen = popen or subprocess.Popen
+    capturing = source == launch_state.SOURCE_CAPTURE
     # The table first: which launcher plays it is a question about the file, so there is
     # nothing to resolve until the file is known.
     table_id, entry = _resolve_entry(game, table)
@@ -381,7 +385,7 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
         # The table id says which build of the game this is: a subscriber recording what
         # played cannot work it out from the game, which offers several.
         events.emit(events.TABLE_LAUNCHING, game=game, ini_config=ini_config,
-                    table_id=table_id)
+                    table_id=table_id, source=source)
 
         # Everything from here is inside the try, so table.exited is guaranteed to
         # anyone who heard table.launching - which is what stops a failure below from
@@ -389,10 +393,11 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
         try:
             launch_state.set_launching(game.game_dir_name, source=source)
             cmd, marker = _plan(playing, binary, launcher)
-            up = players.get_roster().up()
-            before, _ = game_play_service.parse_score_from_nvram(game, initials="")
+            if not capturing:
+                up = players.get_roster().up()
+                before, _ = game_play_service.parse_score_from_nvram(game, initials="")
             launched = {"game": game, "ini_config": ini_config, "table_id": table_id,
-                        "up": [player.as_payload() for player in up]}
+                        "source": source, "up": [player.as_payload() for player in up]}
             logger.info("Launching: %s", cmd)
             process = popen(
                 cmd,
@@ -404,12 +409,13 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
             )
             launch_state.attach(process)
             started_at = time.time()
-            started = ext_services.ask(
-                "guest.record_start",
-                str(game.full_path_game or game.game_dir_name or ""))
-            if not started and _counts_in_the_library(up):
-                game_play_service.increment_start_count(
-                    game, tables.entry_native_key(entry))
+            if not capturing:
+                started = ext_services.ask(
+                    "guest.record_start",
+                    str(game.full_path_game or game.game_dir_name or ""))
+                if not started and _counts_in_the_library(up):
+                    game_play_service.increment_start_count(
+                        game, tables.entry_native_key(entry))
 
             # An app that cannot say when it is up is up as soon as it is spawned.
             # Waiting for a marker that will never come would leave the table launched
@@ -432,17 +438,18 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
             # Before the play data below, so the peripherals come back promptly rather
             # than waiting on an NVRAM parse and possibly a network call.
             launch_state.clear()
-            events.emit(events.TABLE_EXITED, game=game, ini_config=ini_config)
+            events.emit(events.TABLE_EXITED, game=game, ini_config=ini_config,
+                        table_id=table_id, source=source)
     finally:
         # Whenever the ones before ran, even where the program never started - they are
         # what puts the machine back, and it is in that state either way.
         table_commands.after(around, started_at=started_at)
 
-    if started_at is not None:
+    if started_at is not None and not capturing:
         recorded = _record_play(game, max(0.0, time.time() - started_at),
                                 tables.entry_native_key(entry), up, before)
         events.emit(events.TABLE_PLAY_RECORDED, game=game, ini_config=ini_config,
-                    table_id=table_id, **recorded)
+                    table_id=table_id, source=source, **recorded)
     game_play_service.delete_nvram_if_configured(game)
 
 

@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 from common import events
+from common.host import launch_state
 from frontend import play_events
 
 
@@ -145,6 +146,19 @@ class PlayEventTests(unittest.TestCase):
             events.emit(events.TABLE_LAUNCHING, game=game, ini_config=None)
 
         save.assert_called_once_with(ini, game, "")
+
+    def test_a_recording_leaves_the_wheel_where_the_player_left_it(self) -> None:
+        """A run of recordings would otherwise leave it on the last game recorded. The
+        windows still hear the launch: the table is up and the wheel must not move."""
+        game = types.SimpleNamespace(game_dir_name="Example")
+        self._register(types.SimpleNamespace(config={}))
+
+        with mock.patch.object(play_events, "save_last_launched") as save:
+            events.emit(events.TABLE_LAUNCHING, game=game, ini_config=None,
+                        table_id="Tbl1111111", source=launch_state.SOURCE_CAPTURE)
+
+        save.assert_not_called()
+        self.assertEqual(self.bridge.messages, ["TableLaunching"])
 
     def test_a_finished_session_sends_the_windows_back_for_the_payload(self) -> None:
         """Without this the play counts a theme shows are whatever they were at boot."""

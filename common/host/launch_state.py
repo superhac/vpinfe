@@ -18,10 +18,12 @@ from common import events
 
 logger = logging.getLogger("vpinfe.common.host.launch_state")
 
-# Who asked. The frontend ignores its own; nothing else needs to care.
+# Who asked. A launch to record media is `capture`, and `launch.launch_game` writes no
+# play data for it.
 SOURCE_FRONTEND = "frontend"
 SOURCE_REMOTE = "remote"
 SOURCE_API = "api"
+SOURCE_CAPTURE = "capture"
 
 _lock = threading.Lock()
 

@@ -77,7 +77,8 @@ class LaunchTests(unittest.TestCase):
         assert made is not None
         self.owner = self.roster.update_player(made.player_id, initials="OWN")
 
-    def _run(self, popen=None, game=None, readings=None, **overrides):
+    def _run(self, popen=None, game=None, readings=None,
+             source=launch_state.SOURCE_API, **overrides):
         """Launch with every collaborator stubbed, so only the orchestration runs.
 
         Nobody is signed in as a guest, and that needs no stub: with no extension
@@ -101,7 +102,7 @@ class LaunchTests(unittest.TestCase):
             play.parse_score_from_nvram.side_effect = list(
                 readings or [(None, None), (None, None)])
             launch.launch_game(game or _game(), types.SimpleNamespace(config={}),
-                                source=launch_state.SOURCE_API, popen=popen)
+                                source=source, popen=popen)
         return play
 
 
@@ -247,6 +248,78 @@ class PlayDataTests(LaunchTests):
         self.assertEqual(seen, [])
 
 
+class RecordingTests(LaunchTests):
+    """A launch to record media, which is a launch and not a play."""
+
+    def _heard(self, source=launch_state.SOURCE_CAPTURE, **run) -> dict[str, dict]:
+        heard: dict[str, dict] = {}
+        for name in (events.TABLE_LAUNCHING, events.TABLE_LAUNCHED, events.TABLE_EXITED,
+                     events.TABLE_PLAY_RECORDED):
+            events.subscribe(name, lambda _n=name, **payload: heard.setdefault(_n, payload))
+        self._run(source=source, popen=lambda cmd, **k: _FakePopen(["Startup done\n"]),
+                  **run)
+        return heard
+
+    def test_a_recording_counts_no_start_and_records_no_play(self) -> None:
+        play = self._run(source=launch_state.SOURCE_CAPTURE,
+                         readings=[(_reading(("OWN", 300)), "/nv"),
+                                   (_reading(("OWN", 400)), "/nv")])
+
+        for name in ("increment_start_count", "add_play_time", "update_score",
+                     "parse_score_from_nvram"):
+            self.assertFalse(getattr(play, name).called, name)
+
+    def test_a_recording_still_clears_nvram_where_the_game_asks(self) -> None:
+        play = self._run(source=launch_state.SOURCE_CAPTURE)
+
+        play.delete_nvram_if_configured.assert_called_once()
+
+    def test_a_recording_starts_no_player_session(self) -> None:
+        asked = []
+
+        def ask(name, *args):
+            asked.append(name)
+            return {"guest.active": object(), "guest.record_start": True}.get(name)
+
+        with mock.patch.object(launch.ext_services, "ask", ask):
+            self._run(source=launch_state.SOURCE_CAPTURE)
+
+        self.assertNotIn("guest.record_start", asked)
+        self.assertNotIn("guest.record_play", asked)
+
+    def test_nobody_is_up_for_a_recording_and_no_play_is_announced(self) -> None:
+        heard = self._heard()
+
+        self.assertEqual(heard[events.TABLE_LAUNCHED]["up"], [])
+        self.assertNotIn(events.TABLE_PLAY_RECORDED, heard)
+
+    def test_a_person_s_own_commands_still_run_around_a_recording(self) -> None:
+        seen = []
+
+        def before(game, table, launcher, ini_config):
+            seen.append("pre")
+            return table_commands.Around(ran=True)
+
+        with mock.patch.object(table_commands, "before", before), \
+                mock.patch.object(table_commands, "after",
+                                  lambda around, **k: seen.append("post")):
+            self._run(source=launch_state.SOURCE_CAPTURE)
+
+        self.assertEqual(seen, ["pre", "post"])
+
+    def test_every_table_event_says_who_started_it(self) -> None:
+        for source in (launch_state.SOURCE_API, launch_state.SOURCE_CAPTURE):
+            with self.subTest(source=source):
+                events.clear()
+
+                heard = self._heard(source=source)
+
+                self.assertEqual({name: payload["source"] for name, payload in heard.items()},
+                                 dict.fromkeys(heard, source))
+                self.assertEqual(heard[events.TABLE_EXITED]["table_id"],
+                                 heard[events.TABLE_LAUNCHING]["table_id"])
+
+
 class SessionTests(LaunchTests):
     """Who a game counts for, and whose its new scores are."""
 
@@ -380,7 +453,7 @@ class SessionTests(LaunchTests):
         plain = {key: value for key, value in recorded.items()
                  if key not in ("game", "ini_config")}
         self.assertEqual(sorted(plain),
-                         ["new_entries", "reading", "seconds", "table_id", "up"])
+                         ["new_entries", "reading", "seconds", "source", "table_id", "up"])
         self.assertEqual(json.loads(json.dumps(plain)), plain)
         self.assertEqual(plain["table_id"], "t1")
         self.assertIsInstance(plain["seconds"], int)

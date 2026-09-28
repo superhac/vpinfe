@@ -189,6 +189,19 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(_payload(frame)["table"], {"id": "afm-1.2"})
 
+    async def test_a_launch_says_who_started_it(self) -> None:
+        """A subscriber counting plays has to tell a recording from one."""
+        game = SimpleNamespace(game_dir_name="Attack from Mars", meta_config={})
+        stream = self._open()
+        await self._hello(stream)
+
+        for name in (events.TABLE_LAUNCHING, events.TABLE_LAUNCHED, events.TABLE_EXITED):
+            events.emit(name, game=game, table_id="afm-1.2", ini_config=None,
+                        source="capture", up=[])
+            frame = await self._next(stream)
+
+            self.assertEqual(_payload(frame)["source"], "capture", name)
+
     async def test_a_game_event_without_a_game_still_streams(self) -> None:
         """The Remote Control page launches without one."""
         stream = self._open()

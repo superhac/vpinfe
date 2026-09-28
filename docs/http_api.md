@@ -816,8 +816,8 @@ What's on it, each alongside the `install_id` described below:
 
 | Event | Payload |
 |-------|---------|
-| `table.launching` / `table.exited` | `{"game": {"id", "name", "links"}, "table": {"id"}}` — which game, and which of its tables launched. `table` is null when the launch didn't come from the wheel, and the whole payload is `{"game": null}` when there is no game at all |
-| `table.launched` | The same, and `up`: who the game counts for, taken as it starts, each `{"id", "name", "initials", "owner", "guest"}` |
+| `table.launching` / `table.exited` | `{"game": {"id", "name", "links"}, "table": {"id"}, "source"}` — which game, which of its tables launched, and who started it, as `play.state_changed` says. `table` is null when the launch didn't come from the wheel, and the whole payload is `{"game": null}` when there is no game at all |
+| `table.launched` | The same, and `up`: who the game counts for, taken as it starts, each `{"id", "name", "initials", "owner", "guest"}`. Empty for a recording, which counts for nobody |
 | `table.play_recorded` | The same as `table.launched`, once the game has ended and its play is written, and `seconds` played; `reading`, the machine's high score table as read after the game, or null; `new_entries`, `[{"player", "entries"}]` for each player with an entry new this game - see [Players](#players) |
 | `game.selected` | `{"game": {"id", "name", "links"}, "table": null}` — the wheel stops on a game, so there is no table to name |
 | `game.changed` | `{"game": {"id", "name", "links"}}` — a game's metadata was rewritten, so anything holding it is stale |
@@ -860,9 +860,10 @@ of, and nothing on the far end of a socket may do that.
 
 ### Connecting, and reconnecting
 
-`play.state_changed` carries a `source` of `frontend`, `remote` or `api` — who asked for the
-launch. The frontend uses it to ignore its own; everything else can treat the state as a fact
-about the machine regardless of who caused it.
+`play.state_changed` carries a `source` of `frontend`, `remote`, `api` or `capture` — who asked
+for the launch, `capture` being a launch to record the table's media. The frontend uses it to
+ignore its own; everything else can treat the state as a fact about the machine regardless of
+who caused it. A recording is not a play, and no `table.play_recorded` follows one.
 
 On connect the stream sends a `stream.hello` frame, then the current value of any
 state-carrying event it's declared for — today `play.state_changed`,

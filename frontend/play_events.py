@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 from common import events
 from common.config_store import ConfigStore
 from common.games.game import GameRecord
+from common.host import launch_state
 from frontend.last_game import save_last_launched
 
 if TYPE_CHECKING:
@@ -72,13 +73,15 @@ def _broadcast(message: dict) -> None:
 
 
 def on_launching(*, game: GameRecord | None = None, table_id: str = "",
-                 **_payload: Any) -> None:
-    """Suppress frontend input and record where the player was.
+                 source: str = "", **_payload: Any) -> None:
+    """Suppress frontend input and record where the player was, which a recording
+    does not change.
 
     Runs after every hook, so a peripheral that refused the launch has already
     stopped this - input is never suppressed for a launch that is not happening.
     """
-    if game is not None and _ini_config is not None:
+    if (game is not None and _ini_config is not None
+            and source != launch_state.SOURCE_CAPTURE):
         save_last_launched(_ini_config, game, table_id)
     _broadcast({"type": "TableLaunching"})
     if sys.platform == "win32" and _browser is not None:
