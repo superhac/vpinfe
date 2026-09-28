@@ -50,6 +50,8 @@ class Walk:
         self.values: dict[str, Any] = {}
 
     async def next(self) -> dict:
+        if not self.step.get("ready", True):
+            return self.step
         found = await self.calls.check(self.values, str(self.step.get("step") or ""))
         # A step that answers with itself is the same question asked again, not a new
         # one. Remembering it would make Back go nowhere.
@@ -63,6 +65,8 @@ class Walk:
         return self.step
 
     async def run(self) -> dict:
+        if not self.step.get("ready", True):
+            return self.step
         return await self.calls.run(self.values)
 
 
