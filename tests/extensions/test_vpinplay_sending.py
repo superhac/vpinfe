@@ -29,6 +29,11 @@ READING = {"rom": "ex", "resolved_rom": "ex", "score_kind": "Leaderboard", "entr
     {"section": "HIGH SCORES", "rank": 3, "initials": "ABC", "score": 700}]}
 
 
+def _only(entry: dict) -> dict:
+    """The reading, kept to one player's own entry - what a send carries for them."""
+    return {**READING, "entries": [entry]}
+
+
 def _game(game_id: str, **changes: object) -> dict:
     return {"id": game_id, "name": f"Game {game_id}", "vps_id": f"vps-{game_id}",
             "rom": "ex", "private": False,
@@ -125,13 +130,14 @@ class WhatAPlaySends(SendingCase):
         self.assertEqual(table["vpinfe"]["alttitle"], "Mine")
         self.held.assert_not_called()
 
-    def test_the_score_is_the_reading_as_core_filled_it(self) -> None:
-        """A blank took the one player up's initials; a `???` stays `???`."""
+    def test_the_score_is_the_reading_as_core_filled_it_kept_to_their_own_entry(self) -> None:
+        """A blank took the one player up's initials; a `???` stays `???` - and since it
+        is not OWN's, it stays off OWN's send along with the other rank's entry."""
         self.sharing(self.owner, "owner-id")
 
         self.play(self.owner)
 
-        self.assertEqual(self.only_table()["user"]["score"], READING)
+        self.assertEqual(self.only_table()["user"]["score"], _only(READING["entries"][0]))
 
     def test_a_kept_player_s_game_goes_with_their_own_numbers(self) -> None:
         kept = self.sharing(self.kept().player_id, "jordan")
@@ -145,7 +151,8 @@ class WhatAPlaySends(SendingCase):
         self.assertEqual((table["user"]["rating"], table["user"]["startCount"],
                           table["user"]["runTime"]), (2, 1, 30))
         self.assertEqual(table["vpinfe"], {"alttitle": "Theirs", "altvpsid": "t"})
-        self.assertEqual(table["user"]["score"], READING, "the reading holds their entry")
+        self.assertEqual(table["user"]["score"], _only(READING["entries"][2]),
+                         "their own entry, not the other ranks on the machine")
         self.assertEqual(self.held.call_args.args[1:3], ("jordan", f"vps-{GAME}"))
 
     def test_a_rating_they_never_gave_here_is_the_one_vpinplay_holds(self) -> None:
@@ -183,7 +190,7 @@ class WhatAPlaySends(SendingCase):
 
         table = self.only_table()
         self.assertEqual((table["user"]["startCount"], table["user"]["runTime"]), (0, 0))
-        self.assertEqual(table["user"]["score"], READING)
+        self.assertEqual(table["user"]["score"], _only(READING["entries"][2]))
         self.assertEqual(player_records.get_records().game(
             players.get_roster().player(kept), GAME)["play_count"], 0)
 

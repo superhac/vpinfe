@@ -93,8 +93,9 @@ def payload_for_player(game: dict, table: dict | None, mine: dict, held: dict,
     `mine` is their record of the game here. A send replaces their whole record for the
     table, so what this install does not hold for them comes from `held`, the service's
     record for them: the rating, unless they rated it here, the alternate title and id,
-    and the score, unless `reading` carries theirs. `credited` says this game's new
-    entries were theirs, which is the only way a reading of one number is.
+    and the score, unless `reading` carries theirs - and only their own entries in it,
+    never a housemate's. `credited` says this game's new entries were theirs, which is
+    the only way a reading of one number is.
     """
     return payload_for({
         **game,
@@ -102,8 +103,7 @@ def payload_for_player(game: dict, table: dict | None, mine: dict, held: dict,
                  "last_played": mine.get("last_played"),
                  "play_count": mine.get("play_count"),
                  "play_time_seconds": mine.get("play_time_seconds"),
-                 "score": (reading if _carries(reading, initials, credited)
-                           else held.get("score"))},
+                 "score": theirs_of(reading, initials, credited) or held.get("score")},
         "overrides": {"alt_title": held.get("alttitle"),
                       "alt_vps_id": held.get("altvpsid")},
     }, table)
@@ -138,17 +138,29 @@ def reading_of(high_scores: Any) -> dict | None:
     return {"rom": str(high_scores.get("rom") or ""), "entries": entries}
 
 
-def _carries(score: Any, initials: str, credited: bool) -> bool:
-    """Whether a reading off the machine is this player's score: an entry with their
-    initials, or one number credited to them."""
-    if not isinstance(score, dict):
-        return False
-    entries = score.get("entries")
+def theirs_of(reading: Any, initials: str, credited: bool) -> dict | None:
+    """This player's own share of a reading off the hardware, kept in the same shape,
+    before it goes on the wire: entries with their initials, plus one credited to them
+    with no initials on it. None where nothing of theirs is here, which a caller reads
+    as "use what is already held for them instead."
+
+    A reading with no entries to sort by initials - one number, not a table - is theirs
+    whole where `credited` says so, and nobody's otherwise.
+    """
+    if not isinstance(reading, dict):
+        return None
+    entries = reading.get("entries")
     if not isinstance(entries, list):
-        return credited
+        return reading if credited else None
     wanted = str(initials or "").strip().upper()
-    return bool(wanted) and any(str(one.get("initials") or "").strip().upper() == wanted
-                                for one in entries if isinstance(one, dict))
+    mine = [one for one in entries if isinstance(one, dict)
+            and _is_theirs(one, wanted, credited)]
+    return {**reading, "entries": mine} if mine else None
+
+
+def _is_theirs(entry: dict, wanted: str, credited: bool) -> bool:
+    said = str(entry.get("initials") or "").strip().upper()
+    return said == wanted if said else credited
 
 
 def their_record(sync_endpoint: str, user_id: str, vps_id: str,

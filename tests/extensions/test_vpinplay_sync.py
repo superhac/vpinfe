@@ -203,8 +203,9 @@ class SendTests(unittest.TestCase):
         self.assertTrue(found["ok"])
 
 
-READING = {"rom": "afm_113b", "entries": [{"initials": "ABC", "score": 5000},
-                                         {"initials": "OWN", "score": 9000}]}
+READING = {"rom": "afm_113b", "entries": [{"initials": "OWN", "score": 9000},
+                                         {"initials": "ABC", "score": 5000},
+                                         {"initials": "XYZ", "score": 4000}]}
 MINE = {"rating": 0, "last_played": "2026-09-28T20:00:00Z", "play_count": 1,
         "play_time_seconds": 1800}
 
@@ -235,17 +236,26 @@ class PlayerPayloadTests(unittest.TestCase):
         self.assertEqual(found["user"]["rating"], 0)
         self.assertEqual(found["vpinfe"], {"alttitle": "", "altvpsid": ""})
 
-    def test_the_machines_table_goes_when_it_holds_their_entry(self) -> None:
-        found = sync.payload_for_player(GAME, TABLE, MINE, {}, READING, "abc")
+    def test_only_this_players_own_entries_go(self) -> None:
+        """The reading holds OWN, ABC and XYZ; sent for OWN, only OWN's entry goes -
+        never a housemate's, whose entries stay on the machine, not on this player's
+        wire record."""
+        found = sync.payload_for_player(GAME, TABLE, MINE, {}, READING, "own")
 
-        self.assertEqual(found["user"]["score"], READING)
+        self.assertEqual(found["user"]["score"],
+                         {"rom": "afm_113b", "entries": [{"initials": "OWN", "score": 9000}]})
 
-    def test_their_score_is_kept_when_the_table_holds_none_of_theirs(self) -> None:
-        held = {"score": {"rom": "afm_113b", "entries": [{"initials": "XYZ", "score": 1}]}}
+    def test_a_player_with_no_entry_gets_what_is_already_held(self) -> None:
+        held = {"score": {"rom": "afm_113b", "entries": [{"initials": "DEF", "score": 1}]}}
 
-        found = sync.payload_for_player(GAME, TABLE, MINE, held, READING, "XYZ")
+        found = sync.payload_for_player(GAME, TABLE, MINE, held, READING, "DEF")
 
         self.assertEqual(found["user"]["score"], held["score"])
+
+    def test_a_player_with_no_entry_and_nothing_held_sends_no_score(self) -> None:
+        found = sync.payload_for_player(GAME, TABLE, MINE, {}, READING, "DEF")
+
+        self.assertIsNone(found["user"]["score"])
 
     def test_a_reading_of_one_number_is_theirs_only_when_it_was_credited_to_them(self) -> None:
         one_number = {"rom": "x", "value": 1234}

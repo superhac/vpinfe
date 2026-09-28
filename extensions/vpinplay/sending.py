@@ -209,8 +209,10 @@ class Sender:
         library = sync.from_library(game)
         reading = played.reading if played and played.reading else library["user"]["score"]
         if holder.owner:
+            mine = sync.theirs_of(reading, holder.initials,
+                                  bool(played and played.credited))
             return sync.payload_for({**library, "user": {**library["user"],
-                                                         "score": reading}}, table)
+                                                         "score": mine}}, table)
         held = sync.their_record(where, holder.user_id, vps_id, sync.GAME_TIMEOUT)
         if held is None:
             self._ctx.logger.warning("Not sending %s for %s yet: VPinPlay could not say "
