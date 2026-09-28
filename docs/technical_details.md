@@ -96,6 +96,8 @@ Runtime state written by VPinFE, not shown as a setting.
 | `ffmpeg_path` | string |  | Needed to record media. Blank finds it on this device. |
 | `grim_path` | string |  | Needed to record pictures of the screens. Blank finds it on this device. |
 | `wf_recorder_path` | string |  | Needed to record video of the screens. Blank finds it on this device. |
+| `wtype_path` | string |  | Needed on Wayland to press a table's keys. Blank finds it on this device. |
+| `ydotool_path` | string |  | Needed on Wayland to press a table's keys. Blank finds it on this device. |
 
 ### `capture`
 

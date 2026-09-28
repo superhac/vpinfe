@@ -132,7 +132,9 @@
     "rar_path": "",
     "ffmpeg_path": "",
     "grim_path": "",
-    "wf_recorder_path": ""
+    "wf_recorder_path": "",
+    "wtype_path": "",
+    "ydotool_path": ""
   },
   "updates": {
     "ask_where_new_games_go": "true",

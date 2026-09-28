@@ -340,7 +340,66 @@ WF_RECORDER = Tool(
     hint=_ON_LINUX_ONLY,
 )
 
-TOOLS: tuple[Tool, ...] = (RAR, FFMPEG, GRIM, WF_RECORDER)
+
+# --- pressing keys ------------------------------------------------------------------
+
+COMMANDS = "commands"
+
+
+def said(path: Path, *args: str) -> str:
+    """What it printed on both streams, whatever it exited with. For a program whose only
+    way to describe itself is to refuse what it was given."""
+    done = subprocess.run(
+        [str(path), *args], capture_output=True, text=True, errors="replace",
+        stdin=subprocess.DEVNULL, timeout=TIMEOUT, check=False,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    return (done.stdout or "") + (done.stderr or "")
+
+
+@probing
+def _wtype(path: Path) -> Probe:
+    """Run with nothing to type, it prints its usage and exits before reaching Wayland.
+    Any argument at all would be typed or parsed as a key."""
+    if "usage" not in said(path).lower():
+        raise _FailedError(0)
+    return Probe(True)
+
+
+# `Available commands:` then one command a line, as ydotool's help lists them.
+_COMMAND = re.compile(r"^\s{0,8}([a-z][a-z0-9_-]*)\s*$", re.MULTILINE)
+
+
+@probing
+def _ydotool(path: Path) -> Probe:
+    """`help` is answered before ydotool reaches its service, so it lists the commands
+    whether or not the service runs."""
+    text = ask(path, "help")
+    listed = text.split("Available commands:", 1)
+    commands = frozenset(_COMMAND.findall(listed[1])) if len(listed) == 2 else frozenset()
+    if "key" not in commands:
+        raise _FailedError(0)
+    return Probe(True, can={COMMANDS: commands})
+
+
+WTYPE = Tool(
+    id="wtype",
+    option="tools.wtype_path",
+    name="wtype",
+    names={LINUX: ("wtype",)},
+    probe=_wtype,
+    hint=_ON_LINUX_ONLY,
+)
+
+YDOTOOL = Tool(
+    id="ydotool",
+    option="tools.ydotool_path",
+    name="ydotool",
+    names={LINUX: ("ydotool",)},
+    probe=_ydotool,
+    hint=_ON_LINUX_ONLY,
+)
+
+TOOLS: tuple[Tool, ...] = (RAR, FFMPEG, GRIM, WF_RECORDER, WTYPE, YDOTOOL)
 
 
 # --- what a person reads ------------------------------------------------------------

@@ -491,6 +491,20 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             default="",
             legacy=(),
         ),
+        ConfigOption(
+            "wtype_path",
+            type="string",
+            path="exe",
+            default="",
+            legacy=(),
+        ),
+        ConfigOption(
+            "ydotool_path",
+            type="string",
+            path="exe",
+            default="",
+            legacy=(),
+        ),
     ),
     # Recording this cabinet's own screens into its tables' media.
     *in_section(

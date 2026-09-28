@@ -26,7 +26,7 @@ logger = logging.getLogger("vpinfe.manager.remote")
 
 
 def _get_keysimulator_class():
-    from managerui.key_simulator import KeySimulator
+    from common.host.key_simulator import KeySimulator
     return KeySimulator
 
 
@@ -35,10 +35,23 @@ def _get_key_class():
     return Key
 
 
+# PinMAME's own service keys, as the simulator names them.
+PINMAME_OPEN_COIN_DOOR = "end"
+PINMAME_CANCEL = '7'
+PINMAME_DOWN = '8'
+PINMAME_UP = '9'
+PINMAME_ENTER = '0'
+
+
 def _get_keysimulator():
     global ks
     if ks is None:
-        ks = _get_keysimulator_class()(debug=True)
+        from apps.vpx import keys as vpx_keys
+        from common.games import launchers
+
+        # The ini belongs to the launcher that would run a table, not to the install.
+        mappings = vpx_keys.mappings(launchers.default_value("ini_path").strip())
+        ks = _get_keysimulator_class()(debug=True, mappings=mappings)
     return ks
 
 
@@ -726,7 +739,6 @@ def handle_button(category: str, button: str):
     logger.info("[%s] Button pressed: %s", category, button)
     sim = _get_keysimulator()
     Key = _get_key_class()
-    KeySimulator = _get_keysimulator_class()
     match category:
         case 'vpx maintenance' | 'vpx':
             match button:
@@ -760,11 +772,11 @@ def handle_button(category: str, button: str):
                 case 'Credit4': sim.press_mapping("Credit4")
         case 'pinmame':
             match button:
-                case 'Coin Door': sim.press(KeySimulator.PINMAME_OPEN_COIN_DOOR)
-                case 'Cancel': sim.hold(KeySimulator.PINMAME_CANCEL)
-                case 'Down': sim.hold(KeySimulator.PINMAME_DOWN, seconds=0.1)
-                case 'Up': sim.hold(KeySimulator.PINMAME_UP, seconds=0.1)
-                case 'Enter': sim.hold(KeySimulator.PINMAME_ENTER, seconds=0.1)
+                case 'Coin Door': sim.press(PINMAME_OPEN_COIN_DOOR)
+                case 'Cancel': sim.hold(PINMAME_CANCEL)
+                case 'Down': sim.hold(PINMAME_DOWN, seconds=0.1)
+                case 'Up': sim.hold(PINMAME_UP, seconds=0.1)
+                case 'Enter': sim.hold(PINMAME_ENTER, seconds=0.1)
                 case 'Service 1': sim.press_mapping("Service1")
                 case 'Service 2': sim.press_mapping("Service2")
                 case 'Service 3': sim.press_mapping("Service3")

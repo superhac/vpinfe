@@ -295,19 +295,19 @@ class ManagerUiServiceTests(unittest.TestCase):
         fake_pynput = types.SimpleNamespace(keyboard=fake_keyboard)
         if sys.platform == "darwin":
             importlib.import_module("Quartz")
-        original = sys.modules.pop("managerui.key_simulator", None)
+        original = sys.modules.pop("common.host.key_simulator", None)
         try:
             with mock.patch.dict(sys.modules, {"pynput": fake_pynput,
                                            "pynput.keyboard": fake_keyboard}):
-                from managerui.key_simulator import KeySimulator
+                from common.host.key_simulator import KeySimulator
 
                 # Built inside the stub: the map is a call rather than a class attribute,
                 # so that a machine with no input backend can import the module at all.
                 mapping = KeySimulator.key_id_to_pynput()
         finally:
-            sys.modules.pop("managerui.key_simulator", None)
+            sys.modules.pop("common.host.key_simulator", None)
             if original is not None:
-                sys.modules["managerui.key_simulator"] = original
+                sys.modules["common.host.key_simulator"] = original
 
         for key_id in ("0", "1", "5", "9", "a", "z", "-", "=", "[", "]", "\\",
                        ";", "'", "`", ",", ".", "/"):

@@ -401,6 +401,69 @@ esac""")
                               tools.State.NOT_HERE)
 
 
+# ydotool's own help, as its client prints it.
+YDOTOOL_HELP = """Usage: ydotool <cmd> <args>
+Available commands:
+  click
+  mousemove
+  type
+  key
+  debug
+  bakers
+"""
+
+
+@unittest.skipUnless(POSIX, "the programs here are shell scripts")
+class KeyToolTests(unittest.TestCase):
+    def setUp(self) -> None:
+        held = tempfile.TemporaryDirectory()
+        self.addCleanup(held.cleanup)
+        self.root = Path(held.name)
+        self.asked = self.root / "asked"
+
+    def _noting(self, name: str, body: str) -> Path:
+        return _program(self.root, name, f'echo "[$*]" >> "{self.asked}"\n{body}')
+
+    def _args(self) -> list[str]:
+        return self.asked.read_text(encoding="utf-8").splitlines()
+
+    def test_wtype_is_asked_with_nothing_to_type(self) -> None:
+        wtype = self._noting("wtype", 'echo "Usage: wtype <text-to-type>" >&2\nexit 1')
+
+        probe = tools.WTYPE.probe(wtype)
+
+        self.assertTrue(probe.works)
+        self.assertEqual(self._args(), ["[]"])
+
+    def test_a_program_that_prints_no_usage_is_not_wtype(self) -> None:
+        other = self._noting("wtype", "exit 1")
+
+        self.assertEqual(tools.WTYPE.probe(other).reason, tools.FAILED)
+
+    def test_ydotool_lists_its_commands_from_its_help(self) -> None:
+        ydotool = self._noting("ydotool", f"cat <<'EOF'\n{YDOTOOL_HELP}EOF")
+
+        probe = tools.YDOTOOL.probe(ydotool)
+
+        self.assertTrue(probe.works)
+        self.assertTrue(probe.has(tools.COMMANDS, "key"))
+        self.assertEqual(self._args(), ["[help]"])
+
+    def test_a_ydotool_that_cannot_press_a_key_is_not_usable(self) -> None:
+        ydotool = self._noting(
+            "ydotool", "echo 'Usage: ydotool <cmd> <args>'\necho 'Available commands:'\n"
+                       "echo '  type'")
+
+        self.assertEqual(tools.YDOTOOL.probe(ydotool).reason, tools.FAILED)
+
+    def test_both_are_linux_only(self) -> None:
+        for where in (tools.DARWIN, tools.WINDOWS):
+            with (self.subTest(where=where),
+                  mock.patch.object(tools, "here", return_value=where)):
+                self.assertIs(tools.resolve(tools.WTYPE, "").state, tools.State.NOT_HERE)
+                self.assertIs(tools.resolve(tools.YDOTOOL, "").state, tools.State.NOT_HERE)
+
+
 class VPinOSTests(unittest.TestCase):
     def setUp(self) -> None:
         vpinos.detected.cache_clear()
