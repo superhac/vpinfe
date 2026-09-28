@@ -948,8 +948,9 @@ class CaptureConfirmed(ApiModel):
 
 
 class CaptureRequest(ApiModel):
-    """One game, by id in `games`, or one table, as a game and its table id in `tables`.
-    `kinds` are media kinds; empty is every kind this device can record, with `audio`
+    """Games by id in `games`, and tables as a game and its table id in `tables`, recorded
+    in that order, each once. `kinds` are media kinds; empty is every kind this device can
+    record, with `audio`
     where `sound` - or, where that is left out, the Sound setting - says so. `settings`
     holds Recording settings for this run only. `existing` is `fill`,
     `replace_downloaded`, `replace_all` or `choose`; `review` proposes every recording,
@@ -979,7 +980,9 @@ class CapturePlanKind(ApiModel):
     goes: bool = False
 
 
-class CapturePlan(ApiModel):
+class CapturePlanTarget(ApiModel):
+    """One game or table: what becomes of each kind's slot, and its own counts."""
+
     game_id: str
     table_id: str
     name: str
@@ -987,9 +990,69 @@ class CapturePlan(ApiModel):
     recording: list[str]
     replacing: int
     replacing_by_source: dict[str, int]
+    estimate_seconds: int
+
+
+class CapturePlanTotal(ApiModel):
+    """One kind over every target: how many slots have no file and how many have one.
+    `reason` says why this device cannot record it at all."""
+
+    kind: str
+    reason: CaptureReason | None = None
+    missing: int
+    have: int
+
+
+class CapturePlan(ApiModel):
+    """`fills` counts slots a recording is placed in without deleting anything, `asks`
+    those kept for a decision; `launches` the tables that will be started."""
+
+    games: int
+    targets: list[CapturePlanTarget]
+    kinds: list[CapturePlanTotal]
+    recording: list[str]
+    fills: int
+    asks: int
+    replacing: int
+    replacing_by_source: dict[str, int]
     launches: int
     at_once: bool
     estimate_seconds: int
+
+
+class CaptureRunGame(ApiModel):
+    id: str
+    table_id: str
+    name: str
+
+
+class CaptureRun(ApiModel):
+    """A run in hand. `state` is `running` or `paused`; `reason` is why it paused, null
+    where a person paused it, and `capture.run.interrupted` where VPinFE closed while it
+    ran. `game` is the one being recorded, or next; `done` of `of` have been. The counts
+    are tables by outcome, and `proposed` the recordings kept for a decision.
+    `estimate_seconds` is what is left."""
+
+    id: str
+    state: str
+    reason: CaptureTestReason | None = None
+    job_id: str | None = None
+    done: int
+    of: int
+    game: CaptureRunGame
+    existing: str
+    recorded: int
+    failed: int
+    closed: int
+    skipped: int
+    proposed: int
+    estimate_seconds: int
+
+
+class CaptureRunCurrent(ApiModel):
+    """The run in hand, null where there is none."""
+
+    run: CaptureRun | None = None
 
 
 class ConfigValues(ApiModel):
@@ -2572,6 +2635,8 @@ class CollectionOrderRequest(ApiModel):
 class JobLinks(ApiModel):
     self_: str = Field(alias="self")
     events: str
+    # Where a job that can be stopped is stopped.
+    stop: str | None = None
 
 
 class JobResource(ApiModel):
@@ -2591,6 +2656,7 @@ class JobResource(ApiModel):
     # and null afterwards for the ones whose outcome is the thing they changed - a
     # library scan leaves a scanned library and has nothing else to say.
     result: Any | None = None
+    stoppable: bool = False
     links: JobLinks
 
 

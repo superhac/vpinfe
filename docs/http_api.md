@@ -47,13 +47,18 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/frontend/state` | What the frontend is showing: whether it is up, its collection and the game on the wheel. `frontend.state_changed` on the stream carries the same after every change |
 | GET | `/api/v1/frontend/browser` | What this device's frontend browser can play, and how to fix what it cannot. `state` is `unknown` until the frontend has reported since this browser was chosen |
 | GET | `/api/v1/capture` | What this device can record of its own screens, and exactly why not. See [Recording](#recording) |
-| POST | `/api/v1/capture/plan` | What recording one game or table would fill and replace, by whose file, and about how long it takes. Nothing happens |
+| POST | `/api/v1/capture/plan` | What recording games or tables would fill and replace, by whose file, and about how long it takes. Nothing happens |
 | GET | `/api/v1/capture/proposals` | Recordings waiting for a decision: how many, their size, and each with the file it would replace |
 | GET | `/api/v1/capture/proposals/{id}/file` | Play a recording waiting for a decision |
 | POST | `/api/v1/capture/proposals/{id}` | `{"use": true}` places the recording and deletes the file it replaces; `false` throws it away |
 | DELETE | `/api/v1/capture/proposals` | Throw away every recording waiting |
 | POST | `/api/v1/capture/test` | Record 3 s of the playfield with the Record and Encode Commands, launching nothing, and say what came out: size, rate, frames and a small picture, or which command failed and what it said |
-| POST | `/api/v1/capture/runs` | Record one game or table. 202 with the job; 409 while a table runs or a recording or art fill is under way, 501 where this device records nothing |
+| POST | `/api/v1/capture/runs` | Record games or tables, one after another. 202 with the job; 409 while a table runs, a recording or art fill is under way, a run waits to be resumed, or the disk has no room for it; 501 where this device records nothing |
+| GET | `/api/v1/capture/runs/current` | The run in hand, running or paused, or `{"run": null}`. `capture.run_changed` on the stream carries the same |
+| POST | `/api/v1/capture/runs/current/pause` | Close the table being recorded, keep nothing of it, and hold the run there. 404 with no run |
+| POST | `/api/v1/capture/runs/current/resume` | Carry on with a paused run from the game it was on. 202 with the job |
+| POST | `/api/v1/capture/runs/current/stop` | Close the table being recorded, keep nothing of it, and end the run. What earlier games placed or kept stays |
+| POST | `/api/v1/capture/runs/current/discard` | Forget a paused run, the same act as Stop on one that is going |
 | PUT | `/api/v1/frontend/collection` | Show a collection on the frontend, `""` being the whole library. 202, and the switch arrives as the next `frontend.state_changed`. 409 when the frontend is not running, or when this install reads its library from another that cannot be reached; 404 when there is no collection by that name |
 | PUT | `/api/v1/frontend/game` | Move the frontend's wheel to a game. 202; 409 when the frontend is not running, 404 when the collection on screen does not hold that game |
 | POST | `/api/v1/input/actions` | Press, hold or release an input action on this install — the door a remote drives the frontend through |
@@ -954,10 +959,10 @@ answer, not an error: `ok` false, `step` `record` or `encode`, a `reason` key, a
 `detail` the last thing the program said. A device that records nothing answers `501`, and a
 table or a recording already running `409`.
 
-`POST /api/v1/capture/runs` records one game, `{"games": [id]}`, or one table,
-`{"tables": [{"game": id, "table": table_id}]}`, and answers `202` with the job
-(`Location` is where to watch it). `POST /api/v1/capture/plan` takes the same body and does
-nothing:
+`POST /api/v1/capture/runs` records games, `{"games": [id, ...]}`, and tables,
+`{"tables": [{"game": id, "table": table_id}, ...]}`, the games first and each in the
+order named, and answers `202` with the job (`Location` is where to watch it).
+`POST /api/v1/capture/plan` takes the same body and does nothing:
 
 ```
 {"games": ["6f1c9a4e..."], "kinds": ["playfield", "playfield_video"],
@@ -986,20 +991,59 @@ nothing:
 - A game's slot is the file its tables share, and the recording lands there; a table's
   slot is whatever serves it - its own file, else the shared one - and the recording lands
   as the table's own.
-- One game or table at a time. More than one is refused until runs of several exist.
+- A game or table named twice is recorded once.
 
-The plan answers per kind what it `does` (`fill`, `replace`, `propose` or `leave`), the
-`source` of the file serving the slot (`vpinmediadb`, `user`, `capture`, `unknown`) and its
-`file`, whether that file `goes` once a recording is placed, and a `reason` where this
-device cannot record the kind - on a device that records nothing, the report's own reason
-for every kind named; then `recording`, `replacing` (the files a run deletes),
+The plan has an entry in `targets` for each game or table: per kind what it `does`
+(`fill`, `replace`, `propose` or `leave`), the `source` of the file serving the slot
+(`vpinmediadb`, `user`, `capture`, `unknown`) and its `file`, whether that file `goes` once
+a recording is placed, and a `reason` where this device cannot record the kind - on a
+device that records nothing, the report's own reason for every kind named; then its
+`recording`, `replacing` (the files it deletes), `replacing_by_source` and
+`estimate_seconds`. Over all of them it answers `games`, `kinds` as each kind's `reason`
+and how many slots are `missing` a file and `have` one, `recording`, `fills` (slots filled
+without deleting anything), `asks` (recordings kept for a decision), `replacing`,
 `replacing_by_source`, `launches` and an `estimate_seconds` that is always approximate.
 
-The job's `result` has one entry in `tables`: `state` is `recorded`, `failed`, `closed` (the
-table was closed at the cabinet before its recording finished, and nothing was placed) or
-`skipped` (nothing asked for needed recording), with the kinds `placed`, those `proposed`
-with their proposal's `id`, those `failed` with a `reason`, and `at_once`, false where the
-screens could not keep up together and were recorded again one at a time.
+A run is one job, recording each game in turn, and is refused where the disks it writes to
+would be left with under 1 GB: the recordings of one game while it is encoded, and every
+file still to come. Each game is planned again when its turn comes, so a slot filled since
+the run started is not recorded twice, and a game with nothing left to record is skipped
+without launching. The job's message says which game, *Recording "Attack from Mars" - 3 of
+24*, and its resource carries `stoppable: true` with `links.stop`.
+
+The job's `result` has an entry in `tables` for each game done: `state` is `recorded`,
+`failed`, `closed` (the table was closed at the cabinet before its recording finished, and
+nothing was placed) or `skipped` (nothing asked for needed recording), with the kinds
+`placed`, those `proposed` with their proposal's `id`, those `failed` with a `reason`, and
+`at_once`, false where the screens could not keep up together and were recorded again one
+at a time. `run` says how the job ended: `state` `done`, `paused` with its `reason`, or
+`stopped`, and `done` of `of`.
+
+The run is written to the device's data directory as it goes, and
+`GET /api/v1/capture/runs/current` answers it:
+
+```
+{"run": {"id": "b41c07aa19e2", "state": "paused",
+         "reason": {"key": "capture.outcome.closed", "params": {}},
+         "job_id": null, "done": 6, "of": 24,
+         "game": {"id": "6f1c9a4e...", "table_id": "", "name": "Attack from Mars"},
+         "existing": "fill", "recorded": 5, "failed": 1, "closed": 0, "skipped": 0,
+         "proposed": 0, "estimate_seconds": 1020}}
+```
+
+- `game` is the one being recorded, or the one it goes on with; `done` of `of` are behind
+  it. The counts are games by outcome, and `proposed` the recordings kept for a decision.
+  `estimate_seconds` is what is left, scaled by how the games so far compared with theirs.
+- A run of more than one pauses rather than carrying on where a table is closed at the
+  cabinet (`capture.outcome.closed`), where a table was launched by anyone else
+  (`capture.run.launched`), and where a disk would be left with under 1 GB
+  (`capture.run.space`). The game in hand is recorded again on Resume. A run of one ends
+  there instead, as its `closed` outcome.
+- A person's Pause has no `reason`. A run VPinFE was closed during reads `paused` with
+  `capture.run.interrupted`, and never resumes on its own.
+- Stop and Pause close the table being recorded and keep nothing of it, and a recording
+  being encoded is thrown away. What earlier games placed, and the proposals they kept,
+  stay.
 
 ### Proposals
 
@@ -1071,6 +1115,7 @@ What's on it, each alongside the `install_id` described below:
 | `job.progress` | `{"job_id", "pct", "message"}` |
 | `job.done` | `{"job_id"}` |
 | `job.failed` | `{"job_id", "error"}` |
+| `capture.run_changed` | `{"run": ...}` - a recording run started, moved on to its next game, paused, resumed or ended; the same as `GET /capture/runs/current`, `null` once there is none |
 
 `game.changed` and `collections.changed` carry no path. The bus does, for handlers in
 this process, but a subscriber on another machine has a different path for the same thing
@@ -1110,7 +1155,7 @@ who caused it. A recording is not a play, and no `table.play_recorded` follows o
 
 On connect the stream sends a `stream.hello` frame, then the current value of any
 state-carrying event it's declared for — today `play.state_changed`,
-`frontend.state_changed` and `players.changed`. So a client that
+`frontend.state_changed`, `players.changed` and `capture.run_changed`. So a client that
 connects mid-launch knows it, without a separate call to `/play/state` and without waiting
 for the launch to end. An event whose payload doesn't describe the whole state has no
 snapshot; there's nothing honest to send.
@@ -1510,6 +1555,10 @@ being an API-only guard: the Manager UI's own Scan button goes through the same 
 two library scans can't rewrite the same `.info` files at once, and a scan started from the
 UI shows up on the stream exactly like one started here. A second request gets `409 conflict`
 rather than being queued — queueing would mean a double-click costs two full scans.
+
+A job that can be stopped part way says so: `stoppable` is true, and while it runs
+`links.stop` is where to `POST` to stop it, with the permission of the work itself. A
+recording run is the one today.
 
 ## Game identity
 

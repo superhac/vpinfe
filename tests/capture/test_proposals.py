@@ -29,7 +29,7 @@ class _Held(_Library):
         self.recording.write_bytes(b"recorded" * 100)
 
     def row(self, planned: dict, kind: str) -> dict:
-        return next(one for one in planned["kinds"] if one["kind"] == kind)
+        return next(one for one in planned["targets"][0]["kinds"] if one["kind"] == kind)
 
 
 class ChooseTests(_Held):
@@ -46,7 +46,7 @@ class ChooseTests(_Held):
     def test_review_proposes_even_an_empty_slot(self) -> None:
         planned = self.plan(kinds=["playfield", "playfield_video"], review=True)
 
-        self.assertEqual({row["does"] for row in planned["kinds"]}, {"propose"})
+        self.assertEqual({row["does"] for row in planned["targets"][0]["kinds"]}, {"propose"})
 
 
 class ReplaceTests(_Held):

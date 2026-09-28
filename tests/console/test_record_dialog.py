@@ -27,8 +27,11 @@ def _row(kind: str, does: str = "fill", source: str | None = None, *,
 def _plan(*rows: dict[str, Any], replacing: dict[str, int] | None = None,
           seconds: int = 59) -> dict[str, Any]:
     by_source = dict(replacing or {})
-    return {"kinds": list(rows),
+    return {"targets": [{"kinds": list(rows)}],
             "recording": [row["kind"] for row in rows if row["does"] != "leave"],
+            "fills": sum(1 for row in rows if row["does"] == "fill"
+                         or (row["does"] == "replace" and not row["goes"])),
+            "asks": sum(1 for row in rows if row["does"] == "propose"),
             "replacing": sum(by_source.values()), "replacing_by_source": by_source,
             "estimate_seconds": seconds}
 

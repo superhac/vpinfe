@@ -1,19 +1,30 @@
-"""A recording run: what it would do, and doing it as a job."""
+"""A recording run: what it would do, and doing it as a job, one game after another,
+written down as it goes so it can pause and resume."""
 
 from __future__ import annotations
 
+import json
+import logging
+import threading
+import time
+import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
-from common import jobs, service_errors
+from common import events, install_identity, jobs, service_errors
+from common.atomic_write import write_atomic
 from common.failures import why
 from common.games import game_lens, game_repository, tables
 from common.host import launch, launch_state, tools
 from common.i18n import t
-from common.paths import CONFIG_DIR
+from common.paths import CONFIG_DIR, get_ini_config
+from common.timestamps import utc_now_iso
 
-from . import adapters, placing, preflight, session, settings, slots
+from . import adapters, placing, preflight, session, settings, slots, space
+
+logger = logging.getLogger("vpinfe.common.capture.run")
 
 FILL = "fill"
 REPLACE_DOWNLOADED = "replace_downloaded"
@@ -33,6 +44,16 @@ CLOSE_SECONDS = 3
 ENCODE_SECONDS = 5
 
 WORK = CONFIG_DIR / "capture" / "recording"
+# The run in hand, written as it goes.
+RUN_FILE = CONFIG_DIR / "capture" / "run.json"
+
+RUNNING = "running"
+PAUSED = "paused"
+
+# Why a run paused. A person's Pause has no reason.
+PAUSED_LAUNCHED = "capture.run.launched"
+PAUSED_SPACE = "capture.run.space"
+INTERRUPTED = "capture.run.interrupted"
 
 
 @dataclass(frozen=True)
@@ -48,13 +69,13 @@ class Request:
     review: bool = False
 
 
-def _named(request: Request) -> tuple[str, str]:
-    named = [(game_id, "") for game_id in request.games] + list(request.tables)
+def _named(request: Request) -> list[tuple[str, str]]:
+    """Each game or table once, in the order named."""
+    named = [(str(game_id), "") for game_id in request.games] + \
+        [(str(game_id), str(table_id)) for game_id, table_id in request.tables]
     if not named:
         raise service_errors.RefusedError(t("error.capture.nothing_named"))
-    if len(named) > 1:
-        raise service_errors.RefusedError(t("error.capture.one_at_a_time"))
-    return named[0]
+    return list(dict.fromkeys(named))
 
 
 def _launch_key(game: Any, table_id: str) -> str | None:
@@ -125,22 +146,21 @@ def _estimate(kinds: Sequence[str], at_once: bool, chosen: settings.Settings) ->
             + ENCODE_SECONDS * len(screens))
 
 
-def _plan(request: Request, report: Mapping[str, Any],
-          chosen: settings.Settings) -> dict[str, Any]:
-    if request.existing not in EXISTING:
-        raise service_errors.RefusedError(t("error.capture.existing_unknown",
-                                            existing=request.existing))
-    game_id, table_id = _named(request)
+def _plan_one(game_id: str, table_id: str, request: Request, report: Mapping[str, Any],
+              chosen: settings.Settings, kinds: Sequence[str]) -> dict[str, Any]:
+    """What recording one game or table would do."""
     game = game_lens.game_or_refuse(game_id)
     _launch_key(game, table_id)
+    open_kinds = [kind for kind in kinds if not _blocked(kind, report)]
+    held = slots.serving_each(game_id, table_id, open_kinds) if open_kinds else {}
     rows: list[dict[str, Any]] = []
     doing: list[str] = []
-    for kind in _kinds(request, report, chosen):
+    for kind in kinds:
         blocked = _blocked(kind, report)
-        serving = None if blocked else slots.serving(game_id, table_id, kind)
-        held = slots.source(serving)
-        what = LEFT if blocked else decide(request.existing, held, request.review)
-        rows.append({"kind": kind, "does": what, "source": held, "reason": blocked,
+        serving = held.get(kind)
+        source = slots.source(serving)
+        what = LEFT if blocked else decide(request.existing, source, request.review)
+        rows.append({"kind": kind, "does": what, "source": source, "reason": blocked,
                      "file": serving["path"] if serving else None,
                      "goes": what in (REPLACED, PROPOSED) and slots.goes(serving, table_id)})
         if what != LEFT:
@@ -148,16 +168,44 @@ def _plan(request: Request, report: Mapping[str, Any],
     replacing: dict[str, int] = {}
     for row in rows:
         if row["does"] == REPLACED and row["goes"]:
-            source = str(row["source"])
-            replacing[source] = replacing.get(source, 0) + 1
+            replacing[str(row["source"])] = replacing.get(str(row["source"]), 0) + 1
     return {"game_id": game_id, "table_id": table_id,
             "name": str(game_repository.game_to_row(game).get("name")
                         or getattr(game, "game_dir_name", "") or ""),
             "kinds": rows, "recording": doing,
             "replacing": sum(replacing.values()), "replacing_by_source": replacing,
-            "launches": 1 if doing else 0, "at_once": bool(report["at_once"]),
             "estimate_seconds": _estimate(doing, bool(report["at_once"]), chosen)
             if doing else 0}
+
+
+def _plan(request: Request, report: Mapping[str, Any],
+          chosen: settings.Settings) -> dict[str, Any]:
+    if request.existing not in EXISTING:
+        raise service_errors.RefusedError(t("error.capture.existing_unknown",
+                                            existing=request.existing))
+    kinds = _kinds(request, report, chosen)
+    targets = [_plan_one(game_id, table_id, request, report, chosen, kinds)
+               for game_id, table_id in _named(request)]
+    rows = [row for target in targets for row in target["kinds"]]
+    replacing: dict[str, int] = {}
+    for target in targets:
+        for source, count in target["replacing_by_source"].items():
+            replacing[source] = replacing.get(source, 0) + count
+    each = [{"kind": kind, "reason": _blocked(kind, report),
+             "missing": sum(1 for row in rows
+                            if row["kind"] == kind and row["source"] is None),
+             "have": sum(1 for row in rows if row["kind"] == kind and row["source"])}
+            for kind in kinds]
+    return {"games": len(targets), "targets": targets, "kinds": each,
+            "recording": [kind for kind in kinds
+                          if any(kind in target["recording"] for target in targets)],
+            "fills": sum(1 for row in rows if row["does"] == FILLED
+                         or (row["does"] == REPLACED and not row["goes"])),
+            "asks": sum(1 for row in rows if row["does"] == PROPOSED),
+            "replacing": sum(replacing.values()), "replacing_by_source": replacing,
+            "launches": sum(1 for target in targets if target["recording"]),
+            "at_once": bool(report["at_once"]),
+            "estimate_seconds": sum(target["estimate_seconds"] for target in targets)}
 
 
 @dataclass(frozen=True)
@@ -179,7 +227,6 @@ def reach(report: Mapping[str, Any], game: Any = None, table: str | None = None)
     if isinstance(adapter, adapters.Unsupported):
         raise service_errors.UnavailableError(preflight.words(report["reason"]))
     from common.host import display_service
-    from common.paths import get_ini_config
 
     config = get_ini_config()
     placed = placing.Placing(adapter.outputs(), config, display_service.get_display_monitors(),
@@ -195,17 +242,137 @@ def plan(request: Request, report: Mapping[str, Any] | None = None) -> dict[str,
     return _plan(request, report, settings.read(None, request.settings))
 
 
-def _refuse_now(report: Mapping[str, Any], request: Request) -> None:
+def _refuse_now(report: Mapping[str, Any]) -> None:
     if not report["available"]:
         raise service_errors.UnavailableError(preflight.words(report["reason"]))
     if launch_state.current().launching:
         raise service_errors.BlockedError(t("error.launch.already_launching"))
 
 
+# --- the run in hand ------------------------------------------------------------------
+
+_lock = threading.RLock()
+_job: jobs.Job | None = None
+# Set to end the game in hand: the session closes its table and keeps nothing.
+_halt = threading.Event()
+# What a person asked for with the halt: "stop" or "pause".
+_asked: dict[str, str] = {}
+# A table was launched by anyone but the run while it ran.
+_elsewhere = threading.Event()
+
+
+def _read() -> dict[str, Any] | None:
+    try:
+        found = json.loads(RUN_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError):
+        logger.exception("Could not read the recording run; leaving it")
+        return None
+    return found if isinstance(found, dict) and found.get("targets") else None
+
+
+def _running(run: Mapping[str, Any] | None = None) -> bool:
+    return (_job is not None and _job.state == jobs.RUNNING
+            and (run is None or run.get("job_id") == _job.id))
+
+
+def _left(run: Mapping[str, Any]) -> int:
+    """Seconds the games still to come take, scaled by how the games so far compared with
+    their estimates."""
+    ahead = sum(int(target.get("estimate") or 0) for target in run["targets"][run["at"]:])
+    timed = [one for one in run["outcomes"] if one.get("seconds") and one.get("estimate")]
+    if not timed:
+        return ahead
+    return round(ahead * sum(one["seconds"] for one in timed)
+                 / sum(one["estimate"] for one in timed))
+
+
+def _view(run: Mapping[str, Any]) -> dict[str, Any]:
+    running = run.get("state") == RUNNING and _running(run)
+    reason = run.get("reason")
+    if run.get("state") == RUNNING and not running:
+        reason = session.said(INTERRUPTED)
+    targets, at = run["targets"], int(run["at"])
+    hand = targets[min(at, len(targets) - 1)]
+    outcomes = list(run["outcomes"])
+
+    def counted(state: str) -> int:
+        return sum(1 for one in outcomes if one.get("state") == state)
+
+    return {"id": run["id"], "state": RUNNING if running else PAUSED, "reason": reason,
+            "job_id": run.get("job_id") if running else None,
+            "done": at, "of": len(targets),
+            "game": {"id": hand["game_id"], "table_id": hand["table_id"],
+                     "name": hand["name"]},
+            "existing": run["request"]["existing"],
+            "recorded": counted(session.RECORDED), "failed": counted(session.FAILED),
+            "closed": counted(session.CLOSED), "skipped": counted(session.SKIPPED),
+            "proposed": sum(len(one.get("proposed") or []) for one in outcomes),
+            "estimate_seconds": _left(run)}
+
+
+def current() -> dict[str, Any] | None:
+    """The run in hand, running or paused; None where there is none."""
+    with _lock:
+        run = _read()
+        return _view(run) if run is not None else None
+
+
+def _save(run: dict[str, Any]) -> None:
+    with _lock:
+        RUN_FILE.parent.mkdir(parents=True, exist_ok=True)
+        write_atomic(RUN_FILE, lambda handle: json.dump(run, handle, indent=2))
+        view = _view(run)
+    events.emit(events.CAPTURE_RUN_CHANGED, run=view)
+
+
+def _clear() -> None:
+    with _lock:
+        RUN_FILE.unlink(missing_ok=True)
+    events.emit(events.CAPTURE_RUN_CHANGED, run=None)
+
+
+def _request(run: Mapping[str, Any]) -> Request:
+    asked = run["request"]
+    return Request(tables=[(one["game_id"], one["table_id"]) for one in run["targets"]],
+                   kinds=list(asked.get("kinds") or ()), existing=asked["existing"],
+                   settings=dict(asked.get("settings") or {}), sound=asked.get("sound"),
+                   review=bool(asked.get("review")))
+
+
+def _device_name() -> str:
+    return install_identity.display_name(get_ini_config())
+
+
+def _folder(game_id: str) -> Path:
+    return Path(str(game_lens.game_or_refuse(game_id).full_path_game))
+
+
+def _needs(planned: Sequence[Mapping[str, Any]], length: int) -> list[space.Need]:
+    found = []
+    for target in planned:
+        rows = list(target["kinds"])
+        placed = [row["kind"] for row in rows if row["does"] in (FILLED, REPLACED)]
+        kept = [row["kind"] for row in rows if row["does"] == PROPOSED]
+        found.append(space.Need(_folder(str(target["game_id"])),
+                                space.stored(placed, length), space.stored(kept, length)))
+    return found
+
+
+def _short(planned: Sequence[Mapping[str, Any]], kinds: Sequence[str],
+           chosen: settings.Settings) -> bool:
+    return space.short(_needs(planned, chosen.length), WORK,
+                       space.raw(kinds, chosen.length))
+
+
 def start(request: Request, kit: session.Kit | None = None) -> jobs.Job:
-    """Record one game or table as a job."""
+    """Record these games or tables, one after another, as a job."""
     report = preflight.report()
-    _refuse_now(report, request)
+    _refuse_now(report)
+    with _lock:
+        if _read() is not None:
+            raise service_errors.BlockedError(t("error.capture.run_waiting"))
     chosen = settings.read(None, request.settings)
     planned = _plan(request, report, chosen)
     if planned["replacing"] and request.confirmed != planned["replacing"]:
@@ -213,6 +380,204 @@ def start(request: Request, kit: session.Kit | None = None) -> jobs.Job:
             t("error.capture.confirm_count", count=planned["replacing"]),
             details={"replacing": planned["replacing"],
                      "by_source": planned["replacing_by_source"]})
+    if _short(planned["targets"], planned["recording"], chosen):
+        raise service_errors.BlockedError(t("error.capture.no_room",
+                                            device=_device_name()))
+    run = {"id": uuid.uuid4().hex[:12], "started_at": utc_now_iso(),
+           "request": {"existing": request.existing, "kinds": list(request.kinds),
+                       "settings": dict(request.settings), "sound": request.sound,
+                       "review": request.review},
+           "targets": [{"game_id": one["game_id"], "table_id": one["table_id"],
+                        "name": one["name"], "estimate": one["estimate_seconds"]}
+                       for one in planned["targets"]],
+           "at": 0, "outcomes": [], "state": RUNNING, "reason": None}
+    return _submit(run, kit)
+
+
+def _submit(run: dict[str, Any], kit: session.Kit | None) -> jobs.Job:
+    global _job
+    with _lock:
+        _halt.clear()
+        _asked.clear()
+        _elsewhere.clear()
+        job = jobs.submit(jobs.KIND_MEDIA_CAPTURE, lambda job: _work(job, run, kit),
+                          stoppable=True)
+        _job = job
+        run.update(job_id=job.id, state=RUNNING, reason=None)
+        _save(run)
+    return job
+
+
+def resume(kit: session.Kit | None = None) -> jobs.Job:
+    """Carry on from the game in hand, which is recorded again from its start."""
+    with _lock:
+        run = _read()
+        if run is None:
+            raise service_errors.NotFoundError(t("error.capture.no_run"))
+        if _running(run):
+            raise service_errors.BlockedError(t("error.capture.busy"))
+        _refuse_now(preflight.report())
+        return _submit(run, kit)
+
+
+def _close_ours() -> None:
+    if launch_state.current().source == launch_state.SOURCE_CAPTURE:
+        launch_state.stop()
+
+
+def pause() -> dict[str, Any] | None:
+    """End the game in hand, keeping nothing of it, and hold the run there."""
+    with _lock:
+        run = _read()
+        if run is None:
+            raise service_errors.NotFoundError(t("error.capture.no_run"))
+        if not _running(run):
+            return _view(run)
+        _asked["what"] = "pause"
+        _halt.set()
+    _close_ours()
+    return current()
+
+
+def stop() -> dict[str, Any] | None:
+    """End the game in hand, keeping nothing of it, and the run with it. What earlier
+    games placed or kept stays."""
+    with _lock:
+        run = _read()
+        if run is None:
+            raise service_errors.NotFoundError(t("error.capture.no_run"))
+        if not _running(run):
+            _clear()
+            return None
+        _asked["what"] = "stop"
+        _halt.set()
+    _close_ours()
+    return current()
+
+
+discard = stop
+
+
+def _heard_launch(**payload: Any) -> None:
+    if payload.get("source") != launch_state.SOURCE_CAPTURE:
+        _elsewhere.set()
+
+
+def _outcome(target: Mapping[str, Any], result: session.Result, seconds: float = 0.0,
+             estimate: int = 0) -> dict[str, Any]:
+    return {"game_id": target["game_id"], "table_id": target["table_id"],
+            "name": target["name"], **result.as_dict(),
+            "seconds": round(seconds), "estimate": estimate}
+
+
+def _result(run: Mapping[str, Any], state: str, at_once: bool) -> dict[str, Any]:
+    return {"tables": [{key: value for key, value in one.items()
+                        if key not in ("seconds", "estimate")} for one in run["outcomes"]],
+            "at_once": at_once,
+            "run": {"state": state, "reason": run.get("reason"), "done": run["at"],
+                    "of": len(run["targets"])}}
+
+
+def _work(job: jobs.Job, run: dict[str, Any], kit: session.Kit | None) -> dict[str, Any]:
+    events.subscribe(events.TABLE_LAUNCHING, _heard_launch)
+    try:
+        with _lock:
+            pass    # until `_submit` has recorded this job as the run's
+        return _go(job, run, kit)
+    finally:
+        events.unsubscribe(events.TABLE_LAUNCHING, _heard_launch)
+
+
+def _held_up(many: bool) -> dict[str, Any] | None:
+    """What holds the run before its next game: a person's Pause or Stop, or a table
+    someone else launched. {} for a pause with no reason."""
+    if _asked.get("what"):
+        return {}
+    now = launch_state.current()
+    if many and (_elsewhere.is_set()
+                 or (now.launching and now.source != launch_state.SOURCE_CAPTURE)):
+        return session.said(PAUSED_LAUNCHED)
+    return None
+
+
+def _go(job: jobs.Job, run: dict[str, Any], kit: session.Kit | None) -> dict[str, Any]:
+    report = preflight.report()
+    request = _request(run)
+    chosen = settings.read(None, request.settings)
+    codec = settings.video_codec(chosen.video_codec)
+    kinds = _kinds(request, report, chosen)
+    targets = run["targets"]
+    many = len(targets) > 1
+    at_once = bool(report["at_once"])
+    while run["at"] < len(targets):
+        target = targets[run["at"]]
+        held = _held_up(many)
+        if held is not None:
+            return _stop_or_pause(run, held or None, at_once)
+        job.progress(run["at"], len(targets),
+                     t("capture.progress.recording_of", game=target["name"],
+                       at=run["at"] + 1, of=len(targets)) if many
+                     else t("capture.progress.recording", game=target["name"]))
+        try:
+            planned = _plan_one(target["game_id"], target["table_id"], request, report,
+                                chosen, kinds)
+        except service_errors.ServiceError as exc:
+            _advance(run, _outcome(target, session.Result(
+                session.FAILED, at_once=at_once,
+                reason={"key": session.WOULD_NOT_START, "params": {}, "detail": why(exc)})))
+            continue
+        if not planned["recording"]:
+            _advance(run, _outcome(target, session.Result(
+                session.SKIPPED, reason=session.said(session.NOTHING_TO_RECORD),
+                at_once=at_once)))
+            continue
+        if many and _short([planned], planned["recording"], chosen):
+            return _pause(run, session.said(PAUSED_SPACE, device=_device_name()), at_once)
+        began = time.monotonic()
+        try:
+            result = _record(planned, request, report, chosen, codec, at_once, kit)
+        except service_errors.ServiceError as exc:
+            result = session.Result(session.FAILED, at_once=at_once, reason={
+                "key": session.WOULD_NOT_START, "params": {}, "detail": why(exc)})
+        at_once = result.at_once
+        if result.state == session.STOPPED:
+            return _stop_or_pause(run, None, at_once)
+        if result.state == session.CLOSED and many:
+            return _pause(run, result.reason, at_once)
+        _advance(run, _outcome(target, result, time.monotonic() - began,
+                               int(planned["estimate_seconds"])))
+    return _end(run, "done", at_once)
+
+
+def _advance(run: dict[str, Any], outcome: dict[str, Any]) -> None:
+    run["outcomes"].append(outcome)
+    run["at"] += 1
+    if run["at"] < len(run["targets"]):
+        _save(run)
+
+
+def _stop_or_pause(run: dict[str, Any], reason: dict[str, Any] | None,
+                   at_once: bool) -> dict[str, Any]:
+    if _asked.get("what") == "stop":
+        return _end(run, "stopped", at_once)
+    return _pause(run, reason, at_once)
+
+
+def _pause(run: dict[str, Any], reason: dict[str, Any] | None,
+           at_once: bool) -> dict[str, Any]:
+    run.update(state=PAUSED, reason=reason)
+    _save(run)
+    return _result(run, "paused", at_once)
+
+
+def _end(run: dict[str, Any], state: str, at_once: bool) -> dict[str, Any]:
+    _clear()
+    return _result(run, state, at_once)
+
+
+def _record(planned: Mapping[str, Any], request: Request, report: Mapping[str, Any],
+            chosen: settings.Settings, codec: str, at_once: bool,
+            kit: session.Kit | None) -> session.Result:
     game = game_lens.game_or_refuse(planned["game_id"])
     try:
         game = launch.this_devices_copy(game)
@@ -224,16 +589,16 @@ def start(request: Request, kit: session.Kit | None = None) -> jobs.Job:
         planned["game_id"], game, planned["table_id"], key, tuple(planned["recording"]),
         propose=frozenset(row["kind"] for row in planned["kinds"] if row["does"] == PROPOSED),
         replace=frozenset(row["kind"] for row in planned["kinds"] if row["does"] == REPLACED))
-    codec = settings.video_codec(chosen.video_codec)
+    return session.Session(
+        target, chosen, adapter=device.adapter, screens=device.screens, found=device.found,
+        at_once=at_once, codec=codec, work=WORK, config=device.config, kit=kit,
+        placed=device.placed, halt=_halt).run()
 
-    def work(job: jobs.Job) -> dict[str, Any]:
-        job.progress(0, 1, t("capture.progress.recording", game=planned["name"]))
-        result = session.Session(
-            target, chosen, adapter=device.adapter, screens=device.screens,
-            found=device.found, at_once=planned["at_once"], codec=codec, work=WORK,
-            config=device.config, kit=kit, placed=device.placed).run()
-        return {"tables": [{"game_id": target.game_id, "table_id": target.table_id,
-                            **result.as_dict()}],
-                "at_once": result.at_once}
 
-    return jobs.submit(jobs.KIND_MEDIA_CAPTURE, work)
+def reset_for_tests() -> None:
+    global _job
+    with _lock:
+        _job = None
+        _halt.clear()
+        _asked.clear()
+        _elsewhere.clear()

@@ -16,7 +16,7 @@ from typing import Any, Literal
 from nicegui import ui
 
 from common.capture import preflight
-from common.capture.run import EXISTING, FILL, FILLED, PROPOSED, REPLACED
+from common.capture.run import EXISTING, FILL, REPLACED
 from common.capture.session import AUDIO, KINDS
 from common.failures import why
 from common.games import asset_origin
@@ -124,10 +124,7 @@ def touches(plan: dict[str, Any]) -> str:
     asks about."""
     if not plan.get("recording"):
         return t("console.record.nothing_to_record")
-    rows = list(plan.get("kinds") or [])
-    fills = sum(1 for row in rows if row.get("does") == FILLED
-                or (row.get("does") == REPLACED and not row.get("goes")))
-    asks = sum(1 for row in rows if row.get("does") == PROPOSED)
+    fills, asks = int(plan.get("fills") or 0), int(plan.get("asks") or 0)
     replacing = int(plan.get("replacing") or 0)
     yours = sum(int(count) for source, count in
                 (plan.get("replacing_by_source") or {}).items() if source in YOURS)
@@ -158,11 +155,17 @@ def recording_for(seconds: int) -> str:
     return t("console.record.recording_for", count=_minutes(seconds))
 
 
+def slots_of(plan: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Each kind's row for the one game or table a plan is for."""
+    return {str(row["kind"]): row
+            for row in ((plan.get("targets") or [{}])[0].get("kinds") or [])}
+
+
 def going(plan: dict[str, Any]) -> list[str]:
     """Each file a recording would delete, and whose it is."""
     return [t("console.record.file_from", file=str(row.get("file") or ""),
               source=holds(row))
-            for row in plan.get("kinds") or []
+            for target in plan.get("targets") or [] for row in target.get("kinds") or []
             if row.get("does") == REPLACED and row.get("goes")]
 
 
@@ -281,7 +284,7 @@ async def ask(library: Any, game_id: str, table_id: str, name: str, title: str,
     if not report.get("available"):
         ui.notify(preflight.words(report.get("reason") or {}), type="warning")
         return
-    slots = {str(row["kind"]): row for row in whole.get("kinds") or []}
+    slots = slots_of(whole)
     device = dict((values or {}).get(recording.SECTION) or {})
     held = Settings(options_of(schema), device)
     remembered_ticks = dict(remembered.get(TICKS) or {})

@@ -21,11 +21,15 @@ from .errors import NotFoundError
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
+# Where each kind of job that can be stopped is stopped.
+_STOPS = {job_registry.KIND_MEDIA_CAPTURE: "/api/v1/capture/runs/current/stop"}
+
+
 def resource(job: job_registry.Job, with_result: bool = False) -> dict:
-    return {
-        **job.snapshot(with_result),
-        "links": {"self": f"/api/v1/jobs/{job.id}", "events": "/api/v1/events"},
-    }
+    links = {"self": f"/api/v1/jobs/{job.id}", "events": "/api/v1/events"}
+    if job.stoppable and job.state == job_registry.RUNNING and job.kind in _STOPS:
+        links["stop"] = _STOPS[job.kind]
+    return {**job.snapshot(with_result), "links": links}
 
 
 @router.get("", summary="Jobs, running first",

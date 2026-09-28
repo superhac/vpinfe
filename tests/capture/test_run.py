@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import tempfile
 import threading
 import unittest
+from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from starlette.testclient import TestClient
@@ -59,7 +62,8 @@ class _Library(TempTree):
         return run.plan(Request(**kwargs), self.report)
 
     def does(self, planned: dict) -> dict[str, tuple[str, str | None]]:
-        return {row["kind"]: (row["does"], row["source"]) for row in planned["kinds"]}
+        return {row["kind"]: (row["does"], row["source"])
+                for row in planned["targets"][0]["kinds"]}
 
 
 class PlanTests(_Library):
@@ -112,7 +116,7 @@ class PlanTests(_Library):
     def test_a_kind_this_device_cannot_record_is_left_with_why(self) -> None:
         planned = self.plan(kinds=["topper"])
 
-        self.assertEqual(planned["kinds"][0]["does"], "leave")
+        self.assertEqual(planned["targets"][0]["kinds"][0]["does"], "leave")
         self.assertEqual(planned["kinds"][0]["reason"]["key"], "capture.screen.none")
         self.assertEqual(planned["launches"], 0)
 
@@ -122,7 +126,7 @@ class PlanTests(_Library):
 
         planned = self.plan(kinds=["playfield", "backglass_video", "audio"])
 
-        self.assertEqual({row["does"] for row in planned["kinds"]}, {"leave"})
+        self.assertEqual({row["does"] for row in planned["targets"][0]["kinds"]}, {"leave"})
         self.assertEqual({row["reason"]["key"] for row in planned["kinds"]},
                          {adapters.NOT_YET})
         self.assertEqual(planned["launches"], 0)
@@ -135,8 +139,9 @@ class PlanTests(_Library):
         self.assertGreater(in_turn["estimate_seconds"], at_once["estimate_seconds"])
 
     def test_what_cannot_be_asked_is_refused(self) -> None:
-        for kwargs in ({"games": []}, {"games": [GAME_ID, GAME_ID]},
-                       {"kinds": ["wheel"]}, {"existing": "some"}):
+        refused: tuple[dict[str, Any], ...] = ({"games": []}, {"kinds": ["wheel"]},
+                                               {"existing": "some"})
+        for kwargs in refused:
             with self.subTest(kwargs), self.assertRaises(service_errors.RefusedError):
                 self.plan(**kwargs)
         with self.assertRaises(service_errors.NotFoundError):
@@ -148,10 +153,20 @@ class _Started(_Library):
         super().setUp()
         self.blocked = report(found=found(missing=("ffmpeg",)))
         jobs.reset_for_tests()
+        run.reset_for_tests()
         launch_state.clear()
         self.addCleanup(jobs.reset_for_tests)
+        self.addCleanup(run.reset_for_tests)
         self.addCleanup(launch_state.clear)
-        self.sessions = []
+        self.sessions: list[Any] = []
+        held_run = tempfile.TemporaryDirectory()
+        self.addCleanup(held_run.cleanup)
+        self.run_file = Path(held_run.name) / "run.json"
+        for target, path in (("common.capture.run.RUN_FILE", self.run_file),
+                             ("common.capture.run.WORK", Path(held_run.name) / "work")):
+            moved = patch(target, path)
+            moved.start()
+            self.addCleanup(moved.stop)
 
         def recorded(this):
             self.sessions.append(this)
@@ -176,7 +191,8 @@ class _Started(_Library):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def finished(self, job: jobs.Job) -> jobs.Job:
+    def finished(self, job: jobs.Job | None) -> jobs.Job:
+        assert job is not None
         done = threading.Event()
 
         def heard(**_: object) -> None:
@@ -195,6 +211,7 @@ class StartTests(_Started):
         job = self.finished(run.start(Request(games=[GAME_ID], kinds=["playfield"])))
 
         self.assertEqual(job.kind, jobs.KIND_MEDIA_CAPTURE)
+        assert isinstance(job.result, dict)
         self.assertEqual(job.result["tables"][0]["state"], session.RECORDED)
         target = self.sessions[0].target
         self.assertEqual((target.game_id, target.table_id, target.table, target.kinds),
@@ -297,9 +314,10 @@ class HttpTests(_Started):
                  ({"games": ["nope"]}, 404))
         for body, status in cases:
             with self.subTest(body=body):
-                jobs.reset_for_tests()
-                self.assertEqual(self.client.post("/capture/runs", json=body).status_code,
-                                 status)
+                response = self.client.post("/capture/runs", json=body)
+                self.assertEqual(response.status_code, status)
+                if status == 202:
+                    self.finished(jobs.get(response.json()["id"]))
         launch_state.set_launching("Medieval Madness", source=launch_state.SOURCE_API)
         self.assertEqual(self.client.post("/capture/runs",
                                           json={"games": [GAME_ID]}).status_code, 409)

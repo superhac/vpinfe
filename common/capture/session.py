@@ -42,6 +42,8 @@ RECORDED = "recorded"
 FAILED = "failed"
 CLOSED = "closed"
 SKIPPED = "skipped"
+# Halted by the run: nothing placed, the recording thrown away.
+STOPPED = "stopped"
 
 WOULD_NOT_START = "capture.outcome.would_not_start"
 CLOSED_AT_CABINET = "capture.outcome.closed"
@@ -117,7 +119,8 @@ class Session:
     def __init__(self, target: Target, chosen: Settings, *, adapter: adapters.Adapter,
                  screens: Mapping[str, Output], found: Mapping[str, tools.Found],
                  at_once: bool, codec: str, work: Path, config: Any,
-                 kit: Kit | None = None, placed: Placing | None = None) -> None:
+                 kit: Kit | None = None, placed: Placing | None = None,
+                 halt: threading.Event | None = None) -> None:
         self.target = target
         self.chosen = chosen
         self.adapter = adapter
@@ -128,6 +131,7 @@ class Session:
         self.config = config
         self.kit = kit or Kit()
         self.placed = placed
+        self.halt = halt or threading.Event()
         self.hardware = adapter.hardware(found[tools.FFMPEG.id]) if at_once else ""
         self.wanted = set(target.kinds)
         self.screens = dict(screens)
@@ -360,6 +364,8 @@ class Session:
             if self.result.at_once else 0.0
         made: dict[str, Path] = {}
         for window, one in recordings.items():
+            if self.halt.is_set():
+                return made
             picture, video = KINDS[window]
             skip = max(0.0, first - one.started) if self.result.at_once else 0.0
             if not one.path.is_file() or not self._frames(one):
@@ -464,6 +470,10 @@ class Session:
     def _run(self) -> Result:
         thread = self._launch()
         self.either.wait(START_TIMEOUT)
+        if self.halt.is_set():
+            self.kit.stop()
+            thread.join(CLOSE_TIMEOUT)
+            return self._stopped()
         if not self.launched.is_set():
             self.kit.stop()
             thread.join(CLOSE_TIMEOUT)
@@ -479,7 +489,11 @@ class Session:
             return self._closed(thread)
         self.kit.stop()
         thread.join(CLOSE_TIMEOUT)
+        if self.halt.is_set():
+            return self._stopped()
         made = self._encode(recordings, sound)
+        if self.halt.is_set():
+            return self._stopped()
         self._land(made)
         if self.result.placed:
             self._refresh()
@@ -489,7 +503,13 @@ class Session:
 
     def _closed(self, thread: threading.Thread) -> Result:
         thread.join(CLOSE_TIMEOUT)
+        if self.halt.is_set():
+            return self._stopped()
         self.result.state, self.result.reason = CLOSED, said(CLOSED_AT_CABINET)
+        return self.result
+
+    def _stopped(self) -> Result:
+        self.result = Result(STOPPED, at_once=self.result.at_once)
         return self.result
 
     def _refresh(self) -> None:

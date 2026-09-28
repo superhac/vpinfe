@@ -162,6 +162,7 @@ STREAMED_EVENTS: dict[str, Callable[..., dict]] = {
     events.JOB_PROGRESS: _job_event,
     events.JOB_DONE: _job_event,
     events.JOB_FAILED: _job_event,
+    events.CAPTURE_RUN_CHANGED: _as_published,
 }
 
 class _Stream:

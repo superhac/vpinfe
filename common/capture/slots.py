@@ -8,15 +8,27 @@ from typing import Any
 from common.games import asset_origin, game_lens, media_lens
 
 
-def serving(game_id: str, table_id: str, kind: str) -> dict[str, Any] | None:
-    """The media row whose file serves this slot: a table's own file, else the file the
-    game's tables share; None where nothing does."""
-    rows = [row for row in media_lens.listing(game=game_id, kind=kind)["media"]
+def _serving(rows: list[dict[str, Any]], table_id: str) -> dict[str, Any] | None:
+    rows = [row for row in rows
             if row.get("present") and row.get("via") not in (media_lens.ORPHAN,
                                                             media_lens.UNUSED)]
     own = next((row for row in rows if table_id and row["table"] == table_id), None)
     shared = next((row for row in rows if not row["table"]), None)
     return own or shared
+
+
+def serving(game_id: str, table_id: str, kind: str) -> dict[str, Any] | None:
+    """The media row whose file serves this slot: a table's own file, else the file the
+    game's tables share; None where nothing does."""
+    return _serving(media_lens.listing(game=game_id, kind=kind)["media"], table_id)
+
+
+def serving_each(game_id: str, table_id: str, kinds: list[str]
+                 ) -> dict[str, dict[str, Any] | None]:
+    """`serving` for each of `kinds`, from one read of the game's media."""
+    rows = media_lens.listing(game=game_id)["media"]
+    return {kind: _serving([row for row in rows if row.get("kind") == kind], table_id)
+            for kind in kinds}
 
 
 def source(row: dict[str, Any] | None) -> str | None:

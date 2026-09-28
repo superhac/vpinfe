@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Response
 from fastapi.responses import FileResponse
 
+from common import events
 from common.capture import preflight, proposals, run, trial
 
 from . import jobs as jobs_api
 from . import models, scopes
 from .auth import requires
+from .events import declare_snapshot
 
 router = APIRouter(prefix="/capture", tags=["capture"])
 
@@ -35,12 +39,49 @@ def plan_capture(body: models.CaptureRequest) -> models.CapturePlan:
     return models.CapturePlan.model_validate(run.plan(_request(body)))
 
 
-@router.post("/runs", summary="Record one game or table", status_code=202,
-             dependencies=[requires(scopes.CAPTURE_RUN)])
-def start_capture(body: models.CaptureRequest, response: Response) -> models.JobResource:
-    job = run.start(_request(body))
+def _started(job: Any, response: Response) -> models.JobResource:
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
     return models.JobResource(**jobs_api.resource(job))
+
+
+@router.post("/runs", summary="Record games or tables, one after another", status_code=202,
+             dependencies=[requires(scopes.CAPTURE_RUN)])
+def start_capture(body: models.CaptureRequest, response: Response) -> models.JobResource:
+    return _started(run.start(_request(body)), response)
+
+
+def _current() -> dict:
+    return {"run": run.current()}
+
+
+@router.get("/runs/current", summary="The recording run in hand, running or paused",
+            dependencies=[requires(scopes.PLAY_READ)])
+def get_current_run() -> models.CaptureRunCurrent:
+    return models.CaptureRunCurrent.model_validate(_current())
+
+
+@router.post("/runs/current/pause", summary="Hold the run, recording its game again later",
+             dependencies=[requires(scopes.CAPTURE_RUN)])
+def pause_run() -> models.CaptureRunCurrent:
+    return models.CaptureRunCurrent.model_validate({"run": run.pause()})
+
+
+@router.post("/runs/current/resume", summary="Carry on with a paused run", status_code=202,
+             dependencies=[requires(scopes.CAPTURE_RUN)])
+def resume_run(response: Response) -> models.JobResource:
+    return _started(run.resume(), response)
+
+
+@router.post("/runs/current/stop", summary="End the run, keeping what it has done",
+             dependencies=[requires(scopes.CAPTURE_RUN)])
+def stop_run() -> models.CaptureRunCurrent:
+    return models.CaptureRunCurrent.model_validate({"run": run.stop()})
+
+
+@router.post("/runs/current/discard", summary="Forget a run, keeping what it has done",
+             dependencies=[requires(scopes.CAPTURE_RUN)])
+def discard_run() -> models.CaptureRunCurrent:
+    return models.CaptureRunCurrent.model_validate({"run": run.discard()})
 
 
 @router.post("/test", summary="Record a few seconds of the playfield with the commands",
@@ -72,3 +113,7 @@ def decide_proposal(proposal_id: str,
                dependencies=[requires(scopes.CAPTURE_RUN)])
 def discard_proposals() -> models.CaptureProposalsDiscarded:
     return models.CaptureProposalsDiscarded.model_validate(proposals.discard_all())
+
+
+def declare_snapshots() -> None:
+    declare_snapshot(events.CAPTURE_RUN_CHANGED, _current)

@@ -135,6 +135,8 @@ class Job:
     # and which did not, and without somewhere to put it every such job has to invent a
     # back channel of its own.
     result: object | None = None
+    # Whether whoever started it offers a way to stop it part way.
+    stoppable: bool = False
     progress_cb: ProgressCallback | None = None
     log_cb: LogCallback | None = None
 
@@ -173,6 +175,7 @@ class Job:
             "error": self.error,
             "started_at": self.started_at,
             "finished_at": self.finished_at,
+            "stoppable": self.stoppable,
         }
         if with_result:
             found["result"] = self.result
@@ -222,9 +225,10 @@ def track(kind: str, *, progress_cb: ProgressCallback | None = None,
 
 def submit(kind: str, work: Callable[[Job], object], *,
            progress_cb: ProgressCallback | None = None,
-           log_cb: LogCallback | None = None) -> Job:
+           log_cb: LogCallback | None = None, stoppable: bool = False) -> Job:
     """Start work on its own thread and return its job immediately."""
-    job = Job(id=uuid.uuid4().hex, kind=kind, progress_cb=progress_cb, log_cb=log_cb)
+    job = Job(id=uuid.uuid4().hex, kind=kind, progress_cb=progress_cb, log_cb=log_cb,
+              stoppable=stoppable)
     with _lock:
         _refuse_if_busy(kind)
         _active[kind] = job

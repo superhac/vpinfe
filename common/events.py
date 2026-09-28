@@ -58,6 +58,11 @@ JOB_PROGRESS = "job.progress"
 JOB_DONE = "job.done"
 JOB_FAILED = "job.failed"
 
+# A recording run started, moved to its next game, paused, resumed or ended. Carries the
+# whole run, null once there is none, like play.state_changed.
+#   capture.run_changed  {run}
+CAPTURE_RUN_CHANGED = "capture.run_changed"
+
 # A player pressed something outside the browser. Subscribers only, and deliberately:
 # a press is not an operation anything may refuse, and a hook that could stop one would
 # be a way for a plugin to make a cabinet button do nothing.

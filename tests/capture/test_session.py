@@ -156,7 +156,8 @@ class _Sessions(unittest.TestCase):
                shown: placing.Shown | None = None,
                desktop: list[Window] | None = None,
                propose: frozenset[str] = frozenset(),
-               replace: frozenset[str] = frozenset()) -> session.Result:
+               replace: frozenset[str] = frozenset(),
+               halt: threading.Event | None = None) -> session.Result:
         """With `shown`, where the app's settings put its windows; with `desktop`, what the
         desktop says once the table is up."""
         wlr.reset_for_tests()
@@ -174,7 +175,7 @@ class _Sessions(unittest.TestCase):
         return session.Session(target, chosen, adapter=adapter, screens=screens,
                                found=found(), at_once=at_once, codec=settings.H264,
                                work=self.work, config=_config(rotation),
-                               kit=cabinet.kit(), placed=placed).run()
+                               kit=cabinet.kit(), placed=placed, halt=halt).run()
 
     def spawned(self, cabinet: Cabinet) -> list[str]:
         """The output each recorder was started on."""
@@ -394,6 +395,33 @@ class SessionTests(_Sessions):
                          (session.CLOSED, {"key": session.CLOSED_AT_CABINET, "params": {}}))
         self.assertEqual(cabinet.placed, [])
         self.assertFalse(cabinet.encodes())
+
+    def test_a_table_the_run_closed_is_stopped_and_keeps_nothing(self) -> None:
+        cabinet = Cabinet()
+        halt = threading.Event()
+
+        def run_stops() -> None:
+            halt.set()
+            cabinet.stop()
+
+        threading.Timer(0.05, run_stops).start()
+        result = self.record(cabinet, VIDEOS, chosen=Settings(**{**QUICK.__dict__, "wait": 5}),
+                             halt=halt)
+
+        self.assertEqual((result.state, result.placed, result.failed),
+                         (session.STOPPED, [], []))
+        self.assertFalse(cabinet.encodes())
+
+    def test_a_halt_while_the_table_starts_records_nothing(self) -> None:
+        cabinet = Cabinet()
+        halt = threading.Event()
+        halt.set()
+        cabinet.stopped.set()
+
+        result = self.record(cabinet, VIDEOS, halt=halt)
+
+        self.assertEqual(result.state, session.STOPPED)
+        self.assertFalse([one for one in cabinet.log if one[0] == "spawn"])
 
     def test_a_table_that_would_not_start_says_why(self) -> None:
         cabinet = Cabinet(refuses="No launcher plays this table")
