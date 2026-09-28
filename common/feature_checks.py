@@ -32,6 +32,8 @@ if TYPE_CHECKING:
 WHERE_SETTINGS = "settings"
 WHERE_LAUNCHERS = "launchers"
 WHERE_LOCATIONS = "locations"
+# Each is the Console's view key for that page.
+WHERES = (WHERE_SETTINGS, WHERE_LAUNCHERS, WHERE_LOCATIONS)
 
 # What each feature needs before it can do its job. These happen to be paths, which is not
 # a rule - a requirement is anything a feature cannot work without.

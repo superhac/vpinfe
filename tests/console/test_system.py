@@ -99,8 +99,14 @@ class NavTests(unittest.TestCase):
                         if parent == page.NAV_SYSTEM]
 
         self.assertEqual([key for key, *_rest in under_system[0]],
-                         ["settings", "devices", "extensions",
+                         ["settings", "locations", "devices", "extensions",
                           "metrics", "logs", "about"])
+
+    def test_library_folders_are_wherever_games_are_read(self) -> None:
+        """A frontend-only device reads games from folders of its own too."""
+        self.assertIn("locations", _rail([install_identity.FRONTEND]))
+        self.assertIn("locations", _rail([install_identity.LIBRARY]))
+        self.assertNotIn("locations", _rail([install_identity.DEVICES]))
 
     def test_what_the_frontend_owns_has_a_container_of_its_own(self) -> None:
         """The rule Library and this one make together: a feature with more than one

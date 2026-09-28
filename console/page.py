@@ -114,28 +114,24 @@ NAV_SYSTEM = ("system", "console.section.system", "settings")
 
 NAV_COMMUNITY = ("community", "console.section.community", "groups")
 
-# Which feature each destination answers for, `core` being the one every install has. An
-# install without a feature does not show its section at all - not greyed and not empty,
-# absent - because a section for something this machine is not for is a place with
-# nothing in it.
-NavItem = tuple[str, str, str, str]
+# Which feature each destination answers for, `core` being the one every install has, or
+# several, any one of which shows it. An install without a feature does not show its
+# section at all - not greyed and not empty, absent - because a section for something
+# this machine is not for is a place with nothing in it.
+NavItem = tuple[str, str, str, str | tuple[str, ...]]
 
 NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] = (
     (None, (("overview", "console.section.overview", "space_dashboard",
         install_identity.OVERVIEW),)),
     # Media sits with the grains of the library it is one of, ahead of the two that
-    # organize it rather than being part of it. Locations is last: it is where the rest
-    # comes from, but it is touched at setup and when a share breaks, and the first entry
-    # here is also the Console's front door.
+    # organize it rather than being part of it.
     (NAV_PARENT, (("games", "console.section.games", icons.GAMES, install_identity.LIBRARY),
                   ("tables", "console.section.tables", icons.TABLES, install_identity.LIBRARY),
                   ("media", "console.section.media", "perm_media", install_identity.LIBRARY),
                   ("assets", "console.section.assets", "widgets", install_identity.LIBRARY),
                   ("collections", "console.section.collections", "collections_bookmark",
                    install_identity.LIBRARY),
-                  ("tags", "console.section.tags", "sell", install_identity.LIBRARY),
-                  ("locations", "console.section.locations", "folder_open",
-                   install_identity.LIBRARY))),
+                  ("tags", "console.section.tags", "sell", install_identity.LIBRARY))),
     # Subjects, not settings: both are collections of objects with per-row actions,
     # which is not what a page of (label, value) pairs does. The frontend's *settings*
     # stay in Settings, the way media's do - one holds things, the other holds values.
@@ -147,6 +143,8 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] 
     # and this is where features are switched on. Ordered configuration, then what this
     # install knows about, then its records, then what it is.
     (NAV_SYSTEM, (("settings", "console.section.settings", "tune", install_identity.CORE),
+                  ("locations", "console.section.locations", "folder_open",
+                   (install_identity.LIBRARY, install_identity.FRONTEND)),
                   ("devices", "console.section.devices", "devices", install_identity.DEVICES),
                   ("extensions", "console.section.extensions", "extension",
                    install_identity.CORE),
@@ -169,6 +167,10 @@ class _Title(ui.column):
         return super().clear()
 
 
+def features_of(item: NavItem) -> tuple[str, ...]:
+    return item[3] if isinstance(item[3], tuple) else (item[3],)
+
+
 def nav_for(features: Any, community: tuple[NavItem, ...] = ()
             ) -> list[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]]]:
     """The rail this install has. A group whose entries have all gone goes with them -
@@ -181,7 +183,7 @@ def nav_for(features: Any, community: tuple[NavItem, ...] = ()
             or set(install_identity.FEATURES)) | {install_identity.CORE}
     out = []
     for parent, items in NAV_GROUPS:
-        kept = tuple(item for item in items if item[3] in held) \
+        kept = tuple(item for item in items if not held.isdisjoint(features_of(item))) \
             + (community if parent is NAV_COMMUNITY else ())
         if kept:
             out.append((parent, kept))
@@ -1300,33 +1302,23 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             elif view == "about":
                 about_page.build(library, state, redraw)
 
-    def mark_system() -> None:
-        """How much of this install's configuration is stopping a feature it has on.
-
-        On the container and on Settings under it, because a mark only on the child is
-        a mark nobody sees on a rail they have collapsed.
-        """
+    def mark_findings() -> None:
+        """What the enabled features are missing, on the entry whose page fixes it and on
+        the group holding that entry, because a mark only on the child is a mark nobody
+        sees on a rail they have collapsed."""
         items = state.get("trouble") or []
-        # Split by where the fix is: a launcher that cannot run is not fixed on a
-        # settings page, and a badge that leads to the wrong place is worse than none.
-        # Named rather than "everything that is not a launcher": a `where` added later
-        # would otherwise land on Settings by default, which is the wrong place by
-        # definition - it is somewhere else precisely because Settings cannot fix it.
-        at_settings = [one for one in items
-                       if one.where == feature_checks.WHERE_SETTINGS]
-        at_launchers = [one for one in items
-                        if one.where == feature_checks.WHERE_LAUNCHERS]
-        at_locations = [one for one in items
-                        if one.where == feature_checks.WHERE_LOCATIONS]
-        _mark_trouble(badges.get("system"), items)
-        _mark_trouble(badges.get("settings"), at_settings)
-        _mark_trouble(badges.get("launchers"), at_launchers)
-        _mark_trouble(badges.get("locations"), at_locations)
+        for parent, entries in nav_groups:
+            keys = {key for key, *_rest in entries} & set(feature_checks.WHERES)
+            for key in keys:
+                _mark_trouble(badges.get(key), [one for one in items if one.where == key])
+            if parent is not None:
+                _mark_trouble(badges.get(parent[0]),
+                              [one for one in items if one.where in keys])
 
     async def recheck_trouble() -> None:
         """For a write outside Settings that can mend or break a feature."""
         state["trouble"] = await offload.io(settings_page.local_trouble)
-        mark_system()
+        mark_findings()
 
     state["recheck_trouble"] = recheck_trouble
 
@@ -1343,11 +1335,15 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         if not items:
             return
         badge.text = str(len(items))
-        badge.tooltip(" ".join(dict.fromkeys(item.reason for item in items
-                                             if item.reason)))
+        # Inside the badge: this also runs from a background read, which has no page
+        # context to create the tooltip in.
+        with badge:
+            badge.clear()
+            badge.tooltip(" ".join(dict.fromkeys(item.reason for item in items
+                                                 if item.reason)))
 
     def redraw() -> None:
-        read_then_render(state, library, content, render, mark_system, light_nav)
+        read_then_render(state, library, content, render, mark_findings, light_nav)
 
     uploads.install()
     row_drag.install()
@@ -1405,7 +1401,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # Once the nav exists to carry it. Read on the way in with everything else, so an
     # install that is misconfigured says so on the first screen rather than on the
     # first visit to System.
-    mark_system()
+    mark_findings()
     # Nothing since the reads above yields - a pane with no subject draws without
     # waiting - so the shell and this go out in one message. A wait added in between
     # shows the shell under the loading screen.
@@ -1437,7 +1433,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
 
 
 def read_then_render(state: dict[str, Any], library: Library, content: ui.element,
-                     render: Callable[[], None], mark_system: Callable[[], None],
+                     render: Callable[[], None], mark_findings: Callable[[], None],
                      light: Callable[[], None]) -> None:
     """Light the view's rail row now, then render it, first reading anything it needs,
     with `content` busy from now until it is drawn: what it shows stays up, dimmed under
@@ -1448,14 +1444,14 @@ def read_then_render(state: dict[str, Any], library: Library, content: ui.elemen
     client refuses an HTTP call there.
     """
     light()
-    if state["view"] == "settings":
+    if state["view"] in ("settings", "locations"):
         # Asked again on every draw, which is when a path may just have been fixed - and
         # off the loop, because it stats the disk and a share that has gone away is
         # exactly the case this reports.
         async def read_trouble_then_draw() -> None:
             state["trouble"] = await offload.io(settings_page.local_trouble)
             render()
-            mark_system()
+            mark_findings()
         busy.start(content, read_trouble_then_draw)
         return
     if state["view"] == "extensions":

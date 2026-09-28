@@ -110,7 +110,7 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
         if reason:
             # The refusal leads, because it is the reason they are being asked at all.
             ui.label(reason).classes("console-help px-3")
-        panel.facts(ui, [(t("word.location"), panel.select(
+        panel.facts(ui, [(t("word.library_folder"), panel.select(
             {str(one.get("location_id") or ""): str(one.get("name") or one.get("path") or "")
              for one in offered},
             str(holds["id"]), lambda e: holds.__setitem__("id", str(e.value or ""))))])

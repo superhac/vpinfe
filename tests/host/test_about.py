@@ -52,7 +52,7 @@ class AboutTests(unittest.TestCase):
             facts = next(group["facts"] for group in about.details(refresh=True)
                          if group["heading"] == t("about.heading.locations"))
 
-        self.assertEqual([value for label, value in facts if label == t("about.fact.tables")],
+        self.assertEqual([value for label, value in facts if label == t("about.fact.library_folder")],
                          ["/games/first", "/games/one"])
 
     def test_it_is_read_once(self) -> None:
