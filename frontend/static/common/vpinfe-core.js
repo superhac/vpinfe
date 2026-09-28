@@ -399,6 +399,11 @@ const INTERNAL_METHODS = new Set([
   "take_picture",
   "resume_play",
   "stop_recording",
+  "recording_offer",
+  "record_media",
+  "switch_preview",
+  "decide_preview",
+  "end_preview",
 ]);
 
 // By the ids `common/host/frontend_browser.py` knows.
@@ -648,6 +653,10 @@ class VPinFECore {
   #recording = null;
   #recordingLine = null;
   #recordingText = null;
+
+  // A recording shown for a decision, as core last sent it, and what this window drew.
+  #preview = null;
+  #previewLayer = null;
 
   constructor() {
     this.tableData = {};
@@ -1443,6 +1452,10 @@ class VPinFECore {
     // the same path a keystroke reaches it.
     if (message.type === "InputAction") {
       if (this.isController()) this.#applyRemoteInput(message);
+      return;
+    }
+    if (message.type === "ProposalPreview") {
+      this.#showPreview(message.preview || null);
       return;
     }
     if (message.type === "LifecycleActing") {
@@ -2816,6 +2829,7 @@ class VPinFECore {
       else if (action === "back" || action === "exit") this.#pendingConfirm(false);
       return;
     }
+    if (this.#preview && this.isController()) return this.#answerPreview(action);
     // A dialog owns the actions while it is up: nothing reaches the menu behind it, and
     // nothing opens an overlay on top of it.
     if (this.inputMode === "modal" && !["select", "back", "previous", "next"].includes(action)) {
@@ -2966,12 +2980,7 @@ class VPinFECore {
     if (!element || !this.enabled("core_layout")) return;
 
     const measure = () => {
-      const wide = (element.naturalWidth || element.videoWidth || 0)
-                 > (element.naturalHeight || element.videoHeight || 0);
-      const fits = wide === (this.layout.surface === "landscape");
-      // The setting arrives as a string, so it is coerced before it is compared.
-      const stated = String(this.playfieldMediaRotation ?? "auto").trim().toLowerCase();
-      const turn = stated === "auto" ? (fits ? 0 : 90) : Number(stated) || 0;
+      const turn = this.#playfieldTurn(element);
       element.dataset.vpinfeTurned = String(turn === 90 || turn === 270);
       element.style.setProperty("--vpinfe-playfield-media-rotation", `${turn}deg`);
     };
@@ -2979,6 +2988,16 @@ class VPinFECore {
     if (element.naturalWidth || element.videoWidth) measure();
     else element.addEventListener("load", measure, { once: true });
     element.addEventListener("loadedmetadata", measure, { once: true });
+  }
+
+  // Degrees to turn a loaded playfield picture or video so it fills the surface.
+  #playfieldTurn(element) {
+    const wide = (element.naturalWidth || element.videoWidth || 0)
+               > (element.naturalHeight || element.videoHeight || 0);
+    const fits = wide === (this.layout.surface === "landscape");
+    // The setting arrives as a string, so it is coerced before it is compared.
+    const stated = String(this.playfieldMediaRotation ?? "auto").trim().toLowerCase();
+    return stated === "auto" ? (fits ? 0 : 90) : Number(stated) || 0;
   }
 
   /** The window's own shape. Read before any transform, so it is the untouched box. */
@@ -3250,6 +3269,110 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
                { at: Number(run.done) + 1, of: run.of })
       : this.t("frontend.recording.line", "Recording “{game}”",
                { game: run.game?.name || "" });
+  }
+
+  // What each button does while a recording is shown for a decision. Core decides; the
+  // page only asks.
+  static PREVIEW_ANSWERS = {
+    previous: ["switch_preview", "before"],
+    next: ["switch_preview", "after"],
+    select: ["decide_preview", true],
+    back: ["decide_preview", false],
+    exit: ["end_preview"],
+  };
+
+  async #answerPreview(action) {
+    const answer = VPinFECore.PREVIEW_ANSWERS[action];
+    if (!answer) return;
+    try {
+      await this.callInternal(...answer);
+    } catch (err) {
+      this.call("console_out", `Preview: ${err.message}`);
+    }
+  }
+
+  // Drawn by the window whose screen the recording's kind belongs on, or the controller
+  // where the theme has none; the controller says which it is and what the buttons do.
+  #showPreview(preview) {
+    this.#previewLayer?.remove();
+    this.#previewLayer = null;
+    this.#preview = preview && preview.proposal ? preview : null;
+    if (!this.#preview) return;
+    if (this.isController() && this.overlay) this.#toggleOverlay(this.overlay);
+
+    const kind = String(preview.kind || "");
+    const screen = kind === "audio" ? "" : kind.replace(/_video$/, "");
+    const held = !!screen && this.windows.some((name) => this.#canonicalKind(name) === screen);
+    const mine = held ? this.windowMediaKind === screen : this.isController();
+    if (!mine && !this.isController()) return;
+
+    const showing = preview.showing === "before" ? "before" : "after";
+    const side = showing === "before" ? this.t("frontend.preview.before", "Before")
+      : this.t("frontend.preview.after", "After");
+    const layer = document.createElement("div");
+    layer.className = "vpinfe-preview";
+    layer.setAttribute("data-shows", mine && kind !== "audio" ? "media" : "words");
+    const surface = document.createElement("div");
+    surface.className = "vpinfe-preview-surface";
+    const turn = this.layout.uprightRotation || 0;
+    surface.setAttribute("data-upright", String(turn));
+    surface.style.transform = `translate(-50%, -50%) rotate(${turn}deg)`;
+    layer.appendChild(surface);
+    if (mine) surface.appendChild(this.#previewMedia(preview, showing, screen));
+
+    const words = document.createElement("div");
+    words.className = this.isController() ? "vpinfe-preview-bar" : "vpinfe-preview-tag";
+    const title = document.createElement("p");
+    title.className = "vpinfe-preview-title";
+    title.textContent = this.isController()
+      ? this.t("frontend.preview.title", "{kind} - {showing}",
+               { kind: preview.label || kind, showing: side })
+      : side;
+    words.appendChild(title);
+    if (this.isController()) {
+      const hint = document.createElement("p");
+      hint.className = "vpinfe-preview-hint";
+      hint.textContent = this.t("frontend.preview.hint",
+                                "Left and Right to compare, Select to keep, Back to discard");
+      words.appendChild(hint);
+    }
+    surface.appendChild(words);
+    document.body.appendChild(layer);
+    this.#previewLayer = layer;
+  }
+
+  #previewMedia(preview, showing, screen) {
+    const kind = String(preview.kind);
+    const game = `${this.endpoints.library}/api/v1/games/${encodeURIComponent(preview.game_id)}`;
+    const table = preview.table_id ? `/tables/${encodeURIComponent(preview.table_id)}` : "";
+    const url = showing === "after"
+      ? `${this.endpoints.device}/api/v1/capture/proposals/`
+        + `${encodeURIComponent(preview.proposal)}/file`
+      : (preview.before ? `${game}${table}/media/${encodeURIComponent(kind)}` : null);
+    if (!url) {
+      const missing = document.createElement("p");
+      missing.className = "vpinfe-preview-missing";
+      missing.textContent = this.t("frontend.preview.missing", "Missing");
+      return missing;
+    }
+    const tag = kind === "audio" ? "audio" : kind.endsWith("_video") ? "video" : "img";
+    const media = document.createElement(tag);
+    media.className = "vpinfe-preview-media";
+    if (tag !== "img") {
+      Object.assign(media, { autoplay: true, loop: true, playsInline: true,
+                             muted: tag === "video" });
+    }
+    if (screen === "playfield" && tag !== "audio") {
+      const measure = () => {
+        const turn = this.#playfieldTurn(media);
+        media.setAttribute("data-turned", String(turn === 90 || turn === 270));
+        media.style.transform = `translate(-50%, -50%) rotate(${turn}deg)`;
+      };
+      media.addEventListener("load", measure, { once: true });
+      media.addEventListener("loadedmetadata", measure, { once: true });
+    }
+    media.src = url;
+    return media;
   }
 
   // override console and send them to the python console instead

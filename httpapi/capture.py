@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 
 from common import events
 from common.capture import preflight, proposals, run, trial
+from common.host import frontend_state
 
 from . import jobs as jobs_api
 from . import models, scopes
@@ -106,7 +107,9 @@ def get_proposal_file(proposal_id: str) -> FileResponse:
              dependencies=[requires(scopes.CAPTURE_RUN)])
 def decide_proposal(proposal_id: str,
                     body: models.CaptureProposalUse) -> models.CaptureProposalUsed:
-    return models.CaptureProposalUsed.model_validate(proposals.decide(proposal_id, body.use))
+    decided = proposals.decide(proposal_id, body.use)
+    frontend_state.decided(proposal_id)
+    return models.CaptureProposalUsed.model_validate(decided)
 
 
 @router.delete("/proposals", summary="Throw away every recording waiting",

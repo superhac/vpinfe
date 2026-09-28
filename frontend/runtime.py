@@ -22,7 +22,7 @@ from common.extensions import services as ext_services
 from common.games import remote_library
 from common.host import key_reader, system_actions
 from common.host.display_service import get_display_monitors
-from frontend import ext_data, input_events, library_resolver, play_events, showing
+from frontend import ext_data, input_events, library_resolver, play_events, preview, showing
 from frontend.api import API
 from frontend.chromium_manager import ChromiumManager
 from frontend.custom_http_server import CustomHTTPServer
@@ -86,6 +86,7 @@ def create_api_instances(iniconfig: ConfigStore,
     key_reader.register()
     freeze.register()
     showing.register(ws_bridge, shared_library)
+    preview.register(ws_bridge)
     # What extensions add to an entry, fetched by core when the wheel stops. Given the
     # bridge's own send rather than a bridge of its own, so one answer reaches every
     # window as one message.

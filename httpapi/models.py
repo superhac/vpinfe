@@ -403,13 +403,26 @@ class FrontendGame(ApiModel):
     links: FrontendGameLinks | None = None
 
 
+class FrontendPreview(ApiModel):
+    """A recording waiting for a decision, shown in place: `showing` is `before`, the
+    file serving its slot now, or `after`, the recording."""
+
+    proposal: str
+    showing: Literal["before", "after"]
+    kind: str
+    table_id: str
+    game: FrontendGame
+
+
 class FrontendState(ApiModel):
     """Also the `state` of the `frontend.state_changed` event. `collection` is "" for
-    the whole library, and `game` is null when nothing is on the wheel."""
+    the whole library, `game` is null when nothing is on the wheel, and `preview` null
+    when no recording is shown for a decision."""
 
     running: bool
     collection: str
     game: FrontendGame | None
+    preview: FrontendPreview | None = None
 
 
 class FrontendBrowserFix(ApiModel):
@@ -445,6 +458,11 @@ class ShowCollectionRequest(ApiModel):
 
 class MoveWheelRequest(ApiModel):
     id: str
+
+
+class ShowPreviewRequest(ApiModel):
+    proposal: str
+    showing: Literal["before", "after"] = "after"
 
 
 # --- Players ---------------------------------------------------------------

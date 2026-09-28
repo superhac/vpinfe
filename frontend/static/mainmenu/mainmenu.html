@@ -9,13 +9,16 @@
 
 <body>
   <div id="menu-container">
+    <div class="menu-title" id="menu-heading" hidden></div>
     <ul class="menu" id="menu">
       <li class="menu-item" id="rating-item" data-i18n="word.rating">Rating</li>
+      <li class="menu-item" id="record-item" style="display: none;"></li>
       <li class="menu-item" id="audio-item" data-i18n="frontend.mainmenu.frontend_audio_2">Frontend Audio: On</li>
       <li class="menu-item" id="buildmeta-item" data-i18n="frontend.mainmenu.build_metadata">Build Metadata</li>
       <li class="menu-item" id="shutdown-item" data-i18n="frontend.mainmenu.shutdown">Shutdown</li>
       <li class="menu-item" id="quit-item" data-i18n="frontend.mainmenu.quit">Quit</li>
     </ul>
+    <p class="menu-note" id="menu-note" hidden></p>
     <div id="menu-qr-panels" aria-live="polite" hidden>
       <div class="menu-qr-panel" id="remote-qr-panel">
         <div class="menu-qr-label" data-i18n="frontend.mainmenu.remote">Remote</div>

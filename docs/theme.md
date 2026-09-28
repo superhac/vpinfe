@@ -375,6 +375,11 @@ the top of the controller window, *Recording media - 3 of 24*, turned to face th
 and hides it while each table is up. It is not an overlay and takes no input; a theme does
 nothing for it. Exit asks *Stop recording?* for as long as the run goes.
 
+The main menu offers **Record Missing Media** or **Record Media** for the game on the wheel
+where the device can record, and a recording kept for a decision is shown in place over
+your windows, on the screen it belongs to, until the player keeps it or throws it away.
+Core draws both and owns the buttons while they are up.
+
 #### Optional HTML Elements
 
 | Element | Purpose |
@@ -1020,6 +1025,7 @@ window.receiveEvent = (message) => {
 ```
 | `RemoteLaunching` | `game_name`, `table_name` | The manager UI triggered a remote game launch. Both names carry the same value; `table_name` is the 2.x spelling. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. Not sent for a launch that records a table's media: `TableLaunching` arrives for it, as for every launch, and core says what is happening itself (see Overlays). |
 | `RemoteLaunchComplete` | — | The remote-launched game has exited and frontend input routing is restored. Hide the overlay. |
+| `ProposalPreview` | `preview` | Core's own. A recording waiting for a decision is shown over your windows, and core takes the input until it is decided; `vpin.handleEvent()` draws it and your registered handlers never see it. Nothing for a theme to do. |
 | `TableDataChange` | `index`, `collection?`, `filters?`, `sort?` | Game data changed (collection switch, filter/sort update, a finished game's play data, a Manager UI edit). Handled automatically by `vpin.handleEvent()`. |
 
 `TableDataChange` also arrives unprompted: when a game exits, and when the Manager UI

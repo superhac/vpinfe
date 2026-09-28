@@ -44,7 +44,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/events` | Subscribe to the event stream (SSE). `?events=` filters by name |
 | GET | `/api/v1/play/state` | What this play host is doing. The snapshot you take once; `play.state_changed` on the stream is how you hear about it after that |
 | POST | `/api/v1/play/stop` | Close the table this play host is running. `stopped` is false when there was nothing to close, which is an answer rather than a failure |
-| GET | `/api/v1/frontend/state` | What the frontend is showing: whether it is up, its collection and the game on the wheel. `frontend.state_changed` on the stream carries the same after every change |
+| GET | `/api/v1/frontend/state` | What the frontend is showing: whether it is up, its collection, the game on the wheel and any recording shown for a decision. `frontend.state_changed` on the stream carries the same after every change |
 | GET | `/api/v1/frontend/browser` | What this device's frontend browser can play, and how to fix what it cannot. `state` is `unknown` until the frontend has reported since this browser was chosen |
 | GET | `/api/v1/capture` | What this device can record of its own screens, and exactly why not. See [Recording](#recording) |
 | POST | `/api/v1/capture/plan` | What recording games or tables would fill and replace, by whose file, and about how long it takes. Nothing happens |
@@ -61,6 +61,8 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/capture/runs/current/discard` | Forget a paused run, the same act as Stop on one that is going |
 | PUT | `/api/v1/frontend/collection` | Show a collection on the frontend, `""` being the whole library. 202, and the switch arrives as the next `frontend.state_changed`. 409 when the frontend is not running, or when this install reads its library from another that cannot be reached; 404 when there is no collection by that name |
 | PUT | `/api/v1/frontend/game` | Move the frontend's wheel to a game. 202; 409 when the frontend is not running, 404 when the collection on screen does not hold that game |
+| PUT | `/api/v1/frontend/preview` | Show a recording waiting for a decision where it plays on the cabinet, `{"proposal": id, "showing": "before" or "after"}`. 202; 404 when there is no such proposal, 409 when the frontend is not running or a table is |
+| DELETE | `/api/v1/frontend/preview` | Stop showing it, deciding nothing. 202, whether or not one was on show |
 | POST | `/api/v1/input/actions` | Press, hold or release an input action on this install — the door a remote drives the frontend through |
 | GET | `/api/v1/input/play` | Whether this device can press keys into a running table and hear them from outside the frontend, and why not |
 | GET | `/api/v1/update` | Whether a newer build is published, and whether this install can take it. `update_supported` is the second question, and `support_reason` says which case it is. Answered from the last check while it is under a day old, or under an hour after a failed one; `refresh=true` asks GitHub now, unless GitHub has said to wait. `checked_at` is when a check last succeeded, null if none has, and `error` is set when the last attempt failed |
@@ -794,7 +796,8 @@ anyone chose it. The expiry stops a lost release becoming a runaway; it doesn't 
 ```
 {"running": true, "collection": "Friday Night",
  "game": {"id": "a1b2c3d4e5f6", "name": "Medieval Madness",
-          "links": {"self": "/api/v1/games/a1b2c3d4e5f6"}}}
+          "links": {"self": "/api/v1/games/a1b2c3d4e5f6"}},
+ "preview": null}
 ```
 
 - `running` is whether a frontend window is up. When none is, the rest is empty.
@@ -803,6 +806,7 @@ anyone chose it. The expiry stops a lost release becoming a runaway; it doesn't 
   is `""` then too.
 - `game` is the one on the wheel, a reference like the event stream's, and null when
   nothing is: an empty collection, or a wheel that has not reported yet.
+- `preview` is the recording the windows show for a decision, below, and null when none is.
 
 The state is what the frontend reports. It holds for any theme that moves its wheel with
 core's `TableIndexUpdate`, which every published theme does; a theme that keeps its
@@ -814,6 +818,25 @@ apply it the way they apply core's own collection picker, and the result is the 
 `frontend.state_changed` - read that rather than assuming the switch happened, since a
 theme that handles its own messages may not follow. Both carry `input:act`, because
 switching what is on screen is acting as the player; the read carries `play:read`.
+
+`PUT /api/v1/frontend/preview` with `{"proposal": id, "showing": "after"}` shows a
+recording waiting for a decision (see Proposals) in place, looping: the window that shows
+its kind's screen plays it - the backglass window a backglass video - and the controller
+window, which takes the buttons, says which kind it is and which side. `showing` is
+`after`, the recording, or `before`, the file serving its slot now; `after` when left out.
+`DELETE` ends it and decides nothing. While one is on show the state carries it:
+
+```
+"preview": {"proposal": "3f9c0a1b2c4d", "showing": "after", "kind": "backglass_video",
+            "table_id": "", "game": {"id": "6f1c9a4e...", "name": "Attack from Mars",
+                                     "links": {"self": "/api/v1/games/6f1c9a4e..."}}}
+```
+
+At the cabinet left and right show `before` and `after`, select uses the recording and back
+throws it away, as `POST /capture/proposals/{id}` does. `preview` then goes back to null, and
+the proposal is gone from `GET /capture/proposals`. So does a decision made through that
+route anywhere while the proposal is on show. A recording the frontend's own main menu
+started, which leaves proposals, shows each of them in turn once it ends.
 
 `game.selected` stays beside it for a different reader. It fires as the wheel stops and is
 how in-process handlers - DOF, an extension's data - hear about it. `frontend.state_changed`
@@ -1117,7 +1140,7 @@ What's on it, each alongside the `install_id` described below:
 | `game.changed` | `{"game": {"id", "name", "links"}}` — a game's metadata was rewritten, so anything holding it is stale |
 | `collections.changed` | `{}` — the collections were edited, or a read of a Community list moved a ranked order; re-read them |
 | `play.state_changed` | `{"state": {"launching", "game_name", "source", "paused"}}` — `paused` while the running table has paused itself, as Take Picture pauses it |
-| `frontend.state_changed` | `{"state": {"running", "collection", "game"}}`, `game` a reference like the others or null. The same as `GET /frontend/state` |
+| `frontend.state_changed` | `{"state": {"running", "collection", "game", "preview"}}`, `game` a reference like the others or null, `preview` the recording shown for a decision or null. The same as `GET /frontend/state` |
 | `players.changed` | `{"state": {"players": [...]}}` - somebody joined, left, was renamed or went up. The whole list, the same as `GET /players` |
 | `job.progress` | `{"job_id", "pct", "message"}` |
 | `job.done` | `{"job_id"}` |

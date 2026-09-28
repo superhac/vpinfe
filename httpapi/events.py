@@ -102,7 +102,11 @@ def _game_reference(game_id: str, name: str) -> dict:
 def frontend_event(state: dict) -> dict:
     """`frontend.state_changed`, and the snapshot and read that answer the same."""
     game = state.get("game")
-    return {"state": state | {"game": game and _game_reference(game["id"], game["name"])}}
+    shown = state.get("preview")
+    if shown:
+        shown = shown | {"game": _game_reference(shown["game"]["id"], shown["game"]["name"])}
+    return {"state": state | {"game": game and _game_reference(game["id"], game["name"]),
+                              "preview": shown}}
 
 
 def _job_event(**payload: Any) -> dict:

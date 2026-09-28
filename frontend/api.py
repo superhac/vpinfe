@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from common import events, lifecycle
 from common.capture import freeze
+from common.capture import preflight as capture_preflight
 from common.capture import run as capture_run
 from common.config_access import cfg_get
 from common.deprecations import announce
@@ -35,6 +36,7 @@ from common.games.game_metadata import game_rating, normalize_meta, set_game_rat
 from common.games.game_repository import all_games
 from common.host import frontend_browser, frontend_state, launch, launch_state
 from common.host.display_service import monitors_as_dicts
+from common.i18n import t
 from common.service_errors import NotFoundError, ServiceError
 from frontend import (
     config_api,
@@ -43,6 +45,7 @@ from frontend import (
     last_game,
     lifecycle_host,
     metadata_build_service,
+    preview,
     theme_api,
     theme_windows,
 )
@@ -164,6 +167,13 @@ API_INTERNAL_METHODS = {
     # Exit's Stop recording? on the cabinet. A theme calling it would end a recording
     # run nobody at the cabinet asked to end.
     'stop_recording',
+    # The main menu's Record Media, and the buttons' answers to a recording shown for a
+    # decision. A theme calling them would record, replace or throw away media.
+    'recording_offer',
+    'record_media',
+    'switch_preview',
+    'decide_preview',
+    'end_preview',
 }
 
 
@@ -684,6 +694,59 @@ class API:
             return {"run": capture_run.stop()}
         except NotFoundError:
             return {"run": None}
+
+    def recording_offer(self, index: Any) -> dict[str, Any]:
+        """The main menu's Record item for the game at `index`: its label and the
+        choices under it, or {} where this device records nothing for it."""
+        entry = self.entry_at(index)
+        game = entry.game if entry is not None else None
+        if game is None:
+            return {}
+        report = capture_preflight.report(probe_hardware=False)
+        if not report["available"]:
+            return {}
+        game_id = game_identity.game_id(game)
+        try:
+            planned = capture_run.plan(capture_run.Request(games=[game_id]), report)
+        except ServiceError:
+            logger.exception("Could not plan a recording of %s", game.game_dir_name)
+            return {}
+        open_kinds = [kind for kind in planned["kinds"] if not kind["reason"]]
+        missing = any(kind["missing"] for kind in open_kinds)
+        choices = ([{"existing": capture_run.FILL,
+                     "label": t("frontend.mainmenu.missing_only")}] if missing else []) + \
+            ([{"existing": capture_run.CHOOSE, "label": t("frontend.mainmenu.replace")}]
+             if any(kind["have"] for kind in open_kinds) else [])
+        if not choices:
+            return {}
+        return {"game_id": game_id, "choices": choices,
+                "label": t("frontend.mainmenu.record_missing_media" if missing
+                           else "frontend.mainmenu.record_media")}
+
+    def record_media(self, index: Any, existing: str) -> dict[str, Any]:
+        """Record the game at `index` with this device's settings: its empty slots, or
+        every slot with each file there kept for a decision."""
+        entry = self.entry_at(index)
+        if entry is None or entry.game is None or existing not in (capture_run.FILL,
+                                                                   capture_run.CHOOSE):
+            return {}
+        job = capture_run.start(capture_run.Request(
+            games=[game_identity.game_id(entry.game)], existing=existing))
+        preview.follow(job.id)
+        return {"job_id": job.id}
+
+    def switch_preview(self, showing: str) -> dict[str, Any]:
+        """Left and right on a recording shown for a decision."""
+        return preview.switch(str(showing))
+
+    def decide_preview(self, use: Any) -> dict[str, Any]:
+        """Select keeps the recording on show, Back throws it away."""
+        return preview.decide(bool(use))
+
+    def end_preview(self) -> dict[str, Any]:
+        """Exit leaves the recordings on show waiting."""
+        preview.end()
+        return {}
 
     def console_out(self, output: Any, frame: str = "") -> Any:
         """A line from the browser. `frame` names an overlay within this window.

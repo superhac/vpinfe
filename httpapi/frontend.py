@@ -49,5 +49,19 @@ def move_wheel(body: models.MoveWheelRequest) -> Response:
     return Response(status_code=202)
 
 
+@router.put("/preview", summary="Show a recording waiting for a decision, in place",
+            status_code=202, dependencies=[requires(scopes.INPUT_ACT)])
+def show_preview(body: models.ShowPreviewRequest) -> Response:
+    frontend_state.preview(body.proposal, body.showing)
+    return Response(status_code=202)
+
+
+@router.delete("/preview", summary="Stop showing a recording", status_code=202,
+               dependencies=[requires(scopes.INPUT_ACT)])
+def end_preview() -> Response:
+    frontend_state.end_preview()
+    return Response(status_code=202)
+
+
 def declare_snapshots() -> None:
     declare_snapshot(events.FRONTEND_STATE_CHANGED, _state)

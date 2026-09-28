@@ -1467,6 +1467,17 @@ it asks in place of quitting while a run is going. Refused to themes, like
 with VPinFE. Covered by `tests/js/recording.test.js`, `tests/js/remote-launch.test.js`,
 `tests/js/internal-methods.test.js` and `tests/invariants/test_theme_api_surface.py`.
 
+**PAR-101 - The main menu records the game on the wheel, and the cabinet judges the result.**
+Five WebSocket methods, refused to themes like `get_paging_state`: `recording_offer` and
+`record_media` are the main menu's Record item and its two choices; `switch_preview`,
+`decide_preview` and `end_preview` are the buttons' answers while a recording kept for a
+decision is shown. That showing arrives as a `ProposalPreview` window message, which
+`vpin.handleEvent()` draws and does not hand to a theme's registered handlers. Nothing a
+theme reads changes.
+*Why:* the gap is noticed at the cabinet, and the playfield is the best place to judge a
+playfield video. Covered by `tests/js/preview.test.js`, `tests/js/internal-methods.test.js`,
+`tests/theming/test_frontend_recording.py` and `tests/invariants/test_theme_api_surface.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

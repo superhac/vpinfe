@@ -1,5 +1,5 @@
-"""What this device's frontend is showing: whether it is up, the collection, and the game
-on the wheel.
+"""What this device's frontend is showing: whether it is up, the collection, the game on
+the wheel, and a recording shown in place for a decision.
 
 Every change is announced as `frontend.state_changed`. The frontend reports and this
 only holds what it last said, so a request to show something is answered by the next
@@ -10,13 +10,34 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from common import events
 from common.i18n import t
 from common.service_errors import BlockedError
 
 _lock = threading.Lock()
+
+BEFORE = "before"
+AFTER = "after"
+
+
+@dataclass(frozen=True)
+class Preview:
+    """A recording waiting for a decision, on show: `showing` is `before`, the file
+    serving its slot now, or `after`, the recording."""
+
+    proposal: str
+    showing: str
+    kind: str
+    table_id: str
+    game_id: str
+    game_name: str
+
+    def as_dict(self) -> dict:
+        return {"proposal": self.proposal, "showing": self.showing, "kind": self.kind,
+                "table_id": self.table_id,
+                "game": {"id": self.game_id, "name": self.game_name}}
 
 
 @dataclass(frozen=True)
@@ -25,16 +46,20 @@ class FrontendState:
     collection: str = ""
     game_id: str = ""
     game_name: str = ""
+    preview: Preview | None = None
 
     def as_dict(self) -> dict:
         game = ({"id": self.game_id, "name": self.game_name}
                 if self.game_id or self.game_name else None)
-        return {"running": self.running, "collection": self.collection, "game": game}
+        return {"running": self.running, "collection": self.collection, "game": game,
+                "preview": self.preview.as_dict() if self.preview else None}
 
 
 _state = FrontendState()
 _show: Callable[[str], None] | None = None
 _move_to: Callable[[str], None] | None = None
+_present: Callable[[str | None, str], None] | None = None
+_gone: Callable[[str], None] | None = None
 
 
 def current() -> FrontendState:
@@ -62,7 +87,13 @@ def started(collection: str) -> FrontendState:
 
 def showing(collection: str, game_id: str = "", game_name: str = "") -> FrontendState:
     """The wheel stopped on this game in this collection, or on nothing."""
-    return _change(lambda _now: FrontendState(True, collection, game_id, game_name))
+    return _change(lambda now: FrontendState(True, collection, game_id, game_name,
+                                             now.preview))
+
+
+def previewing(preview: Preview | None) -> FrontendState:
+    """The windows show this recording, or none."""
+    return _change(lambda now: replace(now, preview=preview))
 
 
 def stopped() -> FrontendState:
@@ -74,6 +105,15 @@ def register_driver(show: Callable[[str], None], move_to: Callable[[str], None])
     that does not exist, `move_to` for a game the collection on screen does not hold."""
     global _show, _move_to
     _show, _move_to = show, move_to
+
+
+def register_preview(present: Callable[[str | None, str], None],
+                     gone: Callable[[str], None]) -> None:
+    """How a recording reaches the windows. `present` shows a proposal, raising
+    NotFoundError where there is none by that id, or with None ends what is on show;
+    `gone` hears that a proposal was decided elsewhere."""
+    global _present, _gone
+    _present, _gone = present, gone
 
 
 def _driver() -> tuple[Callable[[str], None], Callable[[str], None]]:
@@ -92,8 +132,29 @@ def move_to(game_id: str) -> None:
     _driver()[1](game_id)
 
 
+def preview(proposal_id: str, showing: str = AFTER) -> None:
+    """Ask the windows to show a proposal in place."""
+    if _present is None or not current().running:
+        raise BlockedError(t("error.frontend.not_running"))
+    _present(proposal_id, showing)
+
+
+def end_preview() -> None:
+    """Ask the windows to stop showing a proposal. Nothing on show is not a failure."""
+    if _present is not None and current().preview is not None:
+        _present(None, AFTER)
+
+
+def decided(proposal_id: str) -> None:
+    """A proposal was used or thrown away; the windows move past it if it is on show."""
+    shown = current().preview
+    if _gone is not None and shown is not None and shown.proposal == proposal_id:
+        _gone(proposal_id)
+
+
 def reset_for_tests() -> None:
-    global _state, _show, _move_to
+    global _state, _show, _move_to, _present, _gone
     with _lock:
         _state = FrontendState()
     _show = _move_to = None
+    _present = _gone = None

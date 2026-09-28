@@ -27,15 +27,20 @@ describe("vpin.call refuses core's own methods", () => {
     assert.deepEqual([...internal].sort(), [
       "apply_filters",
       "apply_sort",
+      "decide_preview",
+      "end_preview",
       "get_collection_picker_items",
       "get_current_filter_state",
       "get_current_order_state",
       "get_current_sort_state",
       "get_paging_state",
       "keep_filter_collection",
+      "record_media",
+      "recording_offer",
       "report_browser",
       "resume_play",
       "stop_recording",
+      "switch_preview",
       "take_picture",
     ]);
   });

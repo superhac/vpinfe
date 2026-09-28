@@ -31,6 +31,12 @@ let menuConfigLoaded = false;
 let relayoutTimer = null;
 let remoteQrLoaded = false;
 let vpinplayMultiQrLoaded = false;
+// recording_offer's last answer, or null; whether its choices are the list on screen;
+// and a count so a late answer for another game is dropped.
+let recordOffer = null;
+let choosing = false;
+let recordStarting = false;
+let offerSeq = 0;
 
 window.parent.vpin.registerOverlayHandler("menu", handleInput);
 
@@ -53,11 +59,13 @@ window.addEventListener('message', async (event) => {
     updateMenu();
     refreshRatingMenuLabel(currentGameIndex);
     refreshAudioMenuLabel();
+    loadRecordOffer();
     scheduleMenuRelayout();
     return;
   }
 
   if (message.event === 'reset state') {
+    leaveRecordChoices();
     menu = navigable();
     await applyMainMenuConfig();
     updateMenu();
@@ -77,6 +85,7 @@ window.addEventListener('message', async (event) => {
     ) {
       currentGameIndex = Math.floor(ev.index);
       refreshRatingMenuLabel(currentGameIndex);
+      loadRecordOffer();
     }
   }
 });
@@ -315,6 +324,11 @@ function handleInput(input) {
     return;
   }
 
+  if (choosing) {
+    handleChoiceInput(input);
+    return;
+  }
+
   if (dialogState === 'progress') {
     if (input === 'back' || input === 'select') {
       const closeBtn = document.getElementById('buildmeta-close');
@@ -351,6 +365,9 @@ function handleInput(input) {
         toggleAudioMute();
       } else if (selectedItem.id === 'buildmeta-item') {
         showBuildMetaDialog();
+      } else if (selectedItem.id === 'record-item' && recordOffer) {
+        showRecordChoices();
+        return;
       }
       break;
     }
@@ -359,6 +376,114 @@ function handleInput(input) {
       break;
   }
   updateMenu();
+}
+
+// Hidden where this device records nothing for the game; its label says whether the
+// game lacks anything, and its choices are the ones that would do something.
+async function loadRecordOffer() {
+  const item = document.getElementById('record-item');
+  if (!item) return;
+  const asked = ++offerSeq;
+  let offer = null;
+  try {
+    offer = await window.parent.vpin.callInternal('recording_offer', currentGameIndex);
+  } catch (_e) {
+    offer = null;
+  }
+  if (asked !== offerSeq || choosing) return;
+  recordOffer = offer && offer.label && Array.isArray(offer.choices) && offer.choices.length
+    ? offer : null;
+  item.textContent = recordOffer ? recordOffer.label : '';
+  // The answer can land after a press has moved the cursor, so the item under it stays
+  // under it rather than the one that took its place.
+  const selected = menu ? menu.current : null;
+  item.style.display = recordOffer ? '' : 'none';
+  menu = null;
+  rebuildMenuItems();
+  const at = selected ? menu.items.indexOf(selected) : -1;
+  if (at >= 0) menu.moveTo(at);
+  updateMenu();
+  scheduleMenuRelayout();
+}
+
+// The same list, holding the choices under the item's name.
+function showRecordChoices() {
+  const list = document.getElementById('menu');
+  for (const choice of recordOffer.choices) {
+    const item = document.createElement('li');
+    item.className = 'menu-item record-choice';
+    item.dataset.existing = choice.existing;
+    item.textContent = choice.label;
+    list.appendChild(item);
+  }
+  list.classList.add('choosing');
+  const heading = document.getElementById('menu-heading');
+  heading.textContent = recordOffer.label;
+  heading.hidden = false;
+  choosing = true;
+  menu = null;
+  updateMenu();
+  scheduleMenuRelayout();
+}
+
+function leaveRecordChoices(backTo = null) {
+  document.querySelectorAll('.record-choice').forEach((item) => item.remove());
+  document.getElementById('menu')?.classList.remove('choosing');
+  for (const id of ['menu-heading', 'menu-note']) {
+    const element = document.getElementById(id);
+    if (element) {
+      element.hidden = true;
+      element.textContent = '';
+    }
+  }
+  const was = choosing;
+  choosing = false;
+  recordStarting = false;
+  if (!was) return;
+  menu = null;
+  rebuildMenuItems();
+  const at = backTo ? menu.items.indexOf(backTo) : -1;
+  if (at >= 0) menu.moveTo(at);
+  updateMenu();
+  scheduleMenuRelayout();
+}
+
+function handleChoiceInput(input) {
+  switch (input) {
+    case 'page_previous':
+    case 'previous':
+      menu.moveBy(-1);
+      break;
+    case 'page_next':
+    case 'next':
+      menu.moveBy(1);
+      break;
+    case 'select':
+      startRecording(menu.current);
+      return;
+    case 'back':
+      leaveRecordChoices(document.getElementById('record-item'));
+      return;
+  }
+  updateMenu();
+}
+
+async function startRecording(choice) {
+  if (recordStarting || !choice || !choice.dataset.existing) return;
+  recordStarting = true;
+  try {
+    await window.parent.vpin.callInternal('record_media', currentGameIndex,
+                                          choice.dataset.existing);
+  } catch (err) {
+    const note = document.getElementById('menu-note');
+    note.textContent = (err && err.message) || '';
+    note.hidden = !note.textContent;
+    recordStarting = false;
+    scheduleMenuRelayout();
+    return;
+  }
+  leaveRecordChoices();
+  window.parent.vpin.toggleOverlay('menu');
 }
 
 function handleDialogInput(input) {

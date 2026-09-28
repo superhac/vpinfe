@@ -260,3 +260,109 @@ html[data-vpinfe-launching] body {
 @keyframes vpinfe-recording-pulse {
   50% { opacity: 0.3; }
 }
+
+/* ---------------------------------------------------------------------------
+   A recording shown for a decision, on the screen it belongs to.
+
+   The window whose screen it is plays it over everything the theme drew; the
+   controller says which it is and what the buttons do, over its own screen dimmed.
+   The surface turns like .vpinfe-upright, and a playfield file turns inside it the
+   way core turns playfield art.
+   --------------------------------------------------------------------------- */
+
+.vpinfe-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483644;      /* under the recording line, the notice and the confirm */
+  background: rgba(0, 0, 0, 0.82);
+  font-family: sans-serif;
+  color: #fff;
+}
+
+.vpinfe-preview[data-shows="media"] {
+  background: #000;
+}
+
+.vpinfe-preview-surface {
+  --vpinfe-preview-w: 100vw;
+  --vpinfe-preview-h: 100vh;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--vpinfe-preview-w);
+  height: var(--vpinfe-preview-h);
+  transform-origin: center center;
+  transform: translate(-50%, -50%);
+}
+
+.vpinfe-preview-surface[data-upright="90"],
+.vpinfe-preview-surface[data-upright="270"] {
+  --vpinfe-preview-w: 100vh;
+  --vpinfe-preview-h: 100vw;
+}
+
+.vpinfe-preview-media {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--vpinfe-preview-w);
+  height: var(--vpinfe-preview-h);
+  object-fit: contain;
+  transform-origin: center center;
+  transform: translate(-50%, -50%);
+}
+
+.vpinfe-preview-media[data-turned="true"] {
+  width: var(--vpinfe-preview-h);
+  height: var(--vpinfe-preview-w);
+}
+
+.vpinfe-preview-missing {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  font-size: clamp(1.5rem, 6vmin, 4rem);
+  opacity: 0.6;
+}
+
+.vpinfe-preview-bar {
+  position: absolute;
+  top: 4vmin;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 90%;
+  padding: 0.7em 1.4em;
+  border-radius: 1rem;
+  background: rgba(20, 20, 24, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  text-align: center;
+}
+
+.vpinfe-preview-title {
+  margin: 0;
+  font-size: clamp(1.2rem, 3.6vmin, 2.8rem);
+  white-space: nowrap;
+}
+
+.vpinfe-preview-hint {
+  margin: 0.4em 0 0;
+  font-size: clamp(0.9rem, 2.2vmin, 1.6rem);
+  opacity: 0.75;
+}
+
+.vpinfe-preview-tag {
+  position: absolute;
+  top: 3vmin;
+  right: 3vmin;
+  padding: 0.4em 1em;
+  border-radius: 999px;
+  background: rgba(20, 20, 24, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: clamp(1rem, 3vmin, 2.2rem);
+}
+
+.vpinfe-preview-tag .vpinfe-preview-title {
+  font-size: inherit;
+}

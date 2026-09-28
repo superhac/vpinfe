@@ -191,7 +191,8 @@ class FrontendStateTests(TempTree):
         self.channel.windows_changed(0)
 
         self.assertEqual(self._assert_agree(),
-                         {"running": False, "collection": "", "game": None})
+                         {"running": False, "collection": "", "game": None,
+                          "preview": None})
         for path, body in (("/frontend/collection", {"name": ""}),
                            ("/frontend/game", {"id": "afm"})):
             with self.subTest(path=path):
