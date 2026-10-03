@@ -93,7 +93,7 @@ class TableParser:
                 table.altColorExists = True
             if "vni" in table_subdirs:
                 table.vniExists = True
-            if "pinmame" in table_subdirs and (table_dir / "pinmame" / "altsound").is_dir():
+            if "altsound" in table_subdirs:
                 table.altSoundExists = True
 
             self.loadImagePaths(

@@ -203,7 +203,7 @@ def parse_table_info(info_path):
             "pup_pack_exists": (Path(table_dir) / "pupvideos").is_dir(),
             "serum_exists": (Path(table_dir) / "serum").is_dir(),
             "vni_exists": (Path(table_dir) / "vni").is_dir(),
-            "alt_sound_exists": (Path(table_dir) / "pinmame" / "altsound").is_dir(),
+            "alt_sound_exists": (Path(table_dir) / "altsound").is_dir(),
 
             # VPinFE settings
             "delete_nvram_on_close": vpinfe.get("deletedNVRamOnClose", False),

@@ -130,7 +130,7 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
         dest = base / "vni" / rom_name / _safe_upload_name(_basename(asset.entries[0].arcname))
         return PlannedItem(asset, str(dest), "copy"), None
     if kind == "altsound":
-        return PlannedItem(asset, str(base / "pinmame" / "altsound" / rom_name), "extract_tree"), None
+        return PlannedItem(asset, str(base / "altsound" / rom_name), "extract_tree"), None
     if kind == "pup_pack":
         return PlannedItem(asset, str(base / "pupvideos"), "extract_tree"), None
     if kind == "music":

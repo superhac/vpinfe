@@ -793,7 +793,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             if not rom_name:
                                 ui.notify('ROM not found. Update metadata first.', type='warning')
                                 return
-                            dest = table_path / 'pinmame' / 'altsound' / rom_name / e.name
+                            dest = table_path / 'altsound' / rom_name / e.name
                             # Read content from SpooledTemporaryFile if needed
                             content = e.content.read() if hasattr(e.content, 'read') else e.content
                             save_upload_bytes(dest, content)
