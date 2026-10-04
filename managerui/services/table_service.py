@@ -387,6 +387,8 @@ def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> di
         lp_orig = launch_env.get('LD_LIBRARY_PATH_ORIG')
         if lp_orig is not None:
             launch_env['LD_LIBRARY_PATH'] = lp_orig
+        else:
+            launch_env.pop('LD_LIBRARY_PATH', None)
 
     cmd = [str(vpxbin_path), "-extractvbs", str(vpx_file)]
     logger.info("Extracting VBS: %s", cmd)

@@ -134,16 +134,22 @@ def launch_table(
             )
             logger.info("Launching: %s", cmd)
             launch_env = os.environ.copy()
-            launch_env.update(parse_launch_env_overrides(settings.vpx_launch_env))
 
             # Prevent usage of bundled libaries on Linux
             # PyInstaller bundles libaries which might be incompatible with the local files.
+            # LD_LIBRARY_PATH beats VPX's RUNPATH, so a bundled lib with a matching soname
+            # (e.g. libdof) would replace VPX's own copy.
             system = platform.system()
             if system == "Linux" and getattr(sys, "frozen", False):
                 lp_key = 'LD_LIBRARY_PATH'
                 lp_orig = launch_env.get(lp_key + '_ORIG')
                 if lp_orig is not None:
                     launch_env[lp_key] = lp_orig  # restore the original, unmodified value
+                else:
+                    launch_env.pop(lp_key, None)  # was unset before PyInstaller added _internal
+
+            # User overrides last, so an explicit LD_LIBRARY_PATH in vpxlaunchenv still wins.
+            launch_env.update(parse_launch_env_overrides(settings.vpx_launch_env))
 
             # Windows only: get our kiosk windows off the desktop before VPX starts.
             # VPX pauses whenever its player window lacks focus, and the Windows
