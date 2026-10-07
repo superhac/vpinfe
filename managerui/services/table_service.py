@@ -161,6 +161,11 @@ def _safe_upload_name(filename: str) -> str:
     return safe_name
 
 
+def backglass_filename_for(vpx_filename: str) -> str:
+    """The name a backglass is saved under beside a table, so B2S Server matches it."""
+    return f"{Path(_safe_upload_name(vpx_filename)).stem}.directb2s"
+
+
 def _find_vpx_file(table_dir: Path, preferred_filename: str = "") -> Path:
     preferred_name = Path(preferred_filename or "").name
     if preferred_name:

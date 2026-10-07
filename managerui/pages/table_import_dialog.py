@@ -288,7 +288,8 @@ def open_import_table_dialog(perform_scan_cb=None):
                 if import_state['directb2s_file']:
                     with client:
                         import_loading_label.set_text('Copying backglass file...')
-                    b2s_name, b2s_bytes = import_state['directb2s_file']
+                    _, b2s_bytes = import_state['directb2s_file']
+                    b2s_name = table_service.backglass_filename_for(vpx_name)
                     await run.io_bound(save_upload_bytes, table_dir / b2s_name, b2s_bytes)
 
                 # Write ROM if provided
