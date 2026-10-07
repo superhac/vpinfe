@@ -130,6 +130,15 @@ class ManagerUiServiceTests(unittest.TestCase):
             self.assertEqual((table_dir / "Example.directb2s").read_bytes(), b"new b2s")
             self.assertEqual(result["filename"], "Example.directb2s")
 
+    def test_backglass_filename_for_follows_the_table_name(self):
+        from managerui.services.table_service import backglass_filename_for
+
+        self.assertEqual(backglass_filename_for("Medieval Madness (Williams 1997).vpx"),
+                         "Medieval Madness (Williams 1997).directb2s")
+        self.assertEqual(backglass_filename_for("Example.v2.VPX"), "Example.v2.directb2s")
+        with self.assertRaises(ValueError):
+            backglass_filename_for("")
+
     def test_resolve_table_dir_rejects_path_traversal(self):
         with self.subTest("valid table"):
             from tempfile import TemporaryDirectory
